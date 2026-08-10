@@ -39,7 +39,8 @@ Diagnostics for invalid subcommands or operational failures.
 
 ## Behavioral Details
 `verify` invokes candidate executables without a shell and checks the internal
-identity output.
+identity output. If a valid command next to the running `posix-tools` executable
+is hidden by a different PATH candidate, the command is reported as `shadowed`.
 
 ## Locale Behavior
 Human-oriented management headings, verification status labels, and diagnostics

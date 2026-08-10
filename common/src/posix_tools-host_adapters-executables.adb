@@ -31,6 +31,44 @@ package body Posix_Tools.Host_Adapters.Executables is
       return Hostkit.Process.Locate (Executable);
    end Locate;
 
+   function Normal_Path (Path : String) return String is
+      Real : constant String := Hostkit.Fs.Real_Path (Path);
+   begin
+      return (if Real = "" then Path else Real);
+   exception
+      when others =>
+         return Path;
+   end Normal_Path;
+
+   function Same_Path (Left : String; Right : String) return Boolean is
+   begin
+      return Left = Right or else Normal_Path (Left) = Normal_Path (Right);
+   end Same_Path;
+
+   function Sibling_Command_Path (Executable : String) return String is
+      Directory : constant String := Hostkit.Fs.Own_Executable_Directory;
+   begin
+      if Directory = "" then
+         return "";
+      end if;
+
+      declare
+         Plain_Path : constant String := Hostkit.Fs.Join (Directory, Executable);
+         Exe_Path   : constant String := Plain_Path & ".exe";
+      begin
+         if Hostkit.Fs.Is_Executable (Plain_Path) then
+            return Plain_Path;
+         elsif Hostkit.Fs.Is_Executable (Exe_Path) then
+            return Exe_Path;
+         else
+            return "";
+         end if;
+      end;
+   exception
+      when others =>
+         return "";
+   end Sibling_Command_Path;
+
    function Read_Text_File (Path : String; Max_Bytes : Natural) return String is
       use Ada.Strings.Unbounded;
       File      : Ada.Text_IO.File_Type;
@@ -80,7 +118,16 @@ package body Posix_Tools.Host_Adapters.Executables is
       Expected_Version : String := Posix_Tools.Version.Version_String) return String
    is
       Located : constant String := Hostkit.Process.Locate (Executable);
+      Sibling : constant String := Sibling_Command_Path (Executable);
    begin
+      if Located /= ""
+        and then Sibling /= ""
+        and then not Same_Path (Located, Sibling)
+        and then Verify_Identity_At_Path (Executable, Sibling, Expected_Version) = "ok"
+      then
+         return "shadowed";
+      end if;
+
       return Verify_Identity_At_Path (Executable, Located, Expected_Version);
    end Verify_Identity;
 

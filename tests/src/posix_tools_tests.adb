@@ -263,6 +263,12 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Max_Identity_Output_Bytes");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "return ""shadowed""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-environment.adb", "with Ada.Environment_Variables;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Ada.Directories;");
@@ -480,6 +486,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "CONTEXT-CHUNK-ITERATION-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-LIST-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-BOUNDED-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-SHADOWED-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");

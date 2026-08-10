@@ -39,6 +39,8 @@ package body Posix_Tools.Commands.Root is
          return Local_Text (Context, "posix_tools.root.status.not_executable", Status);
       elsif Status = "ok" then
          return Local_Text (Context, "posix_tools.root.status.ok", Status);
+      elsif Status = "shadowed" then
+         return Local_Text (Context, "posix_tools.root.status.shadowed", Status);
       elsif Status = "unverifiable" then
          return Local_Text (Context, "posix_tools.root.status.unverifiable", Status);
       elsif Status = "wrong project" then
