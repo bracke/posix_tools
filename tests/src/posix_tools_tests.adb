@@ -1235,6 +1235,26 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-wc.adb",
          "Ada.Streams.Stream_IO",
          "wc command must use shared file helpers for file chunk iteration");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "procedure For_Each_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Action (Context, Buffer, Last)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "For_Each_File_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "File_Helpers.For_Each_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Action => Retain_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Action => Emit_From_Start");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "File_Helpers.For_Each_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Action => Count_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc default and mixed text");
       Forbid_Text
         ("common/src/posix_tools-commands-head.adb",
          "Requested : Posix_Tools.Numbers.Count := 10;",
