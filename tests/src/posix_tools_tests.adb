@@ -736,6 +736,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "documentation_path");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "INVENTORY-STRUCTURE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CONFORMANCE-IMPLEMENTATION-REFS-001");
@@ -1084,6 +1086,8 @@ procedure Posix_Tools_Tests is
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/requirements.csv"));
       Regressions : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/regressions.csv"));
+      Inventory_Csv : constant String :=
+        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/command_inventory.csv"));
 
       type Requirement_Row is record
          Id : Unbounded_String;
@@ -1428,6 +1432,100 @@ procedure Posix_Tools_Tests is
          end if;
       end Check_Regression_Row;
 
+      function Inventory_Boolean_Text (Value : Boolean) return String is
+      begin
+         if Value then
+            return "true";
+         else
+            return "false";
+         end if;
+      end Inventory_Boolean_Text;
+
+      procedure Check_Inventory_Path (Executable : String; Path : String; Label : String) is
+      begin
+         if Path = "" then
+            Project_Tools.Release_Checks.Fail
+              ("inventory row for " & Executable & " has empty " & Label);
+         elsif not Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Path)) then
+            Project_Tools.Release_Checks.Fail
+              ("inventory row for " & Executable & " references missing " & Label & " " & Path);
+         end if;
+      end Check_Inventory_Path;
+
+      procedure Require_Inventory_Field
+        (Executable : String;
+         Label      : String;
+         Actual     : String;
+         Expected   : String) is
+      begin
+         if Actual /= Expected then
+            Project_Tools.Release_Checks.Fail
+              ("inventory row for " & Executable & " has " & Label & " '" & Actual
+               & "' but expected '" & Expected & "'");
+         end if;
+      end Require_Inventory_Field;
+
+      procedure Check_Inventory_Row (Line : String; Number : Positive) is
+         Index : constant Positive := Number - 1;
+         Executable : constant String := Field (Line, 1);
+         Wrapper_Path : constant String :=
+           "tools/" & Executable & "/src/" & Executable & ".adb";
+      begin
+         if Field_Count (Line) /= 11 then
+            Project_Tools.Release_Checks.Fail
+              ("command inventory row has wrong field count at line" & Positive'Image (Number));
+         elsif Index > Posix_Tools.Command_Inventory.Command_Count then
+            Project_Tools.Release_Checks.Fail
+              ("command inventory has unexpected extra row at line" & Positive'Image (Number));
+         end if;
+
+         Require_Inventory_Field
+           (Executable, "executable", Executable, Posix_Tools.Command_Inventory.Executable (Index));
+         Require_Inventory_Field
+           (Executable, "crate", Field (Line, 2), Posix_Tools.Command_Inventory.Crate (Index));
+         Require_Inventory_Field
+           (Executable, "package", Field (Line, 3), Posix_Tools.Command_Inventory.Package_Name (Index));
+         Require_Inventory_Field
+           (Executable, "manifest path", Field (Line, 4), Posix_Tools.Command_Inventory.Manifest_Path (Index));
+         Require_Inventory_Field
+           (Executable,
+            "project file path",
+            Field (Line, 5),
+            Posix_Tools.Command_Inventory.Project_File_Path (Index));
+         Require_Inventory_Field
+           (Executable,
+            "documentation path",
+            Field (Line, 6),
+            Posix_Tools.Command_Inventory.Documentation_Path (Index));
+         Require_Inventory_Field
+           (Executable,
+            "release flag",
+            Field (Line, 7),
+            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (Index)));
+         Require_Inventory_Field
+           (Executable, "POSIX status", Field (Line, 8), Posix_Tools.Command_Inventory.Posix_Status (Index));
+         Require_Inventory_Field
+           (Executable,
+            "help flag",
+            Field (Line, 9),
+            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (Index)));
+         Require_Inventory_Field
+           (Executable,
+            "version flag",
+            Field (Line, 10),
+            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (Index)));
+         Require_Inventory_Field
+           (Executable,
+            "identity flag",
+            Field (Line, 11),
+            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (Index)));
+
+         Check_Inventory_Path (Executable, Field (Line, 4), "manifest path");
+         Check_Inventory_Path (Executable, Field (Line, 5), "project file path");
+         Check_Inventory_Path (Executable, Field (Line, 6), "documentation path");
+         Check_Inventory_Path (Executable, Wrapper_Path, "wrapper source path");
+      end Check_Inventory_Row;
+
       function Contains_Token (Text : String; Token : String) return Boolean is
          Start : Positive := Text'First;
       begin
@@ -1695,9 +1793,59 @@ procedure Posix_Tools_Tests is
             end;
          end if;
       end Check_Regression_Rows;
+
+      procedure Check_Inventory_Rows is
+         Start : Positive := Inventory_Csv'First;
+         Line_Number : Positive := 1;
+         Row_Count : Natural := 0;
+      begin
+         if Inventory_Csv = "" then
+            Project_Tools.Release_Checks.Fail ("command inventory is empty");
+         end if;
+
+         for I in Inventory_Csv'Range loop
+            if Inventory_Csv (I) = Character'Val (10) then
+               if I > Start then
+                  declare
+                     Line : constant String := Without_Trailing_CR (Inventory_Csv (Start .. I - 1));
+                  begin
+                     if Line_Number = 1 then
+                        if Line /=
+                          "executable,crate,package,manifest_path,project_file_path,documentation_path,"
+                          & "release_included,posix_status,help,version,identity"
+                        then
+                           Project_Tools.Release_Checks.Fail ("command inventory header is invalid");
+                        end if;
+                     else
+                        Check_Inventory_Row (Line, Line_Number);
+                        Row_Count := Row_Count + 1;
+                     end if;
+                  end;
+               end if;
+
+               Line_Number := Line_Number + 1;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Inventory_Csv'Last then
+            declare
+               Line : constant String := Without_Trailing_CR (Inventory_Csv (Start .. Inventory_Csv'Last));
+            begin
+               Check_Inventory_Row (Line, Line_Number);
+               Row_Count := Row_Count + 1;
+            end;
+         end if;
+
+         if Row_Count /= Posix_Tools.Command_Inventory.Command_Count then
+            Project_Tools.Release_Checks.Fail
+              ("command inventory row count does not match compiled inventory");
+         end if;
+      end Check_Inventory_Rows;
    begin
       Check_Requirement_Rows;
       Check_Regression_Rows;
+      Check_Inventory_Rows;
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          if not Has_Command_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
             Project_Tools.Release_Checks.Fail

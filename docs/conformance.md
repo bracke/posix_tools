@@ -23,7 +23,10 @@ identifiers in the linked documentation, and coverage for every released
 command in the compiled inventory. It also validates the regression registry
 for row shape, stable regression identifier syntax, duplicate identifiers,
 required command and summary fields, and linked AUnit or explicit validation
-artifacts.
+artifacts. The same conformance pass validates the generated command inventory
+CSV header, row count, deterministic ordering, field values against the
+compiled Ada inventory, and existence of every referenced command manifest,
+project file, reference document, and wrapper source.
 
 The metadata release gate requires each per-command reference document,
 including the non-POSIX root executable reference, to carry the V1 command
