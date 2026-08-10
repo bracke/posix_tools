@@ -1,0 +1,1094 @@
+with Ada.Command_Line;
+with Ada.Directories;
+with Ada.Strings.Unbounded;
+with Ada.Text_IO;
+with AUnit.Options;
+with AUnit.Reporter.Text;
+with AUnit.Run;
+with AUnit.Test_Filters;
+with All_Suites;
+with Posix_Tools.Command_Inventory;
+with Posix_Tools.Host_Adapters.Executables;
+with Posix_Tools.Version;
+with Project_Tools.Files;
+with Project_Tools.Processes;
+with Project_Tools.Release_Checks;
+
+procedure Posix_Tools_Tests is
+   procedure Runner is new AUnit.Run.Test_Runner (All_Suites.Suite);
+
+   Reporter : AUnit.Reporter.Text.Text_Reporter;
+   Options  : AUnit.Options.AUnit_Options :=
+     (Global_Timer     => False,
+      Test_Case_Timer  => False,
+      Report_Successes => True,
+      Filter           => null);
+   Name_Filter : aliased AUnit.Test_Filters.Name_Filter;
+
+   Command : constant String :=
+     (if Ada.Command_Line.Argument_Count = 0 then "test" else Ada.Command_Line.Argument (1));
+   Invalid_Usage : exception;
+
+   function Root return String is
+   begin
+      if Project_Tools.Files.File_Exists ("alire.toml")
+        and then Project_Tools.Files.Directory_Exists ("common")
+      then
+         return ".";
+      else
+         return "..";
+      end if;
+   end Root;
+
+   procedure Run_Metadata_Checks is
+      Check : constant Project_Tools.Release_Checks.Checker :=
+        Project_Tools.Release_Checks.Create (Root);
+      Root_Manifest : constant String :=
+        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "alire.toml"));
+
+      procedure Require_Synchronized_Version (Path : String) is
+      begin
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Path, Posix_Tools.Version.Version_String);
+      end Require_Synchronized_Version;
+
+      procedure Forbid_Text (Path : String; Text : String; Message : String) is
+      begin
+         if Project_Tools.Files.File_Contains (Project_Tools.Files.Join (Root, Path), Text) then
+            Project_Tools.Release_Checks.Fail (Message);
+         end if;
+      end Forbid_Text;
+
+      function Line_Count (Path : String) return Natural is
+         Content : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+         Count   : Natural := 0;
+      begin
+         for Ch of Content loop
+            if Ch = Character'Val (10) then
+               Count := Count + 1;
+            end if;
+         end loop;
+
+         if Content'Length > 0 and then Content (Content'Last) /= Character'Val (10) then
+            Count := Count + 1;
+         end if;
+
+         return Count;
+      end Line_Count;
+
+      function Command_Source_Path (Executable : String) return String is
+      begin
+         if Executable = "false" then
+            return "common/src/posix_tools-commands-false_command.adb";
+         elsif Executable = "true" then
+            return "common/src/posix_tools-commands-true_command.adb";
+         else
+            return "common/src/posix_tools-commands-" & Executable & ".adb";
+         end if;
+      end Command_Source_Path;
+   begin
+      if Project_Tools.Files.File_Contains
+        (Project_Tools.Files.Join (Root, "alire.toml"), "i18n =")
+        or else Project_Tools.Files.File_Contains
+          (Project_Tools.Files.Join (Root, "alire.toml"), "hostkit =")
+        or else Project_Tools.Files.File_Contains
+          (Project_Tools.Files.Join (Root, "alire.toml"), "messages =")
+        or else Project_Tools.Files.File_Contains
+          (Project_Tools.Files.Join (Root, "alire.toml"), "terminal_styles =")
+      then
+         Project_Tools.Release_Checks.Fail ("root manifest has prohibited direct external dependency");
+      end if;
+
+      if Root_Manifest = "" then
+         Project_Tools.Release_Checks.Fail ("root manifest could not be read");
+      end if;
+
+      if Project_Tools.Files.File_Contains
+        (Project_Tools.Files.Join (Root, "common/alire.toml"), "i18n =")
+        or else Project_Tools.Files.File_Contains
+          (Project_Tools.Files.Join (Root, "common/posix_tools_common.gpr"), "i18n.gpr")
+      then
+         Project_Tools.Release_Checks.Fail ("common crate has prohibited direct i18n dependency");
+      end if;
+
+      Project_Tools.Release_Checks.Require_File (Check, "alire.toml");
+      Project_Tools.Release_Checks.Require_File (Check, "posix_tools.gpr");
+      Project_Tools.Release_Checks.Require_File (Check, "common/alire.toml");
+      Project_Tools.Release_Checks.Require_File (Check, "common/posix_tools_common.gpr");
+      Project_Tools.Release_Checks.Require_File (Check, "common/messages/posix_tools.catalog");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-localization.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-presentation.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-host_adapters-terminals.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-classification.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
+      Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/command_inventory.csv");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/manual-index.md");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/package-manifest.txt");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/release-checksums.txt");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/requirements.csv");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/regressions.csv");
+      Project_Tools.Release_Checks.Require_File (Check, ".github/workflows/ci.yml");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/ai.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/architecture.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/development.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/portability.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/release-process.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/security.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/testing.md");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Prohibited Imports");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
+      Require_Synchronized_Version ("alire.toml");
+      Require_Synchronized_Version ("common/alire.toml");
+      Require_Synchronized_Version ("tests/alire.toml");
+      Require_Synchronized_Version ("common/src/posix_tools-version.ads");
+      Require_Synchronized_Version ("CHANGELOG.md");
+      Require_Synchronized_Version ("generated/manual-index.md");
+      Require_Synchronized_Version ("generated/package-manifest.txt");
+      Require_Synchronized_Version ("generated/release-checksums.txt");
+      Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
+      Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
+      Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.help.usage = Brug");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.option.unknown");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "en.posix_tools.diagnostic.line_count.invalid");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.file.read_failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.internal_failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.text.invalid_utf8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.pwd.unavailable");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.resource.count_too_large");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "with Terminal_Styles;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "with Hostkit.Host;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Max_Identity_Output_Bytes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-environment.adb", "with Ada.Environment_Variables;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Ada.Directories;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "Hostkit.Metadata.Same_File");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-arguments.adb", "with Ada.Command_Line;");
+      Forbid_Text
+        ("common/src/posix_tools-arguments.adb",
+         "Ada.Command_Line",
+         "argument value type must not capture process command-line state");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd stale PWD fallback output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.ads", "Try_Physical_Current_Directory");
+      Forbid_Text
+        ("common/src/posix_tools-commands-pwd.adb",
+         "when others",
+         "pwd must report expected current-directory failures through context results");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Ada.Text_IO.Text_Streams");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "build common crate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "posix_tools.gpr", "for Body (""Posix_Tools_Main"") use ""posix-tools.adb""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tools/false/posix_tools_false.gpr", "for Body (""Posix_Tools_False_Main"") use ""false.adb""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tools/true/posix_tools_true.gpr", "for Body (""Posix_Tools_True_Main"") use ""true.adb""");
+      Forbid_Text
+        ("common/src/posix_tools-commands-contexts.adb",
+         "with Hostkit",
+         "command context must use project host adapters instead of hostkit directly");
+      Forbid_Text
+        ("common/src/posix_tools-commands-contexts.adb",
+         "with Ada.Directories",
+         "command context must use project filesystem adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-contexts.adb",
+         "with Ada.Environment_Variables",
+         "command context must use project environment adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-contexts.adb",
+         "with Ada.Text_IO",
+         "command context must use project stream adapter");
+      Forbid_Text
+        ("common/src/posix_tools-help.adb",
+         "with Terminal_Styles",
+         "help renderer must use project presentation adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-root.adb",
+         "with Terminal_Styles",
+         "root command must use project presentation adapter");
+      Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "posix_tools_common =");
+      Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "aunit =");
+      Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "project_tools =");
+      Forbid_Text ("common/alire.toml", "aunit =", "common manifest must not depend on aunit");
+      Forbid_Text
+        ("common/alire.toml", "project_tools =", "common manifest must not depend on project_tools");
+      Forbid_Text
+        ("common/src/posix_tools-commands-file_helpers.adb",
+         "Ada.Text_IO.Standard_Input",
+         "file helpers must read standard input through command context");
+      Forbid_Text
+        ("common/src/posix_tools-commands-file_helpers.adb",
+         "Ada.Streams.Stream_IO",
+         "file helpers must use project filesystem adapters for file operands");
+      Forbid_Text
+        ("common/src/posix_tools-commands-tail.adb",
+         "Ada.Text_IO.Standard_Input",
+         "tail must read standard input through command context");
+      Forbid_Text
+        ("common/src/posix_tools-commands-tail.adb",
+         "Ada.Streams.Stream_IO",
+         "tail command must use shared file helpers for file chunk iteration");
+      Forbid_Text
+        ("common/src/posix_tools-commands-wc.adb",
+         "Ada.Text_IO.Standard_Input",
+         "wc must read standard input through command context");
+      Forbid_Text
+        ("common/src/posix_tools-commands-wc.adb",
+         "Ada.Streams.Stream_IO",
+         "wc command must use shared file helpers for file chunk iteration");
+      Forbid_Text
+        ("common/src/posix_tools-commands-head.adb",
+         "Requested : Posix_Tools.Numbers.Count := 10;",
+         "head must not keep requested line count in package-level mutable state");
+      Forbid_Text
+        ("common/src/posix_tools-commands-tail.adb",
+         "Seen      : Posix_Tools.Numbers.Count := 0;",
+         "tail must not keep line position in package-level mutable state");
+      Forbid_Text
+        ("common/src/posix_tools-commands-tail.adb",
+         "Buffer    : Lines.Vector;",
+         "tail must not keep retained lines in package-level mutable state");
+      Project_Tools.Release_Checks.Require_Directory (Check, "docs/commands");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/index.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/basename.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/cat.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/dirname.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/echo.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/false.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/head.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/posix-tools.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/pwd.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/tail.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/true.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/wc.md");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_File
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Require_Synchronized_Version (Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "licenses = ""MIT""");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "maintainers =");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[build-profiles]");
+         Forbid_Text
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "aunit =",
+            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on aunit");
+         Forbid_Text
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "project_tools =",
+            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on project_tools");
+         Forbid_Text
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "hostkit =",
+            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on hostkit");
+         Forbid_Text
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "messages =",
+            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on messages");
+         Forbid_Text
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "terminal_styles =",
+            Posix_Tools.Command_Inventory.Executable (I)
+            & " manifest must not depend on terminal_styles");
+         Project_Tools.Release_Checks.Require_File
+           (Check, Posix_Tools.Command_Inventory.Project_File_Path (I));
+         Project_Tools.Release_Checks.Require_File
+           (Check, "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb",
+            "Posix_Tools.Host_Adapters.Run_Command");
+         declare
+            Wrapper : constant String :=
+              "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+              & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb";
+            Command_Source : constant String :=
+              Command_Source_Path (Posix_Tools.Command_Inventory.Executable (I));
+         begin
+            if Line_Count (Wrapper) > 20 then
+               Project_Tools.Release_Checks.Fail
+                 (Posix_Tools.Command_Inventory.Executable (I) & " wrapper is not thin");
+            end if;
+
+            Forbid_Text
+              (Wrapper, "with Ada.", Posix_Tools.Command_Inventory.Executable (I)
+               & " wrapper must not import Ada services directly");
+            Forbid_Text
+              (Wrapper, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
+               & " wrapper must not import hostkit directly");
+            Forbid_Text
+              (Wrapper, "Text_IO", Posix_Tools.Command_Inventory.Executable (I)
+               & " wrapper must not perform text I/O");
+            Forbid_Text
+              (Wrapper, "Stream_IO", Posix_Tools.Command_Inventory.Executable (I)
+               & " wrapper must not perform stream I/O");
+            Forbid_Text
+              (Wrapper, "Command_Line", Posix_Tools.Command_Inventory.Executable (I)
+               & " wrapper must not read command-line state directly");
+
+            Forbid_Text
+              (Command_Source, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must use project host adapters instead of hostkit directly");
+            Forbid_Text
+              (Command_Source, "with Messages", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must use localization adapter instead of messages directly");
+            Forbid_Text
+              (Command_Source, "with Terminal_Styles", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must keep styling at presentation boundaries");
+            Forbid_Text
+              (Command_Source, "with AUnit", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must not depend on tests");
+            Forbid_Text
+              (Command_Source, "with Project_Tools", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must not depend on tooling");
+         end;
+      end loop;
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "POSIX-WC-UTF8-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-UTF8-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-WHITESPACE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/generated/posix_tools-text-whitespace_data.ads", "Unicode_Version");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/generated/posix_tools-text-whitespace_data.ads", "White_Space_Ranges");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-classification.adb", "Whitespace_Data.Is_Whitespace");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "HOST-ADAPTER-FILE-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "NONPOSIX-WC-LINE-LENGTH-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "VERSION-GENERATION-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "POSIX-TAIL-COMPACT-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "STATE-HEAD-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "STATE-TAIL-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "CONTEXT-STDIN-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "CONTEXT-STDOUT-FAIL-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "CONTEXT-STDOUT-FAIL-002");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "CONTEXT-CHUNK-ITERATION-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-LIST-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-BOUNDED-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-latest");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "release-check");
+      Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/man/posix-tools.1");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDIN-0001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDOUT-0001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0006");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0007");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "documentation_path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "docs/commands/wc.md");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "alire.toml");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/alire.toml");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/architecture.md");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/conformance.md");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/testing.md");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "src/posix-tools.adb");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "common/src/posix_tools-version.ads");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "common/src/posix_tools-commands-cat.adb");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "common/src/posix_tools-streams-counting.adb");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "tests/alire.toml");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "tests/src/posix_tools_tests.adb");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "tests/src/test_contexts.ads");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_Manifest_Entry
+           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+            Root,
+            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+         Project_Tools.Release_Checks.Require_Manifest_Entry
+           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+            Root,
+            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1",
+            ".TH " & Posix_Tools.Command_Inventory.Executable (I) & " 1");
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            "generated/release-checksums.txt",
+            "executable tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
+      end loop;
+      Project_Tools.Release_Checks.Require_Text (Check, "README.md", "posix_tools");
+      Ada.Text_IO.Put_Line ("metadata checks passed");
+   end Run_Metadata_Checks;
+
+   procedure Generate_Docs is
+      use Ada.Strings.Unbounded;
+      Content : Unbounded_String;
+      Base    : constant String := Root;
+      Man_Dir : constant String := Project_Tools.Files.Join (Base, "generated/man");
+
+      procedure Generate_Manpage (Index : Positive) is
+         Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+         Page    : Unbounded_String;
+      begin
+         Append (Page, ".TH " & Command & " 1" & Character'Val (10));
+         Append (Page, ".SH NAME" & Character'Val (10));
+         Append (Page, Command & " - posix-tools command" & Character'Val (10));
+         Append (Page, ".SH SYNOPSIS" & Character'Val (10));
+         Append (Page, Command & " [--help] [--version]" & Character'Val (10));
+         Append (Page, ".SH DESCRIPTION" & Character'Val (10));
+         Append
+           (Page,
+            "Generated manual page for " & Command & " from the posix-tools "
+            & Posix_Tools.Version.Version_String & " command inventory."
+            & Character'Val (10));
+         Append (Page, ".SH CONFORMANCE" & Character'Val (10));
+         Append (Page, Posix_Tools.Command_Inventory.Posix_Status (Index) & Character'Val (10));
+         Append (Page, ".SH SEE ALSO" & Character'Val (10));
+         Append (Page, Posix_Tools.Command_Inventory.Documentation_Path (Index) & Character'Val (10));
+
+         Project_Tools.Files.Write_Text_File
+           (Project_Tools.Files.Join (Man_Dir, Command & ".1"), To_String (Page));
+      end Generate_Manpage;
+
+      procedure Generate_Root_Manpage is
+         Page : Unbounded_String;
+      begin
+         Append (Page, ".TH posix-tools 1" & Character'Val (10));
+         Append (Page, ".SH NAME" & Character'Val (10));
+         Append (Page, "posix-tools - manage the posix-tools executable suite" & Character'Val (10));
+         Append (Page, ".SH SYNOPSIS" & Character'Val (10));
+         Append (Page, "posix-tools help|version|list|paths|verify" & Character'Val (10));
+         Append (Page, ".SH DESCRIPTION" & Character'Val (10));
+         Append
+           (Page,
+            "Generated manual page for the posix-tools "
+            & Posix_Tools.Version.Version_String
+            & " root management executable. This executable is outside POSIX conformance claims."
+            & Character'Val (10));
+         Append (Page, ".SH SEE ALSO" & Character'Val (10));
+         Append (Page, "docs/commands/posix-tools.md" & Character'Val (10));
+
+         Project_Tools.Files.Write_Text_File
+           (Project_Tools.Files.Join (Man_Dir, "posix-tools.1"), To_String (Page));
+      end Generate_Root_Manpage;
+   begin
+      if not Ada.Directories.Exists (Man_Dir) then
+         Ada.Directories.Create_Directory (Man_Dir);
+      end if;
+
+      Generate_Root_Manpage;
+      Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
+      Append
+        (Content,
+         "Version: " & Posix_Tools.Version.Version_String
+         & Character'Val (10) & Character'Val (10));
+
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Generate_Manpage (I);
+         Append
+           (Content,
+            "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`: "
+            & Posix_Tools.Command_Inventory.Documentation_Path (I)
+            & Character'Val (10));
+      end loop;
+
+      Project_Tools.Files.Write_Text_File
+        (Project_Tools.Files.Join (Base, "generated/manual-index.md"), To_String (Content));
+      Ada.Text_IO.Put_Line ("generated/manual-index.md");
+      Ada.Text_IO.Put_Line ("generated/man/*.1");
+   end Generate_Docs;
+
+   procedure Generate_Package_Manifest is
+      use Ada.Strings.Unbounded;
+      Content : Unbounded_String;
+      Base    : constant String := Root;
+
+      procedure Add_Entry (Relative_Path : String) is
+      begin
+         Append
+           (Content,
+            Project_Tools.Release_Checks.Manifest_Line (Base, Relative_Path)
+            & Character'Val (10));
+      end Add_Entry;
+   begin
+      Append
+        (Content,
+         "posix-tools package manifest " & Posix_Tools.Version.Version_String
+         & Character'Val (10));
+      Add_Entry ("alire.toml");
+      Add_Entry ("posix_tools.gpr");
+      Add_Entry ("README.md");
+      Add_Entry ("LICENSE");
+      Add_Entry (".github/workflows/ci.yml");
+      Add_Entry ("generated/command_inventory.csv");
+      Add_Entry ("generated/requirements.csv");
+      Add_Entry ("generated/regressions.csv");
+      Add_Entry ("generated/manual-index.md");
+      Add_Entry ("generated/man/posix-tools.1");
+      Add_Entry ("CHANGELOG.md");
+      Add_Entry ("SECURITY.md");
+      Add_Entry ("docs/ai.md");
+      Add_Entry ("docs/architecture.md");
+      Add_Entry ("docs/conformance.md");
+      Add_Entry ("docs/development.md");
+      Add_Entry ("docs/portability.md");
+      Add_Entry ("docs/release-process.md");
+      Add_Entry ("docs/security.md");
+      Add_Entry ("docs/testing.md");
+      Add_Entry ("src/posix-tools.adb");
+      Add_Entry ("common/alire.toml");
+      Add_Entry ("common/posix_tools_common.gpr");
+      Add_Entry ("common/src/posix_tools.ads");
+      Add_Entry ("common/src/posix_tools-arguments.adb");
+      Add_Entry ("common/src/posix_tools-arguments.ads");
+      Add_Entry ("common/src/posix_tools-arguments-parsing.adb");
+      Add_Entry ("common/src/posix_tools-arguments-parsing.ads");
+      Add_Entry ("common/src/posix_tools-command_inventory.adb");
+      Add_Entry ("common/src/posix_tools-command_inventory.ads");
+      Add_Entry ("common/src/posix_tools-commands.ads");
+      Add_Entry ("common/src/posix_tools-commands-basename.adb");
+      Add_Entry ("common/src/posix_tools-commands-basename.ads");
+      Add_Entry ("common/src/posix_tools-commands-cat.adb");
+      Add_Entry ("common/src/posix_tools-commands-cat.ads");
+      Add_Entry ("common/src/posix_tools-commands-contexts.adb");
+      Add_Entry ("common/src/posix_tools-commands-contexts.ads");
+      Add_Entry ("common/src/posix_tools-commands-dirname.adb");
+      Add_Entry ("common/src/posix_tools-commands-dirname.ads");
+      Add_Entry ("common/src/posix_tools-commands-echo.adb");
+      Add_Entry ("common/src/posix_tools-commands-echo.ads");
+      Add_Entry ("common/src/posix_tools-commands-false_command.adb");
+      Add_Entry ("common/src/posix_tools-commands-false_command.ads");
+      Add_Entry ("common/src/posix_tools-commands-file_helpers.adb");
+      Add_Entry ("common/src/posix_tools-commands-file_helpers.ads");
+      Add_Entry ("common/src/posix_tools-commands-head.adb");
+      Add_Entry ("common/src/posix_tools-commands-head.ads");
+      Add_Entry ("common/src/posix_tools-commands-helpers.adb");
+      Add_Entry ("common/src/posix_tools-commands-helpers.ads");
+      Add_Entry ("common/src/posix_tools-commands-pwd.adb");
+      Add_Entry ("common/src/posix_tools-commands-pwd.ads");
+      Add_Entry ("common/src/posix_tools-commands-results.ads");
+      Add_Entry ("common/src/posix_tools-commands-root.adb");
+      Add_Entry ("common/src/posix_tools-commands-root.ads");
+      Add_Entry ("common/src/posix_tools-commands-tail.adb");
+      Add_Entry ("common/src/posix_tools-commands-tail.ads");
+      Add_Entry ("common/src/posix_tools-commands-true_command.adb");
+      Add_Entry ("common/src/posix_tools-commands-true_command.ads");
+      Add_Entry ("common/src/posix_tools-commands-wc.adb");
+      Add_Entry ("common/src/posix_tools-commands-wc.ads");
+      Add_Entry ("common/src/posix_tools-exit_status.ads");
+      Add_Entry ("common/src/posix_tools-help.adb");
+      Add_Entry ("common/src/posix_tools-help.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-arguments.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-arguments.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-environment.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-environment.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-executables.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-executables.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-file_system.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-file_system.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-run_command.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-run_command.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-streams.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-terminals.ads");
+      Add_Entry ("common/src/posix_tools-localization.adb");
+      Add_Entry ("common/src/posix_tools-localization.ads");
+      Add_Entry ("common/src/posix_tools-numbers.adb");
+      Add_Entry ("common/src/posix_tools-numbers.ads");
+      Add_Entry ("common/src/posix_tools-paths.adb");
+      Add_Entry ("common/src/posix_tools-paths.ads");
+      Add_Entry ("common/src/posix_tools-presentation.adb");
+      Add_Entry ("common/src/posix_tools-presentation.ads");
+      Add_Entry ("common/src/posix_tools-streams.ads");
+      Add_Entry ("common/src/posix_tools-streams-counting.adb");
+      Add_Entry ("common/src/posix_tools-streams-counting.ads");
+      Add_Entry ("common/src/posix_tools-streams-lines.adb");
+      Add_Entry ("common/src/posix_tools-streams-lines.ads");
+      Add_Entry ("common/src/posix_tools-text.ads");
+      Add_Entry ("common/src/posix_tools-text-classification.adb");
+      Add_Entry ("common/src/posix_tools-text-classification.ads");
+      Add_Entry ("common/src/posix_tools-text-utf_8.adb");
+      Add_Entry ("common/src/posix_tools-text-utf_8.ads");
+      Add_Entry ("common/generated/posix_tools-text-whitespace_data.adb");
+      Add_Entry ("common/generated/posix_tools-text-whitespace_data.ads");
+      Add_Entry ("common/src/posix_tools-version.ads");
+      Add_Entry ("common/messages/posix_tools.catalog");
+      Add_Entry ("tests/alire.toml");
+      Add_Entry ("tests/posix_tools_tests.gpr");
+      Add_Entry ("tests/src/all_suites.adb");
+      Add_Entry ("tests/src/all_suites.ads");
+      Add_Entry ("tests/src/basic_tests-suite.adb");
+      Add_Entry ("tests/src/basic_tests-suite.ads");
+      Add_Entry ("tests/src/basic_tests.adb");
+      Add_Entry ("tests/src/basic_tests.ads");
+      Add_Entry ("tests/src/command_tests-suite.adb");
+      Add_Entry ("tests/src/command_tests-suite.ads");
+      Add_Entry ("tests/src/command_tests.adb");
+      Add_Entry ("tests/src/command_tests.ads");
+      Add_Entry ("tests/src/posix_tools_tests.adb");
+      Add_Entry ("tests/src/test_contexts.adb");
+      Add_Entry ("tests/src/test_contexts.ads");
+
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
+         Add_Entry (Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Add_Entry (Posix_Tools.Command_Inventory.Project_File_Path (I));
+         Add_Entry
+           ("tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+         Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
+      end loop;
+
+      Project_Tools.Files.Write_Text_File
+        (Project_Tools.Files.Join (Base, "generated/package-manifest.txt"), To_String (Content));
+      Ada.Text_IO.Put_Line ("generated/package-manifest.txt");
+   end Generate_Package_Manifest;
+
+   procedure Generate_Release_Checksums is
+      use Ada.Strings.Unbounded;
+      Content : Unbounded_String;
+      Base    : constant String := Root;
+
+      procedure Add_File (Label : String; Path : String) is
+      begin
+         Append
+           (Content,
+            Label & " " & Path
+            & " fnv1a64=" & Project_Tools.Release_Checks.FNV1A64 (Project_Tools.Files.Join (Base, Path))
+            & Character'Val (10));
+      end Add_File;
+   begin
+      Append
+        (Content,
+         "posix-tools release checksums " & Posix_Tools.Version.Version_String
+         & Character'Val (10));
+      Add_File ("manifest", "generated/package-manifest.txt");
+
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Add_File
+           ("executable",
+            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+            & "/bin/" & Posix_Tools.Command_Inventory.Executable (I));
+      end loop;
+
+      Add_File ("executable", "bin/posix-tools");
+
+      Project_Tools.Files.Write_Text_File
+        (Project_Tools.Files.Join (Base, "generated/release-checksums.txt"), To_String (Content));
+      Ada.Text_IO.Put_Line ("generated/release-checksums.txt");
+   end Generate_Release_Checksums;
+
+   procedure Run_Conformance_Checks is
+      Check : constant Project_Tools.Release_Checks.Checker :=
+        Project_Tools.Release_Checks.Create (Root);
+   begin
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_Text
+           (Check, "generated/requirements.csv", Posix_Tools.Command_Inventory.Executable (I));
+      end loop;
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "Known deviation");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/conformance.md", "POSIX.1-2024");
+      Ada.Text_IO.Put_Line ("conformance metadata checks passed");
+   end Run_Conformance_Checks;
+
+   function Ends_With (Text : String; Suffix : String) return Boolean is
+   begin
+      return Text'Length >= Suffix'Length
+        and then Text (Text'Last - Suffix'Length + 1 .. Text'Last) = Suffix;
+   end Ends_With;
+
+   function Is_Checked_Text_File (Path : String) return Boolean is
+   begin
+      return Ends_With (Path, ".adb")
+        or else Ends_With (Path, ".ads")
+        or else Ends_With (Path, ".gpr")
+        or else Ends_With (Path, ".toml")
+        or else Ends_With (Path, ".md")
+        or else Ends_With (Path, ".csv")
+        or else Ends_With (Path, ".txt");
+   end Is_Checked_Text_File;
+
+   function Has_Tab (Text : String) return Boolean is
+   begin
+      for Ch of Text loop
+         if Ch = Character'Val (9) then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Tab;
+
+   function Has_Trailing_Whitespace (Text : String) return Boolean is
+      Line_Last : Natural := 0;
+   begin
+      for I in Text'Range loop
+         if Text (I) = Character'Val (10) then
+            declare
+               Last : Natural := I - 1;
+            begin
+               if Last >= Text'First and then Text (Last) = Character'Val (13) then
+                  Last := Last - 1;
+               end if;
+
+               if Last >= Line_Last
+                 and then (Text (Last) = ' ' or else Text (Last) = Character'Val (9))
+               then
+                  return True;
+               end if;
+            end;
+            Line_Last := I + 1;
+         end if;
+      end loop;
+
+      return Text'Length > 0
+        and then (Text (Text'Last) = ' ' or else Text (Text'Last) = Character'Val (9));
+   end Has_Trailing_Whitespace;
+
+   function Has_Multiple_Blank_Lines (Text : String) return Boolean is
+      Previous_Blank : Boolean := False;
+      Line_Has_Text  : Boolean := False;
+   begin
+      for Ch of Text loop
+         if Ch = Character'Val (10) then
+            if not Line_Has_Text then
+               if Previous_Blank then
+                  return True;
+               end if;
+               Previous_Blank := True;
+            else
+               Previous_Blank := False;
+            end if;
+
+            Line_Has_Text := False;
+         elsif Ch /= Character'Val (13) then
+            Line_Has_Text := True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Multiple_Blank_Lines;
+
+   procedure Run_Format_Checks is
+      use Ada.Strings.Unbounded;
+      Base : constant String := Root;
+      Files : constant Project_Tools.Files.Path_List :=
+        Project_Tools.Files.List_Tree
+          (Base,
+           Skip_Entries =>
+             [To_Unbounded_String ("alire"),
+              To_Unbounded_String ("bin"),
+              To_Unbounded_String ("config"),
+              To_Unbounded_String ("fixtures"),
+              To_Unbounded_String ("lib"),
+              To_Unbounded_String ("obj")]);
+   begin
+      for Path of Files loop
+         declare
+            File_Path : constant String := To_String (Path);
+         begin
+            if Is_Checked_Text_File (File_Path) then
+               declare
+                  Content : constant String := Project_Tools.Files.Read_Raw_File (File_Path);
+               begin
+                  if Has_Tab (Content) then
+                     Project_Tools.Release_Checks.Fail ("tab character in " & File_Path);
+                  elsif Has_Trailing_Whitespace (Content) then
+                     Project_Tools.Release_Checks.Fail ("trailing whitespace in " & File_Path);
+                  elsif Has_Multiple_Blank_Lines (Content) then
+                     Project_Tools.Release_Checks.Fail ("multiple consecutive blank lines in " & File_Path);
+                  end if;
+               end;
+            end if;
+         end;
+      end loop;
+
+      Ada.Text_IO.Put_Line ("format checks passed");
+   end Run_Format_Checks;
+
+   procedure Build_Crate (Alire : String; Directory : String; Label : String) is
+      Status : constant Integer :=
+        Project_Tools.Processes.Run_Status
+          (Label   => Label,
+           Dir     => Directory,
+           Program => Alire,
+           Args    => Project_Tools.Processes.Arguments
+             ([Project_Tools.Processes.Argument ("-n"),
+               Project_Tools.Processes.Argument ("build")]));
+   begin
+      if Status /= 0 then
+         Project_Tools.Release_Checks.Fail (Label & " failed");
+      end if;
+   end Build_Crate;
+
+   procedure Run_Build is
+      Base : constant String := Root;
+      Alire : constant String := Project_Tools.Processes.Locate_Command ("alr");
+   begin
+      if Alire = "" then
+         Project_Tools.Release_Checks.Fail ("alr command not found");
+      end if;
+
+      Build_Crate (Alire, Project_Tools.Files.Join (Base, "common"), "build common crate");
+      Build_Crate (Alire, Base, "build root crate");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Build_Crate
+           (Alire,
+            Project_Tools.Files.Join
+              (Base, "tools/" & Posix_Tools.Command_Inventory.Executable (I)),
+            "build " & Posix_Tools.Command_Inventory.Executable (I));
+      end loop;
+      Build_Crate (Alire, Project_Tools.Files.Join (Base, "tests"), "build tests crate");
+   end Run_Build;
+
+   function Built_Command_Path (Executable : String) return String is
+      Base_Path : constant String :=
+        Project_Tools.Files.Join (Root, "tools/" & Executable & "/bin/" & Executable);
+   begin
+      if Project_Tools.Files.File_Exists (Base_Path) then
+         return Base_Path;
+      elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
+         return Base_Path & ".exe";
+      else
+         return Base_Path;
+      end if;
+   end Built_Command_Path;
+
+   procedure Run_Staged_Verification is
+   begin
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
+            Status     : constant String :=
+              Posix_Tools.Host_Adapters.Executables.Verify_Identity_At_Path
+                (Executable, Built_Command_Path (Executable));
+         begin
+            if Status /= "ok" then
+               Project_Tools.Release_Checks.Fail
+                 ("staged verification failed for " & Executable & ": " & Status);
+            end if;
+         end;
+      end loop;
+
+      Ada.Text_IO.Put_Line ("staged verification checks passed");
+   end Run_Staged_Verification;
+
+   function Suite_Filter (Name : String) return String is
+   begin
+      if Name = "basic" or else Name = "common" then
+         return "basic:";
+      elsif Name = "streams" then
+         return "streams:";
+      elsif Name = "regression" then
+         return "regression:";
+      elsif Name = "locale" then
+         return "locale:";
+      elsif Name = "presentation" then
+         return "presentation:";
+      elsif Name = "command" or else Name = "commands" then
+         return "command:";
+      elsif Name = "root" or else Name = "posix-tools" then
+         return "command:root";
+      else
+         return "command:" & Name;
+      end if;
+   end Suite_Filter;
+
+   function Test_Filter_Text return String is
+      use Ada.Strings.Unbounded;
+      Filter_Text : Unbounded_String;
+      I           : Positive := 2;
+   begin
+      if Command /= "test" then
+         return "";
+      end if;
+
+      while I <= Ada.Command_Line.Argument_Count loop
+         if Ada.Command_Line.Argument (I) = "--suite"
+           and then I < Ada.Command_Line.Argument_Count
+         then
+            Filter_Text := To_Unbounded_String (Suite_Filter (Ada.Command_Line.Argument (I + 1)));
+            I := I + 2;
+         elsif Ada.Command_Line.Argument (I) = "--category"
+           and then I < Ada.Command_Line.Argument_Count
+         then
+            if Ada.Command_Line.Argument (I + 1) = "unit" then
+               Filter_Text := Null_Unbounded_String;
+            elsif Ada.Command_Line.Argument (I + 1) = "integration" then
+               Filter_Text := To_Unbounded_String ("command:root");
+            elsif Ada.Command_Line.Argument (I + 1) = "conformance" then
+               Filter_Text := To_Unbounded_String ("basic:command inventory");
+            elsif Ada.Command_Line.Argument (I + 1) = "regression" then
+               Filter_Text := To_Unbounded_String ("regression:");
+            elsif Ada.Command_Line.Argument (I + 1) = "locale" then
+               Filter_Text := To_Unbounded_String ("locale:");
+            elsif Ada.Command_Line.Argument (I + 1) = "presentation" then
+               Filter_Text := To_Unbounded_String ("presentation:");
+            else
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "posix_tools_tests: category '" & Ada.Command_Line.Argument (I + 1)
+                  & "' has no registered AUnit tests yet");
+               raise Invalid_Usage;
+            end if;
+            I := I + 2;
+         else
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "posix_tools_tests: invalid test option '" & Ada.Command_Line.Argument (I) & "'");
+            raise Invalid_Usage;
+         end if;
+      end loop;
+
+      return To_String (Filter_Text);
+   end Test_Filter_Text;
+
+   procedure Run_Tests is
+      Filter_Text : constant String := Test_Filter_Text;
+   begin
+      if Filter_Text /= "" then
+         AUnit.Test_Filters.Set_Name (Name_Filter, Filter_Text);
+         Options.Filter := Name_Filter'Unchecked_Access;
+      else
+         Options.Filter := null;
+      end if;
+
+      Runner (Reporter, Options);
+   end Run_Tests;
+begin
+   if Command = "test"
+   then
+      Run_Tests;
+   elsif Command = "check"
+   then
+      Run_Metadata_Checks;
+      Run_Format_Checks;
+      Run_Conformance_Checks;
+      Run_Tests;
+   elsif Command = "release-check" then
+      Generate_Docs;
+      Generate_Package_Manifest;
+      Run_Build;
+      Run_Staged_Verification;
+      Generate_Release_Checksums;
+      Run_Metadata_Checks;
+      Run_Format_Checks;
+      Run_Conformance_Checks;
+      Run_Tests;
+   elsif Command = "release" then
+      Generate_Docs;
+      Generate_Package_Manifest;
+      Run_Build;
+      Run_Staged_Verification;
+      Generate_Release_Checksums;
+      Run_Metadata_Checks;
+      Run_Format_Checks;
+      Run_Conformance_Checks;
+      Run_Tests;
+      Ada.Text_IO.Put_Line ("release: completed by Ada project_tools driver");
+   elsif Command = "build"
+   then
+      Run_Build;
+      Run_Metadata_Checks;
+      Ada.Text_IO.Put_Line (Command & ": completed by Ada project_tools driver");
+   elsif Command = "conformance" then
+      Run_Metadata_Checks;
+      Run_Conformance_Checks;
+      Ada.Text_IO.Put_Line ("conformance: completed by Ada project_tools driver");
+   elsif Command = "format-check"
+   then
+      Run_Metadata_Checks;
+      Run_Format_Checks;
+      Ada.Text_IO.Put_Line (Command & ": completed by Ada project_tools driver");
+   elsif Command = "docs" then
+      Generate_Docs;
+      Run_Metadata_Checks;
+      Ada.Text_IO.Put_Line ("docs: completed by Ada project_tools driver");
+   elsif Command = "package" then
+      Generate_Package_Manifest;
+      Generate_Release_Checksums;
+      Run_Metadata_Checks;
+      Ada.Text_IO.Put_Line ("package: completed by Ada project_tools driver");
+   else
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         "posix_tools_tests: unknown command '" & Command & "'");
+      Ada.Command_Line.Set_Exit_Status (2);
+   end if;
+exception
+   when Invalid_Usage =>
+      Ada.Command_Line.Set_Exit_Status (2);
+   when Program_Error =>
+      Ada.Command_Line.Set_Exit_Status (1);
+   when others =>
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         "posix_tools_tests: internal tooling failure");
+      Ada.Command_Line.Set_Exit_Status (125);
+end Posix_Tools_Tests;

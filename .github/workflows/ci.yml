@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    name: Release check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            test_runner: ./tests/bin/posix_tools_tests
+          - os: macos-latest
+            test_runner: ./tests/bin/posix_tools_tests
+          - os: windows-latest
+            test_runner: ./tests/bin/posix_tools_tests.exe
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Alire
+        uses: alire-project/setup-alire@v5
+
+      - name: Show Alire version
+        run: alr --version
+        shell: bash
+
+      - name: Build Ada test/tooling crate
+        run: alr -n build
+        working-directory: tests
+        shell: bash
+
+      - name: Run Ada release gate
+        run: ${{ matrix.test_runner }} release-check
+        shell: bash

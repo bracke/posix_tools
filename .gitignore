@@ -1,0 +1,32 @@
+# Alire workspace state
+/alire/
+/**/alire/
+!/alire.toml
+!/**/alire.toml
+
+# Build products
+/bin/
+/obj/
+/lib/
+/**/bin/
+/**/obj/
+/**/lib/
+
+# Alire-generated configuration
+/config/
+/**/config/
+
+# GNAT/GPR auxiliary files
+*.ali
+*.o
+*.lexch
+*.bexch
+*.cswi
+*.stdout
+*.stderr
+
+# Editor and OS noise
+*~
+.#*
+.DS_Store
+Thumbs.db

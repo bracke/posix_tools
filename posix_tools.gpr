@@ -1,0 +1,17 @@
+with "common/posix_tools_common.gpr";
+
+project Posix_Tools is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj/root";
+   for Exec_Dir use "bin";
+   for Main use ("posix-tools.adb");
+
+   package Naming is
+      for Body ("Posix_Tools_Main") use "posix-tools.adb";
+   end Naming;
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnoprstux", "-gnatyM120");
+   end Compiler;
+end Posix_Tools;

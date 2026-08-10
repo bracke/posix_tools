@@ -1,0 +1,18 @@
+name = "posix_tools"
+description = "Coordinated Ada 2022 implementations of selected POSIX utilities"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["posix-tools"]
+project-files = ["posix_tools.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[pins]]
+posix_tools_common = { path = "common" }
+
+[build-profiles]
+"*" = "development"

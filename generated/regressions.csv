@@ -1,0 +1,26 @@
+id,command,summary,test
+REG-CAT-0001,cat,preserve binary file bytes without adding a newline,regression:REG-CAT-0001 binary fixture
+REG-CAT-0002,cat,continue after a missing file while preserving later operand output and aggregate failure,command:cat continues after missing file
+REG-CAT-0003,cat,stop copying and return operational failure when stdout fails without emitting a read diagnostic,command:cat output failure
+REG-STREAMS-0001,head tail,preserve LF-delimited byte segments and final partial segments,streams:lf segment splitting
+REG-STDIN-0001,cat head tail wc,preserve standard input bytes and counts without adding a newline or rewinding repeated dash operands,command:cat standard input; command:head standard input; command:tail standard input; command:wc standard input
+REG-STDOUT-0001,basename dirname echo pwd,return operational failure when command-data stdout writes fail,command:simple output failures
+REG-OPTIONS-0001,basename cat dirname head pwd tail wc,treat -- as an end-of-options marker for conventional commands,command:end-of-options
+REG-WC-0001,wc,count binary file and standard input bytes without synthetic newlines,streams:byte counting
+REG-HEAD-0001,head,preserve final partial line and honor zero and compact counts,command:head counts
+REG-HEAD-0002,head,reject invalid compact and negative counts without exceptions,command:head invalid count
+REG-HEAD-0003,head,stop line emission and return operational failure when stdout fails without a read diagnostic,command:head output failure
+REG-HEAD-0004,head,reject -n without a required count as invalid usage before file processing,command:head invalid count
+REG-TAIL-0001,tail,preserve binary suffix output for -c count on files and standard input,command:tail byte mode edges
+REG-TAIL-0002,tail,recognize compact and plus-prefixed tail counts as options rather than filenames,command:tail compact counts; command:tail plus origin
+REG-TAIL-0003,tail,reject invalid compact and negative counts without exceptions,command:tail invalid count
+REG-TAIL-0004,tail,stop suffix emission and return operational failure when stdout fails without a read diagnostic,command:tail output failure
+REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail invalid count
+REG-WC-0002,wc,count split UTF-8 characters for -m and reject incomplete sequences in text modes,streams:utf-8 counting; command:wc invalid UTF-8
+REG-WC-0003,wc,reject overlong bad-continuation surrogate and out-of-range UTF-8 sequences in text modes without printing partial counts,command:wc malformed UTF-8
+REG-WC-0004,wc,reject surrogate and out-of-range UTF-8 code point encodings in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
+REG-WC-0005,wc,return operational failure when stdout fails while suppressing totals after incomplete output,command:wc output failure
+REG-WC-0006,wc,continue after a failed file and print a total for successful operands while returning aggregate failure,command:wc multiple files
+REG-WC-0007,wc,reject -L consistently while it remains a documented V1 limitation,command:wc default and mixed text
+REG-ROOT-0001,posix-tools,verify accepts rebuilt project command executables by identity and synchronized version,posix-tools verify smoke
+REG-ROOT-0002,posix-tools,return operational failure when root help output cannot be written,command:root output failure

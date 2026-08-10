@@ -1,0 +1,27 @@
+name = "posix_tools_tests"
+description = "AUnit tests and Ada project tooling for posix_tools"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["posix_tools_tests"]
+project-files = ["posix_tools_tests.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[depends-on]]
+aunit = "*"
+
+[[depends-on]]
+project_tools = "*"
+
+[[pins]]
+posix_tools_common = { path = "../common" }
+
+[[pins]]
+project_tools = { path = "../../project_tools" }
+
+[build-profiles]
+"*" = "development"

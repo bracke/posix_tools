@@ -1,0 +1,25 @@
+# Conformance
+
+Normative baseline: The Open Group Base Specifications, Issue 8,
+IEEE Std 1003.1-2024, POSIX.1-2024.
+
+The root `posix-tools` executable is outside POSIX conformance claims.
+
+Tail follow mode is a known V1 deviation until implemented. Tail byte suffix
+mode is implemented for `-c number`, but the full V1 spill-storage resource
+policy is not complete.
+
+`wc -m` uses deterministic incremental UTF-8 decoding through
+`Posix_Tools.Text.UTF_8` and rejects malformed or incomplete sequences for
+text-counting modes. Byte and line modes remain raw byte operations. Word
+classification uses `Posix_Tools.Text.Classification`, backed by generated
+`Posix_Tools.Text.Whitespace_Data` ranges with recorded Unicode 15.1.0 source
+and license metadata. Full arbitrary POSIX locale character classification
+remains open V1 acceptance work.
+
+Formatted command data for `basename`, `dirname`, `echo`, `pwd`, and `wc` is
+written through the shared raw output path with explicit LF terminators.
+
+Selected usage and operational diagnostics are rendered through `messages`
+catalog entries in the shared command helper, with deterministic locale tests
+covering English fallback and Danish output.
