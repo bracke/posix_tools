@@ -229,6 +229,17 @@ procedure Posix_Tools_Tests is
          return Count;
       end Count_Nonempty_Lines;
 
+      procedure Require_Exact_Line (Path : String; Line : String; Description : String) is
+         Content : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+         Count   : constant Natural := Count_Exact_Lines (Content, Line);
+      begin
+         if Count = 0 then
+            Project_Tools.Release_Checks.Fail (Description & " missing or stale in " & Path);
+         elsif Count > 1 then
+            Project_Tools.Release_Checks.Fail (Description & " duplicated in " & Path);
+         end if;
+      end Require_Exact_Line;
+
       procedure Require_Package_File_List_Matches_Manifest is
          Files_Path : constant String := Project_Tools.Files.Join (Root, "generated/package-files.txt");
          Files      : constant String := Project_Tools.Files.Read_Raw_File (Files_Path);
@@ -736,6 +747,35 @@ procedure Posix_Tools_Tests is
       Require_Synchronized_Version ("generated/manual-index.md");
       Require_Synchronized_Version ("generated/package-manifest.txt");
       Require_Synchronized_Version ("generated/release-checksums.txt");
+      Require_Exact_Line
+        ("alire.toml",
+         "version = """ & Posix_Tools.Version.Version_String & """",
+         "root manifest version");
+      Require_Exact_Line
+        ("common/alire.toml",
+         "version = """ & Posix_Tools.Version.Version_String & """",
+         "common manifest version");
+      Require_Exact_Line
+        ("tests/alire.toml",
+         "version = """ & Posix_Tools.Version.Version_String & """",
+         "tests manifest version");
+      Require_Exact_Line
+        ("common/src/posix_tools-version.ads",
+         "   Version_String : constant String := """ & Posix_Tools.Version.Version_String & """;",
+         "compiled version constant");
+      Require_Exact_Line ("CHANGELOG.md", "## " & Posix_Tools.Version.Version_String, "changelog version");
+      Require_Exact_Line
+        ("generated/manual-index.md",
+         "Version: " & Posix_Tools.Version.Version_String,
+         "manual index version");
+      Require_Exact_Line
+        ("generated/package-manifest.txt",
+         "posix-tools package manifest " & Posix_Tools.Version.Version_String,
+         "package manifest version header");
+      Require_Exact_Line
+        ("generated/release-checksums.txt",
+         "posix-tools release checksums " & Posix_Tools.Version.Version_String,
+         "release checksum version header");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
@@ -931,6 +971,10 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I));
          Require_Synchronized_Version (Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Require_Exact_Line
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "version = """ & Posix_Tools.Version.Version_String & """",
+            Posix_Tools.Command_Inventory.Executable (I) & " manifest version");
          Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
          Project_Tools.Release_Checks.Require_Text

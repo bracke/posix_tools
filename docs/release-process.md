@@ -41,6 +41,10 @@ Current Ada tooling entry points:
   row, root executable row, and one row for every command executable from the
   compiled Ada inventory. When the referenced artifact exists, the gate
   recomputes and validates the recorded FNV-1a value.
+- Version synchronization is checked as exact current lines across the root,
+  common, tests, and command Alire manifests, the compiled
+  `Posix_Tools.Version.Version_String` metadata, the changelog, and generated
+  documentation, package-manifest, and release-checksum headers.
 - The release gate writes `dist/posix-tools-<version>-source.7z` from
   `generated/package-files.txt`; `dist/` is ignored because release archives are
   reproducible outputs, while their checksums are recorded in generated metadata.
