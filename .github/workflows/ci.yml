@@ -51,6 +51,12 @@ jobs:
           repository: bracke/i18n
           path: i18n
 
+      - name: Check out awklib
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/awklib
+          path: awklib
+
       - name: Check out terminal_styles
         uses: actions/checkout@v4
         with:
