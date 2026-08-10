@@ -863,12 +863,206 @@ procedure Posix_Tools_Tests is
    end Generate_Release_Checksums;
 
    procedure Run_Conformance_Checks is
+      use Ada.Strings.Unbounded;
       Check : constant Project_Tools.Release_Checks.Checker :=
         Project_Tools.Release_Checks.Create (Root);
+      Requirements : constant String :=
+        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/requirements.csv"));
+
+      type Requirement_Row is record
+         Id : Unbounded_String;
+         Command : Unbounded_String;
+         Posix_Reference : Unbounded_String;
+         Implementation : Unbounded_String;
+         Test : Unbounded_String;
+         Status : Unbounded_String;
+      end record;
+
+      function Field (Line : String; Index : Positive) return String is
+         Start : Positive := Line'First;
+         Current : Positive := 1;
+      begin
+         for I in Line'Range loop
+            if Line (I) = ',' then
+               if Current = Index then
+                  return Line (Start .. I - 1);
+               end if;
+
+               Current := Current + 1;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Current = Index then
+            return Line (Start .. Line'Last);
+         end if;
+
+         return "";
+      end Field;
+
+      function Field_Count (Line : String) return Natural is
+         Count : Natural := 1;
+      begin
+         if Line = "" then
+            return 0;
+         end if;
+
+         for Ch of Line loop
+            if Ch = ',' then
+               Count := Count + 1;
+            end if;
+         end loop;
+
+         return Count;
+      end Field_Count;
+
+      function Is_Allowed_Status (Status : String) return Boolean is
+      begin
+         return Status = "Conforming"
+           or else Status = "Conforming with implementation-defined behavior"
+           or else Status = "Conforming with extensions"
+           or else Status = "Partially conforming"
+           or else Status = "Not yet assessed"
+           or else Status = "Known deviation";
+      end Is_Allowed_Status;
+
+      function Contains_Token (Text : String; Token : String) return Boolean is
+         Start : Positive := Text'First;
+      begin
+         if Text = "" then
+            return False;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = ' ' then
+               if Start <= I - 1 and then Text (Start .. I - 1) = Token then
+                  return True;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         return Start <= Text'Last and then Text (Start .. Text'Last) = Token;
+      end Contains_Token;
+
+      function Has_Command_Metadata (Executable : String) return Boolean is
+         Start : Positive := Requirements'First;
+      begin
+         for I in Requirements'Range loop
+            if Requirements (I) = Character'Val (10) then
+               if I > Start then
+                  declare
+                     Line : constant String := Requirements (Start .. I - 1);
+                  begin
+                     if Field (Line, 1) /= "id"
+                       and then Contains_Token (Field (Line, 2), Executable)
+                     then
+                        return True;
+                     end if;
+                  end;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Requirements'Last then
+            declare
+               Line : constant String := Requirements (Start .. Requirements'Last);
+            begin
+               return Field (Line, 1) /= "id"
+                 and then Contains_Token (Field (Line, 2), Executable);
+            end;
+         end if;
+
+         return False;
+      end Has_Command_Metadata;
+
+      procedure Check_Row (Line : String; Number : Positive) is
+         Row : constant Requirement_Row :=
+           (Id              => To_Unbounded_String (Field (Line, 1)),
+            Command         => To_Unbounded_String (Field (Line, 2)),
+            Posix_Reference => To_Unbounded_String (Field (Line, 4)),
+            Implementation  => To_Unbounded_String (Field (Line, 5)),
+            Test            => To_Unbounded_String (Field (Line, 6)),
+            Status          => To_Unbounded_String (Field (Line, 7)));
+         Id_Text : constant String := To_String (Row.Id);
+         Status_Text : constant String := To_String (Row.Status);
+      begin
+         if Field_Count (Line) /= 7 then
+            Project_Tools.Release_Checks.Fail
+              ("requirement row has wrong field count at line" & Positive'Image (Number));
+         elsif Id_Text = "" then
+            Project_Tools.Release_Checks.Fail
+              ("requirement row has empty identifier at line" & Positive'Image (Number));
+         elsif To_String (Row.Command) = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has empty command field");
+         elsif To_String (Row.Implementation) = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has empty implementation field");
+         elsif To_String (Row.Test) = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has no linked test or validation artifact");
+         elsif not Is_Allowed_Status (Status_Text) then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has invalid conformance status " & Status_Text);
+         elsif Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "POSIX.1-2008")
+           or else Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "POSIX.1-2017")
+           or else Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "Issue 7")
+         then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " mixes an older POSIX baseline into the V1 registry");
+         elsif Status_Text = "Known deviation"
+           and then not Project_Tools.Text.Contains (To_String (Row.Test), "docs/")
+         then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " is a known deviation without linked documentation");
+         end if;
+      end Check_Row;
+
+      procedure Check_Requirement_Rows is
+         Start : Positive := Requirements'First;
+         Line_Number : Positive := 1;
+      begin
+         if Requirements = "" then
+            Project_Tools.Release_Checks.Fail ("requirements registry is empty");
+         end if;
+
+         for I in Requirements'Range loop
+            if Requirements (I) = Character'Val (10) then
+               if I > Start then
+                  declare
+                     Line : constant String := Requirements (Start .. I - 1);
+                  begin
+                     if Line_Number = 1 then
+                        if Line /= "id,command,summary,posix_reference,implementation,test,status" then
+                           Project_Tools.Release_Checks.Fail ("requirements registry header is invalid");
+                        end if;
+                     else
+                        Check_Row (Line, Line_Number);
+                     end if;
+                  end;
+               end if;
+
+               Line_Number := Line_Number + 1;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Requirements'Last then
+            Check_Row (Requirements (Start .. Requirements'Last), Line_Number);
+         end if;
+      end Check_Requirement_Rows;
    begin
+      Check_Requirement_Rows;
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Project_Tools.Release_Checks.Require_Text
-           (Check, "generated/requirements.csv", Posix_Tools.Command_Inventory.Executable (I));
+         if not Has_Command_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
+            Project_Tools.Release_Checks.Fail
+              ("released command lacks conformance metadata: "
+               & Posix_Tools.Command_Inventory.Executable (I));
+         end if;
       end loop;
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "Known deviation");
