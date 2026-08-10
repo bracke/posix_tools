@@ -11,7 +11,11 @@ subcrate manifest to exactly the expected executable name, and binds each GPR
 to the corresponding single main source from the compiled command inventory.
 The same inventory-driven metadata check rejects any dependency from the root
 crate to a command binary crate, and rejects command-to-command crate
-dependencies. Commands share code only through `posix_tools_common`.
+dependencies. It also keeps the tests crate limited to `posix_tools_common`,
+`aunit`, and `project_tools`; tests must not depend on root or command binary
+crates or bypass common-library adapters with direct hostkit, messages, or
+terminal_styles dependencies. Commands share code only through
+`posix_tools_common`.
 
 Command executable mains are thin instantiations of `Posix_Tools.Host_Adapters.Run_Command`.
 Command behavior lives under `Posix_Tools.Commands`.

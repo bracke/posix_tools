@@ -610,6 +610,22 @@ procedure Posix_Tools_Tests is
         (Check, "tests/alire.toml", "posix_tools_common = { path = ""../common"" }");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/alire.toml", "project_tools = { path = ""../../project_tools"" }");
+      Forbid_Text
+        ("tests/alire.toml",
+         "posix_tools =",
+         "tests manifest must not depend on root binary crate");
+      Forbid_Text
+        ("tests/alire.toml",
+         "hostkit =",
+         "tests manifest must use common adapters instead of depending on hostkit directly");
+      Forbid_Text
+        ("tests/alire.toml",
+         "messages =",
+         "tests manifest must use common localization instead of depending on messages directly");
+      Forbid_Text
+        ("tests/alire.toml",
+         "terminal_styles =",
+         "tests manifest must use common presentation instead of depending on terminal_styles directly");
       Forbid_Text ("common/alire.toml", "aunit =", "common manifest must not depend on aunit");
       Forbid_Text
         ("common/alire.toml", "project_tools =", "common manifest must not depend on project_tools");
@@ -705,6 +721,11 @@ procedure Posix_Tools_Tests is
             "terminal_styles =",
             Posix_Tools.Command_Inventory.Executable (I)
             & " manifest must not depend on terminal_styles");
+         Forbid_Text
+           ("tests/alire.toml",
+            Posix_Tools.Command_Inventory.Crate (I) & " =",
+            "tests manifest must not depend on command crate "
+            & Posix_Tools.Command_Inventory.Crate (I));
          for J in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
             if J /= I then
                Forbid_Text
@@ -831,6 +852,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "TOOLING-SELECTOR-SMOKE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "MANIFEST-GRAPH-004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "MANIFEST-GRAPH-005");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "LOCAL-PINS-001");
       Project_Tools.Release_Checks.Require_Text
