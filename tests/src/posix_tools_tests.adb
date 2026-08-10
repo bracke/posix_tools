@@ -380,6 +380,8 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Fail ("root manifest could not be read");
       end if;
 
+      Project_Tools.Release_Checks.Require_Text (Check, "alire.toml", "executables = [""posix-tools""]");
+      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "common/alire.toml"), "i18n =")
         or else Project_Tools.Files.File_Contains
@@ -616,6 +618,10 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
          Project_Tools.Release_Checks.Require_Text
+           (Check,
+            Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "executables = [""" & Posix_Tools.Command_Inventory.Executable (I) & """]");
+         Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "licenses = ""MIT""");
          Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "maintainers =");
@@ -644,6 +650,10 @@ procedure Posix_Tools_Tests is
             & " manifest must not depend on terminal_styles");
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Project_File_Path (I));
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            Posix_Tools.Command_Inventory.Project_File_Path (I),
+            "for Main use (""" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"")");
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),

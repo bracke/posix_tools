@@ -6,6 +6,9 @@ Every crate project file uses a crate-local object directory, and binary crates
 use a crate-local executable directory. The common library uses a crate-local
 library output directory. Metadata validation checks these GPR directory
 assignments so subcrates do not share build products.
+The same metadata validation binds the root manifest and every command
+subcrate manifest to exactly the expected executable name, and binds each GPR
+to the corresponding single main source from the compiled command inventory.
 
 Command executable mains are thin instantiations of `Posix_Tools.Host_Adapters.Run_Command`.
 Command behavior lives under `Posix_Tools.Commands`.
