@@ -747,6 +747,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "RELEASE-CLEAN-TREE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "TOOLING-SELECTOR-SMOKE-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
@@ -2086,6 +2088,81 @@ procedure Posix_Tools_Tests is
       end if;
    end Built_Command_Path;
 
+   function Built_Test_Runner_Path return String is
+      Base_Path : constant String := Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests");
+   begin
+      if Project_Tools.Files.File_Exists (Base_Path) then
+         return Base_Path;
+      elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
+         return Base_Path & ".exe";
+      else
+         return Base_Path;
+      end if;
+   end Built_Test_Runner_Path;
+
+   procedure Run_Test_Selector_Smoke is
+      use Ada.Strings.Unbounded;
+
+      Runner_Path : constant String := Built_Test_Runner_Path;
+
+      procedure Expect_Selector
+        (Label  : String;
+         Args   : Project_Tools.Processes.Argument_Vectors.Vector;
+         Needle : String)
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture
+             (Label   => Label,
+              Dir     => Root,
+              Program => Runner_Path,
+              Args    => Args,
+              Quiet   => True);
+      begin
+         if Captured.Status /= 0 then
+            Project_Tools.Release_Checks.Fail
+              (Label & " failed with status" & Integer'Image (Captured.Status));
+         elsif not Project_Tools.Text.Contains (To_String (Captured.Output), Needle) then
+            Project_Tools.Release_Checks.Fail
+              (Label & " output did not include " & Needle);
+         end if;
+      end Expect_Selector;
+   begin
+      if not Project_Tools.Files.File_Exists (Runner_Path) then
+         Project_Tools.Release_Checks.Fail ("built test runner is missing for selector smoke tests");
+      end if;
+
+      Expect_Selector
+        ("test selector suite cat",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("cat")]),
+         "command:cat");
+      Expect_Selector
+        ("test selector category integration",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("integration")]),
+         "command:root");
+      Expect_Selector
+        ("test selector category conformance",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("conformance")]),
+         "basic:command inventory");
+      Expect_Selector
+        ("test selector category regression",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("regression")]),
+         "regression:REG-CAT-0001");
+
+      Ada.Text_IO.Put_Line ("test selector smoke checks passed");
+   end Run_Test_Selector_Smoke;
+
    procedure Run_Staged_Verification is
    begin
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
@@ -2201,6 +2278,7 @@ begin
       Generate_Docs;
       Generate_Package_Manifest;
       Run_Build;
+      Run_Test_Selector_Smoke;
       Run_Staged_Verification;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
@@ -2212,6 +2290,7 @@ begin
       Generate_Docs;
       Generate_Package_Manifest;
       Run_Build;
+      Run_Test_Selector_Smoke;
       Run_Staged_Verification;
       Generate_Release_Checksums;
       Run_Metadata_Checks;

@@ -47,6 +47,9 @@ conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
 metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
 crate, every command subcrate, and the tests crate.
+The release gates run representative selector smoke tests for `--suite cat`,
+`--category integration`, `--category conformance`, and `--category regression`
+through `project_tools` process execution after the tests executable is built.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,
 and text files for tab characters, trailing whitespace, and multiple
 consecutive blank lines, skipping generated build outputs and binary fixtures.
