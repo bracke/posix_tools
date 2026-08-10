@@ -952,6 +952,40 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-cat.adb", "Context.Argument (1) = ""--""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-cat.adb", "File_Helpers.Copy_File");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-cat.adb", "All_Ok := All_Ok and Ok");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-cat.adb", "Copy_File (Context, ""-"", Ok)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "if File_Name = ""-"" then");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Copy_Standard_Input (Context, Ok)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Context.Put (To_String (Buffer, Last))");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "common/src/posix_tools-commands-file_helpers.adb",
+         "Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat files");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat continues after missing file");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat output failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "cat continues after missing file");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "cat output failure has no read diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-CAT-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-CAT-0002");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-CAT-0003");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Stop_Options : Boolean := False;");

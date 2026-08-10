@@ -11,9 +11,9 @@ POSIX-TRUE-STATUS-001,true,return zero,POSIX.1-2024 true,Posix_Tools.Commands.Tr
 POSIX-TRUE-EXT-001,true,recognize help/version/identity only as sole arguments and ignore other operands including non-sole identity,POSIX.1-2024 true,Posix_Tools.Commands.True_Command,command:true extension edges,Conforming with extensions
 POSIX-FALSE-STATUS-001,false,return nonzero,POSIX.1-2024 false,Posix_Tools.Commands.False_Command,command:false,Conforming with extensions
 POSIX-FALSE-EXT-001,false,recognize help/version/identity only as sole arguments and ignore other operands including non-sole identity,POSIX.1-2024 false,Posix_Tools.Commands.False_Command,command:false extension edges,Conforming with extensions
-POSIX-CAT-INPUT-001,cat,copy input operands in order,POSIX.1-2024 cat,Posix_Tools.Commands.Cat,regression REG-CAT-0001,Partially conforming
-POSIX-CAT-CONTINUE-001,cat,continue to later operands after recoverable input failure,POSIX.1-2024 cat,Posix_Tools.Commands.Cat,command:cat continues after missing file; regression REG-CAT-0002,Partially conforming
-POSIX-CAT-DASH-002,cat,treat operand dash as standard input without byte translation or rewind,POSIX.1-2024 cat,Posix_Tools.Commands.File_Helpers,command:cat standard input,Partially conforming
+POSIX-CAT-INPUT-001,cat,copy input operands in order,POSIX.1-2024 cat,Posix_Tools.Commands.Cat,regression REG-CAT-0001,Conforming with extensions
+POSIX-CAT-CONTINUE-001,cat,continue to later operands after recoverable input failure,POSIX.1-2024 cat,Posix_Tools.Commands.Cat,command:cat continues after missing file; regression REG-CAT-0002,Conforming with extensions
+POSIX-CAT-DASH-002,cat,treat operand dash as standard input without byte translation or rewind,POSIX.1-2024 cat,Posix_Tools.Commands.File_Helpers,command:cat standard input,Conforming with extensions
 POSIX-HEAD-DEFAULT-001,head,default to ten lines,POSIX.1-2024 head,Posix_Tools.Commands.Head,command:head default limits,Partially conforming
 POSIX-HEAD-COUNT-001,head,support separate and compact -n line counts including zero,POSIX.1-2024 head,Posix_Tools.Commands.Head,command:head counts; regression REG-HEAD-0001,Partially conforming
 POSIX-HEAD-COUNT-ERROR-001,head,reject invalid negative leading-plus and overflow line counts as usage errors,POSIX.1-2024 head,Posix_Tools.Commands.Head,command:head invalid count; regression REG-HEAD-0002,Partially conforming
