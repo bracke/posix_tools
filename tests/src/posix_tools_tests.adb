@@ -980,6 +980,28 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-ROOT-0002");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-basename.adb", "Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dirname.adb", "Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-echo.adb", "Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-basename.adb", "Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dirname.adb", "Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-echo.adb", "Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:simple output failures");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "simple output failure diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-STDOUT-0001");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
