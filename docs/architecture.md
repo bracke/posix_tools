@@ -58,5 +58,6 @@ hostkit.
 
 `tail` suffix processing uses bounded retained memory while the requested
 suffix fits the memory threshold. Larger byte and line suffix cases spill
-through `Posix_Tools.Host_Adapters.Temporary_Storage` and fail without partial
-output when the configured spill limit is exceeded.
+through `Posix_Tools.Host_Adapters.Temporary_Storage`, whose production
+implementation uses hostkit descriptors, and fail without partial output when
+the configured spill limit is exceeded.

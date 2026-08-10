@@ -281,6 +281,20 @@ procedure Posix_Tools_Tests is
          "Ada.Streams.Stream_IO",
          "production file adapter must route byte stream operations through hostkit descriptors");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-temporary_storage.ads", "private with Hostkit.Descriptors;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Hostkit.Descriptors.Write");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Hostkit.Descriptors.Read");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-temporary_storage.ads",
+         "Ada.Streams.Stream_IO",
+         "production temporary storage adapter must use hostkit descriptors");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-temporary_storage.adb",
+         "Ada.Streams.Stream_IO",
+         "production temporary storage adapter must use hostkit descriptors");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-arguments.adb", "with Ada.Command_Line;");
       Forbid_Text
         ("common/src/posix_tools-arguments.adb",

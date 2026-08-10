@@ -1,6 +1,6 @@
 with Ada.Streams;
-with Ada.Streams.Stream_IO;
 with Posix_Tools.Numbers;
+private with Hostkit.Descriptors;
 
 package Posix_Tools.Host_Adapters.Temporary_Storage is
    type Store is limited private;
@@ -30,9 +30,10 @@ private
       Directory_Last : Natural := 0;
       Path : String (1 .. 640);
       Path_Last : Natural := 0;
-      File : Ada.Streams.Stream_IO.File_Type;
+      File : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
       Max_Size : Posix_Tools.Numbers.Count := 0;
       Current_Size : Posix_Tools.Numbers.Count := 0;
       Reading : Boolean := False;
+      Read_Position : Posix_Tools.Numbers.Count := 1;
    end record;
 end Posix_Tools.Host_Adapters.Temporary_Storage;
