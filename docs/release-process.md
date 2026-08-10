@@ -23,6 +23,6 @@ Current Ada tooling entry points:
   tests crate, verifies the exact built command executables by internal
   identity, validates metadata, runs format checks, validates conformance
   metadata, and runs the AUnit suite.
-- `posix_tools_tests release` currently runs the same implemented gates as
-  `release-check` and reports completion; archive/checksum production remains
-  acceptance work.
+- `posix_tools_tests release` first requires `git status --porcelain` to report
+  a clean source tree, then runs the same implemented gates as `release-check`
+  and reports completion; archive/checksum production remains acceptance work.

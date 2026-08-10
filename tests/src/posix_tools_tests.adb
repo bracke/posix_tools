@@ -734,6 +734,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "GPR-DIRS-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "RELEASE-CLEAN-TREE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
@@ -2029,6 +2030,31 @@ procedure Posix_Tools_Tests is
       Build_Crate (Alire, Project_Tools.Files.Join (Base, "tests"), "build tests crate");
    end Run_Build;
 
+   procedure Require_Clean_Source_Tree is
+      use Ada.Strings.Unbounded;
+      Git : constant String := Project_Tools.Processes.Locate_Command ("git");
+      Result : Project_Tools.Processes.Captured_Process;
+   begin
+      if Git = "" then
+         Project_Tools.Release_Checks.Fail ("git command not found for release clean-tree check");
+      end if;
+
+      Result :=
+        Project_Tools.Processes.Capture
+          (Label   => "check clean source tree",
+           Dir     => Root,
+           Program => Git,
+           Args    => Project_Tools.Processes.Arguments
+             ([Project_Tools.Processes.Argument ("status"),
+               Project_Tools.Processes.Argument ("--porcelain")]));
+
+      if Result.Status /= 0 then
+         Project_Tools.Release_Checks.Fail ("git status failed during release clean-tree check");
+      elsif To_String (Result.Output) /= "" then
+         Project_Tools.Release_Checks.Fail ("release requires a clean source tree");
+      end if;
+   end Require_Clean_Source_Tree;
+
    function Built_Command_Path (Executable : String) return String is
       Base_Path : constant String :=
         Project_Tools.Files.Join (Root, "tools/" & Executable & "/bin/" & Executable);
@@ -2164,6 +2190,7 @@ begin
       Run_Conformance_Checks;
       Run_Tests;
    elsif Command = "release" then
+      Require_Clean_Source_Tree;
       Generate_Docs;
       Generate_Package_Manifest;
       Run_Build;
