@@ -849,6 +849,26 @@ procedure Posix_Tools_Tests is
         ("generated/release-checksums.txt",
          "posix-tools release checksums " & Posix_Tools.Version.Version_String,
          "release checksum version header");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.ads", "type Count is range 0 .. 2 ** 63 - 1;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.ads", "Valid, Empty, Invalid_Syntax");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.ads", "Negative_Not_Permitted, Overflow");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.adb", "return (Status => Empty, Value => 0)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.adb", "return (Status => Negative_Not_Permitted, Value => 0)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.adb", "return (Status => Invalid_Syntax, Value => 0)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.adb", "return (Status => Overflow, Value => 0)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-numbers.adb", "if Value > (Count'Last - Count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse maximum count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse overflow");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
