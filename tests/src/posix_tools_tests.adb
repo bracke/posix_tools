@@ -1165,6 +1165,26 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-file_helpers.adb",
          "Ada.Streams.Stream_IO",
          "file helpers must use project filesystem adapters for file operands");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "if File_Name = ""-"" then");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Context.Try_Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.ads", "function Try_Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Streams.Try_Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/test_contexts.ads", "function Try_Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-STDIN-0001");
       Forbid_Text
         ("common/src/posix_tools-commands-tail.adb",
          "Ada.Text_IO.Standard_Input",
