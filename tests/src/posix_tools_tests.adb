@@ -900,6 +900,15 @@ procedure Posix_Tools_Tests is
          return "";
       end Field;
 
+      function Without_Trailing_CR (Line : String) return String is
+      begin
+         if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
+            return Line (Line'First .. Line'Last - 1);
+         else
+            return Line;
+         end if;
+      end Without_Trailing_CR;
+
       function Field_Count (Line : String) return Natural is
          Count : Natural := 1;
       begin
@@ -953,7 +962,7 @@ procedure Posix_Tools_Tests is
             if Requirements (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Requirements (Start .. I - 1);
+                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
                   begin
                      if Field (Line, 1) /= "id"
                        and then Contains_Token (Field (Line, 2), Executable)
@@ -969,7 +978,7 @@ procedure Posix_Tools_Tests is
 
          if Start <= Requirements'Last then
             declare
-               Line : constant String := Requirements (Start .. Requirements'Last);
+               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
             begin
                return Field (Line, 1) /= "id"
                  and then Contains_Token (Field (Line, 2), Executable);
@@ -1034,7 +1043,7 @@ procedure Posix_Tools_Tests is
             if Requirements (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Requirements (Start .. I - 1);
+                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
                   begin
                      if Line_Number = 1 then
                         if Line /= "id,command,summary,posix_reference,implementation,test,status" then
@@ -1052,7 +1061,7 @@ procedure Posix_Tools_Tests is
          end loop;
 
          if Start <= Requirements'Last then
-            Check_Row (Requirements (Start .. Requirements'Last), Line_Number);
+            Check_Row (Without_Trailing_CR (Requirements (Start .. Requirements'Last)), Line_Number);
          end if;
       end Check_Requirement_Rows;
    begin

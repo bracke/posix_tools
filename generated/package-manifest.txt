@@ -113,7 +113,7 @@ tests/src/command_tests-suite.adb bytes= 7128 fnv1a64=4f524668731fbe47
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 95069 fnv1a64=bc27854f45fbb8b8
 tests/src/command_tests.ads bytes= 3297 fnv1a64=fb01dfeed0e03640
-tests/src/posix_tools_tests.adb bytes= 67078 fnv1a64=442c0918f606ef96
+tests/src/posix_tools_tests.adb bytes= 67469 fnv1a64=9771af5782f256ad
 tests/src/test_contexts.adb bytes= 9768 fnv1a64=c411d3a3b9a74024
 tests/src/test_contexts.ads bytes= 3956 fnv1a64=2b80c3d823751ba0
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8
