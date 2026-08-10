@@ -144,6 +144,15 @@ procedure Posix_Tools_Tests is
          Manifest   : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"));
 
+         function Without_Trailing_CR (Line : String) return String is
+         begin
+            if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
+               return Line (Line'First .. Line'Last - 1);
+            else
+               return Line;
+            end if;
+         end Without_Trailing_CR;
+
          function Count_Exact_Lines (Text : String; Expected : String) return Natural is
             Start : Positive := Text'First;
             Count : Natural := 0;
@@ -154,7 +163,7 @@ procedure Posix_Tools_Tests is
 
             for I in Text'Range loop
                if Text (I) = Character'Val (10) then
-                  if I > Start and then Text (Start .. I - 1) = Expected then
+                  if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) = Expected then
                      Count := Count + 1;
                   end if;
 
@@ -162,7 +171,7 @@ procedure Posix_Tools_Tests is
                end if;
             end loop;
 
-            if Start <= Text'Last and then Text (Start .. Text'Last) = Expected then
+            if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) = Expected then
                Count := Count + 1;
             end if;
 
@@ -179,7 +188,7 @@ procedure Posix_Tools_Tests is
 
             for I in Text'Range loop
                if Text (I) = Character'Val (10) then
-                  if I > Start then
+                  if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) /= "" then
                      Count := Count + 1;
                   end if;
 
@@ -187,7 +196,7 @@ procedure Posix_Tools_Tests is
                end if;
             end loop;
 
-            if Start <= Text'Last then
+            if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) /= "" then
                Count := Count + 1;
             end if;
 
@@ -220,7 +229,7 @@ procedure Posix_Tools_Tests is
          for I in Files'Range loop
             if Files (I) = Character'Val (10) then
                if I > Start then
-                  Check_File_List_Line (Files (Start .. I - 1));
+                  Check_File_List_Line (Without_Trailing_CR (Files (Start .. I - 1)));
                   File_Count := File_Count + 1;
                end if;
 
@@ -229,7 +238,7 @@ procedure Posix_Tools_Tests is
          end loop;
 
          if Start <= Files'Last then
-            Check_File_List_Line (Files (Start .. Files'Last));
+            Check_File_List_Line (Without_Trailing_CR (Files (Start .. Files'Last)));
             File_Count := File_Count + 1;
          end if;
 
