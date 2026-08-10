@@ -43,6 +43,9 @@ Current Ada tooling entry points:
   repository map, package map, dependency rules, import boundaries, workflow,
   testing, localization, styling, resource, completion, and rejected architecture
   sections.
+- The metadata gate checks that the Ada format scanner and testing guide cover
+  maintained Ada, Alire/GPR, Markdown, CSV, and text files for tabs, trailing
+  whitespace, and multiple consecutive blank lines.
 - The metadata gate also verifies that every entry in
   `generated/package-files.txt` has exactly one current checksum row in
   `generated/package-manifest.txt`, that the manifest carries the synchronized

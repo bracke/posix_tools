@@ -736,6 +736,18 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release`");
       Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "docs/testing.md",
+         "`posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "function Has_Tab");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "function Has_Trailing_Whitespace");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "function Has_Multiple_Blank_Lines");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "function Is_Checked_Text_File");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""test""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""check""");
