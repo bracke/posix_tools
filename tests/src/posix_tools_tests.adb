@@ -948,6 +948,46 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.resource.count_too_large");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-localization.adb", "with Messages.Runtime;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-localization.adb", "Messages.Runtime.Render");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-localization.adb", "Messages.Arguments.Set");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-localization.adb", "Messages.Result.Output_Text");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-help.adb", "posix_tools.help.usage");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-help.adb", "posix_tools.help.options");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-help.adb", "posix_tools.common.option.help");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-help.adb", "posix_tools.common.option.version");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "Localized_Usage_Message");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.option.unknown");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.extra_operand");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.count.invalid");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "posix_tools.diagnostic.file.read_failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "posix_tools.diagnostic.resource.count_too_large");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "posix_tools.diagnostic.text.invalid_utf8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "locale:help");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "locale:diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "unknown locale no message-key leak");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "Danish extra operand diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "Danish count too large diagnostic");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-presentation.adb", "with Terminal_Styles;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-presentation.ads", "type Style_Mode is (Automatic, Always, Never)");
