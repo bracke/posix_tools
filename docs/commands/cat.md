@@ -50,7 +50,6 @@ Partially conforming with adapter and error behavior covered by the current
 AUnit and release-gate tests.
 
 ## Known Limitations
-File operands are routed through the project filesystem adapter. The V1 adapter
-still uses Ada `Stream_IO` for file byte chunks where hostkit does not yet expose
-the reusable byte-stream operation required by the final hostkit policy.
-Standard input is read through the command context boundary.
+File operands are routed through the project filesystem adapter, which opens,
+reads, and closes production file descriptors through hostkit. Standard input is
+read through the command context boundary.

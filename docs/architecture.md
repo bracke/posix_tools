@@ -19,8 +19,9 @@ The production context delegates environment lookup, physical current-directory
 lookup, terminal checks, and standard stream access to host adapter child
 packages rather than importing host-facing packages directly.
 Shared file helpers delegate file operand open/read/close operations to
-`Posix_Tools.Host_Adapters.File_System`; command packages and helpers retain
-byte scanning, header, and output policy.
+`Posix_Tools.Host_Adapters.File_System`, whose production implementation uses
+hostkit descriptors for byte reads; command packages and helpers retain byte
+scanning, header, and output policy.
 `Posix_Tools.Host_Adapters.Executables` wraps hostkit executable lookup,
 executable checks, temporary capture files, bounded identity invocation, and
 identity-output validation for the root verifier. POSIX command packages must

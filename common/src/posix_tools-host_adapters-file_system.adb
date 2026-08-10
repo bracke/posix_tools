@@ -1,23 +1,26 @@
 with Ada.Directories;
-with Ada.Streams.Stream_IO;
+with Hostkit.Descriptors;
 with Hostkit.Metadata;
 
 package body Posix_Tools.Host_Adapters.File_System is
+   use type Ada.Streams.Stream_Element_Offset;
+
    Buffer_Size : constant := 16 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
 
    function Can_Open_For_Read (Path : String) return Boolean is
-      File : Ada.Streams.Stream_IO.File_Type;
+      use Hostkit.Descriptors;
+      File : Descriptor := Invalid;
    begin
-      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
-      Ada.Streams.Stream_IO.Close (File);
+      if not Open_File (Path, Open_Read, File) then
+         return False;
+      end if;
+
+      Close (File);
       return True;
    exception
       when others =>
-         if Ada.Streams.Stream_IO.Is_Open (File) then
-            Ada.Streams.Stream_IO.Close (File);
-         end if;
-
+         Close (File);
          return False;
    end Can_Open_For_Read;
 
@@ -25,24 +28,42 @@ package body Posix_Tools.Host_Adapters.File_System is
      (Path   : String;
       Ok     : out Boolean)
    is
-      File   : Ada.Streams.Stream_IO.File_Type;
+      use Hostkit.Descriptors;
+      File   : Descriptor := Invalid;
       Buffer : Byte_Buffer;
       Last   : Ada.Streams.Stream_Element_Offset;
       Stop   : Boolean := False;
+      Outcome : Transfer_Outcome;
    begin
-      Ok := True;
-      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
-      while not Stop and then not Ada.Streams.Stream_IO.End_Of_File (File) loop
-         Ada.Streams.Stream_IO.Read (File, Buffer, Last);
-         Action (Buffer, Last, Stop);
+      Ok := Open_File (Path, Open_Read, File);
+      if not Ok then
+         return;
+      end if;
+
+      while not Stop loop
+         Outcome := Read (File, Buffer, Last);
+         case Outcome is
+            when Transfer_Ok =>
+               if Last >= Buffer'First then
+                  Action (Buffer, Last, Stop);
+               end if;
+
+            when Transfer_Interrupted =>
+               null;
+
+            when Transfer_End_Of_File =>
+               exit;
+
+            when others =>
+               Ok := False;
+               exit;
+         end case;
       end loop;
-      Ada.Streams.Stream_IO.Close (File);
+
+      Close (File);
    exception
       when others =>
-         if Ada.Streams.Stream_IO.Is_Open (File) then
-            Ada.Streams.Stream_IO.Close (File);
-         end if;
-
+         Close (File);
          Ok := False;
    end For_Each_File_Chunk;
 

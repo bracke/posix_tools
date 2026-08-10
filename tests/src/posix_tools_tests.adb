@@ -273,7 +273,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Ada.Directories;");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Hostkit.Descriptors;");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.adb", "Hostkit.Metadata.Same_File");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-file_system.adb",
+         "Ada.Streams.Stream_IO",
+         "production file adapter must route byte stream operations through hostkit descriptors");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-arguments.adb", "with Ada.Command_Line;");
       Forbid_Text
