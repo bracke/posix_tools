@@ -139,70 +139,101 @@ procedure Posix_Tools_Tests is
          end if;
       end Require_Command_Inventory_Current;
 
+      function Without_Trailing_CR (Line : String) return String is
+      begin
+         if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
+            return Line (Line'First .. Line'Last - 1);
+         else
+            return Line;
+         end if;
+      end Without_Trailing_CR;
+
+      function Starts_With (Text : String; Prefix : String) return Boolean is
+      begin
+         return Text'Length >= Prefix'Length
+           and then Text (Text'First .. Text'First + Prefix'Length - 1) = Prefix;
+      end Starts_With;
+
+      function Count_Exact_Lines (Text : String; Expected : String) return Natural is
+         Start : Positive := Text'First;
+         Count : Natural := 0;
+      begin
+         if Text = "" then
+            return 0;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = Character'Val (10) then
+               if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) = Expected then
+                  Count := Count + 1;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) = Expected then
+            Count := Count + 1;
+         end if;
+
+         return Count;
+      end Count_Exact_Lines;
+
+      function Count_Prefix_Lines (Text : String; Prefix : String) return Natural is
+         Start : Positive := Text'First;
+         Count : Natural := 0;
+      begin
+         if Text = "" then
+            return 0;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = Character'Val (10) then
+               if I > Start and then Starts_With (Without_Trailing_CR (Text (Start .. I - 1)), Prefix) then
+                  Count := Count + 1;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last and then Starts_With (Without_Trailing_CR (Text (Start .. Text'Last)), Prefix) then
+            Count := Count + 1;
+         end if;
+
+         return Count;
+      end Count_Prefix_Lines;
+
+      function Count_Nonempty_Lines (Text : String) return Natural is
+         Start : Positive := Text'First;
+         Count : Natural := 0;
+      begin
+         if Text = "" then
+            return 0;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = Character'Val (10) then
+               if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) /= "" then
+                  Count := Count + 1;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) /= "" then
+            Count := Count + 1;
+         end if;
+
+         return Count;
+      end Count_Nonempty_Lines;
+
       procedure Require_Package_File_List_Matches_Manifest is
          Files_Path : constant String := Project_Tools.Files.Join (Root, "generated/package-files.txt");
          Files      : constant String := Project_Tools.Files.Read_Raw_File (Files_Path);
          Manifest   : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"));
-
-         function Without_Trailing_CR (Line : String) return String is
-         begin
-            if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
-               return Line (Line'First .. Line'Last - 1);
-            else
-               return Line;
-            end if;
-         end Without_Trailing_CR;
-
-         function Count_Exact_Lines (Text : String; Expected : String) return Natural is
-            Start : Positive := Text'First;
-            Count : Natural := 0;
-         begin
-            if Text = "" then
-               return 0;
-            end if;
-
-            for I in Text'Range loop
-               if Text (I) = Character'Val (10) then
-                  if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) = Expected then
-                     Count := Count + 1;
-                  end if;
-
-                  Start := I + 1;
-               end if;
-            end loop;
-
-            if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) = Expected then
-               Count := Count + 1;
-            end if;
-
-            return Count;
-         end Count_Exact_Lines;
-
-         function Count_Nonempty_Lines (Text : String) return Natural is
-            Start : Positive := Text'First;
-            Count : Natural := 0;
-         begin
-            if Text = "" then
-               return 0;
-            end if;
-
-            for I in Text'Range loop
-               if Text (I) = Character'Val (10) then
-                  if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) /= "" then
-                     Count := Count + 1;
-                  end if;
-
-                  Start := I + 1;
-               end if;
-            end loop;
-
-            if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) /= "" then
-               Count := Count + 1;
-            end if;
-
-            return Count;
-         end Count_Nonempty_Lines;
 
          procedure Check_File_List_Line (Relative_Path : String) is
             Expected_Line : constant String := Project_Tools.Release_Checks.Manifest_Line (Root, Relative_Path);
@@ -249,6 +280,75 @@ procedure Posix_Tools_Tests is
             Project_Tools.Release_Checks.Fail ("package manifest and generated file list have different entry counts");
          end if;
       end Require_Package_File_List_Matches_Manifest;
+
+      procedure Require_Release_Checksums_Cover_Inventory is
+         Path      : constant String := "generated/release-checksums.txt";
+         Checksums : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+         Archive   : constant String := "dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z";
+
+         function Checksum_Line (Label : String; Relative_Path : String) return String is
+         begin
+            return Label & " " & Relative_Path & " fnv1a64="
+              & Project_Tools.Release_Checks.FNV1A64 (Project_Tools.Files.Join (Root, Relative_Path));
+         end Checksum_Line;
+
+         procedure Require_Header is
+            Header : constant String :=
+              "posix-tools release checksums " & Posix_Tools.Version.Version_String;
+            Count  : constant Natural := Count_Exact_Lines (Checksums, Header);
+         begin
+            if Count = 0 then
+               Project_Tools.Release_Checks.Fail ("release checksum header missing or stale");
+            elsif Count > 1 then
+               Project_Tools.Release_Checks.Fail ("release checksum header is duplicated");
+            end if;
+         end Require_Header;
+
+         procedure Require_Checksum_Row (Label : String; Relative_Path : String) is
+            Full_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
+            Prefix    : constant String := Label & " " & Relative_Path & " fnv1a64=";
+            Count     : Natural;
+         begin
+            if Project_Tools.Files.File_Exists (Full_Path) then
+               Count := Count_Exact_Lines (Checksums, Checksum_Line (Label, Relative_Path));
+
+               if Count = 0 and then Count_Prefix_Lines (Checksums, Prefix) > 0 then
+                  Project_Tools.Release_Checks.Fail ("release checksum entry is stale for " & Relative_Path);
+               elsif Count = 0 then
+                  Project_Tools.Release_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
+               elsif Count > 1 then
+                  Project_Tools.Release_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
+               end if;
+            else
+               Count := Count_Prefix_Lines (Checksums, Prefix);
+
+               if Count = 0 then
+                  Project_Tools.Release_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
+               elsif Count > 1 then
+                  Project_Tools.Release_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
+               end if;
+            end if;
+         end Require_Checksum_Row;
+
+         Expected_Rows : constant Natural := Posix_Tools.Command_Inventory.Command_Count + 4;
+      begin
+         if Count_Nonempty_Lines (Checksums) /= Expected_Rows then
+            Project_Tools.Release_Checks.Fail ("release checksum file has unexpected entry count");
+         end if;
+
+         Require_Header;
+         Require_Checksum_Row ("manifest", "generated/package-manifest.txt");
+         Require_Checksum_Row ("archive", Archive);
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            Require_Checksum_Row
+              ("executable",
+               "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+               & "/bin/" & Posix_Tools.Command_Inventory.Executable (I));
+         end loop;
+
+         Require_Checksum_Row ("executable", "bin/posix-tools");
+      end Require_Release_Checksums_Cover_Inventory;
 
       function Expected_Manpage (Index : Positive) return String is
          use Ada.Strings.Unbounded;
@@ -1055,6 +1155,7 @@ procedure Posix_Tools_Tests is
         (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      Require_Release_Checksums_Cover_Inventory;
       Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");

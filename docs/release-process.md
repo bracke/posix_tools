@@ -35,6 +35,11 @@ Current Ada tooling entry points:
   `generated/package-files.txt` has exactly one current checksum row in
   `generated/package-manifest.txt`, and that the manifest has no extra data
   rows beyond its header.
+- The metadata gate verifies that `generated/release-checksums.txt` contains
+  exactly the synchronized version header, package-manifest row, source-archive
+  row, root executable row, and one row for every command executable from the
+  compiled Ada inventory. When the referenced artifact exists, the gate
+  recomputes and validates the recorded FNV-1a value.
 - The release gate writes `dist/posix-tools-<version>-source.7z` from
   `generated/package-files.txt`; `dist/` is ignored because release archives are
   reproducible outputs, while their checksums are recorded in generated metadata.
