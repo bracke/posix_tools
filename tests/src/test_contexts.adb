@@ -22,6 +22,8 @@ package body Test_Contexts is
       Self.Logical_Pwd_Matches := True;
       Self.Output_Failure_Enabled := False;
       Self.Output_Failure_Limit := 0;
+      Self.Tail_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
+      Self.Tail_Spill_Bytes := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
    end Initialize;
 
    overriding procedure Put (Self : in out Capturing_Context; Text : String) is
@@ -173,6 +175,16 @@ package body Test_Contexts is
       return Self.Output_Is_Terminal;
    end Standard_Output_Is_Terminal;
 
+   overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
+   begin
+      return Self.Tail_Spill_Bytes;
+   end Tail_Max_Spill_Bytes;
+
+   overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
+   begin
+      return Self.Tail_Memory_Bytes;
+   end Tail_Memory_Threshold;
+
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
    begin
       if Name = "PWD" then
@@ -219,6 +231,16 @@ package body Test_Contexts is
       Self.Output_Failure_Enabled := True;
       Self.Output_Failure_Limit := Byte_Count;
    end Set_Output_Failure_After;
+
+   procedure Set_Tail_Resource_Limits
+     (Self             : in out Capturing_Context;
+      Memory_Threshold : Posix_Tools.Numbers.Count;
+      Max_Spill_Bytes  : Posix_Tools.Numbers.Count)
+   is
+   begin
+      Self.Tail_Memory_Bytes := Memory_Threshold;
+      Self.Tail_Spill_Bytes := Max_Spill_Bytes;
+   end Set_Tail_Resource_Limits;
 
    function Output (Self : Capturing_Context) return String is
    begin

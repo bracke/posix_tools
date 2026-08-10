@@ -48,8 +48,10 @@ where the next file operand would be.
 Copied data and headers are not localized in V1.
 
 ## Implementation-Defined Choices
-Suffix retention is capped at 16 MiB in V1. Larger retained suffix requests fail
-with a resource diagnostic until secure spill storage is implemented.
+Suffix retention uses a 16 MiB in-memory threshold. Larger byte suffix requests
+spill to host-backed temporary storage up to the configured 1 GiB spill limit;
+requests or inputs that exceed that limit fail with a resource diagnostic and no
+partial suffix output.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -58,9 +60,7 @@ with a resource diagnostic until secure spill storage is implemented.
 `tail -n +2 file`
 
 ## Conformance Status
-Known deviation: follow mode and spill-storage policy are incomplete. V1 fails
-deterministically at the retained-memory threshold rather than producing an
-incomplete suffix.
+Known deviation: follow mode is not implemented in V1.
 
 ## Known Limitations
 No `-f`, `-F`, or `--follow` support in V1.

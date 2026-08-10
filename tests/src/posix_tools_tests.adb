@@ -655,6 +655,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
       Add_Entry ("common/src/posix_tools-host_adapters-terminals.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.ads");
       Add_Entry ("common/src/posix_tools-localization.adb");
       Add_Entry ("common/src/posix_tools-localization.ads");
       Add_Entry ("common/src/posix_tools-numbers.adb");
@@ -692,6 +694,7 @@ procedure Posix_Tools_Tests is
       Add_Entry ("tests/src/posix_tools_tests.adb");
       Add_Entry ("tests/src/test_contexts.adb");
       Add_Entry ("tests/src/test_contexts.ads");
+      Add_Entry ("fixtures/reg-tail-byte-spill.bin");
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");

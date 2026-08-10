@@ -1,5 +1,6 @@
 with Ada.Streams;
 with Posix_Tools.Arguments;
+with Posix_Tools.Numbers;
 
 package Posix_Tools.Commands.Contexts is
    type Context is tagged private;
@@ -21,6 +22,8 @@ package Posix_Tools.Commands.Contexts is
       Path : out String;
       Last : out Natural) return Boolean;
    function Path_Names_Current_Directory (Self : Context; Path : String) return Boolean;
+   function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count;
+   function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
 
    procedure Read_Standard_Input
      (Self   : in out Context;

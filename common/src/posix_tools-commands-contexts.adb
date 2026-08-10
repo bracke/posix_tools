@@ -4,6 +4,8 @@ with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
 
 package body Posix_Tools.Commands.Contexts is
+   use type Posix_Tools.Numbers.Count;
+
    procedure Initialize
      (Self         : in out Context;
       Command_Name : String;
@@ -78,6 +80,18 @@ package body Posix_Tools.Commands.Contexts is
    begin
       return Posix_Tools.Host_Adapters.File_System.Path_Names_Current_Directory (Path);
    end Path_Names_Current_Directory;
+
+   function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
+   end Tail_Max_Spill_Bytes;
+
+   function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Numbers.Count (16) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
+   end Tail_Memory_Threshold;
 
    function Standard_Output_Is_Terminal (Self : Context) return Boolean is
       pragma Unreferenced (Self);

@@ -1293,6 +1293,7 @@ package body Command_Tests is
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("reg-tail-byte-mode.bin");
+      Spill_Path : constant String := Fixture_Path ("reg-tail-byte-spill.bin");
    begin
       Write_File (Path, "abcdef");
 
@@ -1317,6 +1318,25 @@ package body Command_Tests is
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "def", "tail -c +4 output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -c +4 status");
+
+      Context.Initialize ("tail", Three_Args ("-c", "6", Spill_Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 3, 64);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "fghij" & Character'Val (10),
+         "tail -c spill output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -c spill status");
+
+      Context.Initialize ("tail", Three_Args ("-c", "6", Spill_Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 3, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail max spill failure output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: count too large" & Character'Val (10),
+         "tail max spill diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail max spill failure status");
    end Test_Tail_Byte_Mode_Edges;
 
    procedure Test_Tail_Compact_Counts (T : in out Fixture) is

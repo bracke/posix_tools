@@ -6,8 +6,9 @@ IEEE Std 1003.1-2024, POSIX.1-2024.
 The root `posix-tools` executable is outside POSIX conformance claims.
 
 Tail follow mode is a known V1 deviation until implemented. Tail byte suffix
-mode is implemented for `-c number`, but the full V1 spill-storage resource
-policy is not complete.
+mode is implemented for `-c number`, including host-backed spill storage when
+the retained suffix exceeds the in-memory threshold and remains within the
+configured spill limit.
 
 `wc -m` uses deterministic incremental UTF-8 decoding through
 `Posix_Tools.Text.UTF_8` and rejects malformed or incomplete sequences for

@@ -110,8 +110,9 @@
 - Repeated `-` is valid and does not rewind input.
 - Output failure returns operational failure without misreporting it as input
   failure.
-- `tail` line state and `head` prefix state are per call; `tail -c` still uses
-  an in-memory ring and has a recorded spill-storage deviation.
+- `tail` line state and `head` prefix state are per call; `tail -c` uses an
+  in-memory ring until the threshold is exceeded, then host-backed temporary
+  spill storage up to the configured limit.
 
 ## Completion Criteria
 

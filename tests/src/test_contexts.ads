@@ -2,6 +2,7 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Contexts;
+with Posix_Tools.Numbers;
 
 package Test_Contexts is
    type Capturing_Context is new Posix_Tools.Commands.Contexts.Context with private;
@@ -31,6 +32,8 @@ package Test_Contexts is
       Last : out Natural) return Boolean;
    overriding function Path_Names_Current_Directory (Self : Capturing_Context; Path : String) return Boolean;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
+   overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String);
    procedure Set_Locale (Self : in out Capturing_Context; Value : String);
@@ -40,6 +43,10 @@ package Test_Contexts is
    procedure Set_Standard_Input_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
+   procedure Set_Tail_Resource_Limits
+     (Self             : in out Capturing_Context;
+      Memory_Threshold : Posix_Tools.Numbers.Count;
+      Max_Spill_Bytes  : Posix_Tools.Numbers.Count);
 
    function Output (Self : Capturing_Context) return String;
    function Error_Output (Self : Capturing_Context) return String;
@@ -59,5 +66,7 @@ private
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;
+      Tail_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
+      Tail_Spill_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
    end record;
 end Test_Contexts;

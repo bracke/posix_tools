@@ -2,6 +2,7 @@ with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Posix_Tools.Numbers;
 
 package body Posix_Tools.Commands.Tail is
@@ -11,8 +12,6 @@ package body Posix_Tools.Commands.Tail is
 
    type Mode is (Line_Mode, Byte_Mode);
    type Count_Origin is (From_End, From_Start);
-
-   Max_Retained_Bytes : constant Posix_Tools.Numbers.Count := 16 * 1024 * 1024;
 
    function Parse_Count
      (Text : String;
@@ -104,6 +103,91 @@ package body Posix_Tools.Commands.Tail is
       end if;
    end Emit_Ring;
 
+   procedure Tail_Bytes_With_Spill
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Requested : Posix_Tools.Numbers.Count;
+      Ok        : out Boolean)
+   is
+      Store : Posix_Tools.Host_Adapters.Temporary_Storage.Store;
+      Append_Ok : Boolean := True;
+      Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
+      Last   : Ada.Streams.Stream_Element_Offset;
+      Start  : Posix_Tools.Numbers.Count;
+
+      procedure Store_Chunk
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset)
+      is
+         pragma Unreferenced (Context);
+      begin
+         if Append_Ok then
+            Append_Ok := Posix_Tools.Host_Adapters.Temporary_Storage.Append (Store, Buffer, Last);
+         end if;
+      end Store_Chunk;
+
+      procedure Iterate is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+        (Action => Store_Chunk);
+   begin
+      Ok := False;
+      if Requested > Context.Tail_Max_Spill_Bytes
+        or else not Posix_Tools.Host_Adapters.Temporary_Storage.Create (Store, Context.Tail_Max_Spill_Bytes)
+      then
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
+         return;
+      end if;
+
+      Iterate (Context, File_Name, Ok);
+      if not Ok or else not Append_Ok then
+         if not Append_Ok and then not Context.Output_Failed then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
+         end if;
+         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Ok := False;
+         return;
+      end if;
+
+      if not Posix_Tools.Host_Adapters.Temporary_Storage.Prepare_For_Read (Store) then
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
+         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Ok := False;
+         return;
+      end if;
+
+      if Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) <= Requested then
+         Start := 1;
+      else
+         Start := Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) - Requested + 1;
+      end if;
+
+      while Start <= Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) loop
+         if not Posix_Tools.Host_Adapters.Temporary_Storage.Read (Store, Start, Buffer, Last) then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Ok := False;
+            return;
+         end if;
+
+         exit when Last < Buffer'First;
+         Context.Put (To_String (Buffer, Last));
+         if Context.Output_Failed then
+            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Ok := False;
+            return;
+         end if;
+
+         Start := Start + Posix_Tools.Numbers.Count (Last - Buffer'First + Ada.Streams.Stream_Element_Offset (1));
+      end loop;
+
+      Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+      Ok := True;
+   end Tail_Bytes_With_Spill;
+
    procedure Tail_Bytes
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
@@ -163,12 +247,10 @@ package body Posix_Tools.Commands.Tail is
             Iterate (Context, File_Name, Ok);
          end;
          return;
-      elsif Requested > Max_Retained_Bytes
+      elsif Requested > Context.Tail_Memory_Threshold
         or else Requested > Posix_Tools.Numbers.Count (Natural'Last)
       then
-         Posix_Tools.Commands.Helpers.Operational_Error
-           (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
-         Ok := False;
+         Tail_Bytes_With_Spill (Context, File_Name, Requested, Ok);
          return;
       end if;
 
