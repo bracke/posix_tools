@@ -6,9 +6,11 @@ Every crate project file uses a crate-local object directory, and binary crates
 use a crate-local executable directory. The common library uses a crate-local
 library output directory. Metadata validation checks these GPR directory
 assignments so subcrates do not share build products.
-The same metadata validation binds the root manifest and every command
-subcrate manifest to exactly the expected executable name, and binds each GPR
-to the corresponding single main source from the compiled command inventory.
+The same metadata validation binds root, common, tests, and command subcrate
+manifests to synchronized version, MIT license, maintainer, project-file, and
+build-profile metadata. It also binds executable manifests to exactly the
+expected executable name, and binds each GPR to the corresponding single main
+source from the compiled command inventory.
 The same inventory-driven metadata check rejects any dependency from the root
 crate to a command binary crate, and rejects command-to-command crate
 dependencies. It also keeps the tests crate limited to `posix_tools_common`,

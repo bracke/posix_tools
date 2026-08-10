@@ -363,6 +363,22 @@ procedure Posix_Tools_Tests is
             end loop;
          end loop;
       end Check_No_Silent_Broad_Handlers;
+
+      procedure Require_Crate_Metadata
+        (Path         : String;
+         Name         : String;
+         Project_File : String) is
+      begin
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "name = """ & Name & """");
+         Require_Synchronized_Version (Path);
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "authors =");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "maintainers =");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "maintainers-logins =");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "licenses = ""MIT""");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "project-files = [""" & Project_File & """]");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, "[build-profiles]");
+         Project_Tools.Release_Checks.Require_Text (Check, Path, """*"" = ""development""");
+      end Require_Crate_Metadata;
    begin
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "alire.toml"), "i18n =")
@@ -384,6 +400,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
       Project_Tools.Release_Checks.Require_Text
         (Check, "alire.toml", "posix_tools_common = { path = ""common"" }");
+      Require_Crate_Metadata ("alire.toml", "posix_tools", "posix_tools.gpr");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Forbid_Text
            ("alire.toml",
@@ -501,6 +518,7 @@ procedure Posix_Tools_Tests is
         (Check, "common/alire.toml", "messages = { path = ""../../messages"" }");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/alire.toml", "terminal_styles = { path = ""../../terminal_styles"" }");
+      Require_Crate_Metadata ("common/alire.toml", "posix_tools_common", "posix_tools_common.gpr");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.help.usage = Brug");
       Project_Tools.Release_Checks.Require_Text
@@ -610,6 +628,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/alire.toml", "posix_tools_common = { path = ""../common"" }");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/alire.toml", "project_tools = { path = ""../../project_tools"" }");
+      Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "executables = [""posix_tools_tests""]");
+      Require_Crate_Metadata ("tests/alire.toml", "posix_tools_tests", "posix_tools_tests.gpr");
       Forbid_Text
         ("tests/alire.toml",
          "posix_tools =",
@@ -854,6 +874,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "MANIFEST-GRAPH-004");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "MANIFEST-GRAPH-005");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "MANIFEST-CRATE-METADATA-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "LOCAL-PINS-001");
       Project_Tools.Release_Checks.Require_Text
