@@ -22,7 +22,7 @@ jobs:
         include:
           - os: ubuntu-latest
             test_runner: ./tests/bin/posix_tools_tests
-          - os: macos-latest
+          - os: macos-15-intel
             test_runner: ./tests/bin/posix_tools_tests
           - os: windows-latest
             test_runner: ./tests/bin/posix_tools_tests.exe

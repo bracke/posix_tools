@@ -397,7 +397,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
-      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-latest");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
