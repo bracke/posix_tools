@@ -382,6 +382,13 @@ procedure Posix_Tools_Tests is
 
       Project_Tools.Release_Checks.Require_Text (Check, "alire.toml", "executables = [""posix-tools""]");
       Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Forbid_Text
+           ("alire.toml",
+            Posix_Tools.Command_Inventory.Crate (I) & " =",
+            "root manifest must not depend on command crate "
+            & Posix_Tools.Command_Inventory.Crate (I));
+      end loop;
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "common/alire.toml"), "i18n =")
         or else Project_Tools.Files.File_Contains
@@ -648,6 +655,16 @@ procedure Posix_Tools_Tests is
             "terminal_styles =",
             Posix_Tools.Command_Inventory.Executable (I)
             & " manifest must not depend on terminal_styles");
+         for J in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            if J /= I then
+               Forbid_Text
+                 (Posix_Tools.Command_Inventory.Manifest_Path (I),
+                  Posix_Tools.Command_Inventory.Crate (J) & " =",
+                  Posix_Tools.Command_Inventory.Executable (I)
+                  & " manifest must not depend on command crate "
+                  & Posix_Tools.Command_Inventory.Crate (J));
+            end if;
+         end loop;
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Project_File_Path (I));
          Project_Tools.Release_Checks.Require_Text
@@ -749,6 +766,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "TOOLING-SELECTOR-SMOKE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "MANIFEST-GRAPH-004");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
