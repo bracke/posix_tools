@@ -50,8 +50,9 @@ conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
 metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
 crate, every command subcrate, and the tests crate.
-The release gates run representative selector smoke tests for `--suite cat`,
-`--category integration`, `--category conformance`, and `--category regression`
+The release gates run selector smoke tests for `--suite cat`, `--suite command`,
+`--category unit`, `--category integration`, `--category conformance`,
+`--category regression`, `--category locale`, and `--category presentation`
 through `project_tools` process execution after the tests executable is built.
 They also verify that incomplete or unknown selectors fail with usage status 2
 instead of silently broadening or ignoring the requested filter.

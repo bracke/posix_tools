@@ -1806,7 +1806,12 @@ procedure Posix_Tools_Tests is
            or else Reference = "posix_tools_tests package"
            or else Reference = "posix_tools_tests release"
            or else Reference = "posix_tools_tests release-check"
+           or else Reference = "posix_tools_tests test --category conformance"
            or else Reference = "posix_tools_tests test --category integration"
+           or else Reference = "posix_tools_tests test --category locale"
+           or else Reference = "posix_tools_tests test --category presentation"
+           or else Reference = "posix_tools_tests test --category regression"
+           or else Reference = "posix_tools_tests test --category unit"
            or else Reference = "posix_tools_tests test --suite cat"
            or else Reference = "posix_tools_tests test --suite command"
            or else Reference = "CI release check"
@@ -2616,6 +2621,20 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("cat")]),
          "command:cat");
       Expect_Selector
+        ("test selector suite command",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("command")]),
+         "command:basename");
+      Expect_Selector
+        ("test selector category unit",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("unit")]),
+         "basic:numbers");
+      Expect_Selector
         ("test selector category integration",
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
@@ -2636,6 +2655,20 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("--category"),
              Project_Tools.Processes.Argument ("regression")]),
          "regression:REG-CAT-0001");
+      Expect_Selector
+        ("test selector category locale",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("locale")]),
+         "locale:help");
+      Expect_Selector
+        ("test selector category presentation",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("presentation")]),
+         "presentation:styling");
       Expect_Usage_Error
         ("test selector missing suite value",
          Project_Tools.Processes.Arguments
