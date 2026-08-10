@@ -984,7 +984,31 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Max_Identity_Output_Bytes");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Process.Locate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Process.Run_Captured");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Timeout_Ms  => 2000");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Output = Excessive_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Error = Excessive_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "not Contains (Output, ""schema=1""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Fs.Is_Executable");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "return ""shadowed""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "Host_Adapters.Executables.Locate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "Host_Adapters.Executables.Verify_Identity");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Run_Staged_Verification;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:root verify");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Contains_Executable (Context.Argument (2))");
       Project_Tools.Release_Checks.Require_Text
