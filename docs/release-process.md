@@ -21,7 +21,7 @@ Current Ada tooling entry points:
   with byte counts and FNV-1a checksums for packaged files.
 - `posix_tools_tests release-check` and `release` regenerate
   `generated/release-checksums.txt` with FNV-1a checksums for the package
-  manifest and built executables.
+  manifest, source release archive, and built executables.
 - `posix_tools_tests release-check` regenerates the current generated docs and
   package manifest, builds the root crate, every command subcrate, and the
   tests crate, verifies the exact built root and command executables by internal
@@ -31,6 +31,9 @@ Current Ada tooling entry points:
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
+- The release gate writes `dist/posix-tools-<version>-source.7z` from
+  `generated/package-files.txt`; `dist/` is ignored because release archives are
+  reproducible outputs, while their checksums are recorded in generated metadata.
 - `posix_tools_tests release` first requires `git status --porcelain` to report
   a clean source tree, then runs the same implemented gates as `release-check`
-  and reports completion; archive/checksum production remains acceptance work.
+  and reports completion.

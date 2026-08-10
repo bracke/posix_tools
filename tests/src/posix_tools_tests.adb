@@ -449,6 +449,7 @@ procedure Posix_Tools_Tests is
            (Check, "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
       end loop;
       Require_Generated_Docs_Current;
+      Project_Tools.Release_Checks.Require_File (Check, "generated/package-files.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/package-manifest.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/release-checksums.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/requirements.csv");
@@ -906,6 +907,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "INTEGRATION-EXECUTABLE-SMOKE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "RELEASE-ARCHIVE-001");
       Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
@@ -935,9 +938,14 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/package-files.txt");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "alire.toml");
       Project_Tools.Release_Checks.Require_Manifest_Entry
@@ -1089,10 +1097,12 @@ procedure Posix_Tools_Tests is
    procedure Generate_Package_Manifest is
       use Ada.Strings.Unbounded;
       Content : Unbounded_String;
+      Files   : Unbounded_String;
       Base    : constant String := Root;
 
       procedure Add_Entry (Relative_Path : String) is
       begin
+         Append (Files, Relative_Path & Character'Val (10));
          Append
            (Content,
             Project_Tools.Release_Checks.Manifest_Line (Base, Relative_Path)
@@ -1233,10 +1243,66 @@ procedure Posix_Tools_Tests is
          Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
       end loop;
 
+      Append (Files, "generated/package-files.txt" & Character'Val (10));
+      Project_Tools.Files.Write_Text_File
+        (Project_Tools.Files.Join (Base, "generated/package-files.txt"), To_String (Files));
+      Ada.Text_IO.Put_Line ("generated/package-files.txt");
+      Append
+        (Content,
+         Project_Tools.Release_Checks.Manifest_Line (Base, "generated/package-files.txt")
+         & Character'Val (10));
       Project_Tools.Files.Write_Text_File
         (Project_Tools.Files.Join (Base, "generated/package-manifest.txt"), To_String (Content));
       Ada.Text_IO.Put_Line ("generated/package-manifest.txt");
    end Generate_Package_Manifest;
+
+   function Release_Archive_Path return String is
+   begin
+      return "dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z";
+   end Release_Archive_Path;
+
+   procedure Generate_Release_Archive is
+      Archive  : constant String := Release_Archive_Path;
+      Seven_Z  : constant String := Project_Tools.Processes.Locate_Command ("7z");
+      Seven_Zz : constant String := Project_Tools.Processes.Locate_Command ("7zz");
+      Archiver : constant String := (if Seven_Z /= "" then Seven_Z else Seven_Zz);
+      Output   : Ada.Strings.Unbounded.Unbounded_String;
+      Status   : Integer;
+   begin
+      if Archiver = "" then
+         Project_Tools.Release_Checks.Fail ("7z-compatible command not found for release archive generation");
+      end if;
+
+      if not Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "dist")) then
+         Ada.Directories.Create_Directory (Project_Tools.Files.Join (Root, "dist"));
+      end if;
+
+      Project_Tools.Files.Delete_File_If_Present (Project_Tools.Files.Join (Root, Archive));
+      Status :=
+        Project_Tools.Processes.Run_Status
+           (Label   => "create release archive",
+            Dir     => Root,
+            Program => Archiver,
+            Args    => Project_Tools.Processes.Arguments
+              ([Project_Tools.Processes.Argument ("a"),
+                Project_Tools.Processes.Argument ("-t7z"),
+                Project_Tools.Processes.Argument ("-mx=9"),
+                Project_Tools.Processes.Argument ("-mmt=off"),
+                Project_Tools.Processes.Argument ("-mtm=off"),
+                Project_Tools.Processes.Argument (Archive),
+                Project_Tools.Processes.Argument ("@generated/package-files.txt")]),
+            Output  => Output,
+            Quiet   => True);
+
+      if Status /= 0 then
+         Project_Tools.Release_Checks.Fail
+           ("release archive generation failed with status" & Integer'Image (Status));
+      elsif not Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Archive)) then
+         Project_Tools.Release_Checks.Fail ("release archive was not created");
+      end if;
+
+      Ada.Text_IO.Put_Line (Archive);
+   end Generate_Release_Archive;
 
    procedure Generate_Release_Checksums is
       use Ada.Strings.Unbounded;
@@ -1257,6 +1323,7 @@ procedure Posix_Tools_Tests is
          "posix-tools release checksums " & Posix_Tools.Version.Version_String
          & Character'Val (10));
       Add_File ("manifest", "generated/package-manifest.txt");
+      Add_File ("archive", Release_Archive_Path);
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Add_File
@@ -2553,6 +2620,7 @@ begin
       Run_Test_Selector_Smoke;
       Run_Staged_Verification;
       Run_Executable_Integration_Smoke;
+      Generate_Release_Archive;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
       Run_Format_Checks;
@@ -2566,6 +2634,7 @@ begin
       Run_Test_Selector_Smoke;
       Run_Staged_Verification;
       Run_Executable_Integration_Smoke;
+      Generate_Release_Archive;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
       Run_Format_Checks;
@@ -2592,6 +2661,7 @@ begin
       Ada.Text_IO.Put_Line ("docs: completed by Ada project_tools driver");
    elsif Command = "package" then
       Generate_Package_Manifest;
+      Generate_Release_Archive;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
       Ada.Text_IO.Put_Line ("package: completed by Ada project_tools driver");

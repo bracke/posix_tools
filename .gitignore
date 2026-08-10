@@ -8,6 +8,7 @@
 /bin/
 /obj/
 /lib/
+/dist/
 /**/bin/
 /**/obj/
 /**/lib/
