@@ -859,6 +859,18 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build common crate");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "build root crate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "build tests crate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "tests/src/posix_tools_tests.adb",
+         "for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "tests/src/posix_tools_tests.adb",
+         """build "" & Posix_Tools.Command_Inventory.Executable (I)");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "posix_tools.gpr", "for Body (""Posix_Tools_Main"") use ""posix-tools.adb""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tools/false/posix_tools_false.gpr", "for Body (""Posix_Tools_False_Main"") use ""false.adb""");

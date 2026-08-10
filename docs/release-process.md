@@ -31,6 +31,9 @@ Current Ada tooling entry points:
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
+- The metadata gate also checks that the Ada build driver names the common
+  crate, root crate, tests crate, and every command build label derived from the
+  compiled command inventory.
 - Generated manual pages are created by the Ada tooling from the compiled
   command inventory. The metadata gate compares the manual index, root manual
   page, and every command manual page byte-for-byte against the expected current
