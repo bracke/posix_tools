@@ -1,0 +1,14 @@
+* text=auto
+
+*.adb text eol=lf
+*.ads text eol=lf
+*.gpr text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+*.txt text eol=lf
+*.catalog text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.bin binary

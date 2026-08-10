@@ -23,7 +23,9 @@ The metadata release gate requires each per-command reference document,
 including the non-POSIX root executable reference, to carry the V1 command
 reference sections defined by the project documentation policy. It also
 compares the generated command inventory CSV byte-for-byte against the compiled
-Ada command inventory.
+Ada command inventory. The repository line-ending policy pins generated CSV and
+text metadata to LF so this comparison remains deterministic on Windows,
+Linux, and macOS checkouts.
 
 Tail follow mode is a known V1 deviation until implemented. Tail suffix
 processing is implemented for `-n number` and `-c number`, including

@@ -273,6 +273,7 @@ procedure Posix_Tools_Tests is
       end if;
 
       Project_Tools.Release_Checks.Require_File (Check, "alire.toml");
+      Project_Tools.Release_Checks.Require_File (Check, ".gitattributes");
       Project_Tools.Release_Checks.Require_File (Check, "posix_tools.gpr");
       Project_Tools.Release_Checks.Require_File (Check, "common/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "common/posix_tools_common.gpr");
@@ -612,6 +613,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "documentation_path");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
+      Project_Tools.Release_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
       Project_Tools.Release_Checks.Require_Text
@@ -775,6 +778,7 @@ procedure Posix_Tools_Tests is
         (Content,
          "posix-tools package manifest " & Posix_Tools.Version.Version_String
          & Character'Val (10));
+      Add_Entry (".gitattributes");
       Add_Entry ("alire.toml");
       Add_Entry ("posix_tools.gpr");
       Add_Entry ("README.md");
