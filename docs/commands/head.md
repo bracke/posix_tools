@@ -54,7 +54,7 @@ project conformance registry.
 `head -n 5 file`
 
 ## Conformance Status
-Partially conforming pending full cross-platform validation.
+Partially conforming with Linux, Windows, and macOS release-gate coverage.
 
 ## Known Limitations
 Only mandatory line-count behavior is implemented.

@@ -48,7 +48,7 @@ project lexical policy above.
 `pwd -P`
 
 ## Conformance Status
-Partially conforming pending full cross-platform validation.
+Partially conforming with Linux, Windows, and macOS release-gate coverage.
 
 ## Known Limitations
 Logical `PWD` is accepted only when it passes the project lexical policy and

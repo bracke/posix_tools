@@ -5,7 +5,7 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3014 fnv1a64=0c6646548ddb5e2d
 generated/command_inventory.csv bytes= 1812 fnv1a64=1011ede40a0d8c6d
-generated/requirements.csv bytes= 26371 fnv1a64=1cb1c8a38aeab25e
+generated/requirements.csv bytes= 26657 fnv1a64=39fae9e537383a7e
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
@@ -13,7 +13,7 @@ CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5592 fnv1a64=40409299e90f95ab
 docs/architecture.md bytes= 3494 fnv1a64=a50bbfcf1d057324
-docs/conformance.md bytes= 1277 fnv1a64=e6d9481df4118a73
+docs/conformance.md bytes= 1734 fnv1a64=358c3d2b2ec3792d
 docs/development.md bytes= 696 fnv1a64=a58d4a4a816d5730
 docs/portability.md bytes= 460 fnv1a64=c5717f9a20c7d1a4
 docs/release-process.md bytes= 1526 fnv1a64=5da0b01fbb36c0c5
@@ -113,7 +113,7 @@ tests/src/command_tests-suite.adb bytes= 7128 fnv1a64=4f524668731fbe47
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 95069 fnv1a64=bc27854f45fbb8b8
 tests/src/command_tests.ads bytes= 3297 fnv1a64=fb01dfeed0e03640
-tests/src/posix_tools_tests.adb bytes= 58265 fnv1a64=841fa54717f310c9
+tests/src/posix_tools_tests.adb bytes= 58480 fnv1a64=a012de3601dc161a
 tests/src/test_contexts.adb bytes= 9768 fnv1a64=c411d3a3b9a74024
 tests/src/test_contexts.ads bytes= 3956 fnv1a64=2b80c3d823751ba0
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8
@@ -126,7 +126,7 @@ generated/man/cat.1 bytes= 247 fnv1a64=f7e2757d57e6da27
 tools/cat/alire.toml bytes= 407 fnv1a64=8242d170a9dea0bc
 tools/cat/posix_tools_cat.gpr bytes= 343 fnv1a64=bafc72c7f8a9826d
 tools/cat/src/cat.adb bytes= 224 fnv1a64=5887e881e30b0b76
-docs/commands/cat.md bytes= 1383 fnv1a64=d9df6071fea7bec5
+docs/commands/cat.md bytes= 1594 fnv1a64=ed6471e02c2ee54d
 generated/man/dirname.1 bytes= 267 fnv1a64=ba42a358c001c417
 tools/dirname/alire.toml bytes= 423 fnv1a64=1c67ff3781227528
 tools/dirname/posix_tools_dirname.gpr bytes= 359 fnv1a64=4187d2d0d5bab1d9
@@ -141,17 +141,17 @@ generated/man/false.1 bytes= 257 fnv1a64=99c99c6e868ef692
 tools/false/alire.toml bytes= 415 fnv1a64=6e2ea37557a9bf5c
 tools/false/posix_tools_false.gpr bytes= 446 fnv1a64=563fef414824605a
 tools/false/src/false.adb bytes= 284 fnv1a64=92caf79b3fd8fc97
-docs/commands/false.md bytes= 1001 fnv1a64=495cf17814d54031
+docs/commands/false.md bytes= 1021 fnv1a64=f4eae42d1df9e9c9
 generated/man/head.1 bytes= 252 fnv1a64=0599d7465017bb6d
 tools/head/alire.toml bytes= 411 fnv1a64=4985e43eb3477d62
 tools/head/posix_tools_head.gpr bytes= 347 fnv1a64=6af8caa274f68275
 tools/head/src/head.adb bytes= 229 fnv1a64=88602b800021908c
-docs/commands/head.md bytes= 1644 fnv1a64=296f9bc544a4498f
+docs/commands/head.md bytes= 1658 fnv1a64=13c14ab5b8e422b8
 generated/man/pwd.1 bytes= 247 fnv1a64=b325123b26f07472
 tools/pwd/alire.toml bytes= 407 fnv1a64=de5af3b8ad06485c
 tools/pwd/posix_tools_pwd.gpr bytes= 343 fnv1a64=36984a114404d751
 tools/pwd/src/pwd.adb bytes= 224 fnv1a64=3d225173b0d8c1a7
-docs/commands/pwd.md bytes= 1301 fnv1a64=ccc39a604490daee
+docs/commands/pwd.md bytes= 1315 fnv1a64=1c88bf56497d4a85
 generated/man/tail.1 bytes= 247 fnv1a64=77b193ac2e65829d
 tools/tail/alire.toml bytes= 411 fnv1a64=f9155ecf7b819802
 tools/tail/posix_tools_tail.gpr bytes= 347 fnv1a64=2d0ce65e865f17cd
@@ -161,7 +161,7 @@ generated/man/true.1 bytes= 252 fnv1a64=1da55b7408d3873b
 tools/true/alire.toml bytes= 411 fnv1a64=358b5fd82a1537ce
 tools/true/posix_tools_true.gpr bytes= 440 fnv1a64=99e0871133b042de
 tools/true/src/true.adb bytes= 279 fnv1a64=ab4a98ef5960a3dc
-docs/commands/true.md bytes= 943 fnv1a64=832b760352a4cf2e
+docs/commands/true.md bytes= 963 fnv1a64=edae5f595c2753e6
 generated/man/wc.1 bytes= 237 fnv1a64=ae8b2464d380c765
 tools/wc/alire.toml bytes= 403 fnv1a64=76bbc01fdcd57946
 tools/wc/posix_tools_wc.gpr bytes= 339 fnv1a64=5bd0280b5fd4a135

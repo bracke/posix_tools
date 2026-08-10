@@ -5,6 +5,13 @@ IEEE Std 1003.1-2024, POSIX.1-2024.
 
 The root `posix-tools` executable is outside POSIX conformance claims.
 
+The current release gate runs on Linux, Windows, and macOS through CI. Each
+runner builds the common crate, root executable, command subcrates, and tests
+crate, then runs staged identity verification, metadata checks, conformance
+metadata checks, formatting checks, and the AUnit suite. This establishes V1
+platform validation for the implemented behavior, but it does not by itself
+upgrade commands with remaining registry gaps to full POSIX conformance.
+
 Tail follow mode is a known V1 deviation until implemented. Tail suffix
 processing is implemented for `-n number` and `-c number`, including
 host-backed spill storage when retained data exceeds the in-memory threshold
