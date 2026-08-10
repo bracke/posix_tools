@@ -6,7 +6,7 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3014 fnv1a64=0c6646548ddb5e2d
 generated/command_inventory.csv bytes= 1812 fnv1a64=1011ede40a0d8c6d
-generated/requirements.csv bytes= 39365 fnv1a64=e6fa7c743f17b7ad
+generated/requirements.csv bytes= 39371 fnv1a64=bfc3c08613110159
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
