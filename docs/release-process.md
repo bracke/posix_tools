@@ -33,8 +33,9 @@ Current Ada tooling entry points:
   reference document, and generated manual page.
 - The metadata gate also verifies that every entry in
   `generated/package-files.txt` has exactly one current checksum row in
-  `generated/package-manifest.txt`, and that the manifest has no extra data
-  rows beyond its header.
+  `generated/package-manifest.txt`, that the manifest carries the synchronized
+  version header, and that the manifest has no extra data rows beyond its
+  header.
 - The metadata gate verifies that `generated/release-checksums.txt` contains
   exactly the synchronized version header, package-manifest row, source-archive
   row, root executable row, and one row for every command executable from the

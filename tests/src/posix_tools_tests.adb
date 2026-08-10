@@ -235,6 +235,18 @@ procedure Posix_Tools_Tests is
          Manifest   : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"));
 
+         procedure Check_Header is
+            Header : constant String :=
+              "posix-tools package manifest " & Posix_Tools.Version.Version_String;
+            Count  : constant Natural := Count_Exact_Lines (Manifest, Header);
+         begin
+            if Count = 0 then
+               Project_Tools.Release_Checks.Fail ("package manifest header missing or stale");
+            elsif Count > 1 then
+               Project_Tools.Release_Checks.Fail ("package manifest header is duplicated");
+            end if;
+         end Check_Header;
+
          procedure Check_File_List_Line (Relative_Path : String) is
             Expected_Line : constant String := Project_Tools.Release_Checks.Manifest_Line (Root, Relative_Path);
             Count         : constant Natural := Count_Exact_Lines (Manifest, Expected_Line);
@@ -257,6 +269,8 @@ procedure Posix_Tools_Tests is
          if Files = "" then
             Project_Tools.Release_Checks.Fail ("generated package file list is empty");
          end if;
+
+         Check_Header;
 
          for I in Files'Range loop
             if Files (I) = Character'Val (10) then
