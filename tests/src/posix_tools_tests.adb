@@ -382,6 +382,8 @@ procedure Posix_Tools_Tests is
 
       Project_Tools.Release_Checks.Require_Text (Check, "alire.toml", "executables = [""posix-tools""]");
       Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "alire.toml", "posix_tools_common = { path = ""common"" }");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Forbid_Text
            ("alire.toml",
@@ -459,6 +461,12 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/alire.toml", "hostkit = { path = ""../../hostkit"" }");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/alire.toml", "messages = { path = ""../../messages"" }");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/alire.toml", "terminal_styles = { path = ""../../terminal_styles"" }");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.help.usage = Brug");
       Project_Tools.Release_Checks.Require_Text
@@ -564,6 +572,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "posix_tools_common =");
       Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "aunit =");
       Project_Tools.Release_Checks.Require_Text (Check, "tests/alire.toml", "project_tools =");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/alire.toml", "posix_tools_common = { path = ""../common"" }");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/alire.toml", "project_tools = { path = ""../../project_tools"" }");
       Forbid_Text ("common/alire.toml", "aunit =", "common manifest must not depend on aunit");
       Forbid_Text
         ("common/alire.toml", "project_tools =", "common manifest must not depend on project_tools");
@@ -624,6 +636,10 @@ procedure Posix_Tools_Tests is
          Require_Synchronized_Version (Posix_Tools.Command_Inventory.Manifest_Path (I));
          Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            Posix_Tools.Command_Inventory.Manifest_Path (I),
+            "posix_tools_common = { path = ""../../common"" }");
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Manifest_Path (I),
@@ -768,6 +784,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "TOOLING-SELECTOR-SMOKE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "MANIFEST-GRAPH-004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "LOCAL-PINS-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
