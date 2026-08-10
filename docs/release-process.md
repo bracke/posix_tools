@@ -31,6 +31,9 @@ Current Ada tooling entry points:
 - Metadata validation asserts that the `release-check` branch names the selector
   smoke, staged verification, executable smoke, source archive, release checksum,
   metadata, format, conformance, and AUnit steps.
+- Metadata validation also asserts that the `release` branch runs clean-tree
+  enforcement before the same release gate and reports completion through the
+  Ada project_tools driver.
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
