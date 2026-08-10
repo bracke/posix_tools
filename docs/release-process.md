@@ -28,6 +28,9 @@ Current Ada tooling entry points:
   identity, executes built binaries for version-output and representative
   command-data smoke coverage, validates metadata, runs format checks, validates
   conformance metadata, and runs the AUnit suite.
+- Metadata validation asserts that the `release-check` branch names the selector
+  smoke, staged verification, executable smoke, source archive, release checksum,
+  metadata, format, conformance, and AUnit steps.
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
