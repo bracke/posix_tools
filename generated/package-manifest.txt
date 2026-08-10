@@ -114,7 +114,7 @@ tests/src/command_tests-suite.adb bytes= 7128 fnv1a64=4f524668731fbe47
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 95069 fnv1a64=bc27854f45fbb8b8
 tests/src/command_tests.ads bytes= 3297 fnv1a64=fb01dfeed0e03640
-tests/src/posix_tools_tests.adb bytes= 130191 fnv1a64=0f11dc9b2acb549b
+tests/src/posix_tools_tests.adb bytes= 130476 fnv1a64=a0a900af544a1749
 tests/src/test_contexts.adb bytes= 9768 fnv1a64=c411d3a3b9a74024
 tests/src/test_contexts.ads bytes= 3956 fnv1a64=2b80c3d823751ba0
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8
@@ -168,5 +168,4 @@ tools/wc/alire.toml bytes= 403 fnv1a64=76bbc01fdcd57946
 tools/wc/posix_tools_wc.gpr bytes= 339 fnv1a64=5bd0280b5fd4a135
 tools/wc/src/wc.adb bytes= 219 fnv1a64=a9d47a2dccb964d4
 docs/commands/wc.md bytes= 1705 fnv1a64=d1a7abfa2c496aa2
-generated/package-files.txt bytes= 5638 fnv1a64=4429de527bdbba62
-
+generated/package-files.txt bytes= 5637 fnv1a64=f7c904947e39971c

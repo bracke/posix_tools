@@ -168,4 +168,3 @@ tools/wc/posix_tools_wc.gpr
 tools/wc/src/wc.adb
 docs/commands/wc.md
 generated/package-files.txt
-

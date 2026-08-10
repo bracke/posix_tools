@@ -1,6 +1,7 @@
 with Ada.Command_Line;
 with Ada.Characters.Handling;
 with Ada.Directories;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -1155,8 +1156,9 @@ procedure Posix_Tools_Tests is
          Append (Page, Posix_Tools.Command_Inventory.Posix_Status (Index) & Character'Val (10));
          Append (Page, ".SH SEE ALSO" & Character'Val (10));
          Append (Page, Posix_Tools.Command_Inventory.Documentation_Path (Index) & Character'Val (10));
+         Append (Page, Character'Val (10));
 
-         Project_Tools.Files.Write_Text_File
+         Project_Tools.Files.Write_Raw_File
            (Project_Tools.Files.Join (Man_Dir, Command & ".1"), To_String (Page));
       end Generate_Manpage;
 
@@ -1177,8 +1179,9 @@ procedure Posix_Tools_Tests is
             & Character'Val (10));
          Append (Page, ".SH SEE ALSO" & Character'Val (10));
          Append (Page, "docs/commands/posix-tools.md" & Character'Val (10));
+         Append (Page, Character'Val (10));
 
-         Project_Tools.Files.Write_Text_File
+         Project_Tools.Files.Write_Raw_File
            (Project_Tools.Files.Join (Man_Dir, "posix-tools.1"), To_String (Page));
       end Generate_Root_Manpage;
    begin
@@ -1201,8 +1204,9 @@ procedure Posix_Tools_Tests is
             & Posix_Tools.Command_Inventory.Documentation_Path (I)
             & Character'Val (10));
       end loop;
+      Append (Content, Character'Val (10));
 
-      Project_Tools.Files.Write_Text_File
+      Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/manual-index.md"), To_String (Content));
       Ada.Text_IO.Put_Line ("generated/manual-index.md");
       Ada.Text_IO.Put_Line ("generated/man/*.1");
@@ -1358,14 +1362,14 @@ procedure Posix_Tools_Tests is
       end loop;
 
       Append (Files, "generated/package-files.txt" & Character'Val (10));
-      Project_Tools.Files.Write_Text_File
+      Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/package-files.txt"), To_String (Files));
       Ada.Text_IO.Put_Line ("generated/package-files.txt");
       Append
         (Content,
          Project_Tools.Release_Checks.Manifest_Line (Base, "generated/package-files.txt")
          & Character'Val (10));
-      Project_Tools.Files.Write_Text_File
+      Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/package-manifest.txt"), To_String (Content));
       Ada.Text_IO.Put_Line ("generated/package-manifest.txt");
    end Generate_Package_Manifest;
@@ -1448,7 +1452,7 @@ procedure Posix_Tools_Tests is
 
       Add_File ("executable", "bin/posix-tools");
 
-      Project_Tools.Files.Write_Text_File
+      Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/release-checksums.txt"), To_String (Content));
       Ada.Text_IO.Put_Line ("generated/release-checksums.txt");
    end Generate_Release_Checksums;
@@ -2790,9 +2794,12 @@ exception
       Ada.Command_Line.Set_Exit_Status (2);
    when Program_Error =>
       Ada.Command_Line.Set_Exit_Status (1);
-   when others =>
+   when Occurrence : others =>
       Ada.Text_IO.Put_Line
         (Ada.Text_IO.Standard_Error,
          "posix_tools_tests: internal tooling failure");
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         Ada.Exceptions.Exception_Information (Occurrence));
       Ada.Command_Line.Set_Exit_Status (125);
 end Posix_Tools_Tests;
