@@ -968,6 +968,18 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "root command help must reuse command metadata");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "function Root_Status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "if Context.Output_Failed then");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "return Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "exit when Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "root output failure status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-ROOT-0002");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
