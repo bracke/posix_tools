@@ -54,7 +54,7 @@ project conformance registry.
 `head -n 5 file`
 
 ## Conformance Status
-Partially conforming with Linux, Windows, and macOS release-gate coverage.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 Only mandatory line-count behavior is implemented.

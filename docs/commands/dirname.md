@@ -45,7 +45,7 @@ Command data output is not localized.
 `dirname /tmp/file`
 
 ## Conformance Status
-Partially conforming pending full traceability closure.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 No filesystem resolution is performed.

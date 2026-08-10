@@ -46,8 +46,7 @@ Same-file output safety is not claimed for shell truncation before startup.
 `cat file1 file2`
 
 ## Conformance Status
-Partially conforming with adapter and error behavior covered by the current
-AUnit and release-gate tests.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 File operands are routed through the project filesystem adapter, which opens,

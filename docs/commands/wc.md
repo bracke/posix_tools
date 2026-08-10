@@ -52,7 +52,7 @@ Unicode version 15.1.0, the UCD source, and the Unicode license reference.
 `wc -l -w -c file`
 
 ## Conformance Status
-Partially conforming pending full locale conformance closure.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 GNU `-L` maximum-line-length mode is not a POSIX.1-2024 `wc` option and is not

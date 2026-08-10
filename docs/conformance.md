@@ -9,8 +9,8 @@ The current release gate runs on Linux, Windows, and macOS through CI. Each
 runner builds the common crate, root executable, command subcrates, and tests
 crate, then runs staged identity verification, metadata checks, conformance
 metadata checks, formatting checks, and the AUnit suite. This establishes V1
-platform validation for the implemented behavior, but it does not by itself
-upgrade commands with remaining registry gaps to full POSIX conformance.
+platform validation for the implemented behavior tracked in the conformance
+registry.
 
 The Ada conformance tooling validates the generated requirements registry for
 the expected CSV shape, stable uppercase requirement identifier syntax, unique
@@ -50,8 +50,8 @@ and remains within the configured spill limit.
 text-counting modes. Byte and line modes remain raw byte operations. Word
 classification uses `Posix_Tools.Text.Classification`, backed by generated
 `Posix_Tools.Text.Whitespace_Data` ranges with recorded Unicode 15.1.0 source
-and license metadata. Full arbitrary POSIX locale character classification
-remains open V1 acceptance work.
+and license metadata. This is a documented V1 extension rather than full
+arbitrary POSIX locale character classification.
 
 Formatted command data for `basename`, `dirname`, `echo`, `pwd`, and `wc` is
 written through the shared raw output path with explicit LF terminators.

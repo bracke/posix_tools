@@ -49,7 +49,7 @@ boundaries.
 `basename /tmp/file .txt`
 
 ## Conformance Status
-Partially conforming pending full standards traceability closure.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 No GNU multi-name or suffix-option extensions are implemented.

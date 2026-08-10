@@ -45,7 +45,7 @@ Sole-argument `--help`, `--version`, `--posix-tools-identify`.
 `true ignored`
 
 ## Conformance Status
-Partially conforming with Linux, Windows, and macOS release-gate coverage.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 None for V1 normal behavior.

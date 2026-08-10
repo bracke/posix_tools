@@ -44,7 +44,7 @@ Sole-argument `--help`, `--version`, `--posix-tools-identify`.
 `echo hello world`
 
 ## Conformance Status
-Partially conforming with project-defined deterministic V1 behavior.
+Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
 GNU, BSD, shell-builtin, and XSI escape variants are not implemented.
