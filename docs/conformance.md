@@ -19,6 +19,10 @@ POSIX.1-2024 baseline references, documentation links for known deviations,
 matching deviation identifiers in the linked documentation, and coverage for
 every released command in the compiled inventory.
 
+The metadata release gate requires each per-command reference document,
+including the non-POSIX root executable reference, to carry the V1 command
+reference sections defined by the project documentation policy.
+
 Tail follow mode is a known V1 deviation until implemented. Tail suffix
 processing is implemented for `-n number` and `-c number`, including
 host-backed spill storage when retained data exceeds the in-memory threshold

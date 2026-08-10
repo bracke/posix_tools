@@ -60,6 +60,33 @@ procedure Posix_Tools_Tests is
          end if;
       end Forbid_Text;
 
+      procedure Require_Command_Doc_Sections (Path : String) is
+         procedure Require_Section (Heading : String) is
+         begin
+            Project_Tools.Release_Checks.Require_Text
+              (Check,
+               Path,
+               Character'Val (10) & "## " & Heading & Character'Val (10));
+         end Require_Section;
+      begin
+         Require_Section ("Name");
+         Require_Section ("Synopsis");
+         Require_Section ("Description");
+         Require_Section ("Operands");
+         Require_Section ("Options");
+         Require_Section ("Standard Input");
+         Require_Section ("Standard Output");
+         Require_Section ("Standard Error");
+         Require_Section ("Exit Status");
+         Require_Section ("Behavioral Details");
+         Require_Section ("Locale Behavior");
+         Require_Section ("Implementation-Defined Choices");
+         Require_Section ("Extensions");
+         Require_Section ("Examples");
+         Require_Section ("Conformance Status");
+         Require_Section ("Known Limitations");
+      end Require_Command_Doc_Sections;
+
       function Line_Count (Path : String) return Natural is
          Content : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -397,7 +424,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "docs/commands/tail.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/commands/true.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/commands/wc.md");
+      Require_Command_Doc_Sections ("docs/commands/posix-tools.md");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Require_Command_Doc_Sections (Posix_Tools.Command_Inventory.Documentation_Path (I));
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I));
          Require_Synchronized_Version (Posix_Tools.Command_Inventory.Manifest_Path (I));
@@ -511,6 +540,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/conformance.md", "Linux, Windows, and macOS");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
