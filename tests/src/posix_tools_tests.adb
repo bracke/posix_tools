@@ -1034,6 +1034,29 @@ procedure Posix_Tools_Tests is
       procedure Check_Requirement_Rows is
          Start : Positive := Requirements'First;
          Line_Number : Positive := 1;
+         Max_Requirement_Rows : constant Positive := 512;
+         type Seen_Id_Array is array (Positive range <>) of Unbounded_String;
+         Seen_Ids : Seen_Id_Array (1 .. Max_Requirement_Rows);
+         Seen_Count : Natural := 0;
+
+         procedure Remember_Id (Line : String; Number : Positive) is
+            Id_Text : constant String := Field (Line, 1);
+         begin
+            for I in 1 .. Seen_Count loop
+               if To_String (Seen_Ids (I)) = Id_Text then
+                  Project_Tools.Release_Checks.Fail
+                    ("duplicate requirement identifier " & Id_Text
+                     & " at line" & Positive'Image (Number));
+               end if;
+            end loop;
+
+            if Seen_Count = Max_Requirement_Rows then
+               Project_Tools.Release_Checks.Fail ("requirements registry exceeds tooling row capacity");
+            end if;
+
+            Seen_Count := Seen_Count + 1;
+            Seen_Ids (Seen_Count) := To_Unbounded_String (Id_Text);
+         end Remember_Id;
       begin
          if Requirements = "" then
             Project_Tools.Release_Checks.Fail ("requirements registry is empty");
@@ -1051,6 +1074,7 @@ procedure Posix_Tools_Tests is
                         end if;
                      else
                         Check_Row (Line, Line_Number);
+                        Remember_Id (Line, Line_Number);
                      end if;
                   end;
                end if;
@@ -1061,7 +1085,12 @@ procedure Posix_Tools_Tests is
          end loop;
 
          if Start <= Requirements'Last then
-            Check_Row (Without_Trailing_CR (Requirements (Start .. Requirements'Last)), Line_Number);
+            declare
+               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
+            begin
+               Check_Row (Line, Line_Number);
+               Remember_Id (Line, Line_Number);
+            end;
          end if;
       end Check_Requirement_Rows;
    begin
