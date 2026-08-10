@@ -1155,6 +1155,34 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-contexts.adb",
          "with Ada.Text_IO",
          "command context must use project stream adapter");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Environment;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.File_System;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Streams;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Terminals;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Environment.Value");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.File_System.Physical_Current_Directory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "common/src/posix_tools-commands-contexts.adb",
+         "Host_Adapters.File_System.Try_Physical_Current_Directory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "common/src/posix_tools-commands-contexts.adb",
+         "Host_Adapters.File_System.Path_Names_Current_Directory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Streams.Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Streams.Try_Read_Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Streams.Write_Standard_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Streams.Write_Standard_Error_Line");
       Forbid_Text
         ("common/src/posix_tools-help.adb",
          "with Terminal_Styles",
