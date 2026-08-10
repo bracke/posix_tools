@@ -87,6 +87,55 @@ procedure Posix_Tools_Tests is
          Require_Section ("Known Limitations");
       end Require_Command_Doc_Sections;
 
+      function Boolean_Text (Value : Boolean) return String is
+      begin
+         if Value then
+            return "true";
+         else
+            return "false";
+         end if;
+      end Boolean_Text;
+
+      function Expected_Command_Inventory return String is
+         use Ada.Strings.Unbounded;
+         Content : Unbounded_String;
+      begin
+         Append
+           (Content,
+            "executable,crate,package,manifest_path,project_file_path,documentation_path,"
+            & "release_included,posix_status,help,version,identity"
+            & Character'Val (10));
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            Append
+              (Content,
+               Posix_Tools.Command_Inventory.Executable (I)
+               & "," & Posix_Tools.Command_Inventory.Crate (I)
+               & "," & Posix_Tools.Command_Inventory.Package_Name (I)
+               & "," & Posix_Tools.Command_Inventory.Manifest_Path (I)
+               & "," & Posix_Tools.Command_Inventory.Project_File_Path (I)
+               & "," & Posix_Tools.Command_Inventory.Documentation_Path (I)
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (I))
+               & "," & Posix_Tools.Command_Inventory.Posix_Status (I)
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (I))
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (I))
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (I))
+               & Character'Val (10));
+         end loop;
+
+         return To_String (Content);
+      end Expected_Command_Inventory;
+
+      procedure Require_Command_Inventory_Current is
+         Path     : constant String := "generated/command_inventory.csv";
+         Actual   : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+         Expected : constant String := Expected_Command_Inventory;
+      begin
+         if Actual /= Expected then
+            Project_Tools.Release_Checks.Fail ("generated command inventory is stale");
+         end if;
+      end Require_Command_Inventory_Current;
+
       function Line_Count (Path : String) return Natural is
          Content : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -237,6 +286,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
       Project_Tools.Release_Checks.Require_File (Check, "generated/command_inventory.csv");
+      Require_Command_Inventory_Current;
       Project_Tools.Release_Checks.Require_File (Check, "generated/manual-index.md");
       Project_Tools.Release_Checks.Require_File (Check, "generated/package-manifest.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/release-checksums.txt");
@@ -561,6 +611,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0007");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "documentation_path");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
       Project_Tools.Release_Checks.Require_Text
