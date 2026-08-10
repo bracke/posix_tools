@@ -1244,6 +1244,10 @@ procedure Posix_Tools_Tests is
          Root,
          "common/src/posix_tools-streams-counting.adb");
       Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+         Root,
+         "common/messages/posix_tools.catalog");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),

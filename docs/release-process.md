@@ -50,6 +50,9 @@ Current Ada tooling entry points:
   common, tests, and command Alire manifests, the compiled
   `Posix_Tools.Version.Version_String` metadata, the changelog, and generated
   documentation, package-manifest, and release-checksum headers.
+- The release message catalog is validated as a required source file, selected
+  release locale identifiers are checked by metadata validation, and the catalog
+  must appear in the generated package manifest.
 - The release gate writes `dist/posix-tools-<version>-source.7z` from
   `generated/package-files.txt`; `dist/` is ignored because release archives are
   reproducible outputs, while their checksums are recorded in generated metadata.
