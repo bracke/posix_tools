@@ -878,7 +878,37 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-presentation.adb", "with Terminal_Styles;");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.ads", "type Style_Mode is (Automatic, Always, Never)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "Terminal_Styles.Color_Auto");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "Terminal_Styles.Color_Always");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "Terminal_Styles.Color_Never");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "Destination_Is_Terminal");
+      Forbid_Text
+        ("common/src/posix_tools-help.adb",
+         "with Terminal_Styles",
+         "help rendering must use Posix_Tools.Presentation instead of terminal_styles directly");
+      Forbid_Text
+        ("common/src/posix_tools-commands-root.adb",
+         "with Terminal_Styles",
+         "root rendering must use Posix_Tools.Presentation instead of terminal_styles directly");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "Set_Style_Mode (Posix_Tools.Presentation.Never)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "Set_Style_Mode (Posix_Tools.Presentation.Always)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "Set_Style_Mode (Posix_Tools.Presentation.Automatic)");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "with Hostkit.Host;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Host.Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Terminals.Standard_Output_Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/test_contexts.adb", "return Self.Output_Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Max_Identity_Output_Bytes");
       Project_Tools.Release_Checks.Require_Text
