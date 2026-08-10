@@ -1537,11 +1537,39 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-UTF8-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-WHITESPACE-001");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Expected_Continuations");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Minimum_Code_Point");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Self.Accumulator < Self.Minimum_Code_Point");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Self.Accumulator in 16#D800# .. 16#DFFF#");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Self.Accumulator > 16#10FFFF#");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Status := Invalid");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "incomplete UTF-8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "surrogate UTF-8 rejected");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "out-of-range UTF-8 rejected");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "decoder rejects overlong starter");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0004");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/generated/posix_tools-text-whitespace_data.ads", "Unicode_Version");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/generated/posix_tools-text-whitespace_data.ads", "Unicode License v3");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/generated/posix_tools-text-whitespace_data.ads", "PropList.txt White_Space property");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/generated/posix_tools-text-whitespace_data.ads", "White_Space_Ranges");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-text-classification.adb", "Whitespace_Data.Is_Whitespace");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "classification includes range midpoint");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "HOST-ADAPTER-FILE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "NONPOSIX-WC-LINE-LENGTH-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "VERSION-GENERATION-001");
