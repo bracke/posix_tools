@@ -2214,6 +2214,23 @@ procedure Posix_Tools_Tests is
               (Label & " output did not include " & Needle);
          end if;
       end Expect_Selector;
+
+      procedure Expect_Usage_Error
+        (Label : String;
+         Args  : Project_Tools.Processes.Argument_Vectors.Vector)
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture_Command
+             (Command    => Runner_Path,
+              Arguments  => Args,
+              Err_To_Out => True);
+      begin
+         if Captured.Status /= 2 then
+            Project_Tools.Release_Checks.Fail
+              (Label & " returned status" & Integer'Image (Captured.Status)
+               & " instead of usage status 2");
+         end if;
+      end Expect_Usage_Error;
    begin
       if not Project_Tools.Files.File_Exists (Runner_Path) then
          Project_Tools.Release_Checks.Fail ("built test runner is missing for selector smoke tests");
@@ -2247,6 +2264,17 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("--category"),
              Project_Tools.Processes.Argument ("regression")]),
          "regression:REG-CAT-0001");
+      Expect_Usage_Error
+        ("test selector missing suite value",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite")]));
+      Expect_Usage_Error
+        ("test selector unknown category",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("unknown")]));
 
       Ada.Text_IO.Put_Line ("test selector smoke checks passed");
    end Run_Test_Selector_Smoke;
