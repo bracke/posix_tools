@@ -15,8 +15,9 @@ upgrade commands with remaining registry gaps to full POSIX conformance.
 The Ada conformance tooling validates the generated requirements registry for
 the expected CSV shape, unique requirement identifiers, linked validation
 artifacts, allowed status values, POSIX.1-2024 baseline references,
-documentation links for known deviations, and coverage for every released
-command in the compiled inventory.
+documentation links for known deviations, matching deviation identifiers in
+the linked documentation, and coverage for every released command in the
+compiled inventory.
 
 Tail follow mode is a known V1 deviation until implemented. Tail suffix
 processing is implemented for `-n number` and `-c number`, including

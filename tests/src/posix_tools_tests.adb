@@ -955,6 +955,29 @@ procedure Posix_Tools_Tests is
          return Start <= Text'Last and then Text (Start .. Text'Last) = Token;
       end Contains_Token;
 
+      function Starts_At (Text : String; Position : Positive; Prefix : String) return Boolean is
+      begin
+         return Position + Prefix'Length - 1 <= Text'Last
+           and then Text (Position .. Position + Prefix'Length - 1) = Prefix;
+      end Starts_At;
+
+      function First_Doc_Path (Text : String) return String is
+      begin
+         for I in Text'Range loop
+            if Starts_At (Text, I, "docs/") then
+               for J in I .. Text'Last loop
+                  if Text (J) = ';' or else Text (J) = ' ' then
+                     return Text (I .. J - 1);
+                  end if;
+               end loop;
+
+               return Text (I .. Text'Last);
+            end if;
+         end loop;
+
+         return "";
+      end First_Doc_Path;
+
       function Has_Command_Metadata (Executable : String) return Boolean is
          Start : Positive := Requirements'First;
       begin
@@ -998,6 +1021,7 @@ procedure Posix_Tools_Tests is
             Status          => To_Unbounded_String (Field (Line, 7)));
          Id_Text : constant String := To_String (Row.Id);
          Status_Text : constant String := To_String (Row.Status);
+         Test_Text : constant String := To_String (Row.Test);
       begin
          if Field_Count (Line) /= 7 then
             Project_Tools.Release_Checks.Fail
@@ -1024,10 +1048,22 @@ procedure Posix_Tools_Tests is
             Project_Tools.Release_Checks.Fail
               (Id_Text & " mixes an older POSIX baseline into the V1 registry");
          elsif Status_Text = "Known deviation"
-           and then not Project_Tools.Text.Contains (To_String (Row.Test), "docs/")
+           and then not Project_Tools.Text.Contains (Test_Text, "docs/")
          then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " is a known deviation without linked documentation");
+         elsif Status_Text = "Known deviation" then
+            declare
+               Doc_Path : constant String := First_Doc_Path (Test_Text);
+            begin
+               if Doc_Path = ""
+                 or else not Project_Tools.Files.File_Contains
+                   (Project_Tools.Files.Join (Root, Doc_Path), Id_Text)
+               then
+                  Project_Tools.Release_Checks.Fail
+                    (Id_Text & " is a known deviation missing its identifier in linked documentation");
+               end if;
+            end;
          end if;
       end Check_Row;
 

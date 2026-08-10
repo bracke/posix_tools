@@ -60,7 +60,7 @@ fail with a resource diagnostic and no partial suffix output.
 `tail -n +2 file`
 
 ## Conformance Status
-Known deviation: follow mode is not implemented in V1.
+Known deviation `TAIL-FOLLOW-001`: follow mode is not implemented in V1.
 
 ## Known Limitations
 No `-f`, `-F`, or `--follow` support in V1.
