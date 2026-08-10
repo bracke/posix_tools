@@ -9,6 +9,9 @@ The executable accepts:
 - `test`
 - `test --suite <name>`
 - `test --category unit`
+- `test --category integration`
+- `test --category conformance`
+- `test --category regression`
 - `test --category locale`
 - `test --category presentation`
 - `build`

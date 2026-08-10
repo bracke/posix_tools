@@ -450,6 +450,40 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Prohibited Imports");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`posix_tools_tests`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --suite <name>`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --category unit`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "`test --category integration`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "`test --category conformance`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "`test --category regression`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`build`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`check`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`format-check`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`docs`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`package`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""test""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""check""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""release-check""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""release""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""build""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""conformance""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""format-check""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""docs""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""package""");
       Require_Synchronized_Version ("alire.toml");
       Require_Synchronized_Version ("common/alire.toml");
       Require_Synchronized_Version ("tests/alire.toml");
@@ -801,6 +835,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "LOCAL-PINS-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PORTABILITY-WINDOWS-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "TOOLING-COMMAND-SURFACE-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
