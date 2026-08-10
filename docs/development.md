@@ -12,3 +12,4 @@ opening a release PR.
 
 Project tooling must be Ada code using `project_tools`. Metadata checks reject
 shell, Python, JavaScript, Make, CMake, PowerShell, and batch tooling files.
+Ada sources must not silently discard failures with null handlers.

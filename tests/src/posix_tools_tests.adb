@@ -145,6 +145,32 @@ procedure Posix_Tools_Tests is
             end;
          end loop;
       end Check_Ada_Only_Tooling;
+
+      procedure Check_No_Silent_Broad_Handlers is
+         use Ada.Strings.Unbounded;
+         Silent_Handler_Token : constant String := "when others " & "=" & "> null";
+         Source_Roots : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("common/src"),
+            To_Unbounded_String ("src"),
+            To_Unbounded_String ("tests/src"),
+            To_Unbounded_String ("tools")];
+      begin
+         for Source_Root of Source_Roots loop
+            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+               declare
+                  File_Path : constant String := To_String (Path);
+               begin
+                  if (Project_Tools.Text.Ends_With (File_Path, ".adb")
+                      or else Project_Tools.Text.Ends_With (File_Path, ".ads"))
+                    and then Project_Tools.Files.File_Contains (File_Path, Silent_Handler_Token)
+                  then
+                     Project_Tools.Release_Checks.Fail
+                       ("silent broad exception handler is prohibited in " & File_Path);
+                  end if;
+               end;
+            end loop;
+         end loop;
+      end Check_No_Silent_Broad_Handlers;
    begin
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "alire.toml"), "i18n =")
@@ -191,6 +217,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "generated/regressions.csv");
       Project_Tools.Release_Checks.Require_File (Check, ".github/workflows/ci.yml");
       Check_Ada_Only_Tooling;
+      Check_No_Silent_Broad_Handlers;
       Project_Tools.Release_Checks.Require_File (Check, "docs/ai.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/architecture.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
@@ -456,6 +483,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
