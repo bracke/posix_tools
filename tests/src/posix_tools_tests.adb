@@ -895,6 +895,32 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/basic_tests.adb", "parse unknown option");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse missing option argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-basename.adb", "Context.Argument (1) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dirname.adb", "Context.Argument (1) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-cat.adb", "Context.Argument (1) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (First_File) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Stop_Options : Boolean := False;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Argument (I) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (First_File) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Context.Argument (First_File) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:end-of-options");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head skips -- after count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail skips -- after count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc skips -- after option");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-OPTIONS-0001");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
