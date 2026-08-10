@@ -896,6 +896,56 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse missing option argument");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-paths.adb", "function Basename");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-paths.adb", "function Dirname");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-paths.adb", "Collapse_Leading_Root");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-paths.adb", "Trim_Trailing_Slashes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-basename.adb", "Operand_Count > 2");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dirname.adb", "Operand_Count > 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:basename edge cases");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:dirname edge cases");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "basename command empty");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "basename non-ASCII suffix");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "basename command backslash");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "dirname nested two leading slash");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "dirname command backslash");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-echo.adb", "Context.Put (Context.Argument (I))");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-echo.adb", "Context.Put ("" "")");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-echo.adb", "Conventional => False");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:echo data edge cases");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "echo treats -- backslash and -n as data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "echo non-sole help preserves empty operand");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-true_command.adb", "Posix_Tools.Exit_Status.Success");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-false_command.adb", "Posix_Tools.Exit_Status.Operational_Failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-true_command.adb", "Conventional => False");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-false_command.adb", "Conventional => False");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:true extension edges");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:false extension edges");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-basename.adb", "Context.Argument (1) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-dirname.adb", "Context.Argument (1) = ""--""");
