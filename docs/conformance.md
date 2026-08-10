@@ -15,9 +15,10 @@ upgrade commands with remaining registry gaps to full POSIX conformance.
 The Ada conformance tooling validates the generated requirements registry for
 the expected CSV shape, stable uppercase requirement identifier syntax, unique
 requirement identifiers, linked validation artifacts, allowed status values,
-POSIX.1-2024 baseline references, documentation links for known deviations,
-matching deviation identifiers in the linked documentation, and coverage for
-every released command in the compiled inventory.
+POSIX.1-2024 baseline references, existing implementation references for Ada
+units and repository paths, documentation links for known deviations, matching
+deviation identifiers in the linked documentation, and coverage for every
+released command in the compiled inventory.
 
 The metadata release gate requires each per-command reference document,
 including the non-POSIX root executable reference, to carry the V1 command

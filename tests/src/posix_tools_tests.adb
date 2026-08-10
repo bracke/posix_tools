@@ -1,5 +1,7 @@
 with Ada.Command_Line;
+with Ada.Characters.Handling;
 with Ada.Directories;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Options;
@@ -735,6 +737,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/command_inventory.csv", "documentation_path");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "CONFORMANCE-IMPLEMENTATION-REFS-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
@@ -1159,6 +1163,125 @@ procedure Posix_Tools_Tests is
          return Has_Hyphen;
       end Is_Requirement_Id;
 
+      function Trimmed (Text : String) return String is
+      begin
+         return Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both);
+      end Trimmed;
+
+      function Unit_File_Stem (Unit_Name : String) return String is
+         Stem : String := Ada.Characters.Handling.To_Lower (Unit_Name);
+      begin
+         for Ch of Stem loop
+            if Ch = '.' then
+               Ch := '-';
+            end if;
+         end loop;
+
+         return Stem;
+      end Unit_File_Stem;
+
+      function Is_Source_Unit_Reference (Reference : String) return Boolean is
+         Posix_Prefix : constant String := "Posix_Tools.";
+         Tools_Prefix : constant String := "Project_Tools.";
+      begin
+         return ((Reference'Length > Posix_Prefix'Length
+                  and then Reference (Reference'First .. Reference'First + Posix_Prefix'Length - 1) = Posix_Prefix)
+                 or else (Reference'Length > Tools_Prefix'Length
+                          and then Reference (Reference'First .. Reference'First + Tools_Prefix'Length - 1) =
+                            Tools_Prefix))
+           and then not Project_Tools.Text.Contains (Reference, "/")
+           and then not Project_Tools.Text.Contains (Reference, "*");
+      end Is_Source_Unit_Reference;
+
+      function Is_Bare_File_Name (Reference : String) return Boolean is
+      begin
+         return not Project_Tools.Text.Contains (Reference, "/")
+           and then not Project_Tools.Text.Contains (Reference, "\")
+           and then not Project_Tools.Text.Contains (Reference, "*");
+      end Is_Bare_File_Name;
+
+      function Referenced_Source_Exists (Reference : String) return Boolean is
+         Stem : constant String := Unit_File_Stem (Reference);
+      begin
+         return Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "common/src/" & Stem & ".ads"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "common/src/" & Stem & ".adb"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "common/generated/" & Stem & ".ads"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "common/generated/" & Stem & ".adb"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "tests/src/" & Stem & ".ads"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, "tests/src/" & Stem & ".adb"))
+           or else Project_Tools.Files.File_Exists
+             (Project_Tools.Files.Join (Root, Stem & ".gpr"));
+      end Referenced_Source_Exists;
+
+      function Referenced_Path_Exists (Reference : String) return Boolean is
+      begin
+         if Reference = "generated/man/*.1" then
+            return Project_Tools.Files.File_Exists
+                (Project_Tools.Files.Join (Root, "generated/man/basename.1"));
+         elsif Reference = "tools/*/src/*.adb" then
+            return Project_Tools.Files.File_Exists
+                (Project_Tools.Files.Join (Root, "tools/basename/src/basename.adb"));
+         elsif Reference = "tools/*/alire.toml" then
+            return Project_Tools.Files.File_Exists
+                (Project_Tools.Files.Join (Root, "tools/basename/alire.toml"));
+         elsif Reference = "docs/commands/*.md" then
+            return Project_Tools.Files.File_Exists
+                (Project_Tools.Files.Join (Root, "docs/commands/basename.md"));
+         else
+            return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Reference))
+              or else Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, Reference))
+              or else (Is_Bare_File_Name (Reference)
+                       and then Project_Tools.Files.Find_File (Root, Reference) /= "");
+         end if;
+      end Referenced_Path_Exists;
+
+      function Implementation_Reference_Exists (Reference : String) return Boolean is
+         Item : constant String := Trimmed (Reference);
+      begin
+         if Item = "" then
+            return False;
+         elsif Is_Source_Unit_Reference (Item) then
+            return Referenced_Source_Exists (Item);
+         else
+            return Referenced_Path_Exists (Item);
+         end if;
+      end Implementation_Reference_Exists;
+
+      procedure Check_Implementation_References (Id_Text : String; Text : String) is
+         Start : Positive := Text'First;
+      begin
+         if Text = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has no implementation references");
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = ';' then
+               if Start <= I - 1
+                 and then not Implementation_Reference_Exists (Text (Start .. I - 1))
+               then
+                  Project_Tools.Release_Checks.Fail
+                    (Id_Text & " references missing implementation " & Trimmed (Text (Start .. I - 1)));
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last
+           and then not Implementation_Reference_Exists (Text (Start .. Text'Last))
+         then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " references missing implementation " & Trimmed (Text (Start .. Text'Last)));
+         end if;
+      end Check_Implementation_References;
+
       function Contains_Token (Text : String; Token : String) return Boolean is
          Start : Positive := Text'First;
       begin
@@ -1246,6 +1369,7 @@ procedure Posix_Tools_Tests is
          Id_Text : constant String := To_String (Row.Id);
          Status_Text : constant String := To_String (Row.Status);
          Test_Text : constant String := To_String (Row.Test);
+         Implementation_Text : constant String := To_String (Row.Implementation);
       begin
          if Field_Count (Line) /= 7 then
             Project_Tools.Release_Checks.Fail
@@ -1274,12 +1398,17 @@ procedure Posix_Tools_Tests is
          then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " mixes an older POSIX baseline into the V1 registry");
-         elsif Status_Text = "Known deviation"
+         else
+            Check_Implementation_References (Id_Text, Implementation_Text);
+         end if;
+
+         if Status_Text = "Known deviation"
            and then not Project_Tools.Text.Contains (Test_Text, "docs/")
          then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " is a known deviation without linked documentation");
-         elsif Status_Text = "Known deviation" then
+         elsif Status_Text = "Known deviation"
+         then
             declare
                Doc_Path : constant String := First_Doc_Path (Test_Text);
             begin
