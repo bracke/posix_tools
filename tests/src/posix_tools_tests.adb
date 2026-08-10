@@ -1067,13 +1067,23 @@ procedure Posix_Tools_Tests is
          Require_Command_Doc_Sections (Posix_Tools.Command_Inventory.Documentation_Path (I));
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Require_Crate_Metadata
+           (Posix_Tools.Command_Inventory.Manifest_Path (I),
+            Posix_Tools.Command_Inventory.Crate (I),
+            "posix_tools_" & Posix_Tools.Command_Inventory.Executable (I) & ".gpr");
          Require_Synchronized_Version (Posix_Tools.Command_Inventory.Manifest_Path (I));
          Require_Exact_Line
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
             "version = """ & Posix_Tools.Version.Version_String & """",
             Posix_Tools.Command_Inventory.Executable (I) & " manifest version");
          Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[[depends-on]]");
+         Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common = ""*""");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[[pins]]");
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Manifest_Path (I),
@@ -1088,6 +1098,8 @@ procedure Posix_Tools_Tests is
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "maintainers =");
          Project_Tools.Release_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[build-profiles]");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), """*"" = ""development""");
          Forbid_Text
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
             "aunit =",
