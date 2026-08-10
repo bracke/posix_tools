@@ -1030,6 +1030,80 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Show_L := True");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Show_W := True");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Show_C := True");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "when 'm' => Show_M := True");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Count_File (Context, ""-"", Show_M or Show_W");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Total.Lines := Total.Lines + C.Lines");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Print_Counts (Context, Total, ""total""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "Text_Invalid (State)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Bytes := Self.Current.Bytes + 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Lines := Self.Current.Lines + 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "common/src/posix_tools-streams-counting.adb",
+         "Self.Current.Characters := Self.Current.Characters + 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Words := Self.Current.Words + 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-streams-counting.adb", "Posix_Tools.Text.UTF_8.Decode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Byte in 16#C2# .. 16#DF#");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-utf_8.adb", "Self.Accumulator in 16#D800# .. 16#DFFF#");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests-suite.adb", "streams:byte counting");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests-suite.adb", "streams:utf-8 counting");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc multiple files");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc default and mixed text");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc text counts");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc invalid UTF-8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc malformed UTF-8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc default field order");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc -c raw output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc -l raw output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc multiple file totals");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc repeated stdin is not rewound");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc -m output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc mixed invalid suppresses output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc overlong suppresses output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc surrogate suppresses output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0002");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0006");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:end-of-options");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head skips -- after count");
