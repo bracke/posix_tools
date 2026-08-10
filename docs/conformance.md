@@ -20,7 +20,10 @@ units and repository paths, test references for AUnit routines, regression
 records, documentation paths, and explicit Ada tooling or CI validation
 artifacts, documentation links for known deviations, matching deviation
 identifiers in the linked documentation, and coverage for every released
-command in the compiled inventory.
+command in the compiled inventory. It also validates the regression registry
+for row shape, stable regression identifier syntax, duplicate identifiers,
+required command and summary fields, and linked AUnit or explicit validation
+artifacts.
 
 The metadata release gate requires each per-command reference document,
 including the non-POSIX root executable reference, to carry the V1 command

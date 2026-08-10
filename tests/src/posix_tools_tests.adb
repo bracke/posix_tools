@@ -741,6 +741,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "CONFORMANCE-IMPLEMENTATION-REFS-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CONFORMANCE-TEST-REFS-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "REGRESSION-METADATA-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
@@ -1080,6 +1082,8 @@ procedure Posix_Tools_Tests is
         Project_Tools.Release_Checks.Create (Root);
       Requirements : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/requirements.csv"));
+      Regressions : constant String :=
+        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/regressions.csv"));
 
       type Requirement_Row is record
          Id : Unbounded_String;
@@ -1164,6 +1168,39 @@ procedure Posix_Tools_Tests is
 
          return Has_Hyphen;
       end Is_Requirement_Id;
+
+      function Is_Regression_Id (Text : String) return Boolean is
+         Prefix : constant String := "REG-";
+         Last_Hyphen : Natural := 0;
+      begin
+         if Text'Length < Prefix'Length + 6
+           or else Text (Text'First .. Text'First + Prefix'Length - 1) /= Prefix
+         then
+            return False;
+         end if;
+
+         for I in Text'First + Prefix'Length .. Text'Last loop
+            if Text (I) = '-' then
+               Last_Hyphen := I;
+            elsif not (Text (I) in 'A' .. 'Z' or else Text (I) in '0' .. '9') then
+               return False;
+            end if;
+         end loop;
+
+         if Last_Hyphen = 0
+           or else Text'Last - Last_Hyphen /= 4
+         then
+            return False;
+         end if;
+
+         for I in Last_Hyphen + 1 .. Text'Last loop
+            if not (Text (I) in '0' .. '9') then
+               return False;
+            end if;
+         end loop;
+
+         return True;
+      end Is_Regression_Id;
 
       function Trimmed (Text : String) return String is
       begin
@@ -1363,6 +1400,33 @@ procedure Posix_Tools_Tests is
                & Trimmed (Text (Start .. Text'Last)));
          end if;
       end Check_Test_References;
+
+      procedure Check_Regression_Row (Line : String; Number : Positive) is
+         Id_Text : constant String := Field (Line, 1);
+         Test_Text : constant String := Field (Line, 4);
+      begin
+         if Field_Count (Line) /= 4 then
+            Project_Tools.Release_Checks.Fail
+              ("regression row has wrong field count at line" & Positive'Image (Number));
+         elsif Id_Text = "" then
+            Project_Tools.Release_Checks.Fail
+              ("regression row has empty identifier at line" & Positive'Image (Number));
+         elsif not Is_Regression_Id (Id_Text) then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has invalid regression identifier syntax");
+         elsif Field (Line, 2) = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has empty command field");
+         elsif Field (Line, 3) = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has empty summary field");
+         elsif Test_Text = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has no linked regression test");
+         else
+            Check_Test_References (Id_Text, Test_Text);
+         end if;
+      end Check_Regression_Row;
 
       function Contains_Token (Text : String; Token : String) return Boolean is
          Start : Positive := Text'First;
@@ -1568,8 +1632,72 @@ procedure Posix_Tools_Tests is
             end;
          end if;
       end Check_Requirement_Rows;
+
+      procedure Check_Regression_Rows is
+         Start : Positive := Regressions'First;
+         Line_Number : Positive := 1;
+         Max_Regression_Rows : constant Positive := 256;
+         type Seen_Id_Array is array (Positive range <>) of Unbounded_String;
+         Seen_Ids : Seen_Id_Array (1 .. Max_Regression_Rows);
+         Seen_Count : Natural := 0;
+
+         procedure Remember_Id (Line : String; Number : Positive) is
+            Id_Text : constant String := Field (Line, 1);
+         begin
+            for I in 1 .. Seen_Count loop
+               if To_String (Seen_Ids (I)) = Id_Text then
+                  Project_Tools.Release_Checks.Fail
+                    ("duplicate regression identifier " & Id_Text
+                     & " at line" & Positive'Image (Number));
+               end if;
+            end loop;
+
+            if Seen_Count = Max_Regression_Rows then
+               Project_Tools.Release_Checks.Fail ("regression registry exceeds tooling row capacity");
+            end if;
+
+            Seen_Count := Seen_Count + 1;
+            Seen_Ids (Seen_Count) := To_Unbounded_String (Id_Text);
+         end Remember_Id;
+      begin
+         if Regressions = "" then
+            Project_Tools.Release_Checks.Fail ("regression registry is empty");
+         end if;
+
+         for I in Regressions'Range loop
+            if Regressions (I) = Character'Val (10) then
+               if I > Start then
+                  declare
+                     Line : constant String := Without_Trailing_CR (Regressions (Start .. I - 1));
+                  begin
+                     if Line_Number = 1 then
+                        if Line /= "id,command,summary,test" then
+                           Project_Tools.Release_Checks.Fail ("regression registry header is invalid");
+                        end if;
+                     else
+                        Check_Regression_Row (Line, Line_Number);
+                        Remember_Id (Line, Line_Number);
+                     end if;
+                  end;
+               end if;
+
+               Line_Number := Line_Number + 1;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Regressions'Last then
+            declare
+               Line : constant String := Without_Trailing_CR (Regressions (Start .. Regressions'Last));
+            begin
+               Check_Regression_Row (Line, Line_Number);
+               Remember_Id (Line, Line_Number);
+            end;
+         end if;
+      end Check_Regression_Rows;
    begin
       Check_Requirement_Rows;
+      Check_Regression_Rows;
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          if not Has_Command_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
             Project_Tools.Release_Checks.Fail
