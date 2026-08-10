@@ -63,6 +63,26 @@ procedure Posix_Tools_Tests is
          end if;
       end Forbid_Text;
 
+      procedure Require_Text_Before
+        (Path          : String;
+         Earlier_Text  : String;
+         Later_Text    : String;
+         Failure_Label : String)
+      is
+         Content : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+         Earlier : constant Natural := Ada.Strings.Fixed.Index (Content, Earlier_Text);
+         Later   : constant Natural := Ada.Strings.Fixed.Index (Content, Later_Text);
+      begin
+         if Earlier = 0 then
+            Project_Tools.Release_Checks.Fail (Failure_Label & ": missing earlier marker");
+         elsif Later = 0 then
+            Project_Tools.Release_Checks.Fail (Failure_Label & ": missing later marker");
+         elsif Earlier >= Later then
+            Project_Tools.Release_Checks.Fail (Failure_Label & ": markers are out of order");
+         end if;
+      end Require_Text_Before;
+
       procedure Require_Command_Doc_Sections (Path : String) is
          procedure Require_Section (Heading : String) is
          begin
@@ -771,6 +791,15 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/posix_tools_tests.adb", "elsif Command = ""release"" then");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Require_Clean_Source_Tree;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "tests/src/posix_tools_tests.adb",
+         "Require_Clean_Source_Tree;" & Character'Val (10) & "      Generate_Docs;");
+      Require_Text_Before
+        ("tests/src/posix_tools_tests.adb",
+         "elsif Command = ""release"" then",
+         "Ada.Text_IO.Put_Line (""release: completed by Ada project_tools driver"");",
+         "release branch must run clean-tree-gated release work before completion");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "release: completed by Ada project_tools driver");
       Project_Tools.Release_Checks.Require_Text
