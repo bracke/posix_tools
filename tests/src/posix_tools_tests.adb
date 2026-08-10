@@ -897,6 +897,18 @@ procedure Posix_Tools_Tests is
          "tests/src/posix_tools_tests.adb",
          """build "" & Posix_Tools.Command_Inventory.Executable (I)");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "procedure Run_Staged_Verification");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", """posix-tools"", Built_Root_Path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "tests/src/posix_tools_tests.adb",
+         "Executable : constant String := Posix_Tools.Command_Inventory.Executable (I)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "staged verification checks passed");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "posix_tools.gpr", "for Body (""Posix_Tools_Main"") use ""posix-tools.adb""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tools/false/posix_tools_false.gpr", "for Body (""Posix_Tools_False_Main"") use ""false.adb""");
