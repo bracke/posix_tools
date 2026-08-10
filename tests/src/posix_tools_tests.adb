@@ -904,6 +904,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "INTEGRATION-EXECUTABLE-SMOKE-001");
       Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
@@ -2393,6 +2395,65 @@ procedure Posix_Tools_Tests is
       Ada.Text_IO.Put_Line ("staged verification checks passed");
    end Run_Staged_Verification;
 
+   procedure Run_Executable_Integration_Smoke is
+      use Ada.Strings.Unbounded;
+
+      procedure Expect_Output
+        (Label           : String;
+         Program         : String;
+         Args            : Project_Tools.Processes.Argument_Vectors.Vector;
+         Expected_Status : Integer;
+         Expected_Output : String)
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture
+             (Label   => Label,
+              Dir     => Root,
+              Program => Program,
+              Args    => Args,
+              Quiet   => True);
+      begin
+         if Captured.Status /= Expected_Status then
+            Project_Tools.Release_Checks.Fail
+              (Label & " returned status" & Integer'Image (Captured.Status)
+               & " instead of" & Integer'Image (Expected_Status));
+         elsif To_String (Captured.Output) /= Expected_Output then
+            Project_Tools.Release_Checks.Fail (Label & " produced unexpected output");
+         end if;
+      end Expect_Output;
+   begin
+      Expect_Output
+        ("root executable version",
+         Built_Root_Path,
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
+         0,
+         "posix-tools " & Posix_Tools.Version.Version_String & Character'Val (10));
+
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
+         begin
+            Expect_Output
+              (Executable & " executable version",
+               Built_Command_Path (Executable),
+               Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
+               0,
+               Executable & " (posix-tools) " & Posix_Tools.Version.Version_String & Character'Val (10));
+         end;
+      end loop;
+
+      Expect_Output
+        ("echo executable data",
+         Built_Command_Path ("echo"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("alpha"),
+             Project_Tools.Processes.Argument ("beta")]),
+         0,
+         "alpha beta" & Character'Val (10));
+
+      Ada.Text_IO.Put_Line ("executable integration smoke checks passed");
+   end Run_Executable_Integration_Smoke;
+
    function Suite_Filter (Name : String) return String is
    begin
       if Name = "basic" or else Name = "common" then
@@ -2491,6 +2552,7 @@ begin
       Run_Build;
       Run_Test_Selector_Smoke;
       Run_Staged_Verification;
+      Run_Executable_Integration_Smoke;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
       Run_Format_Checks;
@@ -2503,6 +2565,7 @@ begin
       Run_Build;
       Run_Test_Selector_Smoke;
       Run_Staged_Verification;
+      Run_Executable_Integration_Smoke;
       Generate_Release_Checksums;
       Run_Metadata_Checks;
       Run_Format_Checks;

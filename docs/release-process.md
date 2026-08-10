@@ -25,8 +25,9 @@ Current Ada tooling entry points:
 - `posix_tools_tests release-check` regenerates the current generated docs and
   package manifest, builds the root crate, every command subcrate, and the
   tests crate, verifies the exact built root and command executables by internal
-  identity, validates metadata, runs format checks, validates conformance
-  metadata, and runs the AUnit suite.
+  identity, executes built binaries for version-output and representative
+  command-data smoke coverage, validates metadata, runs format checks, validates
+  conformance metadata, and runs the AUnit suite.
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
