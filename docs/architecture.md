@@ -2,6 +2,10 @@
 
 The repository is a single coordinated release containing one root executable crate,
 one shared library crate, one binary crate per command, and one tests/tooling crate.
+Every crate project file uses a crate-local object directory, and binary crates
+use a crate-local executable directory. The common library uses a crate-local
+library output directory. Metadata validation checks these GPR directory
+assignments so subcrates do not share build products.
 
 Command executable mains are thin instantiations of `Posix_Tools.Host_Adapters.Run_Command`.
 Command behavior lives under `Posix_Tools.Commands`.

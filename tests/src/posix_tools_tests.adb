@@ -391,8 +391,14 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, ".gitattributes");
       Project_Tools.Release_Checks.Require_File (Check, "posix_tools.gpr");
+      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Object_Dir use ""obj/root""");
+      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Exec_Dir use ""bin""");
       Project_Tools.Release_Checks.Require_File (Check, "common/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "common/posix_tools_common.gpr");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/posix_tools_common.gpr", "for Object_Dir use ""obj/common""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/posix_tools_common.gpr", "for Library_Dir use ""lib""");
       Project_Tools.Release_Checks.Require_File (Check, "common/messages/posix_tools.catalog");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-localization.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-presentation.ads");
@@ -402,6 +408,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
       Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/posix_tools_tests.gpr", "for Object_Dir use ""obj/tests""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/posix_tools_tests.gpr", "for Exec_Dir use ""bin""");
       Project_Tools.Release_Checks.Require_File (Check, "generated/command_inventory.csv");
       Require_Command_Inventory_Current;
       Project_Tools.Release_Checks.Require_File (Check, "generated/manual-index.md");
@@ -634,6 +644,14 @@ procedure Posix_Tools_Tests is
             & " manifest must not depend on terminal_styles");
          Project_Tools.Release_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Project_File_Path (I));
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            Posix_Tools.Command_Inventory.Project_File_Path (I),
+            "for Object_Dir use ""obj/" & Posix_Tools.Command_Inventory.Executable (I) & """");
+         Project_Tools.Release_Checks.Require_Text
+           (Check,
+            Posix_Tools.Command_Inventory.Project_File_Path (I),
+            "for Exec_Dir use ""bin""");
          Project_Tools.Release_Checks.Require_File
            (Check, "tools/" & Posix_Tools.Command_Inventory.Executable (I)
             & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
@@ -715,6 +733,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "GPR-DIRS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
