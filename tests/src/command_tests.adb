@@ -1465,6 +1465,27 @@ package body Command_Tests is
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c", "tail final partial line output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail final partial status");
+
+      Context.Initialize ("tail", Three_Args ("-n", "2", Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 64);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "b" & LF & "c",
+         "tail line spill final partial output");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail line spill final partial status");
+
+      Context.Initialize ("tail", Three_Args ("-n", "2", Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail line max spill failure output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: count too large" & LF,
+         "tail line max spill diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail line max spill failure status");
    end Test_Tail_Line_Mode_Edges;
 
    procedure Test_Tail_Multiple_File_Headers (T : in out Fixture) is
@@ -1502,6 +1523,17 @@ package body Command_Tests is
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail stdin output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail stdin status");
+
+      Context.Initialize ("tail", Three_Args ("-n", "2", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & LF & "b" & LF & "c" & LF);
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 64);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "b" & LF & "c" & LF,
+         "tail stdin line spill output");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail stdin line spill status");
 
       Context.Initialize ("tail", Four_Args ("-n", "1", "-", "-"));
       Test_Contexts.Set_Standard_Input (Context, "a" & LF & "b" & LF);

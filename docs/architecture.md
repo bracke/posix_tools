@@ -55,7 +55,7 @@ styling. Production terminal status is obtained through
 `Posix_Tools.Host_Adapters.Terminals`, which delegates the platform question to
 hostkit.
 
-`tail -c` uses a bounded byte ring while the requested suffix fits the memory
-threshold. Larger suffix requests spill through
-`Posix_Tools.Host_Adapters.Temporary_Storage` and fail without partial output
-when the configured spill limit is exceeded.
+`tail` suffix processing uses bounded retained memory while the requested
+suffix fits the memory threshold. Larger byte and line suffix cases spill
+through `Posix_Tools.Host_Adapters.Temporary_Storage` and fail without partial
+output when the configured spill limit is exceeded.

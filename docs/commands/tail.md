@@ -48,10 +48,10 @@ where the next file operand would be.
 Copied data and headers are not localized in V1.
 
 ## Implementation-Defined Choices
-Suffix retention uses a 16 MiB in-memory threshold. Larger byte suffix requests
-spill to host-backed temporary storage up to the configured 1 GiB spill limit;
-requests or inputs that exceed that limit fail with a resource diagnostic and no
-partial suffix output.
+Suffix retention uses a 16 MiB in-memory threshold. Larger byte and line suffix
+processing spills to host-backed temporary storage up to the configured 1 GiB
+spill limit; requests or inputs that exceed that limit fail with a resource
+diagnostic and no partial suffix output.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
