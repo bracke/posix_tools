@@ -869,6 +869,32 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/basic_tests.adb", "parse maximum count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse overflow");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.ads", "Unknown_Option");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.ads", "Missing_Argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.adb", "Current = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.adb", "Current = ""-""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.adb", "Position.Offset < Current'Length");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.adb", "Position.Index < Count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse grouped first option");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse attached option argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse separate option argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse end-of-options");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse lone hyphen operand");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse unknown option");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "parse missing option argument");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "hostkit =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "messages =");
       Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "terminal_styles =");
