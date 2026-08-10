@@ -702,9 +702,23 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "docs/release-process.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/security.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/testing.md");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Repository Map");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Package Map");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Allowed Imports");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Prohibited Imports");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Project Invariants");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Command Workflow");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Test Requirements");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Localization Rules");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Styling Rules");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Resource Policies");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Completion Criteria");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/ai.md", "Direct Hostkit use from command algorithms");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/ai.md", "Shell, Python, JavaScript, Make, CMake, or PowerShell project tooling");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`posix_tools_tests`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --suite <name>`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --category unit`");

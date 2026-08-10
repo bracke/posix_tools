@@ -39,6 +39,10 @@ Current Ada tooling entry points:
   page, and every command manual page byte-for-byte against the expected current
   content and requires every generated manual page to appear in the package
   manifest.
+- The metadata gate requires the AI-oriented project guide and checks its
+  repository map, package map, dependency rules, import boundaries, workflow,
+  testing, localization, styling, resource, completion, and rejected architecture
+  sections.
 - The metadata gate also verifies that every entry in
   `generated/package-files.txt` has exactly one current checksum row in
   `generated/package-manifest.txt`, that the manifest carries the synchronized
