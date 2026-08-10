@@ -935,6 +935,24 @@ procedure Posix_Tools_Tests is
            or else Status = "Known deviation";
       end Is_Allowed_Status;
 
+      function Is_Requirement_Id (Text : String) return Boolean is
+         Has_Hyphen : Boolean := False;
+      begin
+         if Text = "" or else Text (Text'First) = '-' or else Text (Text'Last) = '-' then
+            return False;
+         end if;
+
+         for Ch of Text loop
+            if Ch = '-' then
+               Has_Hyphen := True;
+            elsif not (Ch in 'A' .. 'Z' or else Ch in '0' .. '9') then
+               return False;
+            end if;
+         end loop;
+
+         return Has_Hyphen;
+      end Is_Requirement_Id;
+
       function Contains_Token (Text : String; Token : String) return Boolean is
          Start : Positive := Text'First;
       begin
@@ -1029,6 +1047,9 @@ procedure Posix_Tools_Tests is
          elsif Id_Text = "" then
             Project_Tools.Release_Checks.Fail
               ("requirement row has empty identifier at line" & Positive'Image (Number));
+         elsif not Is_Requirement_Id (Id_Text) then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has invalid requirement identifier syntax");
          elsif To_String (Row.Command) = "" then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " has empty command field");
