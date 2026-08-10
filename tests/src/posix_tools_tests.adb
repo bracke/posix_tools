@@ -902,6 +902,8 @@ procedure Posix_Tools_Tests is
         (Check, ".github/workflows/ci.yml", "release-check");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
@@ -969,6 +971,18 @@ procedure Posix_Tools_Tests is
          Root,
          "tests/src/test_contexts.ads");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_Manifest_Entry
+           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+            Root,
+            Posix_Tools.Command_Inventory.Manifest_Path (I));
+         Project_Tools.Release_Checks.Require_Manifest_Entry
+           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+            Root,
+            Posix_Tools.Command_Inventory.Project_File_Path (I));
+         Project_Tools.Release_Checks.Require_Manifest_Entry
+           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
+            Root,
+            Posix_Tools.Command_Inventory.Documentation_Path (I));
          Project_Tools.Release_Checks.Require_Manifest_Entry
            (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
             Root,
