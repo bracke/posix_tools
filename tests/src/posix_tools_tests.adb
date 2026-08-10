@@ -860,6 +860,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "PORTABILITY-WINDOWS-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "TOOLING-COMMAND-SURFACE-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "STAGED-VERIFY-ROOT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
@@ -2199,6 +2201,18 @@ procedure Posix_Tools_Tests is
       end if;
    end Built_Command_Path;
 
+   function Built_Root_Path return String is
+      Base_Path : constant String := Project_Tools.Files.Join (Root, "bin/posix-tools");
+   begin
+      if Project_Tools.Files.File_Exists (Base_Path) then
+         return Base_Path;
+      elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
+         return Base_Path & ".exe";
+      else
+         return Base_Path;
+      end if;
+   end Built_Root_Path;
+
    function Built_Test_Runner_Path return String is
       Base_Path : constant String := Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests");
    begin
@@ -2304,6 +2318,17 @@ procedure Posix_Tools_Tests is
 
    procedure Run_Staged_Verification is
    begin
+      declare
+         Status : constant String :=
+           Posix_Tools.Host_Adapters.Executables.Verify_Identity_At_Path
+             ("posix-tools", Built_Root_Path);
+      begin
+         if Status /= "ok" then
+            Project_Tools.Release_Checks.Fail
+              ("staged verification failed for posix-tools: " & Status);
+         end if;
+      end;
+
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          declare
             Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);

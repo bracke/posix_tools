@@ -20,7 +20,7 @@ Current Ada tooling entry points:
   manifest and built executables.
 - `posix_tools_tests release-check` regenerates the current generated docs and
   package manifest, builds the root crate, every command subcrate, and the
-  tests crate, verifies the exact built command executables by internal
+  tests crate, verifies the exact built root and command executables by internal
   identity, validates metadata, runs format checks, validates conformance
   metadata, and runs the AUnit suite.
 - `posix_tools_tests release` first requires `git status --porcelain` to report
