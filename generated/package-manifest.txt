@@ -3,7 +3,7 @@ alire.toml bytes= 438 fnv1a64=2fe271d02bd3e3ba
 posix_tools.gpr bytes= 472 fnv1a64=6a3257242fbeb129
 README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
-.github/workflows/ci.yml bytes= 1031 fnv1a64=94134631c91532a3
+.github/workflows/ci.yml bytes= 1870 fnv1a64=9a42be5cfce3283f
 generated/command_inventory.csv bytes= 1812 fnv1a64=1011ede40a0d8c6d
 generated/requirements.csv bytes= 25205 fnv1a64=accf3efbba50c77f
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4

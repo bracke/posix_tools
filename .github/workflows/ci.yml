@@ -30,6 +30,38 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          path: posix_tools
+
+      - name: Check out hostkit
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/hostkit
+          path: hostkit
+
+      - name: Check out messages
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/messages
+          path: messages
+
+      - name: Check out i18n
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/i18n
+          path: i18n
+
+      - name: Check out terminal_styles
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/terminal_styles
+          path: terminal_styles
+
+      - name: Check out project_tools
+        uses: actions/checkout@v4
+        with:
+          repository: bracke/project_tools
+          path: project_tools
 
       - name: Set up Alire
         uses: alire-project/setup-alire@v5
@@ -40,9 +72,10 @@ jobs:
 
       - name: Build Ada test/tooling crate
         run: alr -n build
-        working-directory: tests
+        working-directory: posix_tools/tests
         shell: bash
 
       - name: Run Ada release gate
         run: ${{ matrix.test_runner }} release-check
+        working-directory: posix_tools
         shell: bash
