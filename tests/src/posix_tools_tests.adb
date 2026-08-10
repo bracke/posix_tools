@@ -772,6 +772,19 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-SHADOWED-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "PLATFORM-CI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/conformance.md", "Linux, Windows, and macOS");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/portability.md", "option prefix is `-`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "end-of-options marker is `--`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "lexical pathname separator is `/`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "POSIX line delimiter is LF");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "executable suffix is `.exe`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "byte-processing mode is binary");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/portability.md", "backslash is an ordinary character");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
@@ -786,6 +799,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "MANIFEST-GRAPH-004");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "LOCAL-PINS-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "PORTABILITY-WINDOWS-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
