@@ -884,6 +884,14 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "return ""shadowed""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "Contains_Executable (Context.Argument (2))");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-root.adb", "Render_Command_Help (Context, Context.Argument (2))");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "Render_Command_Help (Context, Context.Command_Name)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "root command help must reuse command metadata");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
