@@ -1331,6 +1331,11 @@ procedure Posix_Tools_Tests is
            (Project_Tools.Files.Join (Root, "generated/regressions.csv"), Name & ",");
       end Has_Regression_Id;
 
+      function Requirement_References_Regression (Name : String) return Boolean is
+      begin
+         return Project_Tools.Text.Contains (Requirements, "regression " & Name);
+      end Requirement_References_Regression;
+
       function Is_Project_Tooling_Test (Reference : String) return Boolean is
       begin
          return Reference = "posix_tools_tests build"
@@ -1447,6 +1452,9 @@ procedure Posix_Tools_Tests is
          elsif Test_Text = "" then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " has no linked regression test");
+         elsif not Requirement_References_Regression (Id_Text) then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " is not referenced by any requirement row");
          else
             Check_Test_References (Id_Text, Test_Text);
          end if;
