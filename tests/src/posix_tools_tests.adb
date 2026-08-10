@@ -136,6 +136,120 @@ procedure Posix_Tools_Tests is
          end if;
       end Require_Command_Inventory_Current;
 
+      function Expected_Manpage (Index : Positive) return String is
+         use Ada.Strings.Unbounded;
+         Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+         Page    : Unbounded_String;
+      begin
+         Append (Page, ".TH " & Command & " 1" & Character'Val (10));
+         Append (Page, ".SH NAME" & Character'Val (10));
+         Append (Page, Command & " - posix-tools command" & Character'Val (10));
+         Append (Page, ".SH SYNOPSIS" & Character'Val (10));
+         Append (Page, Command & " [--help] [--version]" & Character'Val (10));
+         Append (Page, ".SH DESCRIPTION" & Character'Val (10));
+         Append
+           (Page,
+            "Generated manual page for " & Command & " from the posix-tools "
+            & Posix_Tools.Version.Version_String & " command inventory."
+            & Character'Val (10));
+         Append (Page, ".SH CONFORMANCE" & Character'Val (10));
+         Append (Page, Posix_Tools.Command_Inventory.Posix_Status (Index) & Character'Val (10));
+         Append (Page, ".SH SEE ALSO" & Character'Val (10));
+         Append (Page, Posix_Tools.Command_Inventory.Documentation_Path (Index) & Character'Val (10));
+         Append (Page, Character'Val (10));
+
+         return To_String (Page);
+      end Expected_Manpage;
+
+      function Expected_Root_Manpage return String is
+         use Ada.Strings.Unbounded;
+         Page : Unbounded_String;
+      begin
+         Append (Page, ".TH posix-tools 1" & Character'Val (10));
+         Append (Page, ".SH NAME" & Character'Val (10));
+         Append (Page, "posix-tools - manage the posix-tools executable suite" & Character'Val (10));
+         Append (Page, ".SH SYNOPSIS" & Character'Val (10));
+         Append (Page, "posix-tools help|version|list|paths|verify" & Character'Val (10));
+         Append (Page, ".SH DESCRIPTION" & Character'Val (10));
+         Append
+           (Page,
+            "Generated manual page for the posix-tools "
+            & Posix_Tools.Version.Version_String
+            & " root management executable. This executable is outside POSIX conformance claims."
+            & Character'Val (10));
+         Append (Page, ".SH SEE ALSO" & Character'Val (10));
+         Append (Page, "docs/commands/posix-tools.md" & Character'Val (10));
+         Append (Page, Character'Val (10));
+
+         return To_String (Page);
+      end Expected_Root_Manpage;
+
+      function Expected_Manual_Index return String is
+         use Ada.Strings.Unbounded;
+         Content : Unbounded_String;
+      begin
+         Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
+         Append
+           (Content,
+            "Version: " & Posix_Tools.Version.Version_String
+            & Character'Val (10) & Character'Val (10));
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            Append
+              (Content,
+               "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`: "
+               & Posix_Tools.Command_Inventory.Documentation_Path (I)
+               & Character'Val (10));
+         end loop;
+
+         Append (Content, Character'Val (10));
+         return To_String (Content);
+      end Expected_Manual_Index;
+
+      procedure Require_File_Equals (Path : String; Expected : String; Message : String) is
+         Actual : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+
+         function Normalize_Line_Endings (Text : String) return String is
+            use Ada.Strings.Unbounded;
+            Normalized : Unbounded_String;
+         begin
+            for Ch of Text loop
+               if Ch /= Character'Val (13) then
+                  Append (Normalized, Ch);
+               end if;
+            end loop;
+
+            return To_String (Normalized);
+         end Normalize_Line_Endings;
+      begin
+         if Normalize_Line_Endings (Actual) /= Expected then
+            Project_Tools.Release_Checks.Fail (Message);
+         end if;
+      end Require_File_Equals;
+
+      procedure Require_Generated_Docs_Current is
+      begin
+         Require_File_Equals
+           ("generated/manual-index.md",
+            Expected_Manual_Index,
+            "generated manual index is stale");
+         Require_File_Equals
+           ("generated/man/posix-tools.1",
+            Expected_Root_Manpage,
+            "generated root manual page is stale");
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            declare
+               Command : constant String := Posix_Tools.Command_Inventory.Executable (I);
+            begin
+               Require_File_Equals
+                 ("generated/man/" & Command & ".1",
+                  Expected_Manpage (I),
+                  "generated manual page for " & Command & " is stale");
+            end;
+         end loop;
+      end Require_Generated_Docs_Current;
+
       function Line_Count (Path : String) return Natural is
          Content : constant String :=
            Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -289,6 +403,12 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "generated/command_inventory.csv");
       Require_Command_Inventory_Current;
       Project_Tools.Release_Checks.Require_File (Check, "generated/manual-index.md");
+      Project_Tools.Release_Checks.Require_File (Check, "generated/man/posix-tools.1");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_File
+           (Check, "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
+      end loop;
+      Require_Generated_Docs_Current;
       Project_Tools.Release_Checks.Require_File (Check, "generated/package-manifest.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/release-checksums.txt");
       Project_Tools.Release_Checks.Require_File (Check, "generated/requirements.csv");
@@ -591,6 +711,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/conformance.md", "Linux, Windows, and macOS");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "EXCEPTION-NO-SILENT-001");
