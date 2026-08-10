@@ -9,3 +9,6 @@ Continuous integration is defined in `.github/workflows/ci.yml`. The workflow
 runs the Ada `posix_tools_tests release-check` gate on Linux, macOS, and
 Windows through Alire. Local development should run the same command before
 opening a release PR.
+
+Project tooling must be Ada code using `project_tools`. Metadata checks reject
+shell, Python, JavaScript, Make, CMake, PowerShell, and batch tooling files.

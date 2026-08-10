@@ -13,6 +13,7 @@ with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
 with Project_Tools.Release_Checks;
+with Project_Tools.Text;
 
 procedure Posix_Tools_Tests is
    procedure Runner is new AUnit.Run.Test_Runner (All_Suites.Suite);
@@ -87,6 +88,63 @@ procedure Posix_Tools_Tests is
             return "common/src/posix_tools-commands-" & Executable & ".adb";
          end if;
       end Command_Source_Path;
+
+      function Simple_Name (Path : String) return String is
+      begin
+         for I in reverse Path'Range loop
+            if Path (I) = '/' or else Path (I) = '\' then
+               if I = Path'Last then
+                  return "";
+               else
+                  return Path (I + 1 .. Path'Last);
+               end if;
+            end if;
+         end loop;
+
+         return Path;
+      end Simple_Name;
+
+      function Has_Prohibited_Tooling_Name (Path : String) return Boolean is
+         Name : constant String := Simple_Name (Path);
+      begin
+         return Name = "Makefile"
+           or else Name = "CMakeLists.txt"
+           or else Project_Tools.Text.Ends_With (Name, ".sh")
+           or else Project_Tools.Text.Ends_With (Name, ".py")
+           or else Project_Tools.Text.Ends_With (Name, ".pl")
+           or else Project_Tools.Text.Ends_With (Name, ".rb")
+           or else Project_Tools.Text.Ends_With (Name, ".js")
+           or else Project_Tools.Text.Ends_With (Name, ".ts")
+           or else Project_Tools.Text.Ends_With (Name, ".ps1")
+           or else Project_Tools.Text.Ends_With (Name, ".bat")
+           or else Project_Tools.Text.Ends_With (Name, ".cmd");
+      end Has_Prohibited_Tooling_Name;
+
+      procedure Check_Ada_Only_Tooling is
+         use Ada.Strings.Unbounded;
+         Files : constant Project_Tools.Files.Path_List :=
+           Project_Tools.Files.List_Tree
+             (Root,
+              Skip_Entries =>
+                [To_Unbounded_String (".git"),
+                 To_Unbounded_String ("alire"),
+                 To_Unbounded_String ("bin"),
+                 To_Unbounded_String ("config"),
+                 To_Unbounded_String ("fixtures"),
+                 To_Unbounded_String ("lib"),
+                 To_Unbounded_String ("obj")]);
+      begin
+         for Path of Files loop
+            declare
+               File_Path : constant String := To_String (Path);
+            begin
+               if Has_Prohibited_Tooling_Name (File_Path) then
+                  Project_Tools.Release_Checks.Fail
+                    ("project tooling must be Ada/project_tools only; prohibited file " & File_Path);
+               end if;
+            end;
+         end loop;
+      end Check_Ada_Only_Tooling;
    begin
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "alire.toml"), "i18n =")
@@ -132,6 +190,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "generated/requirements.csv");
       Project_Tools.Release_Checks.Require_File (Check, "generated/regressions.csv");
       Project_Tools.Release_Checks.Require_File (Check, ".github/workflows/ci.yml");
+      Check_Ada_Only_Tooling;
       Project_Tools.Release_Checks.Require_File (Check, "docs/ai.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/architecture.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
@@ -396,6 +455,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-BOUNDED-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TOOLING-ADA-ONLY-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
