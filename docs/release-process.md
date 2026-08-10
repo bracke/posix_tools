@@ -6,6 +6,10 @@ metadata consistency, generate documentation, and produce checksums.
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs the release
 check on Linux, macOS, and Windows. A release candidate should not be treated as
 platform-validated until all three CI jobs have passed for the candidate commit.
+The local metadata gate checks the workflow triggers, read-only repository
+permission, non-fail-fast matrix, timeout, Alire setup, tests-crate build step,
+and release-check invocation so CI cannot silently stop exercising the Ada
+release gate.
 
 Current Ada tooling entry points:
 

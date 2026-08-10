@@ -887,10 +887,21 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "pull_request:");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "workflow_dispatch:");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "contents: read");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "timeout-minutes: 60");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "fail-fast: false");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v5");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alr -n build");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "working-directory: posix_tools/tests");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "release-check");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
