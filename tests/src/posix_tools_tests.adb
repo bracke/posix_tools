@@ -958,6 +958,40 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Argument (I) = ""--""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Argument (I) = ""-L""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Argument (I) = ""-P""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Logical := True");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Logical := False");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Usable_Logical_Path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Environment_Value (""PWD"")");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Path_Names_Current_Directory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Try_Physical_Current_Directory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:pwd options");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:pwd context fallbacks");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd -L output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd -P output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd last option wins");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd -P -L last option output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd relative PWD fallback output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd dot component fallback output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd dot-dot component fallback output");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Context.Argument (First_File) = ""--""");
