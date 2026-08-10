@@ -739,6 +739,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CONFORMANCE-IMPLEMENTATION-REFS-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "CONFORMANCE-TEST-REFS-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
@@ -1253,6 +1255,55 @@ procedure Posix_Tools_Tests is
          end if;
       end Implementation_Reference_Exists;
 
+      function Has_AUnit_Test (Name : String) return Boolean is
+         Needle : constant String := """" & Name & """";
+      begin
+         return Project_Tools.Files.File_Contains
+             (Project_Tools.Files.Join (Root, "tests/src/basic_tests-suite.adb"), Needle)
+           or else Project_Tools.Files.File_Contains
+             (Project_Tools.Files.Join (Root, "tests/src/command_tests-suite.adb"), Needle);
+      end Has_AUnit_Test;
+
+      function Has_Regression_Id (Name : String) return Boolean is
+      begin
+         return Project_Tools.Files.File_Contains
+           (Project_Tools.Files.Join (Root, "generated/regressions.csv"), Name & ",");
+      end Has_Regression_Id;
+
+      function Is_Project_Tooling_Test (Reference : String) return Boolean is
+      begin
+         return Reference = "posix_tools_tests build"
+           or else Reference = "posix_tools_tests check"
+           or else Reference = "posix_tools_tests conformance"
+           or else Reference = "posix_tools_tests docs"
+           or else Reference = "posix_tools_tests format-check"
+           or else Reference = "posix_tools_tests package"
+           or else Reference = "posix_tools_tests release"
+           or else Reference = "posix_tools_tests release-check"
+           or else Reference = "posix_tools_tests test --category integration"
+           or else Reference = "posix_tools_tests test --suite cat"
+           or else Reference = "posix_tools_tests test --suite command"
+           or else Reference = "CI release check"
+           or else Reference = "posix-tools verify smoke";
+      end Is_Project_Tooling_Test;
+
+      function Test_Reference_Exists (Reference : String) return Boolean is
+         Item : constant String := Trimmed (Reference);
+         Regression_Prefix : constant String := "regression ";
+      begin
+         if Item = "" then
+            return False;
+         elsif Item'Length > Regression_Prefix'Length
+           and then Item (Item'First .. Item'First + Regression_Prefix'Length - 1) = Regression_Prefix
+         then
+            return Has_Regression_Id (Item (Item'First + Regression_Prefix'Length .. Item'Last));
+         elsif Project_Tools.Text.Contains (Item, "/") then
+            return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Item));
+         else
+            return Has_AUnit_Test (Item) or else Is_Project_Tooling_Test (Item);
+         end if;
+      end Test_Reference_Exists;
+
       procedure Check_Implementation_References (Id_Text : String; Text : String) is
          Start : Positive := Text'First;
       begin
@@ -1281,6 +1332,37 @@ procedure Posix_Tools_Tests is
               (Id_Text & " references missing implementation " & Trimmed (Text (Start .. Text'Last)));
          end if;
       end Check_Implementation_References;
+
+      procedure Check_Test_References (Id_Text : String; Text : String) is
+         Start : Positive := Text'First;
+      begin
+         if Text = "" then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " has no test references");
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = ';' then
+               if Start <= I - 1
+                 and then not Test_Reference_Exists (Text (Start .. I - 1))
+               then
+                  Project_Tools.Release_Checks.Fail
+                    (Id_Text & " references missing test or validation artifact "
+                     & Trimmed (Text (Start .. I - 1)));
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last
+           and then not Test_Reference_Exists (Text (Start .. Text'Last))
+         then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " references missing test or validation artifact "
+               & Trimmed (Text (Start .. Text'Last)));
+         end if;
+      end Check_Test_References;
 
       function Contains_Token (Text : String; Token : String) return Boolean is
          Start : Positive := Text'First;
@@ -1400,6 +1482,7 @@ procedure Posix_Tools_Tests is
               (Id_Text & " mixes an older POSIX baseline into the V1 registry");
          else
             Check_Implementation_References (Id_Text, Implementation_Text);
+            Check_Test_References (Id_Text, Test_Text);
          end if;
 
          if Status_Text = "Known deviation"
