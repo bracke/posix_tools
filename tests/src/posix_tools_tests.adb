@@ -988,6 +988,58 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (1) = ""-n""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (1) (1 .. 2) = ""-n""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Parse_Nonnegative");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "missing option argument '-n'");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "invalid line count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Sources := (if First_File > Count then 1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Put_Line (""==> "" & Context.Argument (I)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Copy_Line_Prefix");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Finish_Line_Prefix");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head counts");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head default limits");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head invalid count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head multiple file headers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head long default output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head zero output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head leading plus count status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head missing count status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head preserves final partial line");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head multiple file headers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head repeated stdin is not rewound");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-HEAD-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-HEAD-0002");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-HEAD-0004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-STREAMS-0001");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Stop_Options : Boolean := False;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Argument (I) = ""--""");
@@ -1027,6 +1079,78 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "pwd dot-dot component fallback output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (First_File) = ""--""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "type Count_Origin is (From_End, From_Start)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Current_Mode : Mode := Line_Mode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) = ""-n""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) = ""-c""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) (2) = 'n'");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) (2) = 'c'");
+      Project_Tools.Release_Checks.Require_Text
+        (Check,
+         "common/src/posix_tools-commands-tail.adb",
+         "Text (Text'First) = '+'");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Count_Origin_Value := From_Start");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "missing option argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "invalid count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Tail_Bytes (Context");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Copy_Line_Suffix");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Copy_Lines_From");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Put_Line (""==> "" & Context.Argument (I)");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail compact counts");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail invalid count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail line mode edges");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail multiple file headers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail plus origin");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail standard input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail default ten lines from end output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -c2 compact output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -c+4 compact output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -n +2 output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail lone plus count status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail missing -c count status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail final partial line output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail multiple file headers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail repeated stdin is not rewound");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0002");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0005");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text
