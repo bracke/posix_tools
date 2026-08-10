@@ -1028,6 +1028,40 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-STDOUT-0001");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Stop := Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Ok := not Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "if Context.Output_Failed then");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "if Context.Output_Failed then");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-wc.adb", "exit when Context.Output_Failed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cat output failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:head output failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail output failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:wc output failure");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "cat output failure has no read diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head output failure diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail output failure diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc output failure diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-CAT-0003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-HEAD-0003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-WC-0005");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
