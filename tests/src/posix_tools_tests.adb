@@ -1167,6 +1167,26 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-tail.adb",
          "Buffer    : Lines.Vector;",
          "tail must not keep retained lines in package-level mutable state");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-head.adb", "First_File : Positive := 1;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "type Count_Origin is (From_End, From_Start);");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Origin     : Count_Origin := From_End;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Filled : Natural := 0;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Next : Ada.Streams.Stream_Element_Offset := Ring'First;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "procedure Retain_Chunk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "procedure Emit_From_Start");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head output failure status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail output failure status");
       Project_Tools.Release_Checks.Require_Directory (Check, "docs/commands");
       Project_Tools.Release_Checks.Require_File (Check, "docs/commands/index.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/commands/basename.md");
