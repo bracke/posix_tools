@@ -138,6 +138,108 @@ procedure Posix_Tools_Tests is
          end if;
       end Require_Command_Inventory_Current;
 
+      procedure Require_Package_File_List_Matches_Manifest is
+         Files_Path : constant String := Project_Tools.Files.Join (Root, "generated/package-files.txt");
+         Files      : constant String := Project_Tools.Files.Read_Raw_File (Files_Path);
+         Manifest   : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"));
+
+         function Count_Exact_Lines (Text : String; Expected : String) return Natural is
+            Start : Positive := Text'First;
+            Count : Natural := 0;
+         begin
+            if Text = "" then
+               return 0;
+            end if;
+
+            for I in Text'Range loop
+               if Text (I) = Character'Val (10) then
+                  if I > Start and then Text (Start .. I - 1) = Expected then
+                     Count := Count + 1;
+                  end if;
+
+                  Start := I + 1;
+               end if;
+            end loop;
+
+            if Start <= Text'Last and then Text (Start .. Text'Last) = Expected then
+               Count := Count + 1;
+            end if;
+
+            return Count;
+         end Count_Exact_Lines;
+
+         function Count_Nonempty_Lines (Text : String) return Natural is
+            Start : Positive := Text'First;
+            Count : Natural := 0;
+         begin
+            if Text = "" then
+               return 0;
+            end if;
+
+            for I in Text'Range loop
+               if Text (I) = Character'Val (10) then
+                  if I > Start then
+                     Count := Count + 1;
+                  end if;
+
+                  Start := I + 1;
+               end if;
+            end loop;
+
+            if Start <= Text'Last then
+               Count := Count + 1;
+            end if;
+
+            return Count;
+         end Count_Nonempty_Lines;
+
+         procedure Check_File_List_Line (Relative_Path : String) is
+            Expected_Line : constant String := Project_Tools.Release_Checks.Manifest_Line (Root, Relative_Path);
+            Count         : constant Natural := Count_Exact_Lines (Manifest, Expected_Line);
+         begin
+            if Relative_Path = "" then
+               null;
+            elsif Count = 0 then
+               Project_Tools.Release_Checks.Fail
+                 ("package manifest missing generated file-list entry " & Relative_Path);
+            elsif Count > 1 then
+               Project_Tools.Release_Checks.Fail
+                 ("package manifest duplicates generated file-list entry " & Relative_Path);
+            end if;
+         end Check_File_List_Line;
+
+         File_Count         : Natural := 0;
+         Manifest_Row_Count : constant Natural := Count_Nonempty_Lines (Manifest);
+         Start              : Positive := Files'First;
+      begin
+         if Files = "" then
+            Project_Tools.Release_Checks.Fail ("generated package file list is empty");
+         end if;
+
+         for I in Files'Range loop
+            if Files (I) = Character'Val (10) then
+               if I > Start then
+                  Check_File_List_Line (Files (Start .. I - 1));
+                  File_Count := File_Count + 1;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Files'Last then
+            Check_File_List_Line (Files (Start .. Files'Last));
+            File_Count := File_Count + 1;
+         end if;
+
+         if Manifest_Row_Count = 0 then
+            Project_Tools.Release_Checks.Fail ("package manifest is empty");
+         elsif Manifest_Row_Count - 1 /= File_Count then
+            Project_Tools.Release_Checks.Fail ("package manifest and generated file list have different entry counts");
+         end if;
+      end Require_Package_File_List_Matches_Manifest;
+
       function Expected_Manpage (Index : Positive) return String is
          use Ada.Strings.Unbounded;
          Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
@@ -906,6 +1008,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "PACKAGE-MANIFEST-COVERAGE-001");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "INTEGRATION-EXECUTABLE-SMOKE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "RELEASE-ARCHIVE-001");
@@ -976,6 +1080,7 @@ procedure Posix_Tools_Tests is
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
          Root,
          "tests/src/posix_tools_tests.adb");
+      Require_Package_File_List_Matches_Manifest;
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
          Root,

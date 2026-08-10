@@ -31,6 +31,10 @@ Current Ada tooling entry points:
 - The metadata gate validates package-manifest coverage from the compiled Ada
   command inventory for each command manifest, project file, wrapper source,
   reference document, and generated manual page.
+- The metadata gate also verifies that every entry in
+  `generated/package-files.txt` has exactly one current checksum row in
+  `generated/package-manifest.txt`, and that the manifest has no extra data
+  rows beyond its header.
 - The release gate writes `dist/posix-tools-<version>-source.7z` from
   `generated/package-files.txt`; `dist/` is ignored because release archives are
   reproducible outputs, while their checksums are recorded in generated metadata.
