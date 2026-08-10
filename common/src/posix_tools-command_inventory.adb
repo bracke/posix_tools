@@ -39,20 +39,20 @@ package body Posix_Tools.Command_Inventory is
    True_Pkg     : aliased constant String := "Posix_Tools.Commands.True_Command";
    Wc_Pkg       : aliased constant String := "Posix_Tools.Commands.Wc";
 
-   Partially_Conforming : aliased constant String := "partially_conforming";
-   Known_Deviation      : aliased constant String := "known_deviation";
+   Conforming_With_Extensions : aliased constant String := "conforming_with_extensions";
+   Known_Deviation            : aliased constant String := "known_deviation";
 
    Inventory : constant array (Positive range 1 .. 10) of Command_Descriptor :=
-     [1  => (Basename_Exe'Access, Basename_Crate'Access, Basename_Pkg'Access, Partially_Conforming'Access),
-      2  => (Cat_Exe'Access, Cat_Crate'Access, Cat_Pkg'Access, Partially_Conforming'Access),
-      3  => (Dirname_Exe'Access, Dirname_Crate'Access, Dirname_Pkg'Access, Partially_Conforming'Access),
-      4  => (Echo_Exe'Access, Echo_Crate'Access, Echo_Pkg'Access, Partially_Conforming'Access),
-      5  => (False_Exe'Access, False_Crate'Access, False_Pkg'Access, Partially_Conforming'Access),
-      6  => (Head_Exe'Access, Head_Crate'Access, Head_Pkg'Access, Partially_Conforming'Access),
-      7  => (Pwd_Exe'Access, Pwd_Crate'Access, Pwd_Pkg'Access, Partially_Conforming'Access),
+     [1  => (Basename_Exe'Access, Basename_Crate'Access, Basename_Pkg'Access, Conforming_With_Extensions'Access),
+      2  => (Cat_Exe'Access, Cat_Crate'Access, Cat_Pkg'Access, Conforming_With_Extensions'Access),
+      3  => (Dirname_Exe'Access, Dirname_Crate'Access, Dirname_Pkg'Access, Conforming_With_Extensions'Access),
+      4  => (Echo_Exe'Access, Echo_Crate'Access, Echo_Pkg'Access, Conforming_With_Extensions'Access),
+      5  => (False_Exe'Access, False_Crate'Access, False_Pkg'Access, Conforming_With_Extensions'Access),
+      6  => (Head_Exe'Access, Head_Crate'Access, Head_Pkg'Access, Conforming_With_Extensions'Access),
+      7  => (Pwd_Exe'Access, Pwd_Crate'Access, Pwd_Pkg'Access, Conforming_With_Extensions'Access),
       8  => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Known_Deviation'Access),
-      9  => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Partially_Conforming'Access),
-      10 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Known_Deviation'Access)];
+      9  => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Conforming_With_Extensions'Access),
+      10 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access)];
 
    function Executable (Index : Positive) return String is
    begin

@@ -55,6 +55,9 @@ package body Basic_Tests is
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Posix_Status (8) = "known_deviation",
          "status value");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Command_Inventory.Posix_Status (10) = "conforming_with_extensions",
+         "wc status value");
    end Test_Command_Inventory;
 
    procedure Test_Numbers (T : in out Fixture) is
