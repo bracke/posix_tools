@@ -35,6 +35,8 @@ package Test_Contexts is
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
+   overriding function Tail_Follow_Max_Polls (Self : Capturing_Context) return Natural;
+   overriding procedure Wait_For_Tail_Follow_Poll (Self : in out Capturing_Context);
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String);
    procedure Set_Locale (Self : in out Capturing_Context; Value : String);
@@ -49,6 +51,11 @@ package Test_Contexts is
      (Self             : in out Capturing_Context;
       Memory_Threshold : Posix_Tools.Numbers.Count;
       Max_Spill_Bytes  : Posix_Tools.Numbers.Count);
+   procedure Set_Tail_Follow_Max_Polls (Self : in out Capturing_Context; Value : Natural);
+   procedure Set_Tail_Follow_Append
+     (Self  : in out Capturing_Context;
+      Path  : String;
+      Value : String);
 
    function Output (Self : Capturing_Context) return String;
    function Error_Output (Self : Capturing_Context) return String;
@@ -71,5 +78,9 @@ private
       Output_Failure_Limit : Natural := 0;
       Tail_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Tail_Spill_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
+      Tail_Follow_Polls : Natural := 0;
+      Tail_Follow_Appended : Boolean := False;
+      Tail_Follow_Path : Ada.Strings.Unbounded.Unbounded_String;
+      Tail_Follow_Data : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 end Test_Contexts;

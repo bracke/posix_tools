@@ -2392,13 +2392,18 @@ package body Command_Tests is
       Write_File (Path, "a" & LF & "b" & LF);
 
       Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Path));
+      Test_Contexts.Set_Tail_Follow_Max_Polls (Context, 1);
+      Test_Contexts.Set_Tail_Follow_Append (Context, Path, "c" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f line suffix output");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail -f line suffix output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f line suffix status");
 
+      Write_File (Path, "a" & LF & "b" & LF);
       Context.Initialize ("tail", Four_Args ("-n", "1", "-f", Path));
+      Test_Contexts.Set_Tail_Follow_Max_Polls (Context, 1);
+      Test_Contexts.Set_Tail_Follow_Append (Context, Path, "d" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f after count output");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "d" & LF, "tail -f after count output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f after count status");
 
       Ada.Directories.Delete_File (Path);

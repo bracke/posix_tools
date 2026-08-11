@@ -327,6 +327,59 @@ package body Posix_Tools.Commands.File_Helpers is
       end if;
    end Copy_File;
 
+   procedure Copy_File_From
+     (Context    : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name  : String;
+      Start_Byte : Posix_Tools.Numbers.Count;
+      New_Size   : out Posix_Tools.Numbers.Count;
+      Ok         : out Boolean)
+   is
+      procedure Copy_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean)
+      is
+      begin
+         if Last >= Buffer'First then
+            Context.Put (To_String (Buffer, Last));
+            Stop := Context.Output_Failed;
+         end if;
+      end Copy_Chunk;
+   begin
+      New_Size := Start_Byte;
+      Ok := True;
+
+      if File_Name = "-" then
+         return;
+      end if;
+
+      declare
+         procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk_From
+           (Action => Copy_Chunk);
+      begin
+         Iterate (File_Name, Start_Byte, New_Size, Ok);
+      end;
+      if Ok then
+         Ok := not Context.Output_Failed;
+      else
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Subject_Name (File_Name), "posix_tools.diagnostic.file.read_failed", "cannot read file");
+      end if;
+   end Copy_File_From;
+
+   function File_Size
+     (File_Name : String;
+      Size      : out Posix_Tools.Numbers.Count) return Boolean
+   is
+   begin
+      if File_Name = "-" then
+         Size := 0;
+         return False;
+      end if;
+
+      return Posix_Tools.Host_Adapters.File_System.File_Size (File_Name, Size);
+   end File_Size;
+
    procedure Copy_Line_Prefix
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;

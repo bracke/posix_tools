@@ -22,8 +22,8 @@ from the end.
 ## Options
 - `-n number`: line count.
 - `-c number`: byte count.
-- `-f`: recognized follow option; V1 emits the selected initial suffix and does
-  not yet continue waiting for appended data.
+- `-f`: continue copying bytes appended to followed file operands after the
+  selected initial suffix.
 
 ## Standard Input
 Used when no files are present or when an operand is `-`.
@@ -68,8 +68,7 @@ fail with a resource diagnostic and no partial suffix output.
 `tail -n +2 file`
 
 ## Conformance Status
-Known deviation `TAIL-FOLLOW-001`: `-f` is recognized, but continuous follow
-mode is not implemented in V1.
+Conforming with extensions.
 
 ## Known Limitations
-No continuous follow loop, `-F`, or `--follow` support in V1.
+No `-F` or `--follow` support in V1.

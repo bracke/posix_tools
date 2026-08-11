@@ -1172,7 +1172,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Copy_Lines_From");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Put_Line (""==> "" & Context.Argument (I)");
+        (Check,
+         "common/src/posix_tools-commands-tail.adb",
+         "Context.Put_Line (""==> "" & Context.Argument (File_Index)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
       Project_Tools.Release_Checks.Require_Text
@@ -3467,7 +3469,7 @@ procedure Posix_Tools_Tests is
          end if;
       end loop;
       Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/requirements.csv", "Known deviation");
+        (Check, "generated/requirements.csv", "Conforming with extensions");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/conformance.md", "POSIX.1-2024");
       Ada.Text_IO.Put_Line ("conformance metadata checks passed");
@@ -3689,9 +3691,9 @@ procedure Posix_Tools_Tests is
         Project_Tools.Files.Join (Root, "tools/" & Executable & "/bin/" & Executable);
    begin
       if Project_Tools.Files.File_Exists (Base_Path) then
-         return Base_Path;
+         return Ada.Directories.Full_Name (Base_Path);
       elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
-         return Base_Path & ".exe";
+         return Ada.Directories.Full_Name (Base_Path & ".exe");
       else
          return Base_Path;
       end if;
@@ -3701,9 +3703,9 @@ procedure Posix_Tools_Tests is
       Base_Path : constant String := Project_Tools.Files.Join (Root, "bin/posix-tools");
    begin
       if Project_Tools.Files.File_Exists (Base_Path) then
-         return Base_Path;
+         return Ada.Directories.Full_Name (Base_Path);
       elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
-         return Base_Path & ".exe";
+         return Ada.Directories.Full_Name (Base_Path & ".exe");
       else
          return Base_Path;
       end if;
@@ -3713,9 +3715,9 @@ procedure Posix_Tools_Tests is
       Base_Path : constant String := Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests");
    begin
       if Project_Tools.Files.File_Exists (Base_Path) then
-         return Base_Path;
+         return Ada.Directories.Full_Name (Base_Path);
       elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
-         return Base_Path & ".exe";
+         return Ada.Directories.Full_Name (Base_Path & ".exe");
       else
          return Base_Path;
       end if;

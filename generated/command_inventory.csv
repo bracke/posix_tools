@@ -6,6 +6,6 @@ echo,posix_tools_echo,Posix_Tools.Commands.Echo,tools/echo/alire.toml,tools/echo
 false,posix_tools_false,Posix_Tools.Commands.False_Command,tools/false/alire.toml,tools/false/posix_tools_false.gpr,docs/commands/false.md,true,conforming_with_extensions,true,true,true
 head,posix_tools_head,Posix_Tools.Commands.Head,tools/head/alire.toml,tools/head/posix_tools_head.gpr,docs/commands/head.md,true,conforming_with_extensions,true,true,true
 pwd,posix_tools_pwd,Posix_Tools.Commands.Pwd,tools/pwd/alire.toml,tools/pwd/posix_tools_pwd.gpr,docs/commands/pwd.md,true,conforming_with_extensions,true,true,true
-tail,posix_tools_tail,Posix_Tools.Commands.Tail,tools/tail/alire.toml,tools/tail/posix_tools_tail.gpr,docs/commands/tail.md,true,known_deviation,true,true,true
+tail,posix_tools_tail,Posix_Tools.Commands.Tail,tools/tail/alire.toml,tools/tail/posix_tools_tail.gpr,docs/commands/tail.md,true,conforming_with_extensions,true,true,true
 true,posix_tools_true,Posix_Tools.Commands.True_Command,tools/true/alire.toml,tools/true/posix_tools_true.gpr,docs/commands/true.md,true,conforming_with_extensions,true,true,true
 wc,posix_tools_wc,Posix_Tools.Commands.Wc,tools/wc/alire.toml,tools/wc/posix_tools_wc.gpr,docs/commands/wc.md,true,conforming_with_extensions,true,true,true

@@ -306,6 +306,7 @@ package body Posix_Tools.Commands.Tail is
       Requested  : Posix_Tools.Numbers.Count := 10;
       Origin     : Count_Origin := From_End;
       Index      : Positive := 1;
+      Follow     : Boolean := False;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -331,6 +332,7 @@ package body Posix_Tools.Commands.Tail is
             end if;
             Index := Index + 2;
          elsif Context.Argument (Index) = "-f" then
+            Follow := True;
             Index := Index + 1;
          elsif Context.Argument (Index)'Length > 2
            and then Context.Argument (Index) (1) = '-'
@@ -362,33 +364,116 @@ package body Posix_Tools.Commands.Tail is
          end if;
          All_Ok := Ok;
       else
-         for I in First_File .. Count loop
-            if Sources > 1 then
-               if I > First_File then
-                  Context.Put_Line ("");
+         declare
+            type Count_Array is array (Positive range <>) of Posix_Tools.Numbers.Count;
+            Offsets : Count_Array (First_File .. Count) := [others => 0];
+
+            procedure Emit_Header (File_Index : Positive) is
+            begin
+               Context.Put_Line ("==> " & Context.Argument (File_Index) & " <==");
+            end Emit_Header;
+
+            procedure Refresh_Offset (File_Index : Positive) is
+               Size : Posix_Tools.Numbers.Count;
+            begin
+               if Context.Argument (File_Index) /= "-"
+                 and then Posix_Tools.Commands.File_Helpers.File_Size (Context.Argument (File_Index), Size)
+               then
+                  Offsets (File_Index) := Size;
+               end if;
+            end Refresh_Offset;
+
+            procedure Follow_Appends is
+               Polls    : Natural := 0;
+               Size     : Posix_Tools.Numbers.Count;
+               New_Size : Posix_Tools.Numbers.Count;
+               Copy_Ok  : Boolean;
+               Any_Files : Boolean := False;
+            begin
+               for I in First_File .. Count loop
+                  if Context.Argument (I) /= "-" then
+                     Any_Files := True;
+                  end if;
+               end loop;
+
+               if not Any_Files then
+                  return;
+               end if;
+
+               while Polls < Context.Tail_Follow_Max_Polls loop
+                  Context.Wait_For_Tail_Follow_Poll;
+                  Polls := Polls + 1;
+
+                  for I in First_File .. Count loop
+                     if Context.Argument (I) /= "-"
+                       and then Posix_Tools.Commands.File_Helpers.File_Size (Context.Argument (I), Size)
+                     then
+                        if Size < Offsets (I) then
+                           Offsets (I) := 0;
+                        end if;
+
+                        if Size > Offsets (I) then
+                           if Sources > 1 then
+                              Context.Put_Line ("");
+                              if Context.Output_Failed then
+                                 All_Ok := False;
+                                 return;
+                              end if;
+                              Emit_Header (I);
+                              if Context.Output_Failed then
+                                 All_Ok := False;
+                                 return;
+                              end if;
+                           end if;
+
+                           Posix_Tools.Commands.File_Helpers.Copy_File_From
+                             (Context, Context.Argument (I), Offsets (I), New_Size, Copy_Ok);
+                           All_Ok := All_Ok and Copy_Ok;
+                           Offsets (I) := New_Size;
+                           if not Copy_Ok then
+                              return;
+                           end if;
+                        end if;
+                     end if;
+                  end loop;
+               end loop;
+            end Follow_Appends;
+         begin
+            for I in First_File .. Count loop
+               if Sources > 1 then
+                  if I > First_File then
+                     Context.Put_Line ("");
+                     if Context.Output_Failed then
+                        All_Ok := False;
+                        exit;
+                     end if;
+                  end if;
+                  Emit_Header (I);
                   if Context.Output_Failed then
                      All_Ok := False;
                      exit;
                   end if;
                end if;
-               Context.Put_Line ("==> " & Context.Argument (I) & " <==");
-               if Context.Output_Failed then
-                  All_Ok := False;
-                  exit;
-               end if;
-            end if;
 
-            if Current_Mode = Byte_Mode then
-               Tail_Bytes (Context, Context.Argument (I), Requested, Origin, Ok);
-            elsif Origin = From_Start then
-               Posix_Tools.Commands.File_Helpers.Copy_Lines_From
-                 (Context, Context.Argument (I), Requested, Ok);
-            else
-               Posix_Tools.Commands.File_Helpers.Copy_Line_Suffix
-                 (Context, Context.Argument (I), Requested, Ok);
+               if Current_Mode = Byte_Mode then
+                  Tail_Bytes (Context, Context.Argument (I), Requested, Origin, Ok);
+               elsif Origin = From_Start then
+                  Posix_Tools.Commands.File_Helpers.Copy_Lines_From
+                    (Context, Context.Argument (I), Requested, Ok);
+               else
+                  Posix_Tools.Commands.File_Helpers.Copy_Line_Suffix
+                    (Context, Context.Argument (I), Requested, Ok);
+               end if;
+               All_Ok := All_Ok and Ok;
+               if Ok then
+                  Refresh_Offset (I);
+               end if;
+            end loop;
+
+            if Follow and then All_Ok and then not Context.Output_Failed then
+               Follow_Appends;
             end if;
-            All_Ok := All_Ok and Ok;
-         end loop;
+         end;
       end if;
 
       Result.Status :=
