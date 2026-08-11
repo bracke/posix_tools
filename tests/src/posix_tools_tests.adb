@@ -3934,6 +3934,16 @@ procedure Posix_Tools_Tests is
       end Expect_Nonempty_Line;
 
       LF : constant Character := Character'Val (10);
+
+      function Identity_Output (Command : String) return String is
+      begin
+         return
+           "schema=1" & LF
+           & "project=posix-tools" & LF
+           & "command=" & Command & LF
+           & "version=" & Posix_Tools.Version.Version_String & LF;
+      end Identity_Output;
+
       Smoke_File : constant String :=
         Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-smoke.txt");
       Smoke_Leaf : constant String := "posix-tools-executable-smoke.txt";
@@ -3945,6 +3955,13 @@ procedure Posix_Tools_Tests is
          0,
          "posix-tools " & Posix_Tools.Version.Version_String & LF);
 
+      Expect_Output
+        ("root executable identity",
+         Built_Root_Path,
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
+         0,
+         Identity_Output ("posix-tools"));
+
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          declare
             Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
@@ -3955,6 +3972,13 @@ procedure Posix_Tools_Tests is
                Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
                0,
                Executable & " (posix-tools) " & Posix_Tools.Version.Version_String & LF);
+
+            Expect_Output
+              (Executable & " executable identity",
+               Built_Command_Path (Executable),
+               Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
+               0,
+               Identity_Output (Executable));
          end;
       end loop;
 
