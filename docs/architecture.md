@@ -47,10 +47,10 @@ Byte-oriented helpers live under `Posix_Tools.Streams`. `Posix_Tools.Streams.Lin
 defines the LF segment contract used by file-oriented command behavior: newline
 segments keep the LF byte and final partial segments are not modified.
 
-Standard input and standard output are accessed through Ada stream interfaces at
-the context/process boundary when command data must preserve bytes. Command
-algorithms use context primitives instead of reading process global streams
-directly.
+Standard input, standard output, and standard error are accessed through
+`Posix_Tools.Host_Adapters.Streams`, whose production implementation uses
+hostkit descriptors for byte reads and writes. Command algorithms use context
+primitives instead of reading or writing process global streams directly.
 
 `Posix_Tools.Streams.Counting` owns byte, LF-line, character, and word counting
 state so `wc` can count across bounded input chunks without resetting word or

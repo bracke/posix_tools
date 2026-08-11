@@ -1525,7 +1525,19 @@ procedure Posix_Tools_Tests is
          "when others",
          "pwd must report expected current-directory failures through context results");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Ada.Text_IO.Text_Streams");
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "with Hostkit.Descriptors;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Hostkit.Descriptors.Standard_Input");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Hostkit.Descriptors.Standard_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Hostkit.Descriptors.Standard_Error");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-streams.adb", "Transfer_Interrupted");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-streams.adb",
+         "Ada.Text_IO",
+         "standard stream adapter must use hostkit descriptors for byte-oriented process streams");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build common crate");
       Project_Tools.Release_Checks.Require_Text
