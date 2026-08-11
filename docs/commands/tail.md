@@ -39,10 +39,12 @@ as `-n+2` and `-c2` are recognized. LF (`0A`) is the line delimiter.
 
 Accepted count forms are `-n number`, `-c number`, and V1 compact forms
 `-nnumber` and `-cnumber`. A plus prefix selects origin from start; otherwise
-the count is from the end. Zero is accepted. Empty counts, a lone plus, negative
-counts, non-decimal syntax, embedded whitespace, and numeric overflow are
-rejected before file processing. `--` ends option processing when it appears
-where the next file operand would be.
+the count is from the end. Repeated count options are accepted before the first
+file operand; the last mode, origin, and count in that option prefix are used.
+Zero is accepted. Empty counts, a lone plus, negative counts, non-decimal
+syntax, embedded whitespace, and numeric overflow are rejected before file
+processing. `--` ends option processing when it appears where the next file
+operand would be.
 
 ## Locale Behavior
 Copied data and headers are not localized in V1.

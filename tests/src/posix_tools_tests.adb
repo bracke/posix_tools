@@ -997,13 +997,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-CAT-0003");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (First_File) = ""--""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (1) = ""-n""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) = ""-n""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (1) (1 .. 2) = ""-n""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) (1 .. 2) = ""-n""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Parse_Nonnegative");
       Project_Tools.Release_Checks.Require_Text
@@ -1032,6 +1032,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "head long default output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head zero output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head repeated -n uses last count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head leading plus count status");
       Project_Tools.Release_Checks.Require_Text
@@ -1089,7 +1091,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd dot-dot component fallback output");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (First_File) = ""--""");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "type Count_Origin is (From_End, From_Start)");
       Project_Tools.Release_Checks.Require_Text
@@ -1097,13 +1099,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) = ""-n""");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-n""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) = ""-c""");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-c""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) (2) = 'n'");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'n'");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (1) (2) = 'c'");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'c'");
       Project_Tools.Release_Checks.Require_Text
         (Check,
          "common/src/posix_tools-commands-tail.adb",
@@ -1142,6 +1144,10 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "tail -c2 compact output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -c+4 compact output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail later -c overrides earlier -n");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail later -n overrides earlier -c");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -n +2 output");
       Project_Tools.Release_Checks.Require_Text

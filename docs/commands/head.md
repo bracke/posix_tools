@@ -35,10 +35,12 @@ LF (`0A`) is the line delimiter. Final partial lines are preserved without
 adding LF.
 
 Accepted count forms are `-n number` and the V1 compact form `-nnumber`, where
-`number` is a non-negative decimal count. Zero is accepted and produces no input
-data. Empty counts, negative counts, leading-plus counts, non-decimal syntax,
-embedded whitespace, and numeric overflow are rejected before file processing.
-`--` ends option processing when it appears where the next file operand would be.
+`number` is a non-negative decimal count. Repeated count options are accepted
+before the first file operand; the last count in that option prefix is used.
+Zero is accepted and produces no input data. Empty counts, negative counts,
+leading-plus counts, non-decimal syntax, embedded whitespace, and numeric
+overflow are rejected before file processing. `--` ends option processing when
+it appears where the next file operand would be.
 
 ## Locale Behavior
 Copied data and headers are not localized in V1.

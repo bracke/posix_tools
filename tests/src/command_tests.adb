@@ -64,6 +64,17 @@ package body Command_Tests is
       return Result;
    end Four_Args;
 
+   function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector is
+      Result : Posix_Tools.Arguments.Vector;
+   begin
+      Result.Append (A);
+      Result.Append (B);
+      Result.Append (C);
+      Result.Append (D);
+      Result.Append (E);
+      return Result;
+   end Five_Args;
+
    function Fixture_Path (Name : String) return String is
    begin
       if Ada.Directories.Exists ("fixtures") then
@@ -619,6 +630,13 @@ package body Command_Tests is
         (Test_Contexts.Output (Context) = "a" & LF & "b" & LF & "c",
          "head preserves final partial line");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head large count status");
+
+      Context.Initialize ("head", Five_Args ("-n", "1", "-n", "2", Path));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "a" & LF & "b" & LF,
+         "head repeated -n uses last count");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head repeated -n status");
    end Test_Head_Counts;
 
    procedure Test_Head_Default_Limits (T : in out Fixture) is
@@ -1428,6 +1446,16 @@ package body Command_Tests is
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "def", "tail -c+4 compact output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -c+4 status");
+
+      Context.Initialize ("tail", Five_Args ("-n", "1", "-c", "2", Path));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "ef", "tail later -c overrides earlier -n");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail later -c status");
+
+      Context.Initialize ("tail", Five_Args ("-c", "2", "-n", "1", Path));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abcdef", "tail later -n overrides earlier -c");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail later -n status");
    end Test_Tail_Compact_Counts;
 
    procedure Test_Tail_Plus_Origin (T : in out Fixture) is

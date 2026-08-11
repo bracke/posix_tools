@@ -17,45 +17,50 @@ package body Posix_Tools.Commands.Head is
       All_Ok     : Boolean := True;
       Sources    : Natural;
       Requested  : Posix_Tools.Numbers.Count := 10;
+      Index      : Positive := 1;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      if Count >= 1 and then Context.Argument (1) = "-n" then
-         if Count = 1 then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "missing option argument '-n'");
-            return;
+      while Index <= Count loop
+         if Context.Argument (Index) = "--" then
+            Index := Index + 1;
+            exit;
+         elsif Context.Argument (Index) = "-n" then
+            if Index = Count then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "missing option argument '-n'");
+               return;
+            end if;
+
+            Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Context.Argument (Index + 1));
+            if Parsed.Status /= Posix_Tools.Numbers.Valid then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid line count '" & Context.Argument (Index + 1) & "'");
+               return;
+            end if;
+
+            Requested := Parsed.Value;
+            Index := Index + 2;
+         elsif Context.Argument (Index)'Length > 2
+           and then Context.Argument (Index) (1 .. 2) = "-n"
+         then
+            Parsed := Posix_Tools.Numbers.Parse_Nonnegative
+              (Context.Argument (Index) (3 .. Context.Argument (Index)'Last));
+            if Parsed.Status /= Posix_Tools.Numbers.Valid then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid line count '" & Context.Argument (Index) & "'");
+               return;
+            end if;
+
+            Requested := Parsed.Value;
+            Index := Index + 1;
+         else
+            exit;
          end if;
-
-         Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Context.Argument (2));
-         if Parsed.Status /= Posix_Tools.Numbers.Valid then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid line count '" & Context.Argument (2) & "'");
-            return;
-         end if;
-
-         Requested := Parsed.Value;
-         First_File := 3;
-      elsif Count >= 1 and then Context.Argument (1)'Length > 2
-        and then Context.Argument (1) (1 .. 2) = "-n"
-      then
-         Parsed := Posix_Tools.Numbers.Parse_Nonnegative
-           (Context.Argument (1) (3 .. Context.Argument (1)'Last));
-         if Parsed.Status /= Posix_Tools.Numbers.Valid then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid line count '" & Context.Argument (1) & "'");
-            return;
-         end if;
-
-         Requested := Parsed.Value;
-         First_File := 2;
-      end if;
-
-      if First_File <= Count and then Context.Argument (First_File) = "--" then
-         First_File := First_File + 1;
-      end if;
+      end loop;
+      First_File := Index;
 
       Sources := (if First_File > Count then 1 else Count - First_File + 1);
       if First_File > Count then
