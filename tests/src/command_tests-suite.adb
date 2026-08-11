@@ -11,6 +11,10 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:basename", Test_Basename'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:basename edge cases", Test_Basename_Edge_Cases'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("property:basename dirname commands", Test_Basename_Dirname_Command_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cat files", Test_Cat_Files'Access));
       AUnit.Test_Suites.Add_Test
         (Result,

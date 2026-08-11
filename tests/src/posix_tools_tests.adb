@@ -921,6 +921,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:dirname edge cases");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:basename dirname commands");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "basename command empty");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "basename non-ASCII suffix");
@@ -930,6 +932,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "dirname nested two leading slash");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "dirname command backslash");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "basename dirname command property seed 0xBA5ED123");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-echo.adb", "Context.Put (Context.Argument (I))");
       Project_Tools.Release_Checks.Require_Text
