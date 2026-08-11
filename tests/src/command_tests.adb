@@ -1327,21 +1327,30 @@ package body Command_Tests is
       procedure Check_Root (Locale, Label : String) is
          Expected : constant String :=
            "posix-tools " & Posix_Tools.Version.Version_String & LF;
+
+         procedure Check_Root_Args
+           (Args      : Posix_Tools.Arguments.Vector;
+            Arg_Label : String)
+         is
+         begin
+            Context.Initialize ("posix-tools", Args);
+            if Locale /= "" then
+               Test_Contexts.Set_Locale (Context, Locale);
+            end if;
+            Posix_Tools.Commands.Root.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "root version status " & Label & " " & Arg_Label);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Expected,
+               "root version output " & Label & " " & Arg_Label);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Context) = "",
+               "root version stderr " & Label & " " & Arg_Label);
+         end Check_Root_Args;
       begin
-         Context.Initialize ("posix-tools", One_Arg ("--version"));
-         if Locale /= "" then
-            Test_Contexts.Set_Locale (Context, Locale);
-         end if;
-         Posix_Tools.Commands.Root.Run (Context, Result);
-         AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success,
-            "root version status " & Label);
-         AUnit.Assertions.Assert
-           (Test_Contexts.Output (Context) = Expected,
-            "root version output " & Label);
-         AUnit.Assertions.Assert
-           (Test_Contexts.Error_Output (Context) = "",
-            "root version stderr " & Label);
+         Check_Root_Args (One_Arg ("--version"), "extension");
+         Check_Root_Args (One_Arg ("version"), "subcommand");
       end Check_Root;
    begin
       for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop

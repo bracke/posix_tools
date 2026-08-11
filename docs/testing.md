@@ -60,10 +60,11 @@ standard-input equivalence with seed `0x57C0000A`. Inventory-derived coverage
 also checks `posix-tools list`, `paths`, and `verify` inventory ordering, plus
 `posix-tools help <command>` output for every compiled command against direct
 command metadata. Locale tests also verify that `posix-tools list` command data,
-all executable version output, and all internal identity output do not change
-across default, English, Danish, and unknown locales; `posix-tools verify`
-status labels are checked against English fallback and Danish catalogs. Generated
-`tail -n` LF line suffix behavior uses seed `0x5441494E`.
+all executable version output, both root version entry points, and all internal
+identity output do not change across default, English, Danish, and unknown
+locales; `posix-tools verify` status labels are checked against English fallback
+and Danish catalogs. Generated `tail -n` LF line suffix behavior uses seed
+`0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard
