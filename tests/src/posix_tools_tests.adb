@@ -1388,6 +1388,10 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-presentation.adb", "Terminal_Styles.Color_Never");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-presentation.adb", "Destination_Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-presentation.adb", "Terminal_Styles.Role_Error");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "Presentation.Diagnostic");
       Forbid_Text
         ("common/src/posix_tools-help.adb",
          "with Terminal_Styles",
@@ -1408,6 +1412,8 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Standard_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Standard_Error");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-terminals.adb",
          "Hostkit.Host",
@@ -1415,7 +1421,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Terminals.Standard_Output_Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Terminals.Standard_Error_Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/test_contexts.adb", "return Self.Output_Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/test_contexts.adb", "return Self.Error_Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Max_Identity_Output_Bytes");
       Project_Tools.Release_Checks.Require_Text

@@ -21,4 +21,13 @@ package body Posix_Tools.Presentation is
       return Terminal_Styles.Decorate
         (Text, Terminal_Styles.Role_Header, Destination_Is_Terminal);
    end Header;
+
+   function Diagnostic
+     (Text                    : String;
+      Destination_Is_Terminal : Boolean) return String
+   is
+   begin
+      return Terminal_Styles.Decorate
+        (Text, Terminal_Styles.Role_Error, Destination_Is_Terminal);
+   end Diagnostic;
 end Posix_Tools.Presentation;

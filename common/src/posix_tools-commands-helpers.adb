@@ -1,6 +1,7 @@
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Help;
 with Posix_Tools.Localization;
+with Posix_Tools.Presentation;
 
 package body Posix_Tools.Commands.Helpers is
    function Localized_Usage_Message
@@ -113,6 +114,14 @@ package body Posix_Tools.Commands.Helpers is
       end if;
    end Localized_Usage_Message;
 
+   function Diagnostic_Line
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Message : String) return String
+   is
+   begin
+      return Posix_Tools.Presentation.Diagnostic (Message, Context.Standard_Error_Is_Terminal);
+   end Diagnostic_Line;
+
    function Intercept_Extension
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
@@ -149,7 +158,8 @@ package body Posix_Tools.Commands.Helpers is
       Message : String)
    is
    begin
-      Context.Put_Error_Line (Context.Command_Name & ": " & Localized_Usage_Message (Context, Message));
+      Context.Put_Error_Line
+        (Diagnostic_Line (Context, Context.Command_Name & ": " & Localized_Usage_Message (Context, Message)));
       Result.Status := Posix_Tools.Exit_Status.Invalid_Usage;
    end Usage_Error;
 
@@ -160,8 +170,10 @@ package body Posix_Tools.Commands.Helpers is
    is
    begin
       Context.Put_Error_Line
-        (Context.Command_Name & ": "
-         & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default));
+        (Diagnostic_Line
+           (Context,
+            Context.Command_Name & ": "
+            & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Operational_Error;
 
    procedure Subject_Operational_Error
@@ -172,7 +184,9 @@ package body Posix_Tools.Commands.Helpers is
    is
    begin
       Context.Put_Error_Line
-        (Context.Command_Name & ": '" & Subject & "': "
-         & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default));
+        (Diagnostic_Line
+           (Context,
+            Context.Command_Name & ": '" & Subject & "': "
+            & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Subject_Operational_Error;
 end Posix_Tools.Commands.Helpers;

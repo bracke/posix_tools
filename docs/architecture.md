@@ -65,10 +65,10 @@ message identifiers from `common/messages/posix_tools.catalog`, falling back to
 stable English defaults if the catalog or locale key is unavailable.
 
 `Posix_Tools.Presentation` is the only project-owned adapter over
-`terminal_styles`. Help and root headings pass through it with explicit styling
-modes and destination terminal status. Command data output such as `cat`, `wc`,
-`pwd`, `echo`, pathname results, and copied file data bypasses presentation
-styling. Production terminal status is obtained through
+`terminal_styles`. Help, root headings, and diagnostics pass through it with
+explicit styling modes and destination terminal status. Command data output
+such as `cat`, `wc`, `pwd`, `echo`, pathname results, and copied file data
+bypasses presentation styling. Production terminal status is obtained through
 `Posix_Tools.Host_Adapters.Terminals`, which delegates the platform question to
 hostkit descriptors.
 

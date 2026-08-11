@@ -1524,6 +1524,39 @@ package body Command_Tests is
         (Contains (Test_Contexts.Output (Context), "Usage: posix-tools"),
          "automatic redirected root help keeps usage");
 
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Never);
+      Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, True);
+      Posix_Tools.Commands.Dirname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (not Contains (Test_Contexts.Error_Output (Context), "" & ESC),
+         "unstyled diagnostic has no ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context), "dirname: extra operand 'second'"),
+         "unstyled diagnostic keeps text");
+
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Always);
+      Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Dirname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context), "" & ESC & "["),
+         "styled diagnostic has ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context), "dirname: extra operand 'second'"),
+         "styled diagnostic keeps text");
+
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
+      Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Dirname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (not Contains (Test_Contexts.Error_Output (Context), "" & ESC),
+         "automatic redirected diagnostic has no ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context), "dirname: extra operand 'second'"),
+         "automatic redirected diagnostic keeps text");
+
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
    end Test_Presentation_Styling;
 

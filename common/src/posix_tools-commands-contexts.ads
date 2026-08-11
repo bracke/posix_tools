@@ -16,6 +16,7 @@ package Posix_Tools.Commands.Contexts is
    function Effective_Locale (Self : Context) return String;
    function Environment_Value (Self : Context; Name : String) return String;
    function Standard_Output_Is_Terminal (Self : Context) return Boolean;
+   function Standard_Error_Is_Terminal (Self : Context) return Boolean;
    function Physical_Current_Directory (Self : Context) return String;
    function Try_Physical_Current_Directory
      (Self : Context;

@@ -64,8 +64,8 @@ all executable version output, both root version entry points, and all internal
 identity output do not change across default, English, Danish, and unknown
 locales; `posix-tools verify` status labels are checked against English fallback
 and Danish catalogs. Presentation tests check forced styled, forced unstyled,
-and automatic redirected command help and root help rendering. Generated
-`tail -n` LF line suffix behavior uses seed `0x5441494E`.
+and automatic redirected command help, root help, and diagnostic rendering.
+Generated `tail -n` LF line suffix behavior uses seed `0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard

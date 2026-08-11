@@ -8,4 +8,12 @@ package body Posix_Tools.Host_Adapters.Terminals is
       when others =>
          return False;
    end Standard_Output_Is_Terminal;
+
+   function Standard_Error_Is_Terminal return Boolean is
+   begin
+      return Hostkit.Descriptors.Is_Terminal (Hostkit.Descriptors.Standard_Error);
+   exception
+      when others =>
+         return False;
+   end Standard_Error_Is_Terminal;
 end Posix_Tools.Host_Adapters.Terminals;

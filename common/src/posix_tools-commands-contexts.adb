@@ -99,6 +99,12 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Terminals.Standard_Output_Is_Terminal;
    end Standard_Output_Is_Terminal;
 
+   function Standard_Error_Is_Terminal (Self : Context) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Terminals.Standard_Error_Is_Terminal;
+   end Standard_Error_Is_Terminal;
+
    procedure Read_Standard_Input
      (Self   : in out Context;
       Buffer : out Ada.Streams.Stream_Element_Array;

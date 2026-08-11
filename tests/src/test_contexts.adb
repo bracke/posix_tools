@@ -19,6 +19,7 @@ package body Test_Contexts is
       Self.Input_Failure_Enabled := False;
       Self.Input_Failure_Limit := 0;
       Self.Output_Is_Terminal := False;
+      Self.Error_Is_Terminal := False;
       Self.Logical_Pwd_Matches := True;
       Self.Output_Failure_Enabled := False;
       Self.Output_Failure_Limit := 0;
@@ -175,6 +176,11 @@ package body Test_Contexts is
       return Self.Output_Is_Terminal;
    end Standard_Output_Is_Terminal;
 
+   overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Error_Is_Terminal;
+   end Standard_Error_Is_Terminal;
+
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
    begin
       return Self.Tail_Spill_Bytes;
@@ -225,6 +231,11 @@ package body Test_Contexts is
    begin
       Self.Output_Is_Terminal := Value;
    end Set_Standard_Output_Is_Terminal;
+
+   procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.Error_Is_Terminal := Value;
+   end Set_Standard_Error_Is_Terminal;
 
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural) is
    begin

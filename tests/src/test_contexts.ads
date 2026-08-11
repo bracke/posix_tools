@@ -32,6 +32,7 @@ package Test_Contexts is
       Last : out Natural) return Boolean;
    overriding function Path_Names_Current_Directory (Self : Capturing_Context; Path : String) return Boolean;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
 
@@ -42,6 +43,7 @@ package Test_Contexts is
    procedure Set_Standard_Input (Self : in out Capturing_Context; Value : String);
    procedure Set_Standard_Input_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
+   procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
    procedure Set_Tail_Resource_Limits
      (Self             : in out Capturing_Context;
@@ -63,6 +65,7 @@ private
       Input_Failure_Enabled : Boolean := False;
       Input_Failure_Limit : Natural := 0;
       Output_Is_Terminal : Boolean := False;
+      Error_Is_Terminal : Boolean := False;
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;

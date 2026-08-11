@@ -6,4 +6,8 @@ package Posix_Tools.Presentation is
    function Header
      (Text                    : String;
       Destination_Is_Terminal : Boolean) return String;
+
+   function Diagnostic
+     (Text                    : String;
+      Destination_Is_Terminal : Boolean) return String;
 end Posix_Tools.Presentation;
