@@ -166,6 +166,18 @@ package body Command_Tests is
          Label & " extra output after inventory lines");
    end Assert_Inventory_Status_Lines;
 
+   function Inventory_List_Output return String is
+      Expected : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Ada.Strings.Unbounded.Append
+           (Expected,
+            Posix_Tools.Command_Inventory.Executable (Index) & Character'Val (10));
+      end loop;
+
+      return Ada.Strings.Unbounded.To_String (Expected);
+   end Inventory_List_Output;
+
    procedure Write_File (Path, Data : String) is
       use type Ada.Streams.Stream_Element_Offset;
       File   : Ada.Streams.Stream_IO.File_Type;
@@ -1655,18 +1667,11 @@ package body Command_Tests is
       pragma Unreferenced (T);
       Context  : Test_Contexts.Capturing_Context;
       Result   : Posix_Tools.Commands.Results.Result;
-      Expected : Ada.Strings.Unbounded.Unbounded_String;
    begin
-      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Ada.Strings.Unbounded.Append
-           (Expected,
-            Posix_Tools.Command_Inventory.Executable (Index) & Character'Val (10));
-      end loop;
-
       Context.Initialize ("posix-tools", One_Arg ("list"));
       Posix_Tools.Commands.Root.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = Ada.Strings.Unbounded.To_String (Expected),
+        (Test_Contexts.Output (Context) = Inventory_List_Output,
          "root list must match command inventory order");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
@@ -1675,6 +1680,36 @@ package body Command_Tests is
         (Test_Contexts.Error_Output (Context) = "",
          "root inventory list stderr");
    end Test_Root_List_Inventory_Property;
+
+   procedure Test_Root_List_Locale_Invariance (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context  : Test_Contexts.Capturing_Context;
+      Result   : Posix_Tools.Commands.Results.Result;
+      Expected : constant String := Inventory_List_Output;
+
+      procedure Check (Locale, Label : String) is
+      begin
+         Context.Initialize ("posix-tools", One_Arg ("list"));
+         if Locale /= "" then
+            Test_Contexts.Set_Locale (Context, Locale);
+         end if;
+         Posix_Tools.Commands.Root.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "root list locale status " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = Expected,
+            "root list locale output " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Error_Output (Context) = "",
+            "root list locale stderr " & Label);
+      end Check;
+   begin
+      Check ("", "default");
+      Check ("en", "en");
+      Check ("da", "da");
+      Check ("zz-ZZ", "unknown");
+   end Test_Root_List_Locale_Invariance;
 
    procedure Test_Root_Usage_Edges (T : in out Fixture) is
       pragma Unreferenced (T);

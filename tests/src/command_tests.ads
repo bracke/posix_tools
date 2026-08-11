@@ -39,6 +39,7 @@ package Command_Tests is
    procedure Test_Pwd_Option_Precedence_Property (T : in out Fixture);
    procedure Test_Root_List (T : in out Fixture);
    procedure Test_Root_List_Inventory_Property (T : in out Fixture);
+   procedure Test_Root_List_Locale_Invariance (T : in out Fixture);
    procedure Test_Root_Usage_Edges (T : in out Fixture);
    procedure Test_Root_Paths (T : in out Fixture);
    procedure Test_Root_Verify (T : in out Fixture);
