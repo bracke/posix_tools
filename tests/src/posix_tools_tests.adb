@@ -2082,6 +2082,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/portability.md", "backslash is an ordinary character");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-AI-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "stderr diagnostic styling policy");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
