@@ -332,9 +332,14 @@ procedure Posix_Tools_Tests is
          Archive   : constant String := "dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z";
 
          function Checksum_Line (Label : String; Relative_Path : String) return String is
+            Stable_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
+            Actual_Path : constant String :=
+              (if Project_Tools.Files.File_Exists (Stable_Path) then Stable_Path
+               elsif Project_Tools.Files.File_Exists (Stable_Path & ".exe") then Stable_Path & ".exe"
+               else Stable_Path);
          begin
             return Label & " " & Relative_Path & " fnv1a64="
-              & Project_Tools.Release_Checks.FNV1A64 (Project_Tools.Files.Join (Root, Relative_Path));
+              & Project_Tools.Release_Checks.FNV1A64 (Actual_Path);
          end Checksum_Line;
 
          procedure Require_Header is
@@ -350,11 +355,15 @@ procedure Posix_Tools_Tests is
          end Require_Header;
 
          procedure Require_Checksum_Row (Label : String; Relative_Path : String) is
-            Full_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
-            Prefix    : constant String := Label & " " & Relative_Path & " fnv1a64=";
-            Count     : Natural;
+            Stable_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
+            Actual_Path : constant String :=
+              (if Project_Tools.Files.File_Exists (Stable_Path) then Stable_Path
+               elsif Project_Tools.Files.File_Exists (Stable_Path & ".exe") then Stable_Path & ".exe"
+               else Stable_Path);
+            Prefix      : constant String := Label & " " & Relative_Path & " fnv1a64=";
+            Count       : Natural;
          begin
-            if Project_Tools.Files.File_Exists (Full_Path) then
+            if Project_Tools.Files.File_Exists (Actual_Path) then
                Count := Count_Exact_Lines (Checksums, Checksum_Line (Label, Relative_Path));
 
                if Count = 0 and then Count_Prefix_Lines (Checksums, Prefix) > 0 then
@@ -2186,6 +2195,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "platform-aware executable artifact lookup");
       Require_Release_Checksums_Cover_Inventory;
       Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
       Project_Tools.Release_Checks.Require_Manifest_Entry
@@ -2558,18 +2569,31 @@ procedure Posix_Tools_Tests is
       Ada.Text_IO.Put_Line (Archive);
    end Generate_Release_Archive;
 
+   function Built_Command_Path (Executable : String) return String;
+
+   function Built_Root_Path return String;
+
    procedure Generate_Release_Checksums is
       use Ada.Strings.Unbounded;
       Content : Unbounded_String;
       Base    : constant String := Root;
 
-      procedure Add_File (Label : String; Path : String) is
+      procedure Add_File
+        (Label         : String;
+         Display_Path  : String;
+         Artifact_Path : String)
+      is
       begin
          Append
            (Content,
-            Label & " " & Path
-            & " fnv1a64=" & Project_Tools.Release_Checks.FNV1A64 (Project_Tools.Files.Join (Base, Path))
+            Label & " " & Display_Path
+            & " fnv1a64=" & Project_Tools.Release_Checks.FNV1A64 (Artifact_Path)
             & Character'Val (10));
+      end Add_File;
+
+      procedure Add_File (Label : String; Path : String) is
+      begin
+         Add_File (Label, Path, Project_Tools.Files.Join (Base, Path));
       end Add_File;
    begin
       Append
@@ -2580,13 +2604,15 @@ procedure Posix_Tools_Tests is
       Add_File ("archive", Release_Archive_Path);
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Add_File
-           ("executable",
-            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/bin/" & Posix_Tools.Command_Inventory.Executable (I));
+         declare
+            Executable   : constant String := Posix_Tools.Command_Inventory.Executable (I);
+            Display_Path : constant String := "tools/" & Executable & "/bin/" & Executable;
+         begin
+            Add_File ("executable", Display_Path, Built_Command_Path (Executable));
+         end;
       end loop;
 
-      Add_File ("executable", "bin/posix-tools");
+      Add_File ("executable", "bin/posix-tools", Built_Root_Path);
 
       Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/release-checksums.txt"), To_String (Content));
