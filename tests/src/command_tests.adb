@@ -2172,6 +2172,79 @@ package body Command_Tests is
       Ada.Directories.Delete_File (Path);
    end Test_Tail_Byte_Suffix_Property;
 
+   procedure Test_Tail_Standard_Input_Byte_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+      type Count_Array is array (Positive range <>) of Natural;
+      type Length_Array is array (Positive range <>) of Natural;
+
+      Seed    : Word_32 := 16#5441_4953#;
+      Counts  : constant Count_Array := [0, 1, 2, 9, 64, 512];
+      Lengths : constant Length_Array := [0, 1, 8, 65, 300, 900];
+
+      function Decimal_Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return Raw (Raw'First + 1 .. Raw'Last);
+      end Decimal_Image;
+
+      function Expected_Suffix (Data : String; Count : Natural) return String is
+      begin
+         if Count = 0 then
+            return "";
+         elsif Count >= Data'Length then
+            return Data;
+         else
+            return Data (Data'Last - Count + 1 .. Data'Last);
+         end if;
+      end Expected_Suffix;
+
+      function Next_Byte return Character is
+      begin
+         Seed := Seed * 1_103_515_245 + 12_345;
+         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 256));
+      end Next_Byte;
+
+      function Generated (Length : Natural) return String is
+         Result : String (1 .. Length);
+      begin
+         if Length = 0 then
+            return "";
+         end if;
+
+         for I in Result'Range loop
+            Result (I) := Next_Byte;
+         end loop;
+
+         return Result;
+      end Generated;
+   begin
+      for Length of Lengths loop
+         declare
+            Data : constant String := Generated (Length);
+         begin
+            for Count of Counts loop
+               declare
+                  Context : Test_Contexts.Capturing_Context;
+                  Result  : Posix_Tools.Commands.Results.Result;
+               begin
+                  Context.Initialize ("tail", Two_Args ("-c", Decimal_Image (Count)));
+                  Test_Contexts.Set_Standard_Input (Context, Data);
+                  Posix_Tools.Commands.Tail.Run (Context, Result);
+                  AUnit.Assertions.Assert
+                    (Test_Contexts.Output (Context) = Expected_Suffix (Data, Count),
+                     "tail stdin -c property seed 0x54414953 length"
+                     & Natural'Image (Length) & " count" & Natural'Image (Count));
+                  AUnit.Assertions.Assert
+                    (Result.Status = Posix_Tools.Exit_Status.Success,
+                     "tail stdin -c property status seed 0x54414953 length"
+                     & Natural'Image (Length) & " count" & Natural'Image (Count));
+               end;
+            end loop;
+         end;
+      end loop;
+   end Test_Tail_Standard_Input_Byte_Property;
+
    procedure Test_Tail_Line_Suffix_Property (T : in out Fixture) is
       pragma Unreferenced (T);
       type Word_32 is mod 2 ** 32;

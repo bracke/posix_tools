@@ -51,7 +51,8 @@ generated `true`/`false` operand-ignore behavior with seed `0x7F00F15E`,
 generated `pwd` option-precedence behavior with seed `0x50574431`, generated
 `head -n` file-prefix behavior with seed `0x48454144`, generated `head -n`
 standard-input prefix behavior with seed `0x4845AD15`,
-generated `tail -c` suffix behavior with seed `0x5441494C`, `wc -c`
+generated `tail -c` file-suffix behavior with seed `0x5441494C`, generated
+`tail -c` standard-input suffix behavior with seed `0x54414953`, `wc -c`
 equivalence to input byte length with seed `0x5EEDC0DE`, and `wc -l`
 equivalence to LF byte count with seed `0x1F1E5EED`. Generated `tail -n` LF line
 suffix behavior uses seed `0x5441494E`.
