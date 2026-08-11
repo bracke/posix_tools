@@ -2145,6 +2145,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "Node 24 compatible checkout actions");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-MANIFEST-COVERAGE-001");
