@@ -19,12 +19,14 @@ POSIX.1-2024 baseline references, existing implementation references for Ada
 units and repository paths, test references for AUnit routines, regression
 records, documentation paths, and explicit Ada tooling or CI validation
 artifacts, documentation links for known deviations, matching deviation
-identifiers in the linked documentation, and coverage for every released
-command in the compiled inventory. It also validates the regression registry
-for row shape, stable regression identifier syntax, duplicate identifiers,
-required command and summary fields, linked AUnit or explicit validation
-artifacts, and a bidirectional link from every regression identifier back to at
-least one requirement validation field. The same conformance pass validates
+identifiers in the linked documentation, synchronized known-deviation status
+between requirement rows and the compiled command inventory, and coverage for
+every released command in the compiled inventory. It also validates the
+regression registry for row shape, stable regression identifier syntax,
+duplicate identifiers, required command and summary fields, linked AUnit or
+explicit validation artifacts, and a bidirectional link from every regression
+identifier back to at least one requirement validation field. The same
+conformance pass validates
 the generated command inventory CSV header, row count, deterministic ordering,
 field values against the compiled Ada inventory, and existence of every
 referenced command manifest, project file, reference document, and wrapper

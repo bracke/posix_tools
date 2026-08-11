@@ -2966,6 +2966,41 @@ procedure Posix_Tools_Tests is
          return False;
       end Has_Command_Metadata;
 
+      function Has_Known_Deviation_Metadata (Executable : String) return Boolean is
+         Start : Positive := Requirements'First;
+      begin
+         for I in Requirements'Range loop
+            if Requirements (I) = Character'Val (10) then
+               if I > Start then
+                  declare
+                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
+                  begin
+                     if Field (Line, 1) /= "id"
+                       and then Contains_Token (Field (Line, 2), Executable)
+                       and then Field (Line, 7) = "Known deviation"
+                     then
+                        return True;
+                     end if;
+                  end;
+               end if;
+
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Requirements'Last then
+            declare
+               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
+            begin
+               return Field (Line, 1) /= "id"
+                 and then Contains_Token (Field (Line, 2), Executable)
+                 and then Field (Line, 7) = "Known deviation";
+            end;
+         end if;
+
+         return False;
+      end Has_Known_Deviation_Metadata;
+
       procedure Check_Row (Line : String; Number : Positive) is
          Row : constant Requirement_Row :=
            (Id              => To_Unbounded_String (Field (Line, 1)),
@@ -3214,6 +3249,18 @@ procedure Posix_Tools_Tests is
          if not Has_Command_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
             Project_Tools.Release_Checks.Fail
               ("released command lacks conformance metadata: "
+               & Posix_Tools.Command_Inventory.Executable (I));
+         end if;
+
+         if Posix_Tools.Command_Inventory.Posix_Status (I) = "known_deviation" then
+            if not Has_Known_Deviation_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
+               Project_Tools.Release_Checks.Fail
+                 ("inventory command is marked known_deviation without matching requirement row: "
+                  & Posix_Tools.Command_Inventory.Executable (I));
+            end if;
+         elsif Has_Known_Deviation_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
+            Project_Tools.Release_Checks.Fail
+              ("requirement registry has a known deviation for inventory command not marked known_deviation: "
                & Posix_Tools.Command_Inventory.Executable (I));
          end if;
       end loop;
