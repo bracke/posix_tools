@@ -72,6 +72,11 @@ Current Ada tooling entry points:
   `generated/package-manifest.txt`, that the manifest carries the synchronized
   version header, and that the manifest has no extra data rows beyond its
   header.
+- The package file-list gate requires release-critical metadata to be packaged:
+  the CI workflow, command inventory, requirements, regressions, generated
+  manual index, and package file list. The generated package manifest and
+  release checksum file are validated separately as release outputs around the
+  archive.
 - The proof gate runs selected GNATprove flow targets through Alire, including
   numeric parsing, lexical paths, UTF-8 decoding, tail ring-buffer index
   arithmetic, and `wc` decimal field-width arithmetic.

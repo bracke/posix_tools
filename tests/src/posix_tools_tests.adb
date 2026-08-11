@@ -355,6 +355,27 @@ procedure Posix_Tools_Tests is
          end loop;
       end Require_Package_File_List_Covers_Fixtures;
 
+      procedure Require_Package_File_List_Covers_Release_Metadata is
+         Files : constant String :=
+           Project_Tools.Files.Read_Raw_File
+             (Project_Tools.Files.Join (Root, "generated/package-files.txt"));
+
+         procedure Require_Packaged (Relative_Path : String) is
+         begin
+            if Count_Exact_Lines (Files, Relative_Path) = 0 then
+               Project_Tools.Release_Checks.Fail
+                 ("package file list missing release metadata " & Relative_Path);
+            end if;
+         end Require_Packaged;
+      begin
+         Require_Packaged (".github/workflows/ci.yml");
+         Require_Packaged ("generated/command_inventory.csv");
+         Require_Packaged ("generated/requirements.csv");
+         Require_Packaged ("generated/regressions.csv");
+         Require_Packaged ("generated/manual-index.md");
+         Require_Packaged ("generated/package-files.txt");
+      end Require_Package_File_List_Covers_Release_Metadata;
+
       procedure Require_Release_Checksums_Cover_Inventory is
          Path      : constant String := "generated/release-checksums.txt";
          Checksums : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -2305,6 +2326,7 @@ procedure Posix_Tools_Tests is
          "tests/src/posix_tools_tests.adb");
       Require_Package_File_List_Matches_Manifest;
       Require_Package_File_List_Covers_Fixtures;
+      Require_Package_File_List_Covers_Release_Metadata;
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
          Root,
