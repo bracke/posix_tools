@@ -1,10 +1,51 @@
 .TH posix-tools 1
 .SH NAME
-posix-tools - manage the posix-tools executable suite
+posix-tools - inspect the project command suite.
 .SH SYNOPSIS
-posix-tools help|version|list|paths|verify
+posix-tools help [command]
+
+posix-tools version
+
+posix-tools list
+
+posix-tools paths
+
+posix-tools verify
 .SH DESCRIPTION
-Generated manual page for the posix-tools 0.1.0 root management executable. This executable is outside POSIX conformance claims.
+Provides project management and inspection operations. It does not dispatch
+POSIX utilities and is outside POSIX conformance claims.
+.SH OPERANDS
+Subcommand-specific operands only.
+.SH OPTIONS
+--help, --version, and --posix-tools-identify are recognized by the common
+wrapper.
+.SH STANDARD INPUT
+Not used for normal operations.
+.SH STANDARD OUTPUT
+Human-readable inventory, help, version, path, or verification output.
+.SH STANDARD ERROR
+Diagnostics for invalid subcommands or operational failures.
+.SH EXIT STATUS
+0 success, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+verify invokes candidate executables without a shell and checks the internal
+identity output. If a valid command next to the running posix-tools executable
+is hidden by a different PATH candidate, the command is reported as shadowed.
+.SH LOCALE BEHAVIOR
+Human-oriented management headings, verification status labels, and diagnostics
+are localized through project message adapters. Command names, paths, and
+machine-oriented identity output are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Verification timeout is bounded and conservative.
+.SH EXTENSIONS
+All behavior is a project extension outside POSIX utility claims.
+.SH EXAMPLES
+posix-tools verify
+.SH CONFORMANCE STATUS
+Conforming with project extensions; not a POSIX utility.
+.SH KNOWN LIMITATIONS
+Verification remains intentionally observational: it classifies the installed
+suite but does not repair PATH, install commands, or replace system utilities.
 .SH SEE ALSO
 docs/commands/posix-tools.md
 

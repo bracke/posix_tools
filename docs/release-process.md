@@ -56,10 +56,10 @@ Current Ada tooling entry points:
   adapter for the built root executable and every command executable derived
   from the compiled command inventory.
 - Generated manual pages are created by the Ada tooling from the compiled
-  command inventory. The metadata gate compares the manual index, root manual
-  page, and every command manual page byte-for-byte against the expected current
-  content and requires every generated manual page to appear in the package
-  manifest.
+  command inventory and the per-command reference documents. The metadata gate
+  compares the manual index, root manual page, and every command manual page
+  byte-for-byte against the expected current content and requires every
+  generated manual page to appear in the package manifest.
 - The metadata gate requires the AI-oriented project guide and checks its
   repository map, package map, dependency rules, import boundaries, workflow,
   testing, localization, styling, resource, completion, and rejected architecture

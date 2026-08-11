@@ -1,12 +1,41 @@
 .TH cat 1
 .SH NAME
-cat - posix-tools command
+cat - concatenate files to standard output.
 .SH SYNOPSIS
-cat [--help] [--version]
+cat [file...]
 .SH DESCRIPTION
-Generated manual page for cat from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Copies each operand to standard output in order. With no operands, or with an
+operand exactly equal to -, standard input is copied.
+.SH OPERANDS
+file: input file path or - for standard input.
+.SH OPTIONS
+No POSIX formatting options are implemented in V1. Project extensions
+--help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Used when no operands are present or when an operand is -.
+.SH STANDARD OUTPUT
+Input bytes copied unchanged.
+.SH STANDARD ERROR
+Diagnostics for files that cannot be read.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Binary data and invalid UTF-8 are preserved. Repeated - operands read the same
+standard input stream without rewinding it.
+.SH LOCALE BEHAVIOR
+Copied data is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Same-file output safety is not claimed for shell truncation before startup.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+cat file1 file2
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+File operands are routed through the project filesystem adapter, which opens,
+reads, and closes production file descriptors through hostkit. Standard input is
+read through the command context boundary.
 .SH SEE ALSO
 docs/commands/cat.md
 

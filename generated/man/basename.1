@@ -1,12 +1,42 @@
 .TH basename 1
 .SH NAME
-basename - posix-tools command
+basename - return the final lexical pathname component.
 .SH SYNOPSIS
-basename [--help] [--version]
+basename string [suffix]
 .SH DESCRIPTION
-Generated manual page for basename from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Processes string lexically using / as the only separator. Repeated and
+trailing slashes are handled without consulting the filesystem.
+.SH OPERANDS
+- string: pathname text to process.
+- suffix: optional suffix removed only when it is present and not the whole
+  resulting basename.
+.SH OPTIONS
+Project extensions --help, --version, and --posix-tools-identify are
+recognized by the common wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The derived basename followed by LF.
+.SH STANDARD ERROR
+Diagnostics for missing or extra operands.
+.SH EXIT STATUS
+0 success, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Backslash is an ordinary character on every platform. Empty string returns an
+empty line. Two or more leading slashes are treated as one root slash.
+.SH LOCALE BEHAVIOR
+Command data output is not localized. Help and diagnostics are localization
+boundaries.
+.SH IMPLEMENTATION-DEFINED CHOICES
+basename "" produces an empty basename.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+basename /tmp/file .txt
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+No GNU multi-name or suffix-option extensions are implemented.
 .SH SEE ALSO
 docs/commands/basename.md
 

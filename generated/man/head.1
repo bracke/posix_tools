@@ -1,12 +1,49 @@
 .TH head 1
 .SH NAME
-head - posix-tools command
+head - copy the first part of files.
 .SH SYNOPSIS
-head [--help] [--version]
+head [file...]
+
+head -n number [file...]
 .SH DESCRIPTION
-Generated manual page for head from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Copies the first number LF-delimited lines from each input. The default is
+ten lines.
+.SH OPERANDS
+file: input file path or - for standard input.
+.SH OPTIONS
+-n number: number of lines to copy.
+.SH STANDARD INPUT
+Used when no files are present or when an operand is -.
+.SH STANDARD OUTPUT
+Selected input bytes, with deterministic multi-file headers when required.
+.SH STANDARD ERROR
+Diagnostics for invalid counts or unreadable inputs.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+LF (0A) is the line delimiter. Final partial lines are preserved without
+adding LF.
+
+Accepted count forms are -n number and the V1 compact form -nnumber, where
+number is a non-negative decimal count. Repeated count options are accepted
+before the first file operand; the last count in that option prefix is used.
+Zero is accepted and produces no input data. Empty counts, negative counts,
+leading-plus counts, non-decimal syntax, embedded whitespace, and numeric
+overflow are rejected before file processing. -- ends option processing when
+it appears where the next file operand would be.
+.SH LOCALE BEHAVIOR
+Copied data and headers are not localized in V1.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The compact -nnumber form is accepted for compatibility and recorded in the
+project conformance registry.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+head -n 5 file
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+Only mandatory line-count behavior is implemented.
 .SH SEE ALSO
 docs/commands/head.md
 

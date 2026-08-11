@@ -1,12 +1,61 @@
 .TH tail 1
 .SH NAME
-tail - posix-tools command
+tail - copy the last part of files.
 .SH SYNOPSIS
-tail [--help] [--version]
+tail [file...]
+
+tail -n number [file...]
+
+tail -c number [file...]
+
+tail -f [file...]
 .SH DESCRIPTION
-Generated manual page for tail from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Copies a suffix of each input in line or byte mode. The default is ten lines
+from the end.
+.SH OPERANDS
+file: input file path or - for standard input.
+.SH OPTIONS
+- -n number: line count.
+- -c number: byte count.
+- -f: continue copying bytes appended to followed file operands after the
+  selected initial suffix.
+.SH STANDARD INPUT
+Used when no files are present or when an operand is -.
+.SH STANDARD OUTPUT
+Selected bytes, with deterministic multi-file headers when required.
+.SH STANDARD ERROR
+Diagnostics for invalid counts, unreadable inputs, and resource failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Plus-prefixed counts are preserved as from-start requests. Compact forms such
+as -n+2 and -c2 are recognized. LF (0A) is the line delimiter.
+
+Accepted count forms are -n number, -c number, and V1 compact forms
+-nnumber and -cnumber. A plus prefix selects origin from start; otherwise
+the count is from the end. Repeated count options are accepted before the first
+file operand; the last mode, origin, and count in that option prefix are used.
+Zero is accepted. Empty counts, a lone plus, negative counts, non-decimal
+syntax, embedded whitespace, and numeric overflow are rejected before file
+processing. -- ends option processing when it appears where the next file
+operand would be.
+.SH LOCALE BEHAVIOR
+Copied data and headers are not localized in V1.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Suffix retention uses a 16 MiB in-memory threshold. Larger byte and line suffix
+processing spills to host-backed temporary storage using hostkit descriptors up
+to the configured 1 GiB spill limit; requests or inputs that exceed that limit
+fail with a resource diagnostic and no partial suffix output.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+tail -f -n 10 file
+
+tail -n +2 file
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+No -F or --follow support in V1.
 .SH SEE ALSO
 docs/commands/tail.md
 

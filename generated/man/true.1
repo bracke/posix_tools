@@ -1,12 +1,38 @@
 .TH true 1
 .SH NAME
-true - posix-tools command
+true - return a successful status.
 .SH SYNOPSIS
-true [--help] [--version]
+true [operand...]
 .SH DESCRIPTION
-Generated manual page for true from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Ignores ordinary operands, writes no ordinary output, and returns status 0.
+.SH OPERANDS
+Ignored.
+.SH OPTIONS
+--help, --version, and --posix-tools-identify are recognized only as the
+sole argument.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No ordinary output.
+.SH STANDARD ERROR
+No ordinary diagnostic for operands.
+.SH EXIT STATUS
+0 success, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Option-like operands are ignored unless one recognized extension is the sole
+argument.
+.SH LOCALE BEHAVIOR
+Only help text is localizable.
+.SH IMPLEMENTATION-DEFINED CHOICES
+None for normal behavior.
+.SH EXTENSIONS
+Sole-argument --help, --version, --posix-tools-identify.
+.SH EXAMPLES
+true ignored
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+None for V1 normal behavior.
 .SH SEE ALSO
 docs/commands/true.md
 

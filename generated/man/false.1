@@ -1,12 +1,39 @@
 .TH false 1
 .SH NAME
-false - posix-tools command
+false - return an unsuccessful status.
 .SH SYNOPSIS
-false [--help] [--version]
+false [operand...]
 .SH DESCRIPTION
-Generated manual page for false from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Ignores ordinary operands, writes no ordinary output, and returns status 1.
+.SH OPERANDS
+Ignored.
+.SH OPTIONS
+--help, --version, and --posix-tools-identify are recognized only as the
+sole argument.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No ordinary output.
+.SH STANDARD ERROR
+No ordinary diagnostic for operands.
+.SH EXIT STATUS
+1 for normal false behavior, 0 for help/version/identity, 125 internal
+failure.
+.SH BEHAVIORAL DETAILS
+Option-like operands are ignored unless one recognized extension is the sole
+argument.
+.SH LOCALE BEHAVIOR
+Only help text is localizable.
+.SH IMPLEMENTATION-DEFINED CHOICES
+None for normal behavior.
+.SH EXTENSIONS
+Sole-argument --help, --version, --posix-tools-identify.
+.SH EXAMPLES
+false ignored
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+None for V1 normal behavior.
 .SH SEE ALSO
 docs/commands/false.md
 

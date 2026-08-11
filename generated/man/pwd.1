@@ -1,12 +1,42 @@
 .TH pwd 1
 .SH NAME
-pwd - posix-tools command
+pwd - write the working directory pathname.
 .SH SYNOPSIS
-pwd [--help] [--version]
+pwd [-L|-P]
 .SH DESCRIPTION
-Generated manual page for pwd from the posix-tools 0.1.0 command inventory.
-.SH CONFORMANCE
-conforming_with_extensions
+Writes the logical or physical current working directory followed by LF.
+.SH OPERANDS
+Operands are invalid.
+.SH OPTIONS
+- -L: logical mode.
+- -P: physical mode.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+One pathname followed by LF.
+.SH STANDARD ERROR
+Diagnostics for invalid options, operands, or lookup failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The last applicable -L or -P option wins.
+Logical mode uses PWD only when it is nonempty, absolute, and contains no .
+or .. pathname components. Otherwise it falls back to the physical current
+directory.
+.SH LOCALE BEHAVIOR
+Path output is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Logical mode falls back to physical lookup when PWD is unusable under the
+project lexical policy above.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+pwd -P
+.SH CONFORMANCE STATUS
+Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
+.SH KNOWN LIMITATIONS
+Logical PWD is accepted only when it passes the project lexical policy and
+the filesystem adapter verifies that it names the physical current directory.
 .SH SEE ALSO
 docs/commands/pwd.md
 
