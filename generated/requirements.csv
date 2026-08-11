@@ -7,6 +7,7 @@ POSIX-DIRNAME-LEXICAL-001,dirname,use slash-only lexical pathname processing inc
 POSIX-DIRNAME-COMMAND-001,dirname,expose lexical empty root repeated trailing absolute relative and backslash edge cases through command package output,POSIX.1-2024 dirname,Posix_Tools.Commands.Dirname,command:dirname edge cases,Conforming with extensions
 POSIX-ECHO-OUTPUT-001,echo,write operands separated by spaces and newline,POSIX.1-2024 echo,Posix_Tools.Commands.Echo,command:echo,Conforming with extensions
 POSIX-ECHO-DATA-001,echo,treat -n -- backslashes and non-sole help version and identity words as ordinary operands,POSIX.1-2024 echo,Posix_Tools.Commands.Echo,command:echo data edge cases; command:echo extension handling,Conforming with extensions
+PROPERTY-ECHO-OUTPUT-001,echo,exercise deterministic generated operand-vector echo output including empty option-like and backslash data with a recorded seed,Project property and randomized test policy,Posix_Tools.Commands.Echo,property:echo output,Conforming with extensions
 POSIX-TRUE-STATUS-001,true,return zero,POSIX.1-2024 true,Posix_Tools.Commands.True_Command,command:true,Conforming with extensions
 POSIX-TRUE-EXT-001,true,recognize help/version/identity only as sole arguments and ignore other operands including non-sole identity,POSIX.1-2024 true,Posix_Tools.Commands.True_Command,command:true extension edges,Conforming with extensions
 POSIX-FALSE-STATUS-001,false,return nonzero,POSIX.1-2024 false,Posix_Tools.Commands.False_Command,command:false,Conforming with extensions

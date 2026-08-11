@@ -939,9 +939,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:echo data edge cases");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:echo output");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "echo treats -- backslash and -n as data");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "echo non-sole help preserves empty operand");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "echo property seed 0xEC400001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-true_command.adb", "Posix_Tools.Exit_Status.Success");
       Project_Tools.Release_Checks.Require_Text

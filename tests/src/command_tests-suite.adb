@@ -31,6 +31,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:echo data edge cases", Test_Echo_Data_Edge_Cases'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:echo output", Test_Echo_Output_Property'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:echo extension handling", Test_Echo_Extensions_Are_Sole_Argument'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:end-of-options", Test_End_Of_Options'Access));
