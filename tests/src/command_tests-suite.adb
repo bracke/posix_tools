@@ -48,6 +48,8 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:head default limits", Test_Head_Default_Limits'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:head prefix", Test_Head_Prefix_Property'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:head standard input", Test_Head_Standard_Input_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:head invalid count", Test_Head_Invalid_Count'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:head multiple file headers", Test_Head_Multiple_File_Headers'Access));
