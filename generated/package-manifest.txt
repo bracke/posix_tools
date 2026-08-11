@@ -19,7 +19,7 @@ docs/development.md bytes= 1569 fnv1a64=549ee1c43397accc
 docs/portability.md bytes= 850 fnv1a64=68005bb8a90a70df
 docs/release-process.md bytes= 6038 fnv1a64=78b6208322498397
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
-docs/testing.md bytes= 5508 fnv1a64=cf3764fa1424bc62
+docs/testing.md bytes= 5527 fnv1a64=e985147e5f1e9ee4
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
 common/alire.toml bytes= 578 fnv1a64=a6390155e660dd67
 common/posix_tools_common.gpr bytes= 541 fnv1a64=a43e8abd0749be32
