@@ -71,6 +71,8 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("property:pwd option precedence", Test_Pwd_Option_Precedence_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:root list", Test_Root_List'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:root list inventory", Test_Root_List_Inventory_Property'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:root usage edges", Test_Root_Usage_Edges'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:root paths", Test_Root_Paths'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:root verify", Test_Root_Verify'Access));

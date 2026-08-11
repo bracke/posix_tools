@@ -6,7 +6,7 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3333 fnv1a64=9ed7d9bd171ce119
 generated/command_inventory.csv bytes= 1871 fnv1a64=4df0510a4c99123a
-generated/requirements.csv bytes= 46738 fnv1a64=0cd86594a2437bc3
+generated/requirements.csv bytes= 47020 fnv1a64=55a2ed2dc42f08eb
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
@@ -19,7 +19,7 @@ docs/development.md bytes= 1341 fnv1a64=2ee51fba401cfa16
 docs/portability.md bytes= 804 fnv1a64=5a439278c2c1bcdd
 docs/release-process.md bytes= 5771 fnv1a64=57a97efa18f43e8c
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
-docs/testing.md bytes= 4812 fnv1a64=15dc3d74b528a367
+docs/testing.md bytes= 4851 fnv1a64=b89d8cd3327bcbf0
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
 common/alire.toml bytes= 578 fnv1a64=a6390155e660dd67
 common/posix_tools_common.gpr bytes= 541 fnv1a64=a43e8abd0749be32
@@ -110,11 +110,11 @@ tests/src/basic_tests-suite.adb bytes= 1851 fnv1a64=e1aa4e0128029d3a
 tests/src/basic_tests-suite.ads bytes= 144 fnv1a64=f3410c36b0f313aa
 tests/src/basic_tests.adb bytes= 25850 fnv1a64=b8acfa7494661d2f
 tests/src/basic_tests.ads bytes= 818 fnv1a64=6fe8dc3332807e64
-tests/src/command_tests-suite.adb bytes= 9286 fnv1a64=4f9c14d178497f35
+tests/src/command_tests-suite.adb bytes= 9427 fnv1a64=83f8567e61d52ec4
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
-tests/src/command_tests.adb bytes= 140463 fnv1a64=4d092803fb1f5c79
-tests/src/command_tests.ads bytes= 4325 fnv1a64=0d27ed8377e75f6f
-tests/src/posix_tools_tests.adb bytes= 205377 fnv1a64=5150b7ea0a6e70f1
+tests/src/command_tests.adb bytes= 141551 fnv1a64=5f760b6e9e3b9298
+tests/src/command_tests.ads bytes= 4394 fnv1a64=b3567c3a60ccbe7f
+tests/src/posix_tools_tests.adb bytes= 205490 fnv1a64=d6431c6359d1acff
 tests/src/test_contexts.adb bytes= 9768 fnv1a64=c411d3a3b9a74024
 tests/src/test_contexts.ads bytes= 3956 fnv1a64=2b80c3d823751ba0
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8

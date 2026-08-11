@@ -57,9 +57,9 @@ file-input equivalence to input byte length with seed `0x5EEDC0DE`, `wc -c`
 standard-input equivalence with seed `0x57C00001`, `wc -l` file-input
 equivalence to LF byte count with seed `0x1F1E5EED`, and `wc -l`
 standard-input equivalence with seed `0x57C0000A`. Inventory-derived coverage
-also checks `posix-tools help <command>` against direct command `--help` for
-every compiled command. Generated `tail -n` LF line suffix behavior uses seed
-`0x5441494E`.
+also checks `posix-tools list` ordering and `posix-tools help <command>` output
+for every compiled command against direct command metadata. Generated `tail -n`
+LF line suffix behavior uses seed `0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard

@@ -1618,6 +1618,31 @@ package body Command_Tests is
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "root list status");
    end Test_Root_List;
 
+   procedure Test_Root_List_Inventory_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context  : Test_Contexts.Capturing_Context;
+      Result   : Posix_Tools.Commands.Results.Result;
+      Expected : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Ada.Strings.Unbounded.Append
+           (Expected,
+            Posix_Tools.Command_Inventory.Executable (Index) & Character'Val (10));
+      end loop;
+
+      Context.Initialize ("posix-tools", One_Arg ("list"));
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = Ada.Strings.Unbounded.To_String (Expected),
+         "root list must match command inventory order");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "root inventory list status");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "",
+         "root inventory list stderr");
+   end Test_Root_List_Inventory_Property;
+
    procedure Test_Root_Usage_Edges (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
