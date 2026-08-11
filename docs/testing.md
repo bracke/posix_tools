@@ -19,6 +19,7 @@ The executable accepts:
 - `format-check`
 - `docs`
 - `conformance`
+- `prove`
 - `package`
 - `release-check`
 - `release`
@@ -59,3 +60,8 @@ instead of silently broadening or ignoring the requested filter.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,
 and text files for tab characters, trailing whitespace, and multiple
 consecutive blank lines, skipping generated build outputs and binary fixtures.
+`posix_tools_tests prove` invokes selected GNATprove flow-analysis targets
+through `project_tools` and Alire for `Posix_Tools.Numbers`,
+`Posix_Tools.Paths`, and `Posix_Tools.Text.UTF_8`. This is a proof-readiness
+gate; it does not claim functional proof for units that do not yet enable
+SPARK_Mode.

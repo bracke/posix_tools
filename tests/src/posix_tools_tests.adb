@@ -752,6 +752,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`check`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`format-check`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`docs`");
+      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`prove`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`package`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release`");
@@ -810,6 +811,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""format-check""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""docs""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Command = ""prove""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""package""");
       Require_Synchronized_Version ("alire.toml");
@@ -1489,6 +1492,16 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-host_adapters-streams.adb", "Ada.Text_IO.Text_Streams");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build common crate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.numbers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.paths");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.utf_8");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/development.md", "Selected GNATprove targets");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/release-process.md", "posix_tools_tests prove");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build root crate");
       Project_Tools.Release_Checks.Require_Text
@@ -2649,6 +2662,7 @@ procedure Posix_Tools_Tests is
            or else Reference = "posix_tools_tests docs"
            or else Reference = "posix_tools_tests format-check"
            or else Reference = "posix_tools_tests package"
+           or else Reference = "posix_tools_tests prove"
            or else Reference = "posix_tools_tests release"
            or else Reference = "posix_tools_tests release-check"
            or else Reference = "posix_tools_tests test --category conformance"
@@ -3348,6 +3362,42 @@ procedure Posix_Tools_Tests is
       Build_Crate (Alire, Project_Tools.Files.Join (Base, "tests"), "build tests crate");
    end Run_Build;
 
+   procedure Prove_Target (Alire : String; Unit_Name : String) is
+      Status : constant Integer :=
+        Project_Tools.Processes.Run_Status
+          (Label   => "proof target " & Unit_Name,
+           Dir     => Project_Tools.Files.Join (Root, "common"),
+           Program => Alire,
+           Args    => Project_Tools.Processes.Arguments
+             ([Project_Tools.Processes.Argument ("-n"),
+               Project_Tools.Processes.Argument ("exec"),
+               Project_Tools.Processes.Argument ("--"),
+               Project_Tools.Processes.Argument ("gnatprove"),
+               Project_Tools.Processes.Argument ("-P"),
+               Project_Tools.Processes.Argument ("posix_tools_common.gpr"),
+               Project_Tools.Processes.Argument ("-u"),
+               Project_Tools.Processes.Argument (Unit_Name),
+               Project_Tools.Processes.Argument ("--mode=flow"),
+               Project_Tools.Processes.Argument ("--level=0")]));
+   begin
+      if Status /= 0 then
+         Project_Tools.Release_Checks.Fail ("proof target " & Unit_Name & " failed");
+      end if;
+   end Prove_Target;
+
+   procedure Run_Proof_Checks is
+      Alire : constant String := Project_Tools.Processes.Locate_Command ("alr");
+   begin
+      if Alire = "" then
+         Project_Tools.Release_Checks.Fail ("alr command not found for proof checks");
+      end if;
+
+      Prove_Target (Alire, "posix_tools.numbers");
+      Prove_Target (Alire, "posix_tools.paths");
+      Prove_Target (Alire, "posix_tools.text.utf_8");
+      Ada.Text_IO.Put_Line ("proof checks passed");
+   end Run_Proof_Checks;
+
    procedure Require_Clean_Source_Tree is
       use Ada.Strings.Unbounded;
       Git : constant String := Project_Tools.Processes.Locate_Command ("git");
@@ -3756,6 +3806,10 @@ begin
       Generate_Docs;
       Run_Metadata_Checks;
       Ada.Text_IO.Put_Line ("docs: completed by Ada project_tools driver");
+   elsif Command = "prove" then
+      Run_Metadata_Checks;
+      Run_Proof_Checks;
+      Ada.Text_IO.Put_Line ("prove: completed by Ada project_tools driver");
    elsif Command = "package" then
       Generate_Package_Manifest;
       Generate_Release_Archive;

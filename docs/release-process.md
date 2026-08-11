@@ -17,6 +17,8 @@ Current Ada tooling entry points:
 - `posix_tools_tests build` builds the root crate, every command subcrate, and
   the tests crate through Alire using `project_tools`.
 - `posix_tools_tests docs` regenerates `generated/manual-index.md`.
+- `posix_tools_tests prove` runs selected GNATprove flow-analysis targets
+  through Alire and `project_tools` when GNATprove is installed.
 - `posix_tools_tests package` regenerates `generated/package-manifest.txt`
   with byte counts and FNV-1a checksums for packaged files.
 - `posix_tools_tests release-check` and `release` regenerate
