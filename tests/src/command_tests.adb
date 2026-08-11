@@ -1845,6 +1845,116 @@ package body Command_Tests is
       Ada.Directories.Delete_File (Path);
    end Test_Tail_Byte_Suffix_Property;
 
+   procedure Test_Tail_Line_Suffix_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+      type Count_Array is array (Positive range <>) of Natural;
+      type Length_Array is array (Positive range <>) of Natural;
+
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("property-tail-n.bin");
+      LF      : constant Character := Character'Val (10);
+      Seed    : Word_32 := 16#5441_494E#;
+      Counts  : constant Count_Array := [0, 1, 2, 5, 17, 64];
+      Lengths : constant Length_Array := [0, 1, 12, 13, 63, 257, 1024];
+
+      function Decimal_Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return Raw (Raw'First + 1 .. Raw'Last);
+      end Decimal_Image;
+
+      function Line_Count (Data : String) return Natural is
+         Result : Natural := 0;
+      begin
+         for Ch of Data loop
+            if Ch = LF then
+               Result := Result + 1;
+            end if;
+         end loop;
+
+         if Data'Length > 0 and then Data (Data'Last) /= LF then
+            Result := Result + 1;
+         end if;
+
+         return Result;
+      end Line_Count;
+
+      function Expected_Line_Suffix (Data : String; Count : Natural) return String is
+         Lines_To_Skip : constant Natural := (if Line_Count (Data) > Count then Line_Count (Data) - Count else 0);
+         Skipped       : Natural := 0;
+      begin
+         if Count = 0 or else Data'Length = 0 then
+            return "";
+         elsif Lines_To_Skip = 0 then
+            return Data;
+         end if;
+
+         for I in Data'Range loop
+            if Data (I) = LF then
+               Skipped := Skipped + 1;
+               if Skipped = Lines_To_Skip then
+                  if I = Data'Last then
+                     return "";
+                  else
+                     return Data (I + 1 .. Data'Last);
+                  end if;
+               end if;
+            end if;
+         end loop;
+
+         return Data;
+      end Expected_Line_Suffix;
+
+      function Next_Byte return Character is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
+      end Next_Byte;
+
+      function Generated (Length : Natural) return String is
+         Result : String (1 .. Length);
+      begin
+         if Length = 0 then
+            return "";
+         end if;
+
+         for I in Result'Range loop
+            if I mod 13 = 0 then
+               Result (I) := LF;
+            else
+               Result (I) := Next_Byte;
+            end if;
+         end loop;
+
+         return Result;
+      end Generated;
+   begin
+      for Length of Lengths loop
+         declare
+            Data : constant String := Generated (Length);
+         begin
+            Write_File (Path, Data);
+
+            for Count of Counts loop
+               Context.Initialize ("tail", Three_Args ("-n", Decimal_Image (Count), Path));
+               Posix_Tools.Commands.Tail.Run (Context, Result);
+               AUnit.Assertions.Assert
+                 (Test_Contexts.Output (Context) = Expected_Line_Suffix (Data, Count),
+                  "tail -n property seed 0x5441494E length"
+                  & Natural'Image (Length) & " count" & Natural'Image (Count));
+               AUnit.Assertions.Assert
+                 (Result.Status = Posix_Tools.Exit_Status.Success,
+                  "tail -n property status seed 0x5441494E length"
+                  & Natural'Image (Length) & " count" & Natural'Image (Count));
+            end loop;
+         end;
+      end loop;
+
+      Ada.Directories.Delete_File (Path);
+   end Test_Tail_Line_Suffix_Property;
+
    procedure Test_Usage_Errors (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;

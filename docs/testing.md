@@ -47,7 +47,8 @@ coverage generates grouped short options and unknown options with seed
 preservation for implicit standard input and explicit `-` standard input with
 seed `0x50540003`, generated `head -n` prefix behavior with seed `0x48454144`,
 generated `tail -c` suffix behavior with seed `0x5441494C`, and `wc -c`
-equivalence to input byte length with seed `0x5EEDC0DE`.
+equivalence to input byte length with seed `0x5EEDC0DE`. Generated `tail -n`
+LF line suffix behavior uses seed `0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard

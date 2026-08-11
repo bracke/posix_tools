@@ -1,6 +1,6 @@
 posix-tools release checksums 0.1.0
-manifest generated/package-manifest.txt fnv1a64=d06744957c85f1fb
-archive dist/posix-tools-0.1.0-source.7z fnv1a64=17b2d3c118fafdb7
+manifest generated/package-manifest.txt fnv1a64=dc2ff3c95d5c1b79
+archive dist/posix-tools-0.1.0-source.7z fnv1a64=08b68323ac7e4e1c
 executable tools/basename/bin/basename fnv1a64=ff357475be6d449c
 executable tools/cat/bin/cat fnv1a64=0d909a07cc29b9e5
 executable tools/dirname/bin/dirname fnv1a64=38c2f05fc77fb610
