@@ -4,6 +4,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Posix_Tools.Arguments;
+with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Basename;
 with Posix_Tools.Commands.Cat;
 with Posix_Tools.Commands.Dirname;
@@ -101,6 +102,36 @@ package body Command_Tests is
 
       return False;
    end Contains;
+
+   procedure Run_Command_By_Name
+     (Name    : String;
+      Context : in out Test_Contexts.Capturing_Context;
+      Result  : out Posix_Tools.Commands.Results.Result) is
+   begin
+      if Name = "basename" then
+         Posix_Tools.Commands.Basename.Run (Context, Result);
+      elsif Name = "cat" then
+         Posix_Tools.Commands.Cat.Run (Context, Result);
+      elsif Name = "dirname" then
+         Posix_Tools.Commands.Dirname.Run (Context, Result);
+      elsif Name = "echo" then
+         Posix_Tools.Commands.Echo.Run (Context, Result);
+      elsif Name = "false" then
+         Posix_Tools.Commands.False_Command.Run (Context, Result);
+      elsif Name = "head" then
+         Posix_Tools.Commands.Head.Run (Context, Result);
+      elsif Name = "pwd" then
+         Posix_Tools.Commands.Pwd.Run (Context, Result);
+      elsif Name = "tail" then
+         Posix_Tools.Commands.Tail.Run (Context, Result);
+      elsif Name = "true" then
+         Posix_Tools.Commands.True_Command.Run (Context, Result);
+      elsif Name = "wc" then
+         Posix_Tools.Commands.Wc.Run (Context, Result);
+      else
+         AUnit.Assertions.Assert (False, "unknown command inventory entry " & Name);
+      end if;
+   end Run_Command_By_Name;
 
    procedure Write_File (Path, Data : String) is
       use type Ada.Streams.Stream_Element_Offset;
@@ -1691,6 +1722,42 @@ package body Command_Tests is
         (Test_Contexts.Error_Output (Root_Context) = "",
          "root command help stderr");
    end Test_Root_Command_Help_Uses_Command_Metadata;
+
+   procedure Test_Root_Command_Help_Inventory_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Direct_Context : Test_Contexts.Capturing_Context;
+      Root_Context   : Test_Contexts.Capturing_Context;
+      Direct_Result  : Posix_Tools.Commands.Results.Result;
+      Root_Result    : Posix_Tools.Commands.Results.Result;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+         begin
+            Direct_Context.Initialize (Command, One_Arg ("--help"));
+            Run_Command_By_Name (Command, Direct_Context, Direct_Result);
+
+            Root_Context.Initialize ("posix-tools", Two_Args ("help", Command));
+            Posix_Tools.Commands.Root.Run (Root_Context, Root_Result);
+
+            AUnit.Assertions.Assert
+              (Direct_Result.Status = Posix_Tools.Exit_Status.Success,
+               "direct help status for " & Command);
+            AUnit.Assertions.Assert
+              (Root_Result.Status = Posix_Tools.Exit_Status.Success,
+               "root help status for " & Command);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Root_Context) = Test_Contexts.Output (Direct_Context),
+               "root help must match direct help for " & Command);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Root_Context) = "",
+               "root help stderr for " & Command);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Direct_Context) = "",
+               "direct help stderr for " & Command);
+         end;
+      end loop;
+   end Test_Root_Command_Help_Inventory_Property;
 
    procedure Test_Root_Version_And_Help (T : in out Fixture) is
       pragma Unreferenced (T);
