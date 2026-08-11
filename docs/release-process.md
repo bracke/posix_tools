@@ -3,8 +3,8 @@
 A release must build every crate, run the tests/tooling executable, verify
 metadata consistency, generate documentation, and produce checksums.
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs the release
-check and selected proof gate on Linux, macOS, and Windows. A release candidate
+The GitHub Actions workflow in `.github/workflows/ci.yml` installs GNATprove
+and runs the Ada release gate on Linux, macOS, and Windows. A release candidate
 should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
 The local metadata gate checks the workflow triggers, read-only repository
@@ -30,13 +30,14 @@ Current Ada tooling entry points:
   tests crate, verifies the exact built root and command executables by internal
   identity, executes built binaries for version-output and representative
   command-data smoke coverage, validates metadata, runs format checks, validates
-  conformance metadata, and runs the AUnit suite.
+  conformance metadata, runs the selected GNATprove flow-analysis targets, and
+  runs the AUnit suite.
 - Metadata validation asserts that the `release-check` branch names the selector
   smoke, staged verification, executable smoke, source archive, release checksum,
-  metadata, format, conformance, and AUnit steps.
+  metadata, format, conformance, proof, and AUnit steps.
 - Metadata validation asserts that the CI workflow installs GNATprove through
-  Alire, exposes the Alire installation prefix on the runner path, and then runs
-  the selected `posix_tools_tests prove` proof gate after the Ada release gate.
+  Alire and exposes the Alire installation prefix on the runner path before it
+  runs the Ada release gate that owns proof execution.
 - Metadata validation also asserts that the `release` branch runs clean-tree
   enforcement before release generation/build work and reports completion
   through the Ada project_tools driver.

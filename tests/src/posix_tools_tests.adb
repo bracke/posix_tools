@@ -787,6 +787,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Generate_Release_Checksums;");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Run_Proof_Checks;");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""release""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "elsif Command = ""release"" then");
@@ -1970,15 +1972,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "release-check");
       Project_Tools.Release_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "Run Ada proof gate");
-      Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "alr -n install gnatprove");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "GITHUB_PATH");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "cygpath -w");
       Project_Tools.Release_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "prove");
+        (Check, ".github/workflows/ci.yml", "gnatprove");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text
@@ -3831,6 +3831,7 @@ begin
       Run_Metadata_Checks;
       Run_Format_Checks;
       Run_Conformance_Checks;
+      Run_Proof_Checks;
       Run_Tests;
    elsif Command = "release" then
       Require_Clean_Source_Tree;
@@ -3845,6 +3846,7 @@ begin
       Run_Metadata_Checks;
       Run_Format_Checks;
       Run_Conformance_Checks;
+      Run_Proof_Checks;
       Run_Tests;
       Ada.Text_IO.Put_Line ("release: completed by Ada project_tools driver");
    elsif Command = "build"

@@ -123,11 +123,6 @@ jobs:
         working-directory: posix_tools/tests
         shell: bash
 
-      - name: Run Ada release gate
-        run: ${{ matrix.test_runner }} release-check
-        working-directory: posix_tools
-        shell: bash
-
       - name: Install GNATprove
         run: |
           alr -n install gnatprove
@@ -138,7 +133,7 @@ jobs:
           fi
         shell: bash
 
-      - name: Run Ada proof gate
-        run: ${{ matrix.test_runner }} prove
+      - name: Run Ada release gate
+        run: ${{ matrix.test_runner }} release-check
         working-directory: posix_tools
         shell: bash
