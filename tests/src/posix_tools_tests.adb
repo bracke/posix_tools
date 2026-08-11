@@ -1705,6 +1705,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/testing.md", "Posix_Tools.Wc_Fields");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "tail ring arithmetic tests");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "wc field arithmetic tests");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "docs/release-process.md", "posix_tools_tests prove");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build root crate");

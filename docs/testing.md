@@ -33,10 +33,11 @@ inventory/conformance metadata tests, and `regression` to regression-prefixed
 tests. `locale` selects locale-dependent help and diagnostic tests.
 `presentation` selects terminal styling boundary tests.
 
-Current registered suites include basic path and numeric tests, stream LF
-segment tests, stream byte and UTF-8 counting tests, command-package tests,
-root-command tests, locale-dependent help and diagnostic tests, and regression
-coverage for binary fixtures, `head`, `tail`, and `wc`.
+Current registered suites include basic path and numeric tests, tail ring
+arithmetic tests, wc field arithmetic tests, stream LF segment tests, stream
+byte and UTF-8 counting tests, command-package tests, root-command tests,
+locale-dependent help and diagnostic tests, and regression coverage for binary
+fixtures, `head`, `tail`, and `wc`.
 
 Deterministic property coverage uses fixed seeds that are reported in assertion
 labels. The initial property suite exercises generated slash-only pathname
