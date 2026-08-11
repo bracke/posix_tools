@@ -8,6 +8,7 @@ package Command_Tests is
    procedure Test_Cat_Files (T : in out Fixture);
    procedure Test_Cat_Continues_After_Missing_File (T : in out Fixture);
    procedure Test_Cat_Standard_Input (T : in out Fixture);
+   procedure Test_Cat_Byte_Preservation_Property (T : in out Fixture);
    procedure Test_Cat_Output_Failure (T : in out Fixture);
    procedure Test_Dirname (T : in out Fixture);
    procedure Test_Dirname_Edge_Cases (T : in out Fixture);

@@ -1,6 +1,7 @@
 with Ada.Directories;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
+with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Basename;
@@ -253,6 +254,77 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "cat stdin partial read failure status");
    end Test_Cat_Standard_Input;
+
+   procedure Test_Cat_Byte_Preservation_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+
+      Seed : Word_32 := 16#5054_0003#;
+
+      function Next_Value return Word_32 is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Seed;
+      end Next_Value;
+
+      function Random_Natural (Modulo : Positive) return Natural is
+      begin
+         return Natural (Next_Value mod Word_32 (Modulo));
+      end Random_Natural;
+
+      function Generated_Bytes return String is
+         Length : constant Natural := Random_Natural (513);
+         Result : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for I in 1 .. Length loop
+            case Random_Natural (8) is
+               when 0 =>
+                  Ada.Strings.Unbounded.Append (Result, Character'Val (0));
+               when 1 =>
+                  Ada.Strings.Unbounded.Append (Result, Character'Val (10));
+               when others =>
+                  Ada.Strings.Unbounded.Append (Result, Character'Val (Random_Natural (256)));
+            end case;
+         end loop;
+
+         return Ada.Strings.Unbounded.To_String (Result);
+      end Generated_Bytes;
+   begin
+      for Case_Index in 1 .. 128 loop
+         declare
+            Context : Test_Contexts.Capturing_Context;
+            Result  : Posix_Tools.Commands.Results.Result;
+            Input   : constant String := Generated_Bytes;
+            Label   : constant String := "seed 0x50540003 case" & Integer'Image (Case_Index);
+         begin
+            Context.Initialize ("cat", No_Args);
+            Test_Contexts.Set_Standard_Input (Context, Input);
+            Posix_Tools.Commands.Cat.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Input,
+               "cat implicit stdin bytes for " & Label);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Context) = "",
+               "cat implicit stdin stderr for " & Label);
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "cat implicit stdin status for " & Label);
+
+            Context.Initialize ("cat", One_Arg ("-"));
+            Test_Contexts.Set_Standard_Input (Context, Input);
+            Posix_Tools.Commands.Cat.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Input,
+               "cat explicit stdin bytes for " & Label);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Context) = "",
+               "cat explicit stdin stderr for " & Label);
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "cat explicit stdin status for " & Label);
+         end;
+      end loop;
+   end Test_Cat_Byte_Preservation_Property;
 
    procedure Test_Cat_Output_Failure (T : in out Fixture) is
       pragma Unreferenced (T);

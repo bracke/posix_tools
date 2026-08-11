@@ -979,6 +979,12 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:cat standard input");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:cat byte preservation");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "seed 0x50540003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "PROPERTY-CAT-BYTES-001");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:cat output failure");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "cat continues after missing file");

@@ -19,6 +19,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:cat standard input", Test_Cat_Standard_Input'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:cat byte preservation", Test_Cat_Byte_Preservation_Property'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:cat output failure", Test_Cat_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dirname", Test_Dirname'Access));
       AUnit.Test_Suites.Add_Test

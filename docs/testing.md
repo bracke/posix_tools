@@ -41,7 +41,9 @@ coverage for binary fixtures, `head`, `tail`, and `wc`.
 Deterministic property coverage uses fixed seeds that are reported in assertion
 labels. The initial property suite exercises generated slash-only pathname
 invariants for `basename` and `dirname` with seed `0x50540001`, and generated
-byte-stream LF segment split/reassembly with seed `0x50540002`.
+byte-stream LF segment split/reassembly with seed `0x50540002`. Command-level
+property coverage also exercises `cat` byte preservation for implicit standard
+input and explicit `-` standard input with seed `0x50540003`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard
