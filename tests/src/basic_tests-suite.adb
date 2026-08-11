@@ -25,6 +25,8 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:lf segment splitting", Test_Stream_Line_Split'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:lf segment reassembly", Test_Stream_Line_Properties'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-CAT-0001 binary fixture", Test_Stream_File_Fixture'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:version", Test_Version'Access));

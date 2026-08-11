@@ -318,6 +318,84 @@ package body Basic_Tests is
          "final partial segment preserves bytes without LF");
    end Test_Stream_Line_Split;
 
+   procedure Test_Stream_Line_Properties (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Ada.Containers.Count_Type;
+      type Word_32 is mod 2 ** 32;
+
+      Seed : Word_32 := 16#5054_0002#;
+
+      function Ends_With_LF (Text : String) return Boolean is
+      begin
+         return Text /= "" and then Text (Text'Last) = Character'Val (10);
+      end Ends_With_LF;
+
+      function Next_Value return Word_32 is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Seed;
+      end Next_Value;
+
+      function Random_Natural (Modulo : Positive) return Natural is
+      begin
+         return Natural (Next_Value mod Word_32 (Modulo));
+      end Random_Natural;
+
+      function Generated_Bytes return String is
+         Length : constant Natural := Random_Natural (129);
+         Result : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for I in 1 .. Length loop
+            if Random_Natural (5) = 0 then
+               Ada.Strings.Unbounded.Append (Result, Character'Val (10));
+            else
+               Ada.Strings.Unbounded.Append (Result, Character'Val (Random_Natural (256)));
+            end if;
+         end loop;
+
+         return Ada.Strings.Unbounded.To_String (Result);
+      end Generated_Bytes;
+   begin
+      for Case_Index in 1 .. 256 loop
+         declare
+            Input : constant String := Generated_Bytes;
+            Segments : constant Posix_Tools.Streams.Lines.Segment_Vector :=
+              Posix_Tools.Streams.Lines.Split_LF_Segments (Input);
+            Reassembled : Ada.Strings.Unbounded.Unbounded_String;
+            Label : constant String := "seed 0x50540002 case" & Integer'Image (Case_Index);
+         begin
+            for Segment of Segments loop
+               Ada.Strings.Unbounded.Append (Reassembled, Segment);
+            end loop;
+
+            AUnit.Assertions.Assert
+              (Ada.Strings.Unbounded.To_String (Reassembled) = Input,
+               "LF segments reassemble byte-for-byte for " & Label);
+
+            if Input = "" then
+               AUnit.Assertions.Assert (Segments.Length = 0, "empty input has no segments for " & Label);
+            else
+               for I in 1 .. Natural (Segments.Length) loop
+                  declare
+                     Segment : constant String := Segments.Element (I);
+                  begin
+                     AUnit.Assertions.Assert (Segment /= "", "no empty segment for " & Label);
+                     if I < Natural (Segments.Length) or else Ends_With_LF (Input) then
+                        AUnit.Assertions.Assert
+                          (Ends_With_LF (Segment),
+                           "non-final or delimiter-final segment ends LF for " & Label);
+                     else
+                        AUnit.Assertions.Assert
+                          (not Ends_With_LF (Segment),
+                           "final partial segment has no added LF for " & Label);
+                     end if;
+                  end;
+               end loop;
+            end if;
+         end;
+      end loop;
+   end Test_Stream_Line_Properties;
+
    procedure Test_Stream_Counting (T : in out Fixture) is
       pragma Unreferenced (T);
       State  : Posix_Tools.Streams.Counting.Counter;
