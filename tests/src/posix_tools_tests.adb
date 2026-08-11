@@ -2192,6 +2192,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
       Forbid_Text
         (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
+      Forbid_Text
+        (".github/workflows/ci.yml", "actions/setup-node@v4", "CI workflow must not pin Node 20 setup actions");
+      Forbid_Text
+        (".github/workflows/ci.yml", "actions/cache/restore@v4", "CI workflow must not pin Node 20 cache actions");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v6.0.0");
       Forbid_Text
