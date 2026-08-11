@@ -1,5 +1,7 @@
-package body Posix_Tools.Text.UTF_8 is
-   procedure Reset (Self : in out Decoder) is
+package body Posix_Tools.Text.UTF_8
+  with SPARK_Mode => On
+is
+   procedure Reset (Self : out Decoder) is
    begin
       Self.Expected_Continuations := 0;
       Self.Accumulator := 0;

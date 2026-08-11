@@ -1,4 +1,6 @@
-package Posix_Tools.Text.UTF_8 is
+package Posix_Tools.Text.UTF_8
+  with SPARK_Mode => On
+is
    type Decode_Status is (Complete, Need_More, Invalid);
 
    type Decoder is private;

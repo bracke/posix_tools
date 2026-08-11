@@ -62,6 +62,6 @@ and text files for tab characters, trailing whitespace, and multiple
 consecutive blank lines, skipping generated build outputs and binary fixtures.
 `posix_tools_tests prove` invokes selected GNATprove flow-analysis targets
 through `project_tools` and Alire for `Posix_Tools.Numbers`,
-`Posix_Tools.Paths`, and `Posix_Tools.Text.UTF_8`. This is a proof-readiness
-gate; it does not claim functional proof for units that do not yet enable
-SPARK_Mode.
+`Posix_Tools.Paths`, and `Posix_Tools.Text.UTF_8`. These selected units enable
+`SPARK_Mode` and are checked as flow-analysis targets; this does not claim
+functional proof beyond the executed GNATprove mode and units.

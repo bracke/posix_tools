@@ -1,4 +1,6 @@
-package body Posix_Tools.Paths is
+package body Posix_Tools.Paths
+  with SPARK_Mode => On
+is
    function Collapse_Leading_Root (Path : String) return String is
       First_Non_Slash : Natural := Path'First;
    begin
@@ -7,6 +9,7 @@ package body Posix_Tools.Paths is
       end if;
 
       while First_Non_Slash <= Path'Last and then Path (First_Non_Slash) = '/' loop
+         pragma Loop_Variant (Increases => First_Non_Slash);
          First_Non_Slash := First_Non_Slash + 1;
       end loop;
 
@@ -21,6 +24,7 @@ package body Posix_Tools.Paths is
       Last : Natural := Path'Last;
    begin
       while Last >= Path'First and then Path (Last) = '/' loop
+         pragma Loop_Variant (Decreases => Last);
          Last := Last - 1;
       end loop;
 
@@ -33,7 +37,7 @@ package body Posix_Tools.Paths is
 
    function Basename (Path : String; Suffix : String := "") return String is
       Trimmed : constant String := (if Path = "" then "" else Trim_Trailing_Slashes (Path));
-      Start   : Positive := Trimmed'First;
+      Start   : Positive;
       Base    : Natural;
    begin
       if Path = "" then
@@ -44,6 +48,7 @@ package body Posix_Tools.Paths is
 
       Base := Trimmed'Last;
       while Base >= Trimmed'First and then Trimmed (Base) /= '/' loop
+         pragma Loop_Variant (Decreases => Base);
          Base := Base - 1;
       end loop;
 
@@ -89,6 +94,7 @@ package body Posix_Tools.Paths is
       end if;
 
       while Last_Slash > Trimmed'First and then Trimmed (Last_Slash) = '/' loop
+         pragma Loop_Variant (Decreases => Last_Slash);
          Last_Slash := Last_Slash - 1;
       end loop;
 

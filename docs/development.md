@@ -16,8 +16,9 @@ Selected GNATprove targets are run by `posix_tools_tests prove` through Alire
 and `project_tools`. The current targets are `posix_tools.numbers`,
 `posix_tools.paths`, and `posix_tools.text.utf_8`, matching the initial focus
 on numeric parsing, lexical pathname algorithms, and UTF-8 decoder state.
-Current output is proof-readiness evidence only unless the target unit
-explicitly enables SPARK_Mode and the checked property is documented.
+These selected units explicitly enable `SPARK_Mode` and are checked in
+GNATprove flow mode. Do not claim functional proof beyond the executed
+GNATprove mode, target units, and documented properties.
 
 Project tooling must be Ada code using `project_tools`. Metadata checks reject
 shell, Python, JavaScript, Make, CMake, PowerShell, and batch tooling files.

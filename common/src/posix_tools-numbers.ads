@@ -1,4 +1,6 @@
-package Posix_Tools.Numbers is
+package Posix_Tools.Numbers
+  with SPARK_Mode => On
+is
    type Count is range 0 .. 2 ** 63 - 1;
    type Parse_Status is (Valid, Empty, Invalid_Syntax, Negative_Not_Permitted, Overflow);
 

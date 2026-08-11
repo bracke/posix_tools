@@ -1,4 +1,6 @@
-package body Posix_Tools.Numbers is
+package body Posix_Tools.Numbers
+  with SPARK_Mode => On
+is
    function Parse_Nonnegative (Text : String) return Parse_Result is
       Value : Count := 0;
    begin
