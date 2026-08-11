@@ -79,6 +79,11 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
+           ("property:root paths verify inventory",
+            Test_Root_Paths_Verify_Inventory_Property'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
            ("command:root command help uses command metadata",
             Test_Root_Command_Help_Uses_Command_Metadata'Access));
       AUnit.Test_Suites.Add_Test

@@ -133,6 +133,39 @@ package body Command_Tests is
       end if;
    end Run_Command_By_Name;
 
+   procedure Assert_Inventory_Status_Lines (Output_Text, Label : String) is
+      LF       : constant Character := Character'Val (10);
+      Position : Natural := Output_Text'First;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Prefix : constant String :=
+              Posix_Tools.Command_Inventory.Executable (Index) & ": ";
+         begin
+            AUnit.Assertions.Assert
+              (Position <= Output_Text'Last,
+               Label & " missing line for " & Posix_Tools.Command_Inventory.Executable (Index));
+            AUnit.Assertions.Assert
+              (Position + Prefix'Length - 1 <= Output_Text'Last
+               and then Output_Text (Position .. Position + Prefix'Length - 1) = Prefix,
+               Label & " prefix for " & Posix_Tools.Command_Inventory.Executable (Index));
+
+            while Position <= Output_Text'Last and then Output_Text (Position) /= LF loop
+               Position := Position + 1;
+            end loop;
+
+            AUnit.Assertions.Assert
+              (Position <= Output_Text'Last and then Output_Text (Position) = LF,
+               Label & " line terminator for " & Posix_Tools.Command_Inventory.Executable (Index));
+            Position := Position + 1;
+         end;
+      end loop;
+
+      AUnit.Assertions.Assert
+        (Position = Output_Text'Last + 1,
+         Label & " extra output after inventory lines");
+   end Assert_Inventory_Status_Lines;
+
    procedure Write_File (Path, Data : String) is
       use type Ada.Streams.Stream_Element_Offset;
       File   : Ada.Streams.Stream_IO.File_Type;
@@ -1720,6 +1753,36 @@ package body Command_Tests is
          AUnit.Assertions.Assert (Contains (Output_Text, "wc: "), "root verify wc line");
       end;
    end Test_Root_Verify;
+
+   procedure Test_Root_Paths_Verify_Inventory_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Context.Initialize ("posix-tools", One_Arg ("paths"));
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "root paths inventory status");
+      Assert_Inventory_Status_Lines
+        (Test_Contexts.Output (Context),
+         "root paths inventory");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "",
+         "root paths inventory stderr");
+
+      Context.Initialize ("posix-tools", One_Arg ("verify"));
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "root verify inventory status");
+      Assert_Inventory_Status_Lines
+        (Test_Contexts.Output (Context),
+         "root verify inventory");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "",
+         "root verify inventory stderr");
+   end Test_Root_Paths_Verify_Inventory_Property;
 
    procedure Test_Root_Command_Help_Uses_Command_Metadata (T : in out Fixture) is
       pragma Unreferenced (T);
