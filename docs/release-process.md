@@ -9,8 +9,8 @@ should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
 The local metadata gate checks the workflow triggers, read-only repository
 permission, non-fail-fast matrix, timeout, Node 24-compatible checkout action,
-absence of direct Node 20-era setup/cache action pins, current official
-setup-alire action, tests-crate build step, and release-check invocation so CI
+absence of direct Node 20-era setup/cache action pins, Node 24-compatible
+setup-alire branch, tests-crate build step, and release-check invocation so CI
 cannot silently stop exercising the Ada release gate.
 
 Current Ada tooling entry points:

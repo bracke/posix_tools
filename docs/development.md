@@ -10,8 +10,10 @@ Normal checks are driven by the Ada executable `posix_tools_tests`.
 Continuous integration is defined in `.github/workflows/ci.yml`. The workflow
 runs the Ada `posix_tools_tests release-check` gate on Linux, macOS, and Windows
 through Alire. Its repository checkouts use the Node 24-compatible checkout action
-pinned by the release metadata gate. Local development should run the same command
-before opening a release PR.
+pinned by the release metadata gate, and Alire setup uses the upstream
+`setup-alire` v6 branch because it carries the Node 24/cache v5 internals ahead
+of the next tagged setup-alire release. Local development should run the same
+command before opening a release PR.
 
 Selected GNATprove targets are run by `posix_tools_tests prove` through Alire
 and `project_tools`. The current targets are `posix_tools.numbers`,

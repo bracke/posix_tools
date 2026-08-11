@@ -2346,7 +2346,11 @@ procedure Posix_Tools_Tests is
       Forbid_Text
         (".github/workflows/ci.yml", "actions/cache/restore@v4", "CI workflow must not pin Node 20 cache actions");
       Project_Tools.Release_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v6.0.0");
+        (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v6");
+      Forbid_Text
+        (".github/workflows/ci.yml",
+         "alire-project/setup-alire@v6.0.0",
+         "CI workflow must use setup-alire v6 branch with Node 24 internals");
       Forbid_Text
         (".github/workflows/ci.yml", "alire-project/setup-alire@v5", "CI workflow must use current setup-alire");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alr -n build");
@@ -2369,7 +2373,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "Node 24 compatible checkout actions");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/requirements.csv", "current official setup-alire action");
+        (Check, "generated/requirements.csv", "Node 24 compatible setup-alire branch");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Text

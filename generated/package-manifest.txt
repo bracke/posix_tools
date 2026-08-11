@@ -4,9 +4,9 @@ alire.toml bytes= 438 fnv1a64=2fe271d02bd3e3ba
 posix_tools.gpr bytes= 472 fnv1a64=6a3257242fbeb129
 README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
-.github/workflows/ci.yml bytes= 3337 fnv1a64=5dd29aced0b0065c
+.github/workflows/ci.yml bytes= 3333 fnv1a64=6fb740f9035b06ec
 generated/command_inventory.csv bytes= 1882 fnv1a64=257abe82752902c1
-generated/requirements.csv bytes= 50349 fnv1a64=abcd52c8cb7e1623
+generated/requirements.csv bytes= 50351 fnv1a64=4e6cebfe911154ef
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 1758 fnv1a64=acc30b6ab4e2bcf8
@@ -15,9 +15,9 @@ SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5732 fnv1a64=2838c360dac366cb
 docs/architecture.md bytes= 4865 fnv1a64=e3b3882ccd316af1
 docs/conformance.md bytes= 3993 fnv1a64=3c27575130a7f999
-docs/development.md bytes= 1626 fnv1a64=f7377f83674c6c78
-docs/portability.md bytes= 850 fnv1a64=68005bb8a90a70df
-docs/release-process.md bytes= 6489 fnv1a64=5de73d2f17804be6
+docs/development.md bytes= 1780 fnv1a64=9d7e2c230901c765
+docs/portability.md bytes= 915 fnv1a64=8778b3c795e8265e
+docs/release-process.md bytes= 6491 fnv1a64=83b8cdef9eb7c5c3
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
 docs/testing.md bytes= 5631 fnv1a64=3cbe005268a02e1b
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
@@ -120,7 +120,7 @@ tests/src/command_tests-suite.adb bytes= 10276 fnv1a64=50d7927a70228f66
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 163101 fnv1a64=4f3551a98cb8f07c
 tests/src/command_tests.ads bytes= 4798 fnv1a64=fe64b218e70f3807
-tests/src/posix_tools_tests.adb bytes= 223651 fnv1a64=b82ed5d989d37c19
+tests/src/posix_tools_tests.adb bytes= 223828 fnv1a64=ce688eef1c97867d
 tests/src/test_contexts.adb bytes= 12195 fnv1a64=5b461eb97f233b1f
 tests/src/test_contexts.ads bytes= 4791 fnv1a64=fb9f1db58ed37bfa
 fixtures/invalid-da-utf8.bin bytes= 2 fnv1a64=0907e507b5a015dd
