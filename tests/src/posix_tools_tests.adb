@@ -2135,7 +2135,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
       Forbid_Text
         (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
-      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v5");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v6.0.0");
+      Forbid_Text
+        (".github/workflows/ci.yml", "alire-project/setup-alire@v5", "CI workflow must use current setup-alire");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alr -n build");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "working-directory: posix_tools/tests");
@@ -2155,6 +2158,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "Node 24 compatible checkout actions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "current official setup-alire action");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Project_Tools.Release_Checks.Require_Text
