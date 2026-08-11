@@ -4,8 +4,9 @@ A release must build every crate, run the tests/tooling executable, verify
 metadata consistency, generate documentation, and produce checksums.
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs the release
-check on Linux, macOS, and Windows. A release candidate should not be treated as
-platform-validated until all three CI jobs have passed for the candidate commit.
+check and selected proof gate on Linux, macOS, and Windows. A release candidate
+should not be treated as platform-validated until all three CI jobs have passed
+for the candidate commit.
 The local metadata gate checks the workflow triggers, read-only repository
 permission, non-fail-fast matrix, timeout, Alire setup, tests-crate build step,
 and release-check invocation so CI cannot silently stop exercising the Ada
@@ -33,6 +34,8 @@ Current Ada tooling entry points:
 - Metadata validation asserts that the `release-check` branch names the selector
   smoke, staged verification, executable smoke, source archive, release checksum,
   metadata, format, conformance, and AUnit steps.
+- Metadata validation asserts that the CI workflow runs the selected
+  `posix_tools_tests prove` proof gate after the Ada release gate.
 - Metadata validation also asserts that the `release` branch runs clean-tree
   enforcement before release generation/build work and reports completion
   through the Ada project_tools driver.

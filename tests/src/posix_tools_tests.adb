@@ -1950,6 +1950,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "TOOLING-COMMAND-SURFACE-001");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "FORMAL-PROOF-CI-001");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "STAGED-VERIFY-ROOT-001");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
@@ -1967,6 +1969,10 @@ procedure Posix_Tools_Tests is
         (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "release-check");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "Run Ada proof gate");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "prove");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text

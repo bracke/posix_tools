@@ -127,3 +127,8 @@ jobs:
         run: ${{ matrix.test_runner }} release-check
         working-directory: posix_tools
         shell: bash
+
+      - name: Run Ada proof gate
+        run: ${{ matrix.test_runner }} prove
+        working-directory: posix_tools
+        shell: bash
