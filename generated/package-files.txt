@@ -102,6 +102,8 @@ common/src/posix_tools-text-utf_8.ads
 common/generated/posix_tools-text-whitespace_data.adb
 common/generated/posix_tools-text-whitespace_data.ads
 common/src/posix_tools-version.ads
+common/src/posix_tools-wc_fields.adb
+common/src/posix_tools-wc_fields.ads
 common/messages/posix_tools.catalog
 tests/alire.toml
 tests/posix_tools_tests.gpr

@@ -16,6 +16,7 @@ with Posix_Tools.Text.Classification;
 with Posix_Tools.Text.Whitespace_Data;
 with Posix_Tools.Text.UTF_8;
 with Posix_Tools.Version;
+with Posix_Tools.Wc_Fields;
 
 package body Basic_Tests is
    use type Posix_Tools.Text.UTF_8.Decode_Status;
@@ -384,6 +385,33 @@ package body Basic_Tests is
         (Saturated.Next = 3 and then Saturated.Filled = 4,
          "full ring advances without exceeding capacity");
    end Test_Tail_Ring_Arithmetic;
+
+   procedure Test_Wc_Field_Arithmetic (T : in out Fixture) is
+      pragma Unreferenced (T);
+
+      Default_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
+        (Lines => True, Words => True, Bytes => True, Characters => False);
+      Text_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
+        (Lines => False, Words => True, Bytes => False, Characters => True);
+      Raw_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
+        (Lines => True, Words => False, Bytes => True, Characters => False);
+   begin
+      AUnit.Assertions.Assert (Posix_Tools.Wc_Fields.Decimal_Width (0) = 1, "zero width");
+      AUnit.Assertions.Assert (Posix_Tools.Wc_Fields.Decimal_Width (9) = 1, "single digit width");
+      AUnit.Assertions.Assert (Posix_Tools.Wc_Fields.Decimal_Width (10) = 2, "two digit width");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Wc_Fields.Decimal_Width (Long_Long_Integer'Last) = 19,
+         "maximum signed count width");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Wc_Fields.Selected_Field_Count (Default_Selection) = 3,
+         "default field count");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Wc_Fields.Needs_Text_Decoding (Text_Selection),
+         "text fields require decoding");
+      AUnit.Assertions.Assert
+        (not Posix_Tools.Wc_Fields.Needs_Text_Decoding (Raw_Selection),
+         "raw fields do not require decoding");
+   end Test_Wc_Field_Arithmetic;
 
    procedure Test_Stream_File_Fixture (T : in out Fixture) is
       pragma Unreferenced (T);

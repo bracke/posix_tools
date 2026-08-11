@@ -4,6 +4,7 @@ with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Counting;
+with Posix_Tools.Wc_Fields;
 
 package body Posix_Tools.Commands.Wc is
    use Ada.Strings.Unbounded;
@@ -13,8 +14,12 @@ package body Posix_Tools.Commands.Wc is
 
    function Image (Value : Long_Long_Integer) return String is
       Raw : constant String := Long_Long_Integer'Image (Value);
+      Rendered : constant String := Raw (Raw'First + 1 .. Raw'Last);
    begin
-      return Raw (Raw'First + 1 .. Raw'Last);
+      pragma Assert
+        (Rendered'Length =
+           Posix_Tools.Wc_Fields.Decimal_Width (Posix_Tools.Wc_Fields.Nonnegative_Count (Value)));
+      return Rendered;
    end Image;
 
    procedure Count_Buffer
@@ -128,6 +133,15 @@ package body Posix_Tools.Commands.Wc is
       Ok         : Boolean;
       All_Ok     : Boolean := True;
       Successful : Natural := 0;
+
+      function Selection return Posix_Tools.Wc_Fields.Count_Selection is
+      begin
+         return
+           (Lines      => Show_L,
+            Words      => Show_W,
+            Bytes      => Show_C,
+            Characters => Show_M);
+      end Selection;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -164,8 +178,10 @@ package body Posix_Tools.Commands.Wc is
          Show_C := True;
       end if;
 
+      pragma Assert (Posix_Tools.Wc_Fields.Selected_Field_Count (Selection) > 0);
+
       if First_File > Context.Argument_Count then
-         Count_File (Context, "-", Show_M or Show_W, C, Ok);
+         Count_File (Context, "-", Posix_Tools.Wc_Fields.Needs_Text_Decoding (Selection), C, Ok);
          if Ok then
             Print_Counts (Context, C, "", Show_C, Show_L, Show_M, Show_W);
             Ok := not Context.Output_Failed;
@@ -173,7 +189,12 @@ package body Posix_Tools.Commands.Wc is
          All_Ok := Ok;
       else
          for I in First_File .. Context.Argument_Count loop
-            Count_File (Context, Context.Argument (I), Show_M or Show_W, C, Ok);
+            Count_File
+              (Context,
+               Context.Argument (I),
+               Posix_Tools.Wc_Fields.Needs_Text_Decoding (Selection),
+               C,
+               Ok);
             if Ok then
                Print_Counts (Context, C, Context.Argument (I), Show_C, Show_L, Show_M, Show_W);
                if Context.Output_Failed then

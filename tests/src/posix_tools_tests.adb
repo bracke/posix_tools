@@ -730,6 +730,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-classification.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-tail_rings.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-wc_fields.ads");
       Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
       Project_Tools.Release_Checks.Require_Text
@@ -1276,7 +1277,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "when 'm' => Show_M := True");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-wc.adb", "Count_File (Context, ""-"", Show_M or Show_W");
+        (Check, "common/src/posix_tools-commands-wc.adb", "Posix_Tools.Wc_Fields.Needs_Text_Decoding");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Total.Lines := Total.Lines + C.Lines");
       Project_Tools.Release_Checks.Require_Text
@@ -1695,6 +1696,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.utf_8");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.tail_rings");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.wc_fields");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/development.md", "Selected GNATprove targets");
       Project_Tools.Release_Checks.Require_Text
@@ -2534,6 +2537,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/generated/posix_tools-text-whitespace_data.adb");
       Add_Entry ("common/generated/posix_tools-text-whitespace_data.ads");
       Add_Entry ("common/src/posix_tools-version.ads");
+      Add_Entry ("common/src/posix_tools-wc_fields.adb");
+      Add_Entry ("common/src/posix_tools-wc_fields.ads");
       Add_Entry ("common/messages/posix_tools.catalog");
       Add_Entry ("tests/alire.toml");
       Add_Entry ("tests/posix_tools_tests.gpr");
@@ -3728,6 +3733,8 @@ procedure Posix_Tools_Tests is
       Prove_Target (Alire, "posix_tools.text.utf_8");
       Ada.Text_IO.Put_Line ("proof target posix_tools.tail_rings");
       Prove_Target (Alire, "posix_tools.tail_rings");
+      Ada.Text_IO.Put_Line ("proof target posix_tools.wc_fields");
+      Prove_Target (Alire, "posix_tools.wc_fields");
       Ada.Text_IO.Put_Line ("proof checks passed");
    end Run_Proof_Checks;
 

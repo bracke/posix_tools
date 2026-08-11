@@ -72,8 +72,8 @@ Current Ada tooling entry points:
   version header, and that the manifest has no extra data rows beyond its
   header.
 - The proof gate runs selected GNATprove flow targets through Alire, including
-  numeric parsing, lexical paths, UTF-8 decoding, and tail ring-buffer index
-  arithmetic.
+  numeric parsing, lexical paths, UTF-8 decoding, tail ring-buffer index
+  arithmetic, and `wc` decimal field-width arithmetic.
 - The metadata gate verifies that `generated/release-checksums.txt` contains
   exactly the synchronized version header, package-manifest row, source-archive
   row, root executable row, and one row for every command executable from the
