@@ -99,6 +99,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:true", Test_True'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:true extension edges", Test_True_Extension_Edges'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:true false operands", Test_True_False_Operand_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:wc multiple files", Test_Wc_Multiple_Files'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:wc default and mixed text", Test_Wc_Default_And_Mixed_Text'Access));

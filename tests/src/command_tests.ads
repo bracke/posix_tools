@@ -55,6 +55,7 @@ package Command_Tests is
    procedure Test_Usage_Errors (T : in out Fixture);
    procedure Test_True (T : in out Fixture);
    procedure Test_True_Extension_Edges (T : in out Fixture);
+   procedure Test_True_False_Operand_Property (T : in out Fixture);
    procedure Test_Wc_Text_Counts (T : in out Fixture);
    procedure Test_Wc_Default_And_Mixed_Text (T : in out Fixture);
    procedure Test_Wc_Text_Invalid_UTF_8 (T : in out Fixture);

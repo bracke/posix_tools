@@ -959,6 +959,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:false extension edges");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:true false operands");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "true false operand property seed 0x7F00F15E");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-basename.adb", "Context.Argument (1) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-dirname.adb", "Context.Argument (1) = ""--""");

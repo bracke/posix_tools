@@ -46,7 +46,8 @@ coverage generates grouped short options and unknown options with seed
 `0x4F505453`. Command-level property coverage also exercises `cat` byte
 preservation for implicit standard input and explicit `-` standard input with
 seed `0x50540003`, generated `echo` operand-vector output with seed
-`0xEC400001`, generated `head -n` prefix behavior with seed `0x48454144`,
+`0xEC400001`, generated `true`/`false` operand-ignore behavior with seed
+`0x7F00F15E`, generated `head -n` prefix behavior with seed `0x48454144`,
 generated `tail -c` suffix behavior with seed `0x5441494C`, `wc -c`
 equivalence to input byte length with seed `0x5EEDC0DE`, and `wc -l`
 equivalence to LF byte count with seed `0x1F1E5EED`. Generated `tail -n` LF line
