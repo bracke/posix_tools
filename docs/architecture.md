@@ -68,9 +68,9 @@ stable English defaults if the catalog or locale key is unavailable.
 `terminal_styles`. Help, root headings, and diagnostics pass through it with
 explicit styling modes and destination terminal status. Command data output
 such as `cat`, `wc`, `pwd`, `echo`, pathname results, and copied file data
-bypasses presentation styling. Production terminal status is obtained through
-`Posix_Tools.Host_Adapters.Terminals`, which delegates the platform question to
-hostkit descriptors.
+bypasses presentation styling. Production stdout and stderr terminal status are
+obtained independently through `Posix_Tools.Host_Adapters.Terminals`, which
+delegates the platform question to hostkit descriptors.
 
 `tail` suffix processing uses bounded retained memory while the requested
 suffix fits the memory threshold. Larger byte and line suffix cases spill

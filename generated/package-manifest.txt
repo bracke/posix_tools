@@ -6,14 +6,14 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3333 fnv1a64=9ed7d9bd171ce119
 generated/command_inventory.csv bytes= 1871 fnv1a64=4df0510a4c99123a
-generated/requirements.csv bytes= 48891 fnv1a64=c1e6f31873859dba
+generated/requirements.csv bytes= 48934 fnv1a64=8c89ab230d0251c9
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
 CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5592 fnv1a64=40409299e90f95ab
-docs/architecture.md bytes= 4832 fnv1a64=40599b1e39e13c30
+docs/architecture.md bytes= 4865 fnv1a64=e3b3882ccd316af1
 docs/conformance.md bytes= 3775 fnv1a64=c9e9dc92aa459653
 docs/development.md bytes= 1341 fnv1a64=2ee51fba401cfa16
 docs/portability.md bytes= 804 fnv1a64=5a439278c2c1bcdd
