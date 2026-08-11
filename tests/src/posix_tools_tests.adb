@@ -1972,6 +1972,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "Run Ada proof gate");
       Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "alr -n install gnatprove");
+      Project_Tools.Release_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "prove");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
