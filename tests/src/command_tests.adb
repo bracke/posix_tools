@@ -1298,6 +1298,69 @@ package body Command_Tests is
       end;
    end Test_Help_Locales;
 
+   procedure Test_Version_Locale_Invariance (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+
+      procedure Check_Command (Command, Locale, Label : String) is
+         Expected : constant String :=
+           Command & " (posix-tools) " & Posix_Tools.Version.Version_String & LF;
+      begin
+         Context.Initialize (Command, One_Arg ("--version"));
+         if Locale /= "" then
+            Test_Contexts.Set_Locale (Context, Locale);
+         end if;
+         Run_Command_By_Name (Command, Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "version status " & Command & " " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = Expected,
+            "version output " & Command & " " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Error_Output (Context) = "",
+            "version stderr " & Command & " " & Label);
+      end Check_Command;
+
+      procedure Check_Root (Locale, Label : String) is
+         Expected : constant String :=
+           "posix-tools " & Posix_Tools.Version.Version_String & LF;
+      begin
+         Context.Initialize ("posix-tools", One_Arg ("--version"));
+         if Locale /= "" then
+            Test_Contexts.Set_Locale (Context, Locale);
+         end if;
+         Posix_Tools.Commands.Root.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "root version status " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = Expected,
+            "root version output " & Label);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Error_Output (Context) = "",
+            "root version stderr " & Label);
+      end Check_Root;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+         begin
+            Check_Command (Command, "", "default");
+            Check_Command (Command, "en", "en");
+            Check_Command (Command, "da", "da");
+            Check_Command (Command, "zz-ZZ", "unknown");
+         end;
+      end loop;
+
+      Check_Root ("", "default");
+      Check_Root ("en", "en");
+      Check_Root ("da", "da");
+      Check_Root ("zz-ZZ", "unknown");
+   end Test_Version_Locale_Invariance;
+
    procedure Test_Diagnostic_Locales (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;

@@ -31,6 +31,7 @@ package Command_Tests is
    procedure Test_Head_Output_Failure (T : in out Fixture);
    procedure Test_Help_And_Version (T : in out Fixture);
    procedure Test_Help_Locales (T : in out Fixture);
+   procedure Test_Version_Locale_Invariance (T : in out Fixture);
    procedure Test_Diagnostic_Locales (T : in out Fixture);
    procedure Test_Presentation_Styling (T : in out Fixture);
    procedure Test_Identity (T : in out Fixture);

@@ -60,6 +60,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:help and version", Test_Help_And_Version'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("locale:help", Test_Help_Locales'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("locale:version data", Test_Version_Locale_Invariance'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("locale:diagnostic", Test_Diagnostic_Locales'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("presentation:styling", Test_Presentation_Styling'Access));
