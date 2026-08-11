@@ -12,6 +12,7 @@ with AUnit.Test_Filters;
 with All_Suites;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Host_Adapters.Executables;
+with Posix_Tools.Paths;
 with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
@@ -3978,7 +3979,7 @@ procedure Posix_Tools_Tests is
          Built_Command_Path ("dirname"),
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
          0,
-         Project_Tools.Files.Temp_Dir & LF);
+         Posix_Tools.Paths.Dirname (Smoke_File) & LF);
 
       Expect_Output
         ("echo executable data",
