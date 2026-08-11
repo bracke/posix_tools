@@ -38,6 +38,10 @@ segment tests, stream byte and UTF-8 counting tests, command-package tests,
 root-command tests, locale-dependent help and diagnostic tests, and regression
 coverage for binary fixtures, `head`, `tail`, and `wc`.
 
+Deterministic property coverage uses fixed seeds that are reported in assertion
+labels. The initial property suite exercises generated slash-only pathname
+invariants for `basename` and `dirname` with seed `0x50540001`.
+
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard
 input bytes. Command tests use it to verify standard-input behavior without

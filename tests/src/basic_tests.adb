@@ -196,6 +196,79 @@ package body Basic_Tests is
       AUnit.Assertions.Assert (Posix_Tools.Paths.Dirname ("a\b") = ".", "dirname backslash");
    end Test_Paths;
 
+   procedure Test_Path_Properties (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+
+      Seed : Word_32 := 16#5054_0001#;
+
+      function Contains_Slash (Text : String) return Boolean is
+      begin
+         for Ch of Text loop
+            if Ch = '/' then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Contains_Slash;
+
+      function Ends_With_Slash (Text : String) return Boolean is
+      begin
+         return Text /= "" and then Text (Text'Last) = '/';
+      end Ends_With_Slash;
+
+      function Next_Value return Word_32 is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Seed;
+      end Next_Value;
+
+      function Random_Natural (Modulo : Positive) return Natural is
+      begin
+         return Natural (Next_Value mod Word_32 (Modulo));
+      end Random_Natural;
+
+      function Generated_Path return String is
+         Alphabet : constant String := "/abc.\";
+         Length   : constant Natural := Random_Natural (41);
+         Result   : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         for I in 1 .. Length loop
+            Ada.Strings.Unbounded.Append
+              (Result, Alphabet (Alphabet'First + Random_Natural (Alphabet'Length)));
+         end loop;
+
+         return Ada.Strings.Unbounded.To_String (Result);
+      end Generated_Path;
+   begin
+      for Case_Index in 1 .. 256 loop
+         declare
+            Path  : constant String := Generated_Path;
+            Base  : constant String := Posix_Tools.Paths.Basename (Path);
+            Dir   : constant String := Posix_Tools.Paths.Dirname (Path);
+            Label : constant String :=
+              "seed 0x50540001 case" & Integer'Image (Case_Index) & " path '" & Path & "'";
+         begin
+            AUnit.Assertions.Assert
+              (Base = "/" or else not Contains_Slash (Base),
+               "basename is a single lexical component for " & Label);
+            AUnit.Assertions.Assert
+              (Dir = "/" or else Dir = "." or else not Ends_With_Slash (Dir),
+               "dirname has no trailing slash except root for " & Label);
+
+            if not Contains_Slash (Path) then
+               AUnit.Assertions.Assert
+                 (Base = Path,
+                  "basename preserves slash-free path for " & Label);
+               AUnit.Assertions.Assert
+                 (Dir = ".",
+                  "dirname of slash-free path is dot for " & Label);
+            end if;
+         end;
+      end loop;
+   end Test_Path_Properties;
+
    procedure Test_Stream_File_Fixture (T : in out Fixture) is
       pragma Unreferenced (T);
       use type Ada.Streams.Stream_Element;

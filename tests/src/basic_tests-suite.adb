@@ -17,6 +17,8 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:paths", Test_Paths'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:paths", Test_Path_Properties'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:byte counting", Test_Stream_Counting'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:utf-8 counting", Test_Stream_UTF_8_Counting'Access));
