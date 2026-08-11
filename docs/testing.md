@@ -43,7 +43,9 @@ labels. The initial property suite exercises generated slash-only pathname
 invariants for `basename` and `dirname` with seed `0x50540001`, and generated
 byte-stream LF segment split/reassembly with seed `0x50540002`. Command-level
 property coverage also exercises `cat` byte preservation for implicit standard
-input and explicit `-` standard input with seed `0x50540003`.
+input and explicit `-` standard input with seed `0x50540003`, generated
+`head -n` prefix behavior with seed `0x48454144`, and `wc -c` equivalence to
+input byte length with seed `0x5EEDC0DE`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard

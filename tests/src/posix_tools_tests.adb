@@ -1023,6 +1023,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:head default limits");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:head prefix");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:head invalid count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:head multiple file headers");
@@ -1030,6 +1032,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests-suite.adb", "command:head standard input");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head long default output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "head prefix property seed 0x48454144");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head zero output");
       Project_Tools.Release_Checks.Require_Text

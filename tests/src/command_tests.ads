@@ -21,6 +21,7 @@ package Command_Tests is
    procedure Test_False_Extension_Edges (T : in out Fixture);
    procedure Test_Head_Counts (T : in out Fixture);
    procedure Test_Head_Default_Limits (T : in out Fixture);
+   procedure Test_Head_Prefix_Property (T : in out Fixture);
    procedure Test_Head_Invalid_Count (T : in out Fixture);
    procedure Test_Head_Multiple_File_Headers (T : in out Fixture);
    procedure Test_Head_Standard_Input (T : in out Fixture);
