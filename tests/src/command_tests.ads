@@ -34,6 +34,7 @@ package Command_Tests is
    procedure Test_Identity (T : in out Fixture);
    procedure Test_Pwd_Context_Fallbacks (T : in out Fixture);
    procedure Test_Pwd_Options (T : in out Fixture);
+   procedure Test_Pwd_Option_Precedence_Property (T : in out Fixture);
    procedure Test_Root_List (T : in out Fixture);
    procedure Test_Root_Usage_Edges (T : in out Fixture);
    procedure Test_Root_Paths (T : in out Fixture);

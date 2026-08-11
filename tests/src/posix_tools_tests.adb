@@ -1093,11 +1093,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:pwd context fallbacks");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:pwd option precedence");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd -L output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd -P output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd last option wins");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "pwd option precedence property seed 0x50574431");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd -P -L last option output");
       Project_Tools.Release_Checks.Require_Text
