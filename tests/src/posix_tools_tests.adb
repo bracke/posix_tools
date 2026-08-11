@@ -722,6 +722,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "docs/release-process.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/security.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/testing.md");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/release-process.md", "Node 24-compatible checkout action");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Repository Map");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Package Map");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
