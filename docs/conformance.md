@@ -42,10 +42,12 @@ line-ending normalization. The repository line-ending policy pins generated CSV
 and text metadata to LF so these comparisons remain deterministic on Windows,
 Linux, and macOS checkouts.
 
-Tail follow mode is a known V1 deviation until implemented. Tail suffix
-processing is implemented for `-n number` and `-c number`, including
-host-backed spill storage when retained data exceeds the in-memory threshold
-and remains within the configured spill limit.
+Tail recognizes `-f` as a tail option so the syntax is not mistaken for a file
+operand, but continuous follow mode is still a known V1 deviation until the
+host adapter exposes polling and offset-read support. Tail suffix processing is
+implemented for `-n number` and `-c number`, including host-backed spill storage
+when retained data exceeds the in-memory threshold and remains within the
+configured spill limit.
 
 `wc -m` uses deterministic incremental UTF-8 decoding through
 `Posix_Tools.Text.UTF_8` and rejects malformed or incomplete sequences for

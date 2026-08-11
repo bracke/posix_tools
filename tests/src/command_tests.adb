@@ -2382,6 +2382,28 @@ package body Command_Tests is
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail later -n status");
    end Test_Tail_Compact_Counts;
 
+   procedure Test_Tail_Follow_Option (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("reg-tail-follow-option.txt");
+      LF      : constant Character := Character'Val (10);
+   begin
+      Write_File (Path, "a" & LF & "b" & LF);
+
+      Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Path));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f line suffix output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f line suffix status");
+
+      Context.Initialize ("tail", Four_Args ("-n", "1", "-f", Path));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f after count output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f after count status");
+
+      Ada.Directories.Delete_File (Path);
+   end Test_Tail_Follow_Option;
+
    procedure Test_Tail_Plus_Origin (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;

@@ -1150,6 +1150,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-c""");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-f""");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'n'");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'c'");
@@ -1175,6 +1177,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail compact counts");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tail follow option");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail invalid count");
       Project_Tools.Release_Checks.Require_Text
@@ -1203,6 +1207,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "tail -c2 compact output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -c+4 compact output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -f line suffix output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail later -c overrides earlier -n");
       Project_Tools.Release_Checks.Require_Text

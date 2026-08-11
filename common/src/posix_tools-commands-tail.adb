@@ -330,6 +330,8 @@ package body Posix_Tools.Commands.Tail is
                return;
             end if;
             Index := Index + 2;
+         elsif Context.Argument (Index) = "-f" then
+            Index := Index + 1;
          elsif Context.Argument (Index)'Length > 2
            and then Context.Argument (Index) (1) = '-'
            and then (Context.Argument (Index) (2) = 'n' or else Context.Argument (Index) (2) = 'c')

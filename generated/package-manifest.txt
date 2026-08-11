@@ -6,7 +6,7 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3337 fnv1a64=5dd29aced0b0065c
 generated/command_inventory.csv bytes= 1871 fnv1a64=4df0510a4c99123a
-generated/requirements.csv bytes= 49126 fnv1a64=7a6c79059ed2761f
+generated/requirements.csv bytes= 49247 fnv1a64=22a24cf443af3e94
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
@@ -14,7 +14,7 @@ CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5732 fnv1a64=2838c360dac366cb
 docs/architecture.md bytes= 4865 fnv1a64=e3b3882ccd316af1
-docs/conformance.md bytes= 3775 fnv1a64=c9e9dc92aa459653
+docs/conformance.md bytes= 3924 fnv1a64=7d16cbd423315905
 docs/development.md bytes= 1446 fnv1a64=68d829da8c093227
 docs/portability.md bytes= 850 fnv1a64=68005bb8a90a70df
 docs/release-process.md bytes= 5831 fnv1a64=7f4cfc2de27888c8
@@ -54,7 +54,7 @@ common/src/posix_tools-commands-pwd.ads bytes= 281 fnv1a64=ee124dd454c08314
 common/src/posix_tools-commands-results.ads bytes= 225 fnv1a64=16506ae141bce439
 common/src/posix_tools-commands-root.adb bytes= 6560 fnv1a64=692bd04a28209e7a
 common/src/posix_tools-commands-root.ads bytes= 283 fnv1a64=02ee7dfe6a47dc24
-common/src/posix_tools-commands-tail.adb bytes= 14383 fnv1a64=c17e81ef3e857d40
+common/src/posix_tools-commands-tail.adb bytes= 14467 fnv1a64=0c6be71a891b4505
 common/src/posix_tools-commands-tail.ads bytes= 283 fnv1a64=f71339e60279ba74
 common/src/posix_tools-commands-true_command.adb bytes= 530 fnv1a64=b2afbfaf07c3413e
 common/src/posix_tools-commands-true_command.ads bytes= 299 fnv1a64=9c7d426fda983ee4
@@ -110,11 +110,11 @@ tests/src/basic_tests-suite.adb bytes= 1851 fnv1a64=e1aa4e0128029d3a
 tests/src/basic_tests-suite.ads bytes= 144 fnv1a64=f3410c36b0f313aa
 tests/src/basic_tests.adb bytes= 25850 fnv1a64=b8acfa7494661d2f
 tests/src/basic_tests.ads bytes= 818 fnv1a64=6fe8dc3332807e64
-tests/src/command_tests-suite.adb bytes= 10147 fnv1a64=c6d24eca16f3652b
+tests/src/command_tests-suite.adb bytes= 10276 fnv1a64=50d7927a70228f66
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
-tests/src/command_tests.adb bytes= 159518 fnv1a64=420b33148573346e
-tests/src/command_tests.ads bytes= 4739 fnv1a64=0dc9cd693ebf3c2d
-tests/src/posix_tools_tests.adb bytes= 210154 fnv1a64=23cc2c64e4991fba
+tests/src/command_tests.adb bytes= 160665 fnv1a64=f8d2e9f67969c164
+tests/src/command_tests.ads bytes= 4798 fnv1a64=fe64b218e70f3807
+tests/src/posix_tools_tests.adb bytes= 210558 fnv1a64=2792705595cd58f2
 tests/src/test_contexts.adb bytes= 10170 fnv1a64=81b94e96fab50408
 tests/src/test_contexts.ads bytes= 4189 fnv1a64=3256ba8b4c41cea7
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8
@@ -157,7 +157,7 @@ generated/man/tail.1 bytes= 247 fnv1a64=77b193ac2e65829d
 tools/tail/alire.toml bytes= 411 fnv1a64=f9155ecf7b819802
 tools/tail/posix_tools_tail.gpr bytes= 347 fnv1a64=2d0ce65e865f17cd
 tools/tail/src/tail.adb bytes= 229 fnv1a64=b6e251bf633f7ff4
-docs/commands/tail.md bytes= 2118 fnv1a64=8acd391966c5cbd4
+docs/commands/tail.md bytes= 2340 fnv1a64=dca5a2d622560d34
 generated/man/true.1 bytes= 258 fnv1a64=c67dacf0285fd01e
 tools/true/alire.toml bytes= 411 fnv1a64=358b5fd82a1537ce
 tools/true/posix_tools_true.gpr bytes= 440 fnv1a64=99e0871133b042de

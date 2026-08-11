@@ -109,6 +109,8 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:tail byte mode edges", Test_Tail_Byte_Mode_Edges'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail compact counts", Test_Tail_Compact_Counts'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:tail follow option", Test_Tail_Follow_Option'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tail invalid count", Test_Tail_Invalid_Count'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail line mode edges", Test_Tail_Line_Mode_Edges'Access));
