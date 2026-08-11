@@ -70,7 +70,7 @@ modes and destination terminal status. Command data output such as `cat`, `wc`,
 `pwd`, `echo`, pathname results, and copied file data bypasses presentation
 styling. Production terminal status is obtained through
 `Posix_Tools.Host_Adapters.Terminals`, which delegates the platform question to
-hostkit.
+hostkit descriptors.
 
 `tail` suffix processing uses bounded retained memory while the requested
 suffix fits the memory threshold. Larger byte and line suffix cases spill

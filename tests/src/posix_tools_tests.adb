@@ -1347,9 +1347,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "Set_Style_Mode (Posix_Tools.Presentation.Automatic)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "with Hostkit.Host;");
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "with Hostkit.Descriptors;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Host.Is_Terminal");
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Is_Terminal");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Standard_Output");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-terminals.adb",
+         "Hostkit.Host",
+         "terminal adapter must use hostkit descriptors for standard stream terminal checks");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "Host_Adapters.Terminals.Standard_Output_Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
