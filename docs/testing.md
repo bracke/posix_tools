@@ -53,9 +53,10 @@ generated `pwd` option-precedence behavior with seed `0x50574431`, generated
 standard-input prefix behavior with seed `0x4845AD15`,
 generated `tail -c` file-suffix behavior with seed `0x5441494C`, generated
 `tail -c` standard-input suffix behavior with seed `0x54414953`, `wc -c`
-equivalence to input byte length with seed `0x5EEDC0DE`, and `wc -l`
-equivalence to LF byte count with seed `0x1F1E5EED`. Generated `tail -n` LF line
-suffix behavior uses seed `0x5441494E`.
+file-input equivalence to input byte length with seed `0x5EEDC0DE`, `wc -c`
+standard-input equivalence with seed `0x57C00001`, and `wc -l` equivalence to
+LF byte count with seed `0x1F1E5EED`. Generated `tail -n` LF line suffix
+behavior uses seed `0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard

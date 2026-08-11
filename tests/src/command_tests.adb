@@ -2792,6 +2792,60 @@ package body Command_Tests is
       Ada.Directories.Delete_File (Path);
    end Test_Wc_Byte_Count_Property;
 
+   procedure Test_Wc_Standard_Input_Byte_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+      type Length_Array is array (Positive range <>) of Natural;
+
+      LF      : constant Character := Character'Val (10);
+      Seed    : Word_32 := 16#57C0_0001#;
+      Lengths : constant Length_Array := [0, 1, 4, 33, 128, 777];
+
+      function Decimal_Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return Raw (Raw'First + 1 .. Raw'Last);
+      end Decimal_Image;
+
+      function Next_Byte return Character is
+      begin
+         Seed := Seed * 1_103_515_245 + 12_345;
+         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 256));
+      end Next_Byte;
+
+      function Generated (Length : Natural) return String is
+         Result : String (1 .. Length);
+      begin
+         if Length = 0 then
+            return "";
+         end if;
+
+         for I in Result'Range loop
+            Result (I) := Next_Byte;
+         end loop;
+
+         return Result;
+      end Generated;
+   begin
+      for Length of Lengths loop
+         declare
+            Context : Test_Contexts.Capturing_Context;
+            Result  : Posix_Tools.Commands.Results.Result;
+            Data    : constant String := Generated (Length);
+         begin
+            Context.Initialize ("wc", One_Arg ("-c"));
+            Test_Contexts.Set_Standard_Input (Context, Data);
+            Posix_Tools.Commands.Wc.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Decimal_Image (Length) & LF,
+               "wc stdin -c property seed 0x57C00001 length" & Natural'Image (Length));
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "wc stdin -c property status seed 0x57C00001 length" & Natural'Image (Length));
+         end;
+      end loop;
+   end Test_Wc_Standard_Input_Byte_Property;
+
    procedure Test_Wc_Line_Count_Property (T : in out Fixture) is
       pragma Unreferenced (T);
       type Word_32 is mod 2 ** 32;

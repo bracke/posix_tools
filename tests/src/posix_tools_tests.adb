@@ -1261,6 +1261,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "property:wc byte count");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:wc standard input bytes");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "property:wc line count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "wc default field order");
@@ -1268,6 +1270,8 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests.adb", "wc -c raw output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "wc -c property seed 0x5EEDC0DE");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "wc stdin -c property seed 0x57C00001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "wc -l raw output");
       Project_Tools.Release_Checks.Require_Text
