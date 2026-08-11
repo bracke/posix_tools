@@ -1469,6 +1469,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:root verify");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "locale:root verify statuses");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Contains_Executable (Context.Argument (2))");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Render_Command_Help (Context, Context.Argument (2))");
@@ -2038,6 +2040,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-LIST-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "PROPERTY-ROOT-LIST-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-LIST-LOCALE-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "ROOT-VERIFY-LOCALE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "PROPERTY-ROOT-HELP-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "PROPERTY-ROOT-PATHS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "PROPERTY-ROOT-VERIFY-001");

@@ -83,6 +83,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:root paths", Test_Root_Paths'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:root verify", Test_Root_Verify'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("locale:root verify statuses", Test_Root_Verify_Status_Locales'Access));
+      AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
            ("property:root paths verify inventory",
