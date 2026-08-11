@@ -2027,6 +2027,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "NONPOSIX-WC-LINE-LENGTH-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "VERSION-GENERATION-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "VERSION-LOCALE-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "IDENTITY-LOCALE-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "POSIX-TAIL-COMPACT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "STATE-HEAD-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "STATE-TAIL-001");

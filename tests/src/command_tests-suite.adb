@@ -67,6 +67,8 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("presentation:styling", Test_Presentation_Styling'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:identity", Test_Identity'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("locale:identity data", Test_Identity_Locale_Invariance'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:pwd context fallbacks", Test_Pwd_Context_Fallbacks'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:pwd options", Test_Pwd_Options'Access));
       AUnit.Test_Suites.Add_Test
