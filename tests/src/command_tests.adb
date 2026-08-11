@@ -1481,6 +1481,27 @@ package body Command_Tests is
         (Contains (Test_Contexts.Output (Context), "--help"),
          "styled help keeps option spelling");
 
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Never);
+      Context.Initialize ("posix-tools", No_Args);
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, True);
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (not Contains (Test_Contexts.Output (Context), "" & ESC),
+         "unstyled root help has no ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "Usage: posix-tools"),
+         "unstyled root help");
+
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Always);
+      Context.Initialize ("posix-tools", No_Args);
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, True);
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert (Contains (Test_Contexts.Output (Context), "" & ESC & "["), "styled root help has ANSI");
+      AUnit.Assertions.Assert (Contains (Test_Contexts.Output (Context), "Usage"), "styled root help keeps usage");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "help, version, list, paths, verify"),
+         "styled root help keeps commands");
+
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
    end Test_Presentation_Styling;
 
