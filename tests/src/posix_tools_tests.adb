@@ -1367,6 +1367,12 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Process.Run_Captured");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "with Hostkit.Descriptors;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Descriptors.Open_File");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Descriptors.Read");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Capture_Leaf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Timeout_Ms  => 2000");
@@ -1392,6 +1398,10 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-host_adapters-executables.adb",
          "stderr.txt",
          "identity verification must not use a fixed stderr capture leaf");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-executables.adb",
+         "Ada.Text_IO",
+         "identity verification must read captured subprocess output through hostkit descriptors");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Host_Adapters.Executables.Locate");
       Project_Tools.Release_Checks.Require_Text

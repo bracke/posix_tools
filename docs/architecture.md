@@ -40,8 +40,8 @@ hostkit descriptors for byte reads; command packages and helpers retain byte
 scanning, header, and output policy.
 `Posix_Tools.Host_Adapters.Executables` wraps hostkit executable lookup,
 executable checks, temporary capture files, bounded identity invocation, and
-identity-output validation for the root verifier. POSIX command packages must
-not import hostkit directly.
+hostkit-descriptor-based identity-output validation for the root verifier.
+POSIX command packages must not import hostkit directly.
 
 Byte-oriented helpers live under `Posix_Tools.Streams`. `Posix_Tools.Streams.Lines`
 defines the LF segment contract used by file-oriented command behavior: newline

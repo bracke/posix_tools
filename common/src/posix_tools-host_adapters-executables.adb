@@ -1,8 +1,9 @@
 with Ada.Calendar;
 with Ada.Directories;
 with Ada.Strings.Unbounded;
-with Ada.Text_IO;
+with Ada.Streams;
 with Hostkit;
+with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Process;
 
@@ -116,45 +117,61 @@ package body Posix_Tools.Host_Adapters.Executables is
 
    function Read_Text_File (Path : String; Max_Bytes : Natural) return String is
       use Ada.Strings.Unbounded;
-      File      : Ada.Text_IO.File_Type;
-      Result    : Unbounded_String;
-      Line      : String (1 .. 256);
-      Last      : Natural;
-      Remaining : Natural := Max_Bytes;
 
-      procedure Append_Bounded (Text : String) is
+      use type Ada.Streams.Stream_Element_Offset;
+
+      File   : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+      Result : Unbounded_String;
+      Buffer : Ada.Streams.Stream_Element_Array (1 .. 256);
+      Last   : Ada.Streams.Stream_Element_Offset;
+
+      function Buffer_Text return String is
+         Text : String (1 .. Natural (Last - Buffer'First + 1));
       begin
-         if Text'Length > Remaining then
-            Result := To_Unbounded_String (Excessive_Output);
-            Remaining := 0;
-         else
-            Append (Result, Text);
-            Remaining := Remaining - Text'Length;
-         end if;
-      end Append_Bounded;
+         for Index in Text'Range loop
+            Text (Index) :=
+              Character'Val
+                (Buffer
+                   (Buffer'First
+                    + Ada.Streams.Stream_Element_Offset (Index - Text'First)));
+         end loop;
+
+         return Text;
+      end Buffer_Text;
    begin
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
-         if Last >= Line'First then
-            Append_Bounded (Line (Line'First .. Last));
-         end if;
+      if not Hostkit.Descriptors.Open_File (Path, Hostkit.Descriptors.Open_Read, File) then
+         return "";
+      end if;
 
-         exit when Remaining = 0;
+      loop
+         case Hostkit.Descriptors.Read (File, Buffer, Last) is
+            when Hostkit.Descriptors.Transfer_Ok =>
+               if Last >= Buffer'First then
+                  if Length (Result) + Natural (Last - Buffer'First + 1) > Max_Bytes then
+                     Hostkit.Descriptors.Close (File);
+                     return Excessive_Output;
+                  end if;
 
-         if Last < Line'Last then
-            Append_Bounded ("" & Character'Val (10));
-         end if;
+                  Append (Result, Buffer_Text);
+               end if;
 
-         exit when Remaining = 0;
+            when Hostkit.Descriptors.Transfer_Interrupted =>
+               null;
+
+            when Hostkit.Descriptors.Transfer_End_Of_File =>
+               exit;
+
+            when others =>
+               Hostkit.Descriptors.Close (File);
+               return "";
+         end case;
       end loop;
-      Ada.Text_IO.Close (File);
+
+      Hostkit.Descriptors.Close (File);
       return To_String (Result);
    exception
       when others =>
-         if Ada.Text_IO.Is_Open (File) then
-            Ada.Text_IO.Close (File);
-         end if;
+         Hostkit.Descriptors.Close (File);
          return "";
    end Read_Text_File;
 

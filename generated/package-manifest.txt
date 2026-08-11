@@ -6,14 +6,14 @@ README.md bytes= 625 fnv1a64=879c7d724ca7b490
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3333 fnv1a64=9ed7d9bd171ce119
 generated/command_inventory.csv bytes= 1871 fnv1a64=4df0510a4c99123a
-generated/requirements.csv bytes= 42176 fnv1a64=b74f8d2fc9769430
+generated/requirements.csv bytes= 42209 fnv1a64=1d28c7979443d53b
 generated/regressions.csv bytes= 3412 fnv1a64=7cd86a2dad1db4d4
 generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
 CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5592 fnv1a64=40409299e90f95ab
-docs/architecture.md bytes= 4793 fnv1a64=7449c1ca1420d77c
+docs/architecture.md bytes= 4818 fnv1a64=3df665e918085b52
 docs/conformance.md bytes= 3637 fnv1a64=87667c7c0ade8d9b
 docs/development.md bytes= 1341 fnv1a64=2ee51fba401cfa16
 docs/portability.md bytes= 804 fnv1a64=5a439278c2c1bcdd
@@ -68,7 +68,7 @@ common/src/posix_tools-host_adapters-arguments.adb bytes= 401 fnv1a64=12ae4252c9
 common/src/posix_tools-host_adapters-arguments.ads bytes= 176 fnv1a64=cb4f6a87b6831bb5
 common/src/posix_tools-host_adapters-environment.adb bytes= 359 fnv1a64=55ab3e970cf9b7d5
 common/src/posix_tools-host_adapters-environment.ads bytes= 141 fnv1a64=546411b02d26965f
-common/src/posix_tools-host_adapters-executables.adb bytes= 8273 fnv1a64=f78e7b8617c0c7c1
+common/src/posix_tools-host_adapters-executables.adb bytes= 8855 fnv1a64=875807aff8fbbfe1
 common/src/posix_tools-host_adapters-executables.ads bytes= 494 fnv1a64=7a0d427210113d9a
 common/src/posix_tools-host_adapters-file_system.adb bytes= 2682 fnv1a64=2b5b02da030fc95f
 common/src/posix_tools-host_adapters-file_system.ads bytes= 666 fnv1a64=ef20e6c084360b9a
@@ -114,7 +114,7 @@ tests/src/command_tests-suite.adb bytes= 7273 fnv1a64=972397e1539347bc
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 99366 fnv1a64=3f266bcd220eae07
 tests/src/command_tests.ads bytes= 3368 fnv1a64=03ae9cbc537b42d0
-tests/src/posix_tools_tests.adb bytes= 200839 fnv1a64=8412191e05bb7dd3
+tests/src/posix_tools_tests.adb bytes= 201499 fnv1a64=765280563c6e9a77
 tests/src/test_contexts.adb bytes= 9768 fnv1a64=c411d3a3b9a74024
 tests/src/test_contexts.ads bytes= 3956 fnv1a64=2b80c3d823751ba0
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8
