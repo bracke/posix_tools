@@ -131,7 +131,11 @@ jobs:
       - name: Install GNATprove
         run: |
           alr -n install gnatprove
-          echo "${HOME}/.alire/bin" >> "${GITHUB_PATH}"
+          alire_bin="${HOME}/.alire/bin"
+          echo "${alire_bin}" >> "${GITHUB_PATH}"
+          if command -v cygpath >/dev/null 2>&1; then
+            cygpath -w "${alire_bin}" >> "${GITHUB_PATH}"
+          fi
         shell: bash
 
       - name: Run Ada proof gate
