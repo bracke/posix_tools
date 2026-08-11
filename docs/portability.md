@@ -14,7 +14,7 @@ Windows builds retain POSIX command semantics for the V1 utilities:
 - for `basename` and `dirname`, backslash is an ordinary character.
 
 Platform validation is performed by CI in `.github/workflows/ci.yml`. Each
-runner builds the tests/tooling crate and runs `posix_tools_tests release-check`,
-which builds the common crate, root executable, every command subcrate, and the
-tests crate, then runs metadata, conformance, staged executable identity, and
-AUnit checks.
+runner uses the Node 24-compatible checkout action, builds the tests/tooling
+crate, and runs `posix_tools_tests release-check`, which builds the common
+crate, root executable, every command subcrate, and the tests crate, then runs
+metadata, conformance, staged executable identity, and AUnit checks.
