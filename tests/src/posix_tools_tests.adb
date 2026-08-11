@@ -732,6 +732,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Test Requirements");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Localization Rules");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Styling Rules");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/ai.md", "Help, root headings, and human diagnostics may be styled");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/ai.md", "stderr terminal status for diagnostics");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Resource Policies");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Completion Criteria");
       Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
