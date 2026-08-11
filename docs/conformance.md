@@ -37,10 +37,10 @@ including the non-POSIX root executable reference, to carry the V1 command
 reference sections defined by the project documentation policy. It also
 compares the generated command inventory CSV byte-for-byte against the compiled
 Ada command inventory, and compares the generated manual index plus every
-generated manual page against the compiled inventory metadata with explicit
-line-ending normalization. The repository line-ending policy pins generated CSV
-and text metadata to LF so these comparisons remain deterministic on Windows,
-Linux, and macOS checkouts.
+generated manual page against the compiled inventory metadata and command
+reference document sections with explicit line-ending normalization. The
+repository line-ending policy pins generated CSV and text metadata to LF so
+these comparisons remain deterministic on Windows, Linux, and macOS checkouts.
 
 Tail supports `-f` for file operands by emitting the selected initial suffix and
 then polling for appended bytes through the command context and filesystem host

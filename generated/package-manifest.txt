@@ -14,12 +14,12 @@ CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
 docs/ai.md bytes= 5732 fnv1a64=2838c360dac366cb
 docs/architecture.md bytes= 4865 fnv1a64=e3b3882ccd316af1
-docs/conformance.md bytes= 3953 fnv1a64=717e2ccab7d86147
+docs/conformance.md bytes= 3993 fnv1a64=3c27575130a7f999
 docs/development.md bytes= 1569 fnv1a64=549ee1c43397accc
 docs/portability.md bytes= 850 fnv1a64=68005bb8a90a70df
 docs/release-process.md bytes= 6452 fnv1a64=93d75e9ee3d40265
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
-docs/testing.md bytes= 5527 fnv1a64=e985147e5f1e9ee4
+docs/testing.md bytes= 5609 fnv1a64=c33776d72d334b58
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
 common/alire.toml bytes= 578 fnv1a64=a6390155e660dd67
 common/posix_tools_common.gpr bytes= 541 fnv1a64=a43e8abd0749be32

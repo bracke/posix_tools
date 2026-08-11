@@ -77,8 +77,9 @@ aggregate failure status.
 
 `posix_tools_tests check` validates metadata, runs format checks, validates
 conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
-`generated/manual-index.md` from the compiled command inventory and then runs
-metadata validation.
+`generated/manual-index.md` from the compiled command inventory and writes
+`generated/man/*.1` from the compiled inventory plus `docs/commands/*.md`, then
+runs metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
 crate, every command subcrate, and the tests crate.
 The release gates run selector smoke tests for `--suite cat`, `--suite command`,
