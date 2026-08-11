@@ -10,8 +10,6 @@
 
 `tail -c number [file...]`
 
-`tail -f [file...]`
-
 ## Description
 Copies a suffix of each input in line or byte mode. The default is ten lines
 from the end.
@@ -22,8 +20,6 @@ from the end.
 ## Options
 - `-n number`: line count.
 - `-c number`: byte count.
-- `-f`: continue copying bytes appended to followed file operands after the
-  selected initial suffix.
 
 ## Standard Input
 Used when no files are present or when an operand is `-`.
@@ -63,12 +59,12 @@ fail with a resource diagnostic and no partial suffix output.
 `--help`, `--version`, `--posix-tools-identify`.
 
 ## Examples
-`tail -f -n 10 file`
-
 `tail -n +2 file`
 
+`tail -c 32 file`
+
 ## Conformance Status
-Conforming with extensions.
+Known deviation.
 
 ## Known Limitations
-No `-F` or `--follow` support in V1.
+`TAIL-FOLLOW-001`: no `-f`, `-F`, or `--follow` support in V1.

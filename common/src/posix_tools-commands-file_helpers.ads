@@ -30,17 +30,6 @@ package Posix_Tools.Commands.File_Helpers is
       File_Name : String;
       Ok        : out Boolean);
 
-   procedure Copy_File_From
-     (Context    : in out Posix_Tools.Commands.Contexts.Context'Class;
-      File_Name  : String;
-      Start_Byte : Posix_Tools.Numbers.Count;
-      New_Size   : out Posix_Tools.Numbers.Count;
-      Ok         : out Boolean);
-
-   function File_Size
-     (File_Name : String;
-      Size      : out Posix_Tools.Numbers.Count) return Boolean;
-
    procedure Copy_Line_Prefix
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;

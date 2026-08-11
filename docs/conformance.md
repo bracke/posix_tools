@@ -42,11 +42,11 @@ reference document sections with explicit line-ending normalization. The
 repository line-ending policy pins generated CSV and text metadata to LF so
 these comparisons remain deterministic on Windows, Linux, and macOS checkouts.
 
-Tail supports `-f` for file operands by emitting the selected initial suffix and
-then polling for appended bytes through the command context and filesystem host
-adapter. Tail suffix processing is implemented for `-n number` and `-c number`,
+Tail suffix processing is implemented for `-n number` and `-c number`,
 including host-backed spill storage when retained data exceeds the in-memory
-threshold and remains within the configured spill limit.
+threshold and remains within the configured spill limit. Follow mode is a V1
+known deviation tracked as `TAIL-FOLLOW-001`: `-f`, `-F`, and `--follow` are not
+implemented in this release.
 
 `wc -m` uses deterministic incremental UTF-8 decoding through
 `Posix_Tools.Text.UTF_8` and rejects malformed or incomplete sequences for

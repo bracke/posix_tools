@@ -1,5 +1,3 @@
-with Ada.Streams.Stream_IO;
-
 package body Test_Contexts is
    use type Ada.Streams.Stream_Element_Offset;
 
@@ -27,10 +25,6 @@ package body Test_Contexts is
       Self.Output_Failure_Limit := 0;
       Self.Tail_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Self.Tail_Spill_Bytes := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
-      Self.Tail_Follow_Polls := 0;
-      Self.Tail_Follow_Appended := False;
-      Self.Tail_Follow_Path := Ada.Strings.Unbounded.Null_Unbounded_String;
-      Self.Tail_Follow_Data := Ada.Strings.Unbounded.Null_Unbounded_String;
    end Initialize;
 
    overriding procedure Put (Self : in out Capturing_Context; Text : String) is
@@ -197,33 +191,6 @@ package body Test_Contexts is
       return Self.Tail_Memory_Bytes;
    end Tail_Memory_Threshold;
 
-   overriding function Tail_Follow_Max_Polls (Self : Capturing_Context) return Natural is
-   begin
-      return Self.Tail_Follow_Polls;
-   end Tail_Follow_Max_Polls;
-
-   overriding procedure Wait_For_Tail_Follow_Poll (Self : in out Capturing_Context) is
-      File   : Ada.Streams.Stream_IO.File_Type;
-      Data   : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Follow_Data);
-      Path   : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Follow_Path);
-      Buffer : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Data'Length));
-      Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
-   begin
-      if Self.Tail_Follow_Appended or else Path = "" or else Data = "" then
-         return;
-      end if;
-
-      for I in Data'Range loop
-         Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Data (I)));
-         Target := Target + Ada.Streams.Stream_Element_Offset (1);
-      end loop;
-
-      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.Append_File, Path);
-      Ada.Streams.Stream_IO.Write (File, Buffer);
-      Ada.Streams.Stream_IO.Close (File);
-      Self.Tail_Follow_Appended := True;
-   end Wait_For_Tail_Follow_Poll;
-
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
    begin
       if Name = "PWD" then
@@ -285,22 +252,6 @@ package body Test_Contexts is
       Self.Tail_Memory_Bytes := Memory_Threshold;
       Self.Tail_Spill_Bytes := Max_Spill_Bytes;
    end Set_Tail_Resource_Limits;
-
-   procedure Set_Tail_Follow_Max_Polls (Self : in out Capturing_Context; Value : Natural) is
-   begin
-      Self.Tail_Follow_Polls := Value;
-   end Set_Tail_Follow_Max_Polls;
-
-   procedure Set_Tail_Follow_Append
-     (Self  : in out Capturing_Context;
-      Path  : String;
-      Value : String)
-   is
-   begin
-      Self.Tail_Follow_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
-      Self.Tail_Follow_Data := Ada.Strings.Unbounded.To_Unbounded_String (Value);
-      Self.Tail_Follow_Appended := False;
-   end Set_Tail_Follow_Append;
 
    function Output (Self : Capturing_Context) return String is
    begin

@@ -7,8 +7,6 @@ tail [file...]
 tail -n number [file...]
 
 tail -c number [file...]
-
-tail -f [file...]
 .SH DESCRIPTION
 Copies a suffix of each input in line or byte mode. The default is ten lines
 from the end.
@@ -17,8 +15,6 @@ file: input file path or - for standard input.
 .SH OPTIONS
 - -n number: line count.
 - -c number: byte count.
-- -f: continue copying bytes appended to followed file operands after the
-  selected initial suffix.
 .SH STANDARD INPUT
 Used when no files are present or when an operand is -.
 .SH STANDARD OUTPUT
@@ -49,13 +45,13 @@ fail with a resource diagnostic and no partial suffix output.
 .SH EXTENSIONS
 --help, --version, --posix-tools-identify.
 .SH EXAMPLES
-tail -f -n 10 file
-
 tail -n +2 file
+
+tail -c 32 file
 .SH CONFORMANCE STATUS
-Conforming with extensions.
+Known deviation.
 .SH KNOWN LIMITATIONS
-No -F or --follow support in V1.
+TAIL-FOLLOW-001: no -f, -F, or --follow support in V1.
 .SH SEE ALSO
 docs/commands/tail.md
 

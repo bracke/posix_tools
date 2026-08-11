@@ -110,7 +110,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail compact counts", Test_Tail_Compact_Counts'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:tail follow option", Test_Tail_Follow_Option'Access));
+        (Result, Caller.Create ("command:tail follow rejected", Test_Tail_Follow_Rejected'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tail invalid count", Test_Tail_Invalid_Count'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail line mode edges", Test_Tail_Line_Mode_Edges'Access));

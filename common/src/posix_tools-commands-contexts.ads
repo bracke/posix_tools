@@ -25,8 +25,6 @@ package Posix_Tools.Commands.Contexts is
    function Path_Names_Current_Directory (Self : Context; Path : String) return Boolean;
    function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count;
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
-   function Tail_Follow_Max_Polls (Self : Context) return Natural;
-   procedure Wait_For_Tail_Follow_Poll (Self : in out Context);
 
    procedure Read_Standard_Input
      (Self   : in out Context;

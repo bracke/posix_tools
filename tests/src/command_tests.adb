@@ -2424,7 +2424,7 @@ package body Command_Tests is
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail later -n status");
    end Test_Tail_Compact_Counts;
 
-   procedure Test_Tail_Follow_Option (T : in out Fixture) is
+   procedure Test_Tail_Follow_Rejected (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
@@ -2434,22 +2434,48 @@ package body Command_Tests is
       Write_File (Path, "a" & LF & "b" & LF);
 
       Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Path));
-      Test_Contexts.Set_Tail_Follow_Max_Polls (Context, 1);
-      Test_Contexts.Set_Tail_Follow_Append (Context, Path, "c" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail -f line suffix output");
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f line suffix status");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail -f rejected output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: unknown option '-f'" & LF,
+         "tail -f rejected diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "tail -f rejected status");
 
       Write_File (Path, "a" & LF & "b" & LF);
       Context.Initialize ("tail", Four_Args ("-n", "1", "-f", Path));
-      Test_Contexts.Set_Tail_Follow_Max_Polls (Context, 1);
-      Test_Contexts.Set_Tail_Follow_Append (Context, Path, "d" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "d" & LF, "tail -f after count output");
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail -f after count status");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail -f after count rejected output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: unknown option '-f'" & LF,
+         "tail -f after count rejected diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "tail -f after count rejected status");
+
+      Context.Initialize ("tail", One_Arg ("-F"));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail -F rejected output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: unknown option '-F'" & LF,
+         "tail -F rejected diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "tail -F rejected status");
+
+      Context.Initialize ("tail", One_Arg ("--follow"));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "tail --follow rejected output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "tail: unknown option '--follow'" & LF,
+         "tail --follow rejected diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "tail --follow rejected status");
 
       Ada.Directories.Delete_File (Path);
-   end Test_Tail_Follow_Option;
+   end Test_Tail_Follow_Rejected;
 
    procedure Test_Tail_Plus_Origin (T : in out Fixture) is
       pragma Unreferenced (T);

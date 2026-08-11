@@ -76,8 +76,8 @@ package body Basic_Tests is
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Version (1), "version flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Identity (1), "identity flag");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (8) = "conforming_with_extensions",
-         "status value");
+        (Posix_Tools.Command_Inventory.Posix_Status (8) = "known_deviation",
+         "tail status value");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Posix_Status (10) = "conforming_with_extensions",
          "wc status value");
