@@ -1484,6 +1484,7 @@ package body Command_Tests is
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
       Context.Initialize ("cat", One_Arg ("--help"));
       Test_Contexts.Set_Standard_Output_Is_Terminal (Context, False);
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, True);
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert
         (not Contains (Test_Contexts.Output (Context), "" & ESC),
@@ -1516,6 +1517,7 @@ package body Command_Tests is
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
       Context.Initialize ("posix-tools", No_Args);
       Test_Contexts.Set_Standard_Output_Is_Terminal (Context, False);
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, True);
       Posix_Tools.Commands.Root.Run (Context, Result);
       AUnit.Assertions.Assert
         (not Contains (Test_Contexts.Output (Context), "" & ESC),
@@ -1548,6 +1550,7 @@ package body Command_Tests is
 
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
       Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, True);
       Test_Contexts.Set_Standard_Error_Is_Terminal (Context, False);
       Posix_Tools.Commands.Dirname.Run (Context, Result);
       AUnit.Assertions.Assert
