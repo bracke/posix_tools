@@ -2117,6 +2117,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "contents: read");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "timeout-minutes: 60");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "fail-fast: false");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
+      Forbid_Text
+        (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v5");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alr -n build");
       Project_Tools.Release_Checks.Require_Text

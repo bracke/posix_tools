@@ -29,84 +29,84 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: posix_tools
 
       - name: Check out hostkit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/hostkit
           path: hostkit
 
       - name: Check out messages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/messages
           path: messages
 
       - name: Check out i18n
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/i18n
           path: i18n
 
       - name: Check out awklib
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/awklib
           path: awklib
 
       - name: Check out regexp
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/regexp
           path: regexp
 
       - name: Check out httpclient
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/httpclient
           path: httpclient
 
       - name: Check out zlib
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/zlib
           path: zlib
 
       - name: Check out tarlib
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/tarlib
           path: tarlib
 
       - name: Check out cryptolib
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/cryptolib
           path: cryptolib
 
       - name: Check out ssllib
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/ssllib
           path: ssllib
 
       - name: Check out truststores
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/truststores
           path: truststores
 
       - name: Check out terminal_styles
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/terminal_styles
           path: terminal_styles
 
       - name: Check out project_tools
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: bracke/project_tools
           path: project_tools
