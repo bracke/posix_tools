@@ -15,6 +15,8 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:option parsing", Test_Option_Parsing'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:option parsing", Test_Option_Parsing_Properties'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:paths", Test_Paths'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:paths", Test_Path_Properties'Access));

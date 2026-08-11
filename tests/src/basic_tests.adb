@@ -162,6 +162,77 @@ package body Basic_Tests is
          "parse missing option argument");
    end Test_Option_Parsing;
 
+   procedure Test_Option_Parsing_Properties (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Posix_Tools.Arguments.Parsing.Parse_Status;
+
+      type Word_32 is mod 2 ** 32;
+
+      Seed : Word_32 := 16#4F50_5453#;
+
+      function Next_Value return Natural is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Natural ((Seed / 16#0100_0000#) mod 256);
+      end Next_Value;
+
+      function Accepted_Option return Character is
+         Choices : constant String := "abc";
+      begin
+         return Choices (Choices'First + Next_Value mod Choices'Length);
+      end Accepted_Option;
+
+      function Unknown_Option return Character is
+         Choices : constant String := "xyz";
+      begin
+         return Choices (Choices'First + Next_Value mod Choices'Length);
+      end Unknown_Option;
+   begin
+      for Case_Index in 1 .. 32 loop
+         declare
+            Length : constant Natural := 1 + Next_Value mod 8;
+            Text   : String (1 .. Length + 1);
+            Parsed : Posix_Tools.Arguments.Parsing.Result;
+            Cursor : Posix_Tools.Arguments.Parsing.Cursor := (Index => 1, Offset => 2);
+         begin
+            Text (Text'First) := '-';
+            for I in 2 .. Text'Last loop
+               Text (I) := Accepted_Option;
+            end loop;
+
+            for I in 2 .. Text'Last loop
+               Parsed := Posix_Tools.Arguments.Parsing.Parse_Short (Args (Text), Cursor, "abc");
+               AUnit.Assertions.Assert
+                 (Parsed.Status = Posix_Tools.Arguments.Parsing.Option
+                  and then Parsed.Name = Text (I),
+                  "option parser property seed 0x4F505453 case"
+                  & Natural'Image (Case_Index) & " accepted option");
+               Cursor := Parsed.Next;
+            end loop;
+
+            Parsed := Posix_Tools.Arguments.Parsing.Parse_Short (Args (Text), Cursor, "abc");
+            AUnit.Assertions.Assert
+              (Parsed.Status = Posix_Tools.Arguments.Parsing.Done,
+               "option parser property seed 0x4F505453 case"
+               & Natural'Image (Case_Index) & " done");
+         end;
+      end loop;
+
+      for Case_Index in 1 .. 16 loop
+         declare
+            Ch     : constant Character := Unknown_Option;
+            Parsed : constant Posix_Tools.Arguments.Parsing.Result :=
+              Posix_Tools.Arguments.Parsing.Parse_Short (Args ("-" & Ch), (Index => 1, Offset => 2), "abc");
+         begin
+            AUnit.Assertions.Assert
+              (Parsed.Status = Posix_Tools.Arguments.Parsing.Unknown_Option
+               and then Parsed.Name = Ch,
+               "option parser property seed 0x4F505453 case"
+               & Natural'Image (Case_Index) & " unknown option");
+         end;
+      end loop;
+   end Test_Option_Parsing_Properties;
+
    procedure Test_Paths (T : in out Fixture) is
       pragma Unreferenced (T);
    begin

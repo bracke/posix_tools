@@ -887,7 +887,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-arguments-parsing.adb", "Position.Index < Count");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests-suite.adb", "property:option parsing");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse grouped first option");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/basic_tests.adb", "option parser property seed 0x4F505453");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse attached option argument");
       Project_Tools.Release_Checks.Require_Text
