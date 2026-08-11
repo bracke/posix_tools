@@ -7,6 +7,7 @@ with AUnit.Assertions;
 with Posix_Tools.Arguments;
 with Posix_Tools.Arguments.Parsing;
 with Posix_Tools.Command_Inventory;
+with Posix_Tools.Counts;
 with Posix_Tools.Numbers;
 with Posix_Tools.Paths;
 with Posix_Tools.Streams.Counting;
@@ -254,6 +255,36 @@ package body Basic_Tests is
          end;
       end loop;
    end Test_Option_Parsing_Properties;
+
+   procedure Test_Count_Windows (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Posix_Tools.Numbers.Count;
+   begin
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Suffix_Start (Total => 0, Requested => 0) = 1,
+         "empty suffix starts after the empty input");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Suffix_Start (Total => 8, Requested => 0) = 9,
+         "zero suffix count starts after the input");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Suffix_Start (Total => 8, Requested => 3) = 6,
+         "short suffix starts at total minus count plus one");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Suffix_Start (Total => 8, Requested => 8) = 1,
+         "full suffix starts at one");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Suffix_Start (Total => 8, Requested => 20) = 1,
+         "oversized suffix starts at one");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Should_Emit_From_Start (Position => 1, Requested => 0),
+         "tail +0 emits from first byte");
+      AUnit.Assertions.Assert
+        (not Posix_Tools.Counts.Should_Emit_From_Start (Position => 2, Requested => 3),
+         "tail +3 skips earlier bytes");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Counts.Should_Emit_From_Start (Position => 3, Requested => 3),
+         "tail +3 emits the requested byte");
+   end Test_Count_Windows;
 
    procedure Test_Paths (T : in out Fixture) is
       pragma Unreferenced (T);

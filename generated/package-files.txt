@@ -81,6 +81,8 @@ common/src/posix_tools-host_adapters-temporary_storage.adb
 common/src/posix_tools-host_adapters-temporary_storage.ads
 common/src/posix_tools-localization.adb
 common/src/posix_tools-localization.ads
+common/src/posix_tools-counts.adb
+common/src/posix_tools-counts.ads
 common/src/posix_tools-numbers.adb
 common/src/posix_tools-numbers.ads
 common/src/posix_tools-paths.adb

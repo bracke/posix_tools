@@ -78,8 +78,9 @@ Current Ada tooling entry points:
   release checksum file are validated separately as release outputs around the
   archive.
 - The proof gate runs selected GNATprove flow targets through Alire, including
-  numeric parsing, lexical paths, UTF-8 decoding, tail ring-buffer index
-  arithmetic, and `wc` decimal field-width arithmetic.
+  numeric parsing, lexical paths, UTF-8 decoding, head/tail count-window
+  arithmetic, tail ring-buffer index arithmetic, and `wc` decimal field-width
+  arithmetic.
 - The metadata gate verifies that `generated/release-checksums.txt` contains
   exactly the synchronized version header, package-manifest row, source-archive
   row, root executable row, and one row for every command executable from the

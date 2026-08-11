@@ -7,6 +7,7 @@ package Basic_Tests is
    procedure Test_Option_Parsing (T : in out Fixture);
    procedure Test_Option_Parsing_Properties (T : in out Fixture);
    procedure Test_Command_Inventory (T : in out Fixture);
+   procedure Test_Count_Windows (T : in out Fixture);
    procedure Test_Paths (T : in out Fixture);
    procedure Test_Path_Properties (T : in out Fixture);
    procedure Test_Tail_Ring_Arithmetic (T : in out Fixture);

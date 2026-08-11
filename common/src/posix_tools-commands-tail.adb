@@ -1,4 +1,5 @@
 with Ada.Streams;
+with Posix_Tools.Counts;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
@@ -159,11 +160,8 @@ package body Posix_Tools.Commands.Tail is
          return;
       end if;
 
-      if Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) <= Requested then
-         Start := 1;
-      else
-         Start := Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) - Requested + 1;
-      end if;
+      Start := Posix_Tools.Counts.Suffix_Start
+        (Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store), Requested);
 
       while Start <= Posix_Tools.Host_Adapters.Temporary_Storage.Size (Store) loop
          if not Posix_Tools.Host_Adapters.Temporary_Storage.Read (Store, Start, Buffer, Last) then
@@ -215,7 +213,7 @@ package body Posix_Tools.Commands.Tail is
 
                for I in Buffer'First .. Last loop
                   Position := Position + 1;
-                  if Requested = 0 or else Position >= Requested then
+                  if Posix_Tools.Counts.Should_Emit_From_Start (Position, Requested) then
                      Context.Put (To_String (Buffer (I .. I), I));
                      exit when Context.Output_Failed;
                   end if;

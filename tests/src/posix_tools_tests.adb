@@ -1842,6 +1842,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.utf_8");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.counts");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.tail_rings");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.wc_fields");
@@ -2641,6 +2643,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.ads");
       Add_Entry ("common/src/posix_tools-localization.adb");
       Add_Entry ("common/src/posix_tools-localization.ads");
+      Add_Entry ("common/src/posix_tools-counts.adb");
+      Add_Entry ("common/src/posix_tools-counts.ads");
       Add_Entry ("common/src/posix_tools-numbers.adb");
       Add_Entry ("common/src/posix_tools-numbers.ads");
       Add_Entry ("common/src/posix_tools-paths.adb");
@@ -3856,6 +3860,7 @@ procedure Posix_Tools_Tests is
       Prove_Target (Alire, "posix_tools.numbers");
       Prove_Target (Alire, "posix_tools.paths");
       Prove_Target (Alire, "posix_tools.text.utf_8");
+      Prove_Target (Alire, "posix_tools.counts");
       Ada.Text_IO.Put_Line ("proof target posix_tools.tail_rings");
       Prove_Target (Alire, "posix_tools.tail_rings");
       Ada.Text_IO.Put_Line ("proof target posix_tools.wc_fields");
