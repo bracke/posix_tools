@@ -15,10 +15,11 @@ before opening a release PR.
 
 Selected GNATprove targets are run by `posix_tools_tests prove` through Alire
 and `project_tools`. The current targets are `posix_tools.numbers`,
-`posix_tools.paths`, and `posix_tools.text.utf_8`, matching the initial focus
-on numeric parsing, lexical pathname algorithms, and UTF-8 decoder state.
-These selected units explicitly enable `SPARK_Mode` and are checked in
-GNATprove flow mode. Do not claim functional proof beyond the executed
+`posix_tools.paths`, `posix_tools.text.utf_8`, and
+`posix_tools.tail_rings`, matching the initial focus on numeric parsing,
+lexical pathname algorithms, UTF-8 decoder state, and tail ring-buffer index
+arithmetic. These selected units explicitly enable `SPARK_Mode` and are checked
+in GNATprove flow mode. Do not claim functional proof beyond the executed
 GNATprove mode, target units, and documented properties.
 
 Project tooling must be Ada code using `project_tools`. Metadata checks reject

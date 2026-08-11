@@ -11,6 +11,7 @@ with Posix_Tools.Numbers;
 with Posix_Tools.Paths;
 with Posix_Tools.Streams.Counting;
 with Posix_Tools.Streams.Lines;
+with Posix_Tools.Tail_Rings;
 with Posix_Tools.Text.Classification;
 with Posix_Tools.Text.Whitespace_Data;
 with Posix_Tools.Text.UTF_8;
@@ -359,6 +360,30 @@ package body Basic_Tests is
          end;
       end loop;
    end Test_Path_Properties;
+
+   procedure Test_Tail_Ring_Arithmetic (T : in out Fixture) is
+      pragma Unreferenced (T);
+
+      First_Step : constant Posix_Tools.Tail_Rings.Advance_Result :=
+        Posix_Tools.Tail_Rings.Advance (First => 1, Last => 4, Current => 1, Filled => 0);
+      Wrapped : constant Posix_Tools.Tail_Rings.Advance_Result :=
+        Posix_Tools.Tail_Rings.Advance (First => 1, Last => 4, Current => 4, Filled => 4);
+      Saturated : constant Posix_Tools.Tail_Rings.Advance_Result :=
+        Posix_Tools.Tail_Rings.Advance (First => 1, Last => 4, Current => 2, Filled => 4);
+   begin
+      AUnit.Assertions.Assert
+        (Posix_Tools.Tail_Rings.Capacity (1, 4) = 4,
+         "ring capacity");
+      AUnit.Assertions.Assert
+        (First_Step.Next = 2 and then First_Step.Filled = 1,
+         "first write advances and fills");
+      AUnit.Assertions.Assert
+        (Wrapped.Next = 1 and then Wrapped.Filled = 4,
+         "full ring wraps without increasing fill");
+      AUnit.Assertions.Assert
+        (Saturated.Next = 3 and then Saturated.Filled = 4,
+         "full ring advances without exceeding capacity");
+   end Test_Tail_Ring_Arithmetic;
 
    procedure Test_Stream_File_Fixture (T : in out Fixture) is
       pragma Unreferenced (T);

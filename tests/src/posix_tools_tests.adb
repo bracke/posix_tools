@@ -729,6 +729,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-classification.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
+      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-tail_rings.ads");
       Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
       Project_Tools.Release_Checks.Require_Text
@@ -1693,6 +1694,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.utf_8");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.tail_rings");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "docs/development.md", "Selected GNATprove targets");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/release-process.md", "posix_tools_tests prove");
@@ -2521,6 +2524,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-streams-counting.ads");
       Add_Entry ("common/src/posix_tools-streams-lines.adb");
       Add_Entry ("common/src/posix_tools-streams-lines.ads");
+      Add_Entry ("common/src/posix_tools-tail_rings.adb");
+      Add_Entry ("common/src/posix_tools-tail_rings.ads");
       Add_Entry ("common/src/posix_tools-text.ads");
       Add_Entry ("common/src/posix_tools-text-classification.adb");
       Add_Entry ("common/src/posix_tools-text-classification.ads");
@@ -3721,6 +3726,8 @@ procedure Posix_Tools_Tests is
       Prove_Target (Alire, "posix_tools.numbers");
       Prove_Target (Alire, "posix_tools.paths");
       Prove_Target (Alire, "posix_tools.text.utf_8");
+      Ada.Text_IO.Put_Line ("proof target posix_tools.tail_rings");
+      Prove_Target (Alire, "posix_tools.tail_rings");
       Ada.Text_IO.Put_Line ("proof checks passed");
    end Run_Proof_Checks;
 

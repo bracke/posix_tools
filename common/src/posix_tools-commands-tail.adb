@@ -4,6 +4,7 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Posix_Tools.Numbers;
+with Posix_Tools.Tail_Rings;
 
 package body Posix_Tools.Commands.Tail is
    use type Ada.Streams.Stream_Element_Offset;
@@ -57,17 +58,17 @@ package body Posix_Tools.Commands.Tail is
       Next     : in out Ada.Streams.Stream_Element_Offset;
       Element  : Ada.Streams.Stream_Element)
    is
+      Step : Posix_Tools.Tail_Rings.Advance_Result;
    begin
       Ring (Next) := Element;
-      if Filled < Ring'Length then
-         Filled := Filled + 1;
-      end if;
-
-      if Next = Ring'Last then
-         Next := Ring'First;
-      else
-         Next := Next + Ada.Streams.Stream_Element_Offset (1);
-      end if;
+      Step :=
+        Posix_Tools.Tail_Rings.Advance
+          (First   => Posix_Tools.Tail_Rings.Position (Ring'First),
+           Last    => Posix_Tools.Tail_Rings.Position (Ring'Last),
+           Current => Posix_Tools.Tail_Rings.Position (Next),
+           Filled  => Filled);
+      Filled := Step.Filled;
+      Next := Ada.Streams.Stream_Element_Offset (Step.Next);
    end Keep_Byte;
 
    procedure Emit_Ring

@@ -92,6 +92,8 @@ common/src/posix_tools-streams-counting.adb
 common/src/posix_tools-streams-counting.ads
 common/src/posix_tools-streams-lines.adb
 common/src/posix_tools-streams-lines.ads
+common/src/posix_tools-tail_rings.adb
+common/src/posix_tools-tail_rings.ads
 common/src/posix_tools-text.ads
 common/src/posix_tools-text-classification.adb
 common/src/posix_tools-text-classification.ads

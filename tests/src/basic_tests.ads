@@ -9,6 +9,7 @@ package Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture);
    procedure Test_Paths (T : in out Fixture);
    procedure Test_Path_Properties (T : in out Fixture);
+   procedure Test_Tail_Ring_Arithmetic (T : in out Fixture);
    procedure Test_Stream_Counting (T : in out Fixture);
    procedure Test_Stream_Line_Properties (T : in out Fixture);
    procedure Test_Stream_Line_Split (T : in out Fixture);
