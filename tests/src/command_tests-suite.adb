@@ -89,6 +89,8 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:tail standard input", Test_Tail_Standard_Input'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail output failure", Test_Tail_Output_Failure'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:tail byte suffix", Test_Tail_Byte_Suffix_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:usage errors", Test_Usage_Errors'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:true", Test_True'Access));
       AUnit.Test_Suites.Add_Test

@@ -1143,7 +1143,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail standard input");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "property:tail byte suffix");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail default ten lines from end output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -c property seed 0x5441494C");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -c2 compact output");
       Project_Tools.Release_Checks.Require_Text
