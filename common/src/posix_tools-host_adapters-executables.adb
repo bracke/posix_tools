@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -25,6 +26,37 @@ package body Posix_Tools.Host_Adapters.Executables is
 
       return False;
    end Contains;
+
+   function Capture_Leaf (Directory : String; Label : String) return String is
+      type Word_64 is mod 2 ** 64;
+
+      Hash : Word_64 := 14_695_981_039_346_656_037;
+
+      procedure Mix (Text : String) is
+      begin
+         for Ch of Text loop
+            Hash := (Hash xor Word_64 (Character'Pos (Ch))) * 1_099_511_628_211;
+         end loop;
+      end Mix;
+
+      function Hex_Image return String is
+         Hex_Digits : constant String := "0123456789abcdef";
+         Value      : Word_64 := Hash;
+         Result     : String (1 .. 16);
+      begin
+         for I in reverse Result'Range loop
+            Result (I) := Hex_Digits (Hex_Digits'First + Natural (Value mod 16));
+            Value := Value / 16;
+         end loop;
+
+         return Result;
+      end Hex_Image;
+   begin
+      Mix (Directory);
+      Mix (Label);
+      Mix (Duration'Image (Ada.Calendar.Seconds (Ada.Calendar.Clock)));
+      return Label & "-" & Hex_Image & ".capture";
+   end Capture_Leaf;
 
    function Locate (Executable : String) return String is
    begin
@@ -154,8 +186,9 @@ package body Posix_Tools.Host_Adapters.Executables is
       Args.Append (To_Unbounded_String ("--posix-tools-identify"));
 
       declare
-         Out_Path : constant String := Hostkit.Fs.Join (To_String (Temp), "stdout.txt");
-         Err_Path : constant String := Hostkit.Fs.Join (To_String (Temp), "stderr.txt");
+         Temp_Path : constant String := To_String (Temp);
+         Out_Path  : constant String := Hostkit.Fs.Join (Temp_Path, Capture_Leaf (Temp_Path, "stdout"));
+         Err_Path  : constant String := Hostkit.Fs.Join (Temp_Path, Capture_Leaf (Temp_Path, "stderr"));
          Outcome  : constant Hostkit.Process.Process_Outcome :=
            Hostkit.Process.Run_Captured
              (Program     => Path,
