@@ -99,7 +99,9 @@
 ## Styling Rules
 
 - Only `Posix_Tools.Presentation` may call `terminal_styles`.
-- Help and root headings may be styled.
+- Help, root headings, and human diagnostics may be styled.
+- Automatic styling uses stdout terminal status for help and root output, and
+  stderr terminal status for diagnostics.
 - Copied data, counts, pathnames, identity output, and normal `true`/`false`
   behavior must remain unstyled.
 

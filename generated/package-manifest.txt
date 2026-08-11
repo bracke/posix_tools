@@ -12,7 +12,7 @@ generated/manual-index.md bytes= 371 fnv1a64=0b3bcccb486b6112
 generated/man/posix-tools.1 bytes= 325 fnv1a64=e6048660380753ce
 CHANGELOG.md bytes= 97 fnv1a64=6a1b14e9ae63f756
 SECURITY.md bytes= 177 fnv1a64=be86cf547a3ff2df
-docs/ai.md bytes= 5592 fnv1a64=40409299e90f95ab
+docs/ai.md bytes= 5732 fnv1a64=2838c360dac366cb
 docs/architecture.md bytes= 4865 fnv1a64=e3b3882ccd316af1
 docs/conformance.md bytes= 3775 fnv1a64=c9e9dc92aa459653
 docs/development.md bytes= 1341 fnv1a64=2ee51fba401cfa16
@@ -114,7 +114,7 @@ tests/src/command_tests-suite.adb bytes= 10147 fnv1a64=c6d24eca16f3652b
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
 tests/src/command_tests.adb bytes= 159518 fnv1a64=420b33148573346e
 tests/src/command_tests.ads bytes= 4739 fnv1a64=0dc9cd693ebf3c2d
-tests/src/posix_tools_tests.adb bytes= 207262 fnv1a64=43e829303a44677d
+tests/src/posix_tools_tests.adb bytes= 207517 fnv1a64=28c76f2aff7e25f3
 tests/src/test_contexts.adb bytes= 10170 fnv1a64=81b94e96fab50408
 tests/src/test_contexts.ads bytes= 4189 fnv1a64=3256ba8b4c41cea7
 fixtures/reg-tail-byte-spill.bin bytes= 11 fnv1a64=71a65e19344d3ec8

@@ -2035,6 +2035,10 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-text-classification.adb", "Whitespace_Data.Is_Whitespace");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "classification includes range midpoint");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "PRESENTATION-STYLES-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "help root headings and diagnostics");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "HOST-ADAPTER-TERMINAL-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "standard-error terminal status");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "HOST-ADAPTER-FILE-001");

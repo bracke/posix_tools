@@ -1,14 +1,14 @@
 posix-tools release checksums 0.1.0
-manifest generated/package-manifest.txt fnv1a64=150529d46df637c4
-archive dist/posix-tools-0.1.0-source.7z fnv1a64=5a7248f3e1c7f3e4
-executable tools/basename/bin/basename fnv1a64=5a41a47cb9f45858
-executable tools/cat/bin/cat fnv1a64=0407bc95c84e4eb5
-executable tools/dirname/bin/dirname fnv1a64=ca29f7ce5fe3c870
-executable tools/echo/bin/echo fnv1a64=25dbb7ca98da30da
-executable tools/false/bin/false fnv1a64=d9503b7a6e7d69bf
-executable tools/head/bin/head fnv1a64=df56b28dbce1dde2
-executable tools/pwd/bin/pwd fnv1a64=ac8cf47e191c06a7
-executable tools/tail/bin/tail fnv1a64=78aaaeb84c9eff0a
-executable tools/true/bin/true fnv1a64=19fde990d9ba6ea9
-executable tools/wc/bin/wc fnv1a64=6e98bce983283bf1
-executable bin/posix-tools fnv1a64=c63ec0702c489c45
+manifest generated/package-manifest.txt fnv1a64=d8b1414437a333df
+archive dist/posix-tools-0.1.0-source.7z fnv1a64=c7b9c38682e60989
+executable tools/basename/bin/basename fnv1a64=971d57cab8894dae
+executable tools/cat/bin/cat fnv1a64=769c2553606dacf1
+executable tools/dirname/bin/dirname fnv1a64=fa610de80525aeae
+executable tools/echo/bin/echo fnv1a64=184c5414b7ed00e8
+executable tools/false/bin/false fnv1a64=06916414270fabd1
+executable tools/head/bin/head fnv1a64=52d9f9785eb3a002
+executable tools/pwd/bin/pwd fnv1a64=2d3be859caba9659
+executable tools/tail/bin/tail fnv1a64=7d8f9740e044ae86
+executable tools/true/bin/true fnv1a64=d36e41ba444ad2f3
+executable tools/wc/bin/wc fnv1a64=d41065457b4fb799
+executable bin/posix-tools fnv1a64=a8ea89f2de1a4324
