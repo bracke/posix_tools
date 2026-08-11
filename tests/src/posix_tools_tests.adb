@@ -327,6 +327,34 @@ procedure Posix_Tools_Tests is
          end if;
       end Require_Package_File_List_Matches_Manifest;
 
+      procedure Require_Package_File_List_Covers_Fixtures is
+         Files  : constant String :=
+           Project_Tools.Files.Read_Raw_File
+             (Project_Tools.Files.Join (Root, "generated/package-files.txt"));
+         Prefix : constant String := Root & "/";
+
+         function Package_Relative_Path (Path : String) return String is
+         begin
+            if Project_Tools.Text.Starts_With (Path, Prefix) then
+               return Path (Prefix'Length + 1 .. Path'Last);
+            else
+               return Path;
+            end if;
+         end Package_Relative_Path;
+      begin
+         for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, "fixtures")) loop
+            declare
+               Relative_Path : constant String :=
+                 Package_Relative_Path (Ada.Strings.Unbounded.To_String (Path));
+            begin
+               if Count_Exact_Lines (Files, Relative_Path) = 0 then
+                  Project_Tools.Release_Checks.Fail
+                    ("package file list missing test fixture " & Relative_Path);
+               end if;
+            end;
+         end loop;
+      end Require_Package_File_List_Covers_Fixtures;
+
       procedure Require_Release_Checksums_Cover_Inventory is
          Path      : constant String := "generated/release-checksums.txt";
          Checksums : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -2252,6 +2280,7 @@ procedure Posix_Tools_Tests is
          Root,
          "tests/src/posix_tools_tests.adb");
       Require_Package_File_List_Matches_Manifest;
+      Require_Package_File_List_Covers_Fixtures;
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
          Root,
@@ -2510,7 +2539,34 @@ procedure Posix_Tools_Tests is
       Add_Entry ("tests/src/posix_tools_tests.adb");
       Add_Entry ("tests/src/test_contexts.adb");
       Add_Entry ("tests/src/test_contexts.ads");
+      Add_Entry ("fixtures/invalid-da-utf8.bin");
+      Add_Entry ("fixtures/reg-cat-0001.bin");
+      Add_Entry ("fixtures/reg-cat-first.bin");
+      Add_Entry ("fixtures/reg-cat-later.bin");
+      Add_Entry ("fixtures/reg-cat-second.bin");
+      Add_Entry ("fixtures/reg-end-of-options.txt");
+      Add_Entry ("fixtures/reg-head-counts.txt");
+      Add_Entry ("fixtures/reg-head-default-long.txt");
+      Add_Entry ("fixtures/reg-head-default-short.txt");
+      Add_Entry ("fixtures/reg-head-header-first.txt");
+      Add_Entry ("fixtures/reg-head-header-second.txt");
+      Add_Entry ("fixtures/reg-tail-byte-mode.bin");
       Add_Entry ("fixtures/reg-tail-byte-spill.bin");
+      Add_Entry ("fixtures/reg-tail-compact.bin");
+      Add_Entry ("fixtures/reg-tail-head-first.txt");
+      Add_Entry ("fixtures/reg-tail-head-second.txt");
+      Add_Entry ("fixtures/reg-tail-line-mode.txt");
+      Add_Entry ("fixtures/reg-tail-plus.txt");
+      Add_Entry ("fixtures/reg-wc-bad-continuation.bin");
+      Add_Entry ("fixtures/reg-wc-default.txt");
+      Add_Entry ("fixtures/reg-wc-first.txt");
+      Add_Entry ("fixtures/reg-wc-invalid.bin");
+      Add_Entry ("fixtures/reg-wc-mixed-invalid.bin");
+      Add_Entry ("fixtures/reg-wc-out-of-range.bin");
+      Add_Entry ("fixtures/reg-wc-overlong.bin");
+      Add_Entry ("fixtures/reg-wc-second.txt");
+      Add_Entry ("fixtures/reg-wc-surrogate.bin");
+      Add_Entry ("fixtures/reg-wc-utf8.txt");
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
