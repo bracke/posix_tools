@@ -61,6 +61,7 @@ written through the shared raw output path with explicit LF terminators.
 
 Selected usage and operational diagnostics are rendered through `messages`
 catalog entries in the shared command helper, with deterministic locale tests
-covering English fallback and Danish output. Human diagnostics pass through the
+covering English fallback, Danish output, Spanish output, unknown-locale
+fallback, and missing-message fallback. Human diagnostics pass through the
 project presentation adapter with stderr terminal status, so redirected
 diagnostics remain plain text.

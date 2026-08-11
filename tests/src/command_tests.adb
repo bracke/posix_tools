@@ -18,6 +18,7 @@ with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.True_Command;
 with Posix_Tools.Commands.Wc;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Localization;
 with Posix_Tools.Paths;
 with Posix_Tools.Presentation;
 with Posix_Tools.Version;
@@ -1296,6 +1297,27 @@ package body Command_Tests is
          AUnit.Assertions.Assert (Contains (Text, "Usage: cat "), "unknown locale fallback usage");
          AUnit.Assertions.Assert (not Contains (Text, "posix_tools."), "unknown locale no message-key leak");
       end;
+
+      Context.Initialize ("cat", One_Arg ("--help"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      declare
+         Text : constant String := Test_Contexts.Output (Context);
+      begin
+         AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "Spanish help status");
+         AUnit.Assertions.Assert (Contains (Text, "Uso: cat "), "Spanish help usage heading");
+         AUnit.Assertions.Assert (Contains (Text, "Opciones:"), "Spanish help options heading");
+         AUnit.Assertions.Assert
+           (Contains (Text, "muestra esta ayuda y termina"),
+            "Spanish help option description");
+         AUnit.Assertions.Assert (Contains (Text, "--version"), "Spanish help preserves option spelling");
+         AUnit.Assertions.Assert (not Contains (Text, "posix_tools."), "Spanish help no message-key leak");
+      end;
+
+      AUnit.Assertions.Assert
+        (Posix_Tools.Localization.Text
+           ("es", "posix_tools.test.missing_message", "FALLBACK_TEXT") = "FALLBACK_TEXT",
+         "missing message falls back to caller default");
    end Test_Help_Locales;
 
    procedure Test_Version_Locale_Invariance (T : in out Fixture) is
@@ -1456,6 +1478,16 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Error_Output (Context) = "tail: antal er for stort" & LF,
          "Danish count too large diagnostic");
+
+      Context.Initialize ("wc", One_Arg ("-z"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Wc.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "Spanish unknown option status");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "wc: opcion desconocida -z" & LF,
+         "Spanish unknown option diagnostic");
    end Test_Diagnostic_Locales;
 
    procedure Test_Presentation_Styling (T : in out Fixture) is
@@ -2285,6 +2317,16 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt kommando bogus" & LF,
          "root localized unknown help topic diagnostic");
+
+      Context.Initialize ("posix-tools", No_Args);
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "Uso: posix-tools <command> [operand]" & LF
+           & "Comandos: help, version, list, paths, verify" & LF,
+         "root Spanish help output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "root Spanish help status");
    end Test_Root_Localized_Help;
 
    procedure Test_Root_Output_Failure (T : in out Fixture) is

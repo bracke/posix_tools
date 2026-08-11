@@ -1379,7 +1379,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.help.usage = Brug");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "es.posix_tools.help.usage = Uso");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.diagnostic.option.unknown");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "es.posix_tools.diagnostic.option.unknown");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.diagnostic.line_count.invalid");
       Project_Tools.Release_Checks.Require_Text
@@ -1616,6 +1620,8 @@ procedure Posix_Tools_Tests is
         (Check, "common/messages/posix_tools.catalog", "en.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/messages/posix_tools.catalog", "da.posix_tools.root.status.shadowed");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/messages/posix_tools.catalog", "es.posix_tools.root.status.shadowed");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-environment.adb", "with Ada.Environment_Variables;");
       Project_Tools.Release_Checks.Require_Text
