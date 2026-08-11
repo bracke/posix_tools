@@ -10,7 +10,7 @@ package body Posix_Tools.Host_Adapters.Executables is
    Excessive_Output : constant String := "posix-tools-excessive-identity-output";
    Max_Identity_Output_Bytes : constant := 4096;
 
-   function Contains (Text : String; Pattern : String) return Boolean is
+   function Starts_With (Text : String; Pattern : String) return Boolean is
    begin
       if Pattern = "" then
          return True;
@@ -18,14 +18,27 @@ package body Posix_Tools.Host_Adapters.Executables is
          return False;
       end if;
 
-      for I in Text'First .. Text'Last - Pattern'Length + 1 loop
-         if Text (I .. I + Pattern'Length - 1) = Pattern then
-            return True;
+      return Text (Text'First .. Text'First + Pattern'Length - 1) = Pattern;
+   end Starts_With;
+
+   function Is_Wrong_Version_Output (Text : String; Prefix : String) return Boolean is
+      LF : constant Character := Character'Val (10);
+   begin
+      if not Starts_With (Text, Prefix)
+        or else Text'Length <= Prefix'Length
+        or else Text (Text'Last) /= LF
+      then
+         return False;
+      end if;
+
+      for I in Text'First + Prefix'Length .. Text'Last - 1 loop
+         if Text (I) = LF then
+            return False;
          end if;
       end loop;
 
-      return False;
-   end Contains;
+      return True;
+   end Is_Wrong_Version_Output;
 
    function Capture_Leaf (Directory : String; Label : String) return String is
       type Word_64 is mod 2 ** 64;
@@ -198,6 +211,13 @@ package body Posix_Tools.Host_Adapters.Executables is
               Timeout_Ms  => 2000);
          Output   : constant String := Read_Text_File (Out_Path, Max_Identity_Output_Bytes);
          Error    : constant String := Read_Text_File (Err_Path, Max_Identity_Output_Bytes);
+         LF       : constant Character := Character'Val (10);
+         Version_Prefix : constant String :=
+           "schema=1" & LF
+           & "project=posix-tools" & LF
+           & "command=" & Executable & LF
+           & "version=";
+         Expected_Output : constant String := Version_Prefix & Expected_Version & LF;
       begin
          if Ada.Directories.Exists (To_String (Temp)) then
             Ada.Directories.Delete_Tree (To_String (Temp));
@@ -211,15 +231,12 @@ package body Posix_Tools.Host_Adapters.Executables is
             return "wrong project";
          elsif Error /= "" then
             return "wrong project";
-         elsif not Contains (Output, "schema=1" & Character'Val (10))
-           or else not Contains (Output, "project=posix-tools" & Character'Val (10))
-           or else not Contains (Output, "command=" & Executable & Character'Val (10))
-         then
-            return "wrong project";
-         elsif not Contains (Output, "version=" & Expected_Version & Character'Val (10)) then
+         elsif Output = Expected_Output then
+            return "ok";
+         elsif Is_Wrong_Version_Output (Output, Version_Prefix) then
             return "wrong version";
          else
-            return "ok";
+            return "wrong project";
          end if;
       end;
    exception

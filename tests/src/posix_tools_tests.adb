@@ -1369,7 +1369,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Error = Excessive_Output");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-executables.adb", "not Contains (Output, ""schema=1""");
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Expected_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Is_Wrong_Version_Output");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-executables.adb", "Output = Expected_Output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-executables.adb", "Hostkit.Fs.Is_Executable");
       Project_Tools.Release_Checks.Require_Text
@@ -1552,6 +1556,10 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", """posix-tools"", Built_Root_Path");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Built_Root_Path, ""0.0.0""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Status /= ""wrong version""");
       Project_Tools.Release_Checks.Require_Text
         (Check,
          "tests/src/posix_tools_tests.adb",
@@ -3678,6 +3686,17 @@ procedure Posix_Tools_Tests is
          if Status /= "ok" then
             Project_Tools.Release_Checks.Fail
               ("staged verification failed for posix-tools: " & Status);
+         end if;
+      end;
+
+      declare
+         Status : constant String :=
+           Posix_Tools.Host_Adapters.Executables.Verify_Identity_At_Path
+             ("posix-tools", Built_Root_Path, "0.0.0");
+      begin
+         if Status /= "wrong version" then
+            Project_Tools.Release_Checks.Fail
+              ("staged verification wrong-version classification failed for posix-tools: " & Status);
          end if;
       end;
 
