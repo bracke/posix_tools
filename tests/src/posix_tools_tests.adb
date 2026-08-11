@@ -1474,6 +1474,10 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Hostkit.Descriptors.Write");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Hostkit.Descriptors.Read");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Open_Write_Exclusive");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-temporary_storage.adb", "Spill_Leaf");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-temporary_storage.ads",
          "Ada.Streams.Stream_IO",
@@ -1482,6 +1486,10 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-host_adapters-temporary_storage.adb",
          "Ada.Streams.Stream_IO",
          "production temporary storage adapter must use hostkit descriptors");
+      Forbid_Text
+        ("common/src/posix_tools-host_adapters-temporary_storage.adb",
+         "spill.bin",
+         "production temporary storage filenames must not use a fixed spill leaf");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-arguments.adb", "with Ada.Command_Line;");
       Forbid_Text

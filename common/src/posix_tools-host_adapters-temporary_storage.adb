@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Directories;
 with Hostkit.Fs;
 
@@ -11,6 +12,36 @@ package body Posix_Tools.Host_Adapters.Temporary_Storage is
    begin
       return Self.Path (Self.Path'First .. Self.Path_Last);
    end Stored_Path;
+
+   function Spill_Leaf (Directory : String) return String is
+      type Word_64 is mod 2 ** 64;
+
+      Hash : Word_64 := 14_695_981_039_346_656_037;
+
+      procedure Mix (Text : String) is
+      begin
+         for Ch of Text loop
+            Hash := (Hash xor Word_64 (Character'Pos (Ch))) * 1_099_511_628_211;
+         end loop;
+      end Mix;
+
+      function Hex_Image return String is
+         Hex_Digits : constant String := "0123456789abcdef";
+         Value      : Word_64 := Hash;
+         Result     : String (1 .. 16);
+      begin
+         for I in reverse Result'Range loop
+            Result (I) := Hex_Digits (Hex_Digits'First + Natural (Value mod 16));
+            Value := Value / 16;
+         end loop;
+
+         return Result;
+      end Hex_Image;
+   begin
+      Mix (Directory);
+      Mix (Duration'Image (Ada.Calendar.Seconds (Ada.Calendar.Clock)));
+      return "spill-" & Hex_Image & ".bin";
+   end Spill_Leaf;
 
    procedure Close_File (Self : in out Store) is
    begin
@@ -81,7 +112,7 @@ package body Posix_Tools.Host_Adapters.Temporary_Storage is
    function Create (Self : in out Store; Max_Bytes : Posix_Tools.Numbers.Count) return Boolean is
       use Hostkit.Descriptors;
       Directory : constant String := Hostkit.Fs.Create_Temporary_Directory ("posix-tools-tail");
-      Path      : constant String := Hostkit.Fs.Join (Directory, "spill.bin");
+      Path      : constant String := Hostkit.Fs.Join (Directory, Spill_Leaf (Directory));
    begin
       Close_File (Self);
       Self.Max_Size := Max_Bytes;
@@ -97,7 +128,7 @@ package body Posix_Tools.Host_Adapters.Temporary_Storage is
       Self.Directory (Self.Directory'First .. Self.Directory'First + Directory'Length - 1) := Directory;
       Self.Path_Last := Path'Length;
       Self.Path (Self.Path'First .. Self.Path'First + Path'Length - 1) := Path;
-      if not Open_File (Path, Open_Write_Truncate, Self.File) then
+      if not Open_File (Path, Open_Write_Exclusive, Self.File) then
          Cleanup (Self);
          return False;
       end if;
