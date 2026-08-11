@@ -3909,13 +3909,40 @@ procedure Posix_Tools_Tests is
             Project_Tools.Release_Checks.Fail (Label & " produced unexpected output");
          end if;
       end Expect_Output;
+
+      procedure Expect_Nonempty_Line
+        (Label   : String;
+         Program : String;
+         Args    : Project_Tools.Processes.Argument_Vectors.Vector)
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture
+             (Label   => Label,
+              Dir     => Root,
+              Program => Program,
+              Args    => Args,
+              Quiet   => True);
+         Output : constant String := To_String (Captured.Output);
+      begin
+         if Captured.Status /= 0 then
+            Project_Tools.Release_Checks.Fail
+              (Label & " returned status" & Integer'Image (Captured.Status));
+         elsif Output'Length <= 1 or else Output (Output'Last) /= Character'Val (10) then
+            Project_Tools.Release_Checks.Fail (Label & " did not produce one nonempty line");
+         end if;
+      end Expect_Nonempty_Line;
+
+      LF : constant Character := Character'Val (10);
+      Smoke_File : constant String :=
+        Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-smoke.txt");
+      Smoke_Leaf : constant String := "posix-tools-executable-smoke.txt";
    begin
       Expect_Output
         ("root executable version",
          Built_Root_Path,
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
          0,
-         "posix-tools " & Posix_Tools.Version.Version_String & Character'Val (10));
+         "posix-tools " & Posix_Tools.Version.Version_String & LF);
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          declare
@@ -3926,9 +3953,32 @@ procedure Posix_Tools_Tests is
                Built_Command_Path (Executable),
                Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
                0,
-               Executable & " (posix-tools) " & Posix_Tools.Version.Version_String & Character'Val (10));
+               Executable & " (posix-tools) " & Posix_Tools.Version.Version_String & LF);
          end;
       end loop;
+
+      Project_Tools.Files.Write_Raw_File (Smoke_File, "alpha" & LF & "beta" & LF);
+
+      Expect_Output
+        ("basename executable data",
+         Built_Command_Path ("basename"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         Smoke_Leaf & LF);
+
+      Expect_Output
+        ("cat executable data",
+         Built_Command_Path ("cat"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF & "beta" & LF);
+
+      Expect_Output
+        ("dirname executable data",
+         Built_Command_Path ("dirname"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         Project_Tools.Files.Temp_Dir & LF);
 
       Expect_Output
         ("echo executable data",
@@ -3937,7 +3987,57 @@ procedure Posix_Tools_Tests is
            ([Project_Tools.Processes.Argument ("alpha"),
              Project_Tools.Processes.Argument ("beta")]),
          0,
-         "alpha beta" & Character'Val (10));
+         "alpha beta" & LF);
+
+      Expect_Output
+        ("false executable status",
+         Built_Command_Path ("false"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("ignored")]),
+         1,
+         "");
+
+      Expect_Output
+        ("head executable data",
+         Built_Command_Path ("head"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("-n"),
+             Project_Tools.Processes.Argument ("1"),
+             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF);
+
+      Expect_Nonempty_Line
+        ("pwd executable data",
+         Built_Command_Path ("pwd"),
+         Project_Tools.Processes.No_Arguments);
+
+      Expect_Output
+        ("tail executable data",
+         Built_Command_Path ("tail"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("-n"),
+             Project_Tools.Processes.Argument ("1"),
+             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "beta" & LF);
+
+      Expect_Output
+        ("true executable status",
+         Built_Command_Path ("true"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("ignored")]),
+         0,
+         "");
+
+      Expect_Output
+        ("wc executable data",
+         Built_Command_Path ("wc"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("-c"),
+             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "11 " & Smoke_File & LF);
+
+      Project_Tools.Files.Delete_File_If_Present (Smoke_File);
 
       Ada.Text_IO.Put_Line ("executable integration smoke checks passed");
    end Run_Executable_Integration_Smoke;
