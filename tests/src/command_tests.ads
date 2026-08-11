@@ -57,5 +57,6 @@ package Command_Tests is
    procedure Test_Wc_Text_Malformed_UTF_8 (T : in out Fixture);
    procedure Test_Wc_Multiple_Files (T : in out Fixture);
    procedure Test_Wc_Standard_Input (T : in out Fixture);
+   procedure Test_Wc_Byte_Count_Property (T : in out Fixture);
    procedure Test_Wc_Output_Failure (T : in out Fixture);
 end Command_Tests;

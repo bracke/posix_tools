@@ -107,6 +107,12 @@ package body Command_Tests is
       Buffer : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Data'Length));
       Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
    begin
+      if Data'Length = 0 then
+         Ada.Streams.Stream_IO.Create (File, Ada.Streams.Stream_IO.Out_File, Path);
+         Ada.Streams.Stream_IO.Close (File);
+         return;
+      end if;
+
       for I in Data'Range loop
          Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Data (I)));
          Target := Target + Ada.Streams.Stream_Element_Offset (1);
@@ -1968,6 +1974,63 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "wc stdin read failure status");
    end Test_Wc_Standard_Input;
+
+   procedure Test_Wc_Byte_Count_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+      type Length_Array is array (Positive range <>) of Natural;
+
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("property-wc-c.bin");
+      LF      : constant Character := Character'Val (10);
+      Seed    : Word_32 := 16#5EED_C0DE#;
+      Lengths : constant Length_Array := [0, 1, 2, 7, 31, 64, 127, 256, 513];
+
+      function Decimal_Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return Raw (Raw'First + 1 .. Raw'Last);
+      end Decimal_Image;
+
+      function Next_Byte return Character is
+      begin
+         Seed := Seed * 1_664_525 + 1_013_904_223;
+         return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
+      end Next_Byte;
+
+      function Generated (Length : Natural) return String is
+         Result : String (1 .. Length);
+      begin
+         if Length = 0 then
+            return "";
+         end if;
+
+         for I in Result'Range loop
+            Result (I) := Next_Byte;
+         end loop;
+
+         return Result;
+      end Generated;
+   begin
+      for Length of Lengths loop
+         declare
+            Data : constant String := Generated (Length);
+         begin
+            Write_File (Path, Data);
+            Context.Initialize ("wc", Two_Args ("-c", Path));
+            Posix_Tools.Commands.Wc.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Decimal_Image (Length) & " " & Path & LF,
+               "wc -c property seed 0x5EEDC0DE length" & Natural'Image (Length));
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "wc -c property status seed 0x5EEDC0DE length" & Natural'Image (Length));
+         end;
+      end loop;
+
+      Ada.Directories.Delete_File (Path);
+   end Test_Wc_Byte_Count_Property;
 
    procedure Test_Wc_Output_Failure (T : in out Fixture) is
       pragma Unreferenced (T);
