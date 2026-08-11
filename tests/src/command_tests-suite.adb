@@ -110,6 +110,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:wc byte count", Test_Wc_Byte_Count_Property'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("property:wc line count", Test_Wc_Line_Count_Property'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:wc output failure", Test_Wc_Output_Failure'Access));
       return Result;
    end Test_Suite;

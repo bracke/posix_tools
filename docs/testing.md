@@ -46,9 +46,10 @@ coverage generates grouped short options and unknown options with seed
 `0x4F505453`. Command-level property coverage also exercises `cat` byte
 preservation for implicit standard input and explicit `-` standard input with
 seed `0x50540003`, generated `head -n` prefix behavior with seed `0x48454144`,
-generated `tail -c` suffix behavior with seed `0x5441494C`, and `wc -c`
-equivalence to input byte length with seed `0x5EEDC0DE`. Generated `tail -n`
-LF line suffix behavior uses seed `0x5441494E`.
+generated `tail -c` suffix behavior with seed `0x5441494C`, `wc -c`
+equivalence to input byte length with seed `0x5EEDC0DE`, and `wc -l`
+equivalence to LF byte count with seed `0x1F1E5EED`. Generated `tail -n` LF
+line suffix behavior uses seed `0x5441494E`.
 
 `Test_Contexts.Capturing_Context` provides deterministic arguments, stdout,
 stderr, environment values, physical current-directory values, and raw standard
