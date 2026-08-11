@@ -108,7 +108,7 @@ tests/src/all_suites.adb bytes= 474 fnv1a64=878d440d1afc7777
 tests/src/all_suites.ads bytes= 125 fnv1a64=a93b4ea2f1749ef9
 tests/src/basic_tests-suite.adb bytes= 1851 fnv1a64=e1aa4e0128029d3a
 tests/src/basic_tests-suite.ads bytes= 144 fnv1a64=f3410c36b0f313aa
-tests/src/basic_tests.adb bytes= 25328 fnv1a64=ad200a2002c566c7
+tests/src/basic_tests.adb bytes= 25850 fnv1a64=b8acfa7494661d2f
 tests/src/basic_tests.ads bytes= 818 fnv1a64=6fe8dc3332807e64
 tests/src/command_tests-suite.adb bytes= 7662 fnv1a64=ad249f296692a158
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506

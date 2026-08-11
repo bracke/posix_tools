@@ -34,10 +34,30 @@ package body Basic_Tests is
       return Result;
    end Args;
 
+   function Same_Natural (Left, Right : Natural) return Boolean is
+   begin
+      return Left = Right;
+   end Same_Natural;
+
+   function Same_Text (Left, Right : String) return Boolean is
+   begin
+      if Left'Length /= Right'Length then
+         return False;
+      end if;
+
+      for I in Left'Range loop
+         if Left (I) /= Right (Right'First + (I - Left'First)) then
+            return False;
+         end if;
+      end loop;
+
+      return True;
+   end Same_Text;
+
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Command_Count = 10, "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 10), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "basename", "first command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (10) = "wc", "last command");
       AUnit.Assertions.Assert
@@ -540,11 +560,12 @@ package body Basic_Tests is
       end;
 
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.Classification.Unicode_Version = "15.1.0",
+        (Same_Text (Posix_Tools.Text.Classification.Unicode_Version, "15.1.0"),
          "classification Unicode version recorded");
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.Classification.Unicode_Source =
-           "Unicode Character Database PropList.txt White_Space property",
+        (Same_Text
+           (Posix_Tools.Text.Classification.Unicode_Source,
+            "Unicode Character Database PropList.txt White_Space property"),
          "classification Unicode source recorded");
       AUnit.Assertions.Assert
         (Posix_Tools.Text.Classification.Is_Whitespace (16#2003#),
