@@ -1481,6 +1481,17 @@ package body Command_Tests is
         (Contains (Test_Contexts.Output (Context), "--help"),
          "styled help keeps option spelling");
 
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
+      Context.Initialize ("cat", One_Arg ("--help"));
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (not Contains (Test_Contexts.Output (Context), "" & ESC),
+         "automatic redirected help has no ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "Usage: cat "),
+         "automatic redirected help keeps usage");
+
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Never);
       Context.Initialize ("posix-tools", No_Args);
       Test_Contexts.Set_Standard_Output_Is_Terminal (Context, True);
@@ -1501,6 +1512,17 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "help, version, list, paths, verify"),
          "styled root help keeps commands");
+
+      Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
+      Context.Initialize ("posix-tools", No_Args);
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Root.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (not Contains (Test_Contexts.Output (Context), "" & ESC),
+         "automatic redirected root help has no ANSI");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "Usage: posix-tools"),
+         "automatic redirected root help keeps usage");
 
       Posix_Tools.Presentation.Set_Style_Mode (Posix_Tools.Presentation.Automatic);
    end Test_Presentation_Styling;
