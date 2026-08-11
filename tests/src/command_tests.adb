@@ -2921,6 +2921,78 @@ package body Command_Tests is
       Ada.Directories.Delete_File (Path);
    end Test_Wc_Line_Count_Property;
 
+   procedure Test_Wc_Standard_Input_Line_Property (T : in out Fixture) is
+      pragma Unreferenced (T);
+      type Word_32 is mod 2 ** 32;
+      type Length_Array is array (Positive range <>) of Natural;
+
+      LF      : constant Character := Character'Val (10);
+      Seed    : Word_32 := 16#57C0_000A#;
+      Lengths : constant Length_Array := [0, 1, 5, 34, 130, 778];
+
+      function Decimal_Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return Raw (Raw'First + 1 .. Raw'Last);
+      end Decimal_Image;
+
+      function Next_Byte return Character is
+      begin
+         Seed := Seed * 1_103_515_245 + 12_345;
+         if Seed mod 13 = 0 then
+            return LF;
+         end if;
+
+         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 255) + 1);
+      end Next_Byte;
+
+      function Generated (Length : Natural) return String is
+         Result : String (1 .. Length);
+      begin
+         if Length = 0 then
+            return "";
+         end if;
+
+         for I in Result'Range loop
+            Result (I) := Next_Byte;
+         end loop;
+
+         return Result;
+      end Generated;
+
+      function LF_Count (Data : String) return Natural is
+         Count : Natural := 0;
+      begin
+         for C of Data loop
+            if C = LF then
+               Count := Count + 1;
+            end if;
+         end loop;
+
+         return Count;
+      end LF_Count;
+   begin
+      for Length of Lengths loop
+         declare
+            Context : Test_Contexts.Capturing_Context;
+            Result  : Posix_Tools.Commands.Results.Result;
+            Data    : constant String := Generated (Length);
+            Lines   : constant Natural := LF_Count (Data);
+         begin
+            Context.Initialize ("wc", One_Arg ("-l"));
+            Test_Contexts.Set_Standard_Input (Context, Data);
+            Posix_Tools.Commands.Wc.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = Decimal_Image (Lines) & LF,
+               "wc stdin -l property seed 0x57C0000A length" & Natural'Image (Length)
+               & " lines" & Natural'Image (Lines));
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "wc stdin -l property status seed 0x57C0000A length" & Natural'Image (Length));
+         end;
+      end loop;
+   end Test_Wc_Standard_Input_Line_Property;
+
    procedure Test_Wc_Output_Failure (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
