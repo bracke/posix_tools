@@ -35,8 +35,8 @@ Current Ada tooling entry points:
   smoke, staged verification, executable smoke, source archive, release checksum,
   metadata, format, conformance, and AUnit steps.
 - Metadata validation asserts that the CI workflow installs GNATprove through
-  Alire and then runs the selected `posix_tools_tests prove` proof gate after
-  the Ada release gate.
+  Alire, exposes the Alire installation prefix on the runner path, and then runs
+  the selected `posix_tools_tests prove` proof gate after the Ada release gate.
 - Metadata validation also asserts that the `release` branch runs clean-tree
   enforcement before release generation/build work and reports completion
   through the Ada project_tools driver.

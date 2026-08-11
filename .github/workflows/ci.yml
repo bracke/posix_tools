@@ -129,7 +129,9 @@ jobs:
         shell: bash
 
       - name: Install GNATprove
-        run: alr -n install gnatprove
+        run: |
+          alr -n install gnatprove
+          echo "${HOME}/.alire/bin" >> "${GITHUB_PATH}"
         shell: bash
 
       - name: Run Ada proof gate
