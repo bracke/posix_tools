@@ -36,6 +36,8 @@ package Test_Contexts is
    overriding function Standard_Input_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural;
+   overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context);
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Execute_Utility
@@ -60,6 +62,17 @@ package Test_Contexts is
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
+   procedure Set_Tail_Follow_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String);
+   procedure Set_Tail_Follow_Replace
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String);
+   procedure Set_Tail_Follow_Poll_Limit (Self : in out Capturing_Context; Value : Natural);
    procedure Set_Tail_Resource_Limits
      (Self             : in out Capturing_Context;
       Memory_Threshold : Posix_Tools.Numbers.Count;
@@ -86,6 +99,13 @@ private
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;
+      Tail_Follow_Limit : Natural := 0;
+      Tail_Follow_Waits : Natural := 0;
+      Tail_Append_Path : Ada.Strings.Unbounded.Unbounded_String;
+      Tail_Append_Text : Ada.Strings.Unbounded.Unbounded_String;
+      Tail_Append_After : Natural := 0;
+      Tail_Append_Done : Boolean := True;
+      Tail_Append_Replaces : Boolean := False;
       Tail_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Tail_Spill_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
    end record;

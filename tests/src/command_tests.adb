@@ -6496,52 +6496,62 @@ package body Command_Tests is
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "tail later -n status");
    end Test_Tail_Compact_Counts;
 
-   procedure Test_Tail_Follow_Finite (T : in out Fixture) is
+   procedure Test_Tail_Follow_Live (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("reg-tail-follow-option.txt");
+      Reopen  : constant String := Fixture_Path ("reg-tail-follow-reopen.txt");
       LF      : constant Character := Character'Val (10);
    begin
       Write_File (Path, "a" & LF & "b" & LF);
 
       Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Path));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Append (Context, Path, 1, "c" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f finite output");
-      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -f finite diagnostic");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail -f live output");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -f live diagnostic");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
-         "tail -f finite status");
+         "tail -f live status");
 
       Write_File (Path, "a" & LF & "b" & LF);
       Context.Initialize ("tail", Four_Args ("-n", "1", "-f", Path));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Append (Context, Path, 1, "c" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -f after count finite output");
-      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -f after count finite diagnostic");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail -f after count live output");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -f after count live diagnostic");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
-         "tail -f after count finite status");
+         "tail -f after count live status");
 
-      Write_File (Path, "a" & LF & "b" & LF);
-      Context.Initialize ("tail", Four_Args ("-F", "-n", "1", Path));
+      Write_File (Reopen, "older" & LF);
+      Context.Initialize ("tail", Four_Args ("-F", "-n", "1", Reopen));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Replace (Context, Reopen, 1, "n" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail -F finite output");
-      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -F finite diagnostic");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "older" & LF & "n" & LF, "tail -F reopen output");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -F reopen diagnostic");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
-         "tail -F finite status");
+         "tail -F reopen status");
 
       Write_File (Path, "a" & LF & "b" & LF);
       Context.Initialize ("tail", Four_Args ("--follow", "-n", "1", Path));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Append (Context, Path, 1, "c" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF, "tail --follow finite output");
-      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail --follow finite diagnostic");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & LF & "c" & LF, "tail --follow live output");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail --follow live diagnostic");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
-         "tail --follow finite status");
+         "tail --follow live status");
 
       Ada.Directories.Delete_File (Path);
-   end Test_Tail_Follow_Finite;
+      Ada.Directories.Delete_File (Reopen);
+   end Test_Tail_Follow_Live;
 
    procedure Test_Tail_Plus_Origin (T : in out Fixture) is
       pragma Unreferenced (T);

@@ -22,7 +22,8 @@ from the end.
 ## Options
 - `-n number`: line count.
 - `-c number`: byte count.
-- `-f`, `-F`, `--follow`: accepted as finite follow spellings in V1.
+- `-f`: follow appended data after the initial suffix.
+- `-F`, `--follow`: follow by name and reopen after truncation or replacement.
 
 ## Standard Input
 Used when no files are present or when an operand is `-`.
@@ -49,8 +50,12 @@ syntax, embedded whitespace, and numeric overflow are rejected before file
 processing. `--` ends option processing when it appears where the next file
 operand would be.
 
-The V1 follow spellings `-f`, `-F`, and `--follow` do not wait for appended
-data. They emit the ordinary suffix of the currently available input and exit.
+The follow spellings emit the ordinary initial suffix, then poll for additional
+data. `-f` follows the open operand position. `-F` and `--follow` are V1
+follow-by-name extensions that reopen from the beginning after the named input
+shrinks, which covers truncation and replacement. Tests inject finite poll
+limits through the command context; production execution follows until
+interruption or failure.
 
 ## Locale Behavior
 Copied data and headers are not localized in V1.
@@ -70,8 +75,8 @@ fail with a resource diagnostic and no partial suffix output.
 `tail -c 32 file`
 
 ## Conformance Status
-Known deviation tracked by `TAIL-FOLLOW-001`.
+Conforming with extensions.
 
 ## Known Limitations
-`TAIL-FOLLOW-001`: `-f`, `-F`, and `--follow` are finite in V1; live waiting
-and reopen behavior are not implemented.
+Follow mode uses polling rather than platform-specific file-change
+notifications.

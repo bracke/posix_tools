@@ -94,6 +94,18 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
    end Tail_Max_Spill_Bytes;
 
+   function Tail_Follow_Poll_Limit (Self : Context) return Natural is
+      pragma Unreferenced (Self);
+   begin
+      return 0;
+   end Tail_Follow_Poll_Limit;
+
+   procedure Tail_Follow_Wait (Self : in out Context) is
+      pragma Unreferenced (Self);
+   begin
+      delay 0.1;
+   end Tail_Follow_Wait;
+
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count is
       pragma Unreferenced (Self);
    begin

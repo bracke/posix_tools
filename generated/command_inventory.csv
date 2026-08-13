@@ -18,7 +18,7 @@ pwd,posix_tools_pwd,Posix_Tools.Commands.Pwd,tools/pwd/alire.toml,tools/pwd/posi
 rm,posix_tools_rm,Posix_Tools.Commands.Rm,tools/rm/alire.toml,tools/rm/posix_tools_rm.gpr,docs/commands/rm.md,true,conforming_with_extensions,true,true,true
 rmdir,posix_tools_rmdir,Posix_Tools.Commands.Rmdir,tools/rmdir/alire.toml,tools/rmdir/posix_tools_rmdir.gpr,docs/commands/rmdir.md,true,conforming_with_extensions,true,true,true
 sort,posix_tools_sort,Posix_Tools.Commands.Sort,tools/sort/alire.toml,tools/sort/posix_tools_sort.gpr,docs/commands/sort.md,true,known_deviation,true,true,true
-tail,posix_tools_tail,Posix_Tools.Commands.Tail,tools/tail/alire.toml,tools/tail/posix_tools_tail.gpr,docs/commands/tail.md,true,known_deviation,true,true,true
+tail,posix_tools_tail,Posix_Tools.Commands.Tail,tools/tail/alire.toml,tools/tail/posix_tools_tail.gpr,docs/commands/tail.md,true,conforming_with_extensions,true,true,true
 tee,posix_tools_tee,Posix_Tools.Commands.Tee,tools/tee/alire.toml,tools/tee/posix_tools_tee.gpr,docs/commands/tee.md,true,conforming_with_extensions,true,true,true
 test,posix_tools_test,Posix_Tools.Commands.Test_Command,tools/test/alire.toml,tools/test/posix_tools_test.gpr,docs/commands/test.md,true,known_deviation,true,true,true
 touch,posix_tools_touch,Posix_Tools.Commands.Touch,tools/touch/alire.toml,tools/touch/posix_tools_touch.gpr,docs/commands/touch.md,true,known_deviation,true,true,true

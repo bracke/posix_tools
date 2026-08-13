@@ -147,6 +147,60 @@ package body Posix_Tools.Host_Adapters.File_System is
          Ok := False;
    end For_Each_File_Chunk;
 
+   procedure For_Each_File_Chunk_From
+     (Path   : String;
+      Offset : Long_Long_Integer;
+      Ok     : out Boolean)
+   is
+      use Hostkit.Descriptors;
+      File      : Descriptor := Invalid;
+      Buffer    : Byte_Buffer;
+      Last      : Ada.Streams.Stream_Element_Offset;
+      Stop      : Boolean := False;
+      Outcome   : Transfer_Outcome;
+      Remaining : Long_Long_Integer := Offset;
+      First     : Ada.Streams.Stream_Element_Offset;
+   begin
+      Ok := Open_File (Path, Open_Read, File);
+      if not Ok then
+         return;
+      end if;
+
+      while not Stop loop
+         Outcome := Read (File, Buffer, Last);
+         case Outcome is
+            when Transfer_Ok =>
+               if Last >= Buffer'First then
+                  if Remaining >= Long_Long_Integer (Last - Buffer'First + 1) then
+                     Remaining := Remaining - Long_Long_Integer (Last - Buffer'First + 1);
+                  elsif Remaining > 0 then
+                     First := Buffer'First + Ada.Streams.Stream_Element_Offset (Remaining);
+                     Action (Buffer (First .. Last), Last, Stop);
+                     Remaining := 0;
+                  else
+                     Action (Buffer, Last, Stop);
+                  end if;
+               end if;
+
+            when Transfer_Interrupted =>
+               null;
+
+            when Transfer_End_Of_File =>
+               exit;
+
+            when others =>
+               Ok := False;
+               exit;
+         end case;
+      end loop;
+
+      Close (File);
+   exception
+      when others =>
+         Close (File);
+         Ok := False;
+   end For_Each_File_Chunk_From;
+
    function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural is
    begin
       return Hostkit.Metadata.Group_Id_For_Name (Name, Found);

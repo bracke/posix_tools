@@ -1,3 +1,5 @@
+with Ada.Streams.Stream_IO;
+
 package body Test_Contexts is
    use type Ada.Streams.Stream_Element_Offset;
 
@@ -25,6 +27,13 @@ package body Test_Contexts is
       Self.Logical_Pwd_Matches := True;
       Self.Output_Failure_Enabled := False;
       Self.Output_Failure_Limit := 0;
+      Self.Tail_Follow_Limit := 0;
+      Self.Tail_Follow_Waits := 0;
+      Self.Tail_Append_Path := Ada.Strings.Unbounded.Null_Unbounded_String;
+      Self.Tail_Append_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
+      Self.Tail_Append_After := 0;
+      Self.Tail_Append_Done := True;
+      Self.Tail_Append_Replaces := False;
       Self.Tail_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Self.Tail_Spill_Bytes := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
    end Initialize;
@@ -221,6 +230,40 @@ package body Test_Contexts is
       return Self.Error_Is_Terminal;
    end Standard_Error_Is_Terminal;
 
+   overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural is
+   begin
+      return Self.Tail_Follow_Limit;
+   end Tail_Follow_Poll_Limit;
+
+   overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context) is
+      package Stream_IO renames Ada.Streams.Stream_IO;
+      File : Stream_IO.File_Type;
+      Text : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Append_Text);
+      Path : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Append_Path);
+      Data : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
+   begin
+      Self.Tail_Follow_Waits := Self.Tail_Follow_Waits + 1;
+      if not Self.Tail_Append_Done
+        and then Self.Tail_Follow_Waits >= Self.Tail_Append_After
+        and then Path /= ""
+      then
+         for I in Text'Range loop
+            Data (Ada.Streams.Stream_Element_Offset (I - Text'First + 1)) :=
+              Ada.Streams.Stream_Element (Character'Pos (Text (I)));
+         end loop;
+         if Self.Tail_Append_Replaces then
+            Stream_IO.Create (File, Stream_IO.Out_File, Path);
+         else
+            Stream_IO.Open (File, Stream_IO.Append_File, Path);
+         end if;
+         if Text /= "" then
+            Stream_IO.Write (File, Data);
+         end if;
+         Stream_IO.Close (File);
+         Self.Tail_Append_Done := True;
+      end if;
+   end Tail_Follow_Wait;
+
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
    begin
       return Self.Tail_Spill_Bytes;
@@ -380,6 +423,39 @@ package body Test_Contexts is
       Self.Output_Failure_Enabled := True;
       Self.Output_Failure_Limit := Byte_Count;
    end Set_Output_Failure_After;
+
+   procedure Set_Tail_Follow_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String)
+   is
+   begin
+      Self.Tail_Append_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
+      Self.Tail_Append_Text := Ada.Strings.Unbounded.To_Unbounded_String (Text);
+      Self.Tail_Append_After := After_Wait;
+      Self.Tail_Append_Done := False;
+      Self.Tail_Append_Replaces := False;
+   end Set_Tail_Follow_Append;
+
+   procedure Set_Tail_Follow_Replace
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String)
+   is
+   begin
+      Self.Tail_Append_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
+      Self.Tail_Append_Text := Ada.Strings.Unbounded.To_Unbounded_String (Text);
+      Self.Tail_Append_After := After_Wait;
+      Self.Tail_Append_Done := False;
+      Self.Tail_Append_Replaces := True;
+   end Set_Tail_Follow_Replace;
+
+   procedure Set_Tail_Follow_Poll_Limit (Self : in out Capturing_Context; Value : Natural) is
+   begin
+      Self.Tail_Follow_Limit := Value;
+   end Set_Tail_Follow_Poll_Limit;
 
    procedure Set_Tail_Resource_Limits
      (Self             : in out Capturing_Context;

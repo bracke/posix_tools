@@ -220,7 +220,9 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-TAIL-0002 tail compact counts", Test_Tail_Compact_Counts'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:tail follow finite", Test_Tail_Follow_Finite'Access));
+        (Result, Caller.Create ("command:tail follow live", Test_Tail_Follow_Live'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("regression:REG-TAIL-0006 tail live follow", Test_Tail_Follow_Live'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tail invalid count", Test_Tail_Invalid_Count'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-TAIL-0003 tail invalid count", Test_Tail_Invalid_Count'Access));

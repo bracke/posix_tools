@@ -73,6 +73,16 @@ package Posix_Tools.Host_Adapters.File_System is
      (Path   : String;
       Ok     : out Boolean);
 
+   generic
+      with procedure Action
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean);
+   procedure For_Each_File_Chunk_From
+     (Path   : String;
+      Offset : Long_Long_Integer;
+      Ok     : out Boolean);
+
    function Physical_Current_Directory return String;
    function Try_Physical_Current_Directory (Path : out String; Last : out Natural) return Boolean;
 

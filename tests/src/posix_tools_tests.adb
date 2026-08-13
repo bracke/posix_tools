@@ -1524,7 +1524,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail compact counts");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail follow finite");
+        (Check, "tests/src/command_tests-suite.adb", "command:tail follow live");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail invalid count");
       Project_Tools.Release_Checks.Require_Text
@@ -1554,9 +1554,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -c+4 compact output");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "tail -f finite status");
+        (Check, "tests/src/command_tests.adb", "tail -f live status");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "tail --follow finite status");
+        (Check, "tests/src/command_tests.adb", "tail --follow live status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests.adb", "tail -F reopen status");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail later -c overrides earlier -n");
       Project_Tools.Release_Checks.Require_Text
@@ -1581,6 +1583,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/regressions.csv", "REG-TAIL-0003");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-TAIL-0005");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-TAIL-0006");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Context.Argument (First_File) = ""--""");
       Project_Tools.Release_Checks.Require_Text

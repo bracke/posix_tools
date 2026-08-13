@@ -116,7 +116,7 @@ package body Posix_Tools.Command_Inventory is
       17 => (Rm_Exe'Access, Rm_Crate'Access, Rm_Pkg'Access, Conforming_With_Extensions'Access),
       18 => (Rmdir_Exe'Access, Rmdir_Crate'Access, Rmdir_Pkg'Access, Conforming_With_Extensions'Access),
       19 => (Sort_Exe'Access, Sort_Crate'Access, Sort_Pkg'Access, Known_Deviation'Access),
-      20 => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Known_Deviation'Access),
+      20 => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Conforming_With_Extensions'Access),
       21 => (Tee_Exe'Access, Tee_Crate'Access, Tee_Pkg'Access, Conforming_With_Extensions'Access),
       22 => (Test_Exe'Access, Test_Crate'Access, Test_Pkg'Access, Known_Deviation'Access),
       23 => (Touch_Exe'Access, Touch_Crate'Access, Touch_Pkg'Access, Known_Deviation'Access),

@@ -3,6 +3,7 @@ with Posix_Tools.Counts;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Posix_Tools.Numbers;
 with Posix_Tools.Tail_Rings;
@@ -14,6 +15,7 @@ package body Posix_Tools.Commands.Tail is
 
    type Mode is (Line_Mode, Byte_Mode);
    type Count_Origin is (From_End, From_Start);
+   type Follow_Mode is (No_Follow, Follow_Descriptor, Follow_Name);
 
    function Parse_Count
      (Text : String;
@@ -291,6 +293,127 @@ package body Posix_Tools.Commands.Tail is
       end;
    end Tail_Bytes;
 
+   procedure Copy_File_From_Offset
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Offset    : Long_Long_Integer;
+      Ok        : out Boolean)
+   is
+      procedure Copy_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean)
+      is
+      begin
+         if Last >= Buffer'First then
+            Context.Put (To_String (Buffer, Last));
+            Stop := Context.Output_Failed;
+         end if;
+      end Copy_Chunk;
+
+      procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk_From
+        (Action => Copy_Chunk);
+   begin
+      Iterate (File_Name, Offset, Ok);
+      if Ok then
+         Ok := not Context.Output_Failed;
+      else
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, File_Name, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+      end if;
+   end Copy_File_From_Offset;
+
+   procedure Follow_File_Operands
+     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+      First_File  : Positive;
+      Last_File   : Natural;
+      Sources     : Natural;
+      Follow      : Follow_Mode;
+      All_Ok      : in out Boolean)
+   is
+      type Offset_Array is array (Positive range <>) of Long_Long_Integer;
+      Offsets : Offset_Array (First_File .. Last_File);
+      Polls   : Natural := 0;
+      Limit   : constant Natural := Context.Tail_Follow_Poll_Limit;
+      Ok      : Boolean;
+
+      procedure Emit_Header (File_Index : Positive) is
+      begin
+         if Sources > 1 then
+            Context.Put_Line ("");
+            if not Context.Output_Failed then
+               Context.Put_Line ("==> " & Context.Argument (File_Index) & " <==");
+            end if;
+         end if;
+      end Emit_Header;
+   begin
+      for I in First_File .. Last_File loop
+         if Context.Argument (I) = "-" then
+            Offsets (I) := 0;
+         else
+            Offsets (I) := Posix_Tools.Host_Adapters.File_System.Size (Context.Argument (I));
+            if Offsets (I) < 0 then
+               Offsets (I) := 0;
+            end if;
+         end if;
+      end loop;
+
+      loop
+         exit when Limit /= 0 and then Polls >= Limit;
+         Context.Tail_Follow_Wait;
+         Polls := Polls + 1;
+
+         for I in First_File .. Last_File loop
+            exit when Context.Output_Failed;
+            if Context.Argument (I) = "-" then
+               Posix_Tools.Commands.File_Helpers.Copy_Standard_Input (Context, Ok);
+               All_Ok := All_Ok and Ok;
+            else
+               declare
+                  Current_Size : constant Long_Long_Integer :=
+                    Posix_Tools.Host_Adapters.File_System.Size (Context.Argument (I));
+               begin
+                  if Current_Size < 0 then
+                     if Follow = Follow_Descriptor then
+                        All_Ok := False;
+                        Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                          (Context,
+                           Context.Argument (I),
+                           "posix_tools.diagnostic.file.read_failed",
+                           "cannot read file");
+                        return;
+                     end if;
+                  elsif Current_Size < Offsets (I) then
+                     if Follow = Follow_Name then
+                        if Sources > 1 then
+                           Emit_Header (I);
+                        end if;
+                        Copy_File_From_Offset (Context, Context.Argument (I), 0, Ok);
+                        All_Ok := All_Ok and Ok;
+                        Offsets (I) := Current_Size;
+                     else
+                        Offsets (I) := Current_Size;
+                     end if;
+                  elsif Current_Size > Offsets (I) then
+                     if Sources > 1 then
+                        Emit_Header (I);
+                     end if;
+                     Copy_File_From_Offset (Context, Context.Argument (I), Offsets (I), Ok);
+                     All_Ok := All_Ok and Ok;
+                     Offsets (I) := Current_Size;
+                  end if;
+               end;
+            end if;
+         end loop;
+
+         exit when Context.Output_Failed;
+      end loop;
+
+      if Context.Output_Failed then
+         All_Ok := False;
+      end if;
+   end Follow_File_Operands;
+
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -304,6 +427,7 @@ package body Posix_Tools.Commands.Tail is
       Current_Mode : Mode := Line_Mode;
       Requested  : Posix_Tools.Numbers.Count := 10;
       Origin     : Count_Origin := From_End;
+      Follow     : Follow_Mode := No_Follow;
       Index      : Positive := 1;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -318,6 +442,7 @@ package body Posix_Tools.Commands.Tail is
            or else Context.Argument (Index) = "-F"
            or else Context.Argument (Index) = "--follow"
          then
+            Follow := (if Context.Argument (Index) = "-f" then Follow_Descriptor else Follow_Name);
             Index := Index + 1;
          elsif Context.Argument (Index) = "-n" or else Context.Argument (Index) = "-c" then
             if Index = Count then
@@ -404,6 +529,26 @@ package body Posix_Tools.Commands.Tail is
                All_Ok := All_Ok and Ok;
             end loop;
          end;
+      end if;
+
+      if Follow /= No_Follow and then All_Ok and then not Context.Output_Failed then
+         if First_File <= Count then
+            Follow_File_Operands (Context, First_File, Count, Sources, Follow, All_Ok);
+         else
+            declare
+               Polls : Natural := 0;
+               Limit : constant Natural := Context.Tail_Follow_Poll_Limit;
+            begin
+               loop
+                  exit when Limit /= 0 and then Polls >= Limit;
+                  Context.Tail_Follow_Wait;
+                  Polls := Polls + 1;
+                  Posix_Tools.Commands.File_Helpers.Copy_Standard_Input (Context, Ok);
+                  All_Ok := All_Ok and Ok;
+                  exit when Context.Output_Failed or else not Ok;
+               end loop;
+            end;
+         end if;
       end if;
 
       Result.Status :=

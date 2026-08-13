@@ -17,6 +17,7 @@ REG-TAIL-0002,tail,recognize compact and plus-prefixed tail counts as options ra
 REG-TAIL-0003,tail,reject invalid compact and negative counts without exceptions,command:tail invalid count
 REG-TAIL-0004,tail,stop suffix emission and return operational failure when stdout fails without a read diagnostic,command:tail output failure
 REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail invalid count
+REG-TAIL-0006,tail,emit bytes appended after the initial suffix for follow mode and reopen a truncated file for follow-by-name mode,command:tail follow live
 REG-WC-0002,wc,count split UTF-8 characters for -m and reject incomplete sequences in text modes,streams:utf-8 counting; command:wc invalid UTF-8
 REG-WC-0003,wc,reject overlong bad-continuation surrogate and out-of-range UTF-8 sequences in text modes without printing partial counts,command:wc malformed UTF-8
 REG-WC-0004,wc,reject surrogate and out-of-range UTF-8 code point encodings in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
