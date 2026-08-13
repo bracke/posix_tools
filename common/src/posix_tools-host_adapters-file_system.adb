@@ -121,6 +121,28 @@ package body Posix_Tools.Host_Adapters.File_System is
       Ada.Directories.Create_Directory (Path);
    end Create_Directory;
 
+   function Create_Device
+     (Path   : String;
+      Kind   : Special_File_Kind;
+      Device : Interfaces.Unsigned_64;
+      Mode   : Natural) return Boolean
+   is
+   begin
+      case Kind is
+         when Character_Device =>
+            return Hostkit.Fs.Create_Device (Path, Hostkit.Fs.Character_Device, Device, Mode);
+         when Block_Device =>
+            return Hostkit.Fs.Create_Device (Path, Hostkit.Fs.Block_Device, Device, Mode);
+         when others =>
+            return False;
+      end case;
+   end Create_Device;
+
+   function Create_FIFO (Path : String; Mode : Natural) return Boolean is
+   begin
+      return Hostkit.Fs.Create_FIFO (Path, Mode);
+   end Create_FIFO;
+
    function Create_Hard_Link (Source : String; Target : String) return Boolean is
    begin
       return Hostkit.Fs.Create_Hard_Link (Source, Target);
@@ -142,8 +164,12 @@ package body Posix_Tools.Host_Adapters.File_System is
    end Delete_Directory;
 
    procedure Delete_File (Path : String) is
+      Deleted : Boolean := False;
    begin
-      Ada.Directories.Delete_File (Path);
+      GNAT.OS_Lib.Delete_File (Path, Deleted);
+      if not Deleted then
+         Ada.Directories.Delete_File (Path);
+      end if;
    end Delete_File;
 
    function Delete_Link (Path : String) return Boolean is
@@ -498,6 +524,22 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Long_Long_Integer (Ada.Directories.Size (Path));
    end Size;
+
+   function Special_File_Info_Of (Path : String) return Special_File_Info is
+      Source : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Path);
+   begin
+      return
+        (Available => Source.Available,
+         Kind      =>
+           (case Source.Kind is
+              when Hostkit.Fs.Not_Special => Not_Special,
+              when Hostkit.Fs.FIFO => FIFO,
+              when Hostkit.Fs.Character_Device => Character_Device,
+              when Hostkit.Fs.Block_Device => Block_Device,
+              when Hostkit.Fs.Other_Special => Other_Special),
+         Device    => Source.Device,
+         Mode      => Source.Mode);
+   end Special_File_Info_Of;
 
    function User_Id_For_Name (Name : String; Found : out Boolean) return Natural is
    begin

@@ -51,6 +51,7 @@ with Test_Contexts;
 package body Command_Tests is
    use type Ada.Directories.File_Size;
    use type Ada.Directories.File_Kind;
+   use type Hostkit.Fs.Special_File_Kind;
    use type Posix_Tools.Host_Adapters.Signals.Disposition;
    use type Posix_Tools.Exit_Status.Code;
    use Ada.Strings.Unbounded;
@@ -305,6 +306,8 @@ package body Command_Tests is
       Empty   : constant String := Fixture_Path ("expanded-empty");
       Cp_Directory_Source : constant String := Fixture_Path ("expanded-cp-directory-source");
       Cp_Directory_Target : constant String := Fixture_Path ("expanded-cp-directory-target");
+      Cp_FIFO_Source : constant String := Fixture_Path ("expanded-cp-fifo-source");
+      Cp_FIFO_Target : constant String := Fixture_Path ("expanded-cp-fifo-target");
       Parent_Block : constant String := Fixture_Path ("expanded-parent-block");
       Option_Dir : constant String := Fixture_Path ("expanded-option-operands");
       Touched : constant String := Fixture_Path ("expanded-touch.txt");
@@ -320,7 +323,14 @@ package body Command_Tests is
             if Ada.Directories.Kind (Path) = Ada.Directories.Directory then
                Ada.Directories.Delete_Tree (Path);
             else
-               Ada.Directories.Delete_File (Path);
+               declare
+                  Deleted : Boolean := False;
+               begin
+                  GNAT.OS_Lib.Delete_File (Path, Deleted);
+                  if not Deleted then
+                     Ada.Directories.Delete_File (Path);
+                  end if;
+               end;
             end if;
          end if;
       exception
@@ -385,6 +395,8 @@ package body Command_Tests is
       Remove_Any (Empty);
       Remove_Any (Cp_Directory_Source);
       Remove_Any (Cp_Directory_Target);
+      Remove_Any (Cp_FIFO_Source);
+      Remove_Any (Cp_FIFO_Target);
       Remove_Any (Parent_Block);
       Remove_Any (Option_Dir);
       Remove_Any (Touched);
@@ -530,9 +542,22 @@ package body Command_Tests is
          Context.Initialize ("cp", Two_Args ("/dev/null", Target));
          Posix_Tools.Commands.Cp.Run (Context, Result);
          AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-            and then Contains (Test_Contexts.Error_Output (Context), "unsupported file type"),
-            "cp rejects portable special files explicitly");
+           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+            "cp reports portable special file creation failure");
+      end if;
+
+      if Hostkit.Fs.Create_FIFO (Cp_FIFO_Source, 8#600#) then
+         Context.Initialize ("cp", Two_Args (Cp_FIFO_Source, Cp_FIFO_Target));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         declare
+            Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Target);
+         begin
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success
+               and then Info.Available
+               and then Info.Kind = Hostkit.Fs.FIFO,
+               "REG-CP-0003 cp recreates FIFO special files through hostkit");
+         end;
       end if;
 
       Ada.Directories.Create_Directory (Tree);

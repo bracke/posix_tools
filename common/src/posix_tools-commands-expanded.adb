@@ -48,6 +48,7 @@ package body Posix_Tools.Commands.Expanded is
    package FS renames Posix_Tools.Host_Adapters.File_System;
    use type Posix_Tools.Host_Adapters.File_System.Copy_File_Status;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
+   use type Posix_Tools.Host_Adapters.File_System.Special_File_Kind;
 
    procedure Set_Success
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
@@ -333,9 +334,55 @@ package body Posix_Tools.Commands.Expanded is
 
       if FS.Kind (Source) = FS.Special_File
       then
-         Ok := False;
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context, Source, "posix_tools.diagnostic.file.unsupported_type", "unsupported file type");
+         declare
+            Info    : constant FS.Special_File_Info := FS.Special_File_Info_Of (Source);
+            Created : Boolean := False;
+         begin
+            if FS.Kind (Target) = FS.Directory then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Target, "posix_tools.diagnostic.file.not_directory", "not a directory");
+               return;
+            elsif FS.Exists (Target) then
+               if FS.Is_Link (Target) then
+                  Ok := FS.Delete_Link (Target);
+               else
+                  begin
+                     FS.Delete_File (Target);
+                     Ok := True;
+                  exception
+                     when others =>
+                        Ok := False;
+                  end;
+               end if;
+
+               if not Ok then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+                  return;
+               end if;
+            end if;
+
+            if Info.Available and then Info.Kind = FS.FIFO then
+               Created := FS.Create_FIFO (Target, Info.Mode);
+            elsif Info.Available and then Info.Kind in FS.Character_Device | FS.Block_Device then
+               Created := FS.Create_Device (Target, Info.Kind, Info.Device, Info.Mode);
+            end if;
+
+            if Created then
+               Apply_Source_Metadata;
+            elsif Info.Available
+              and then Info.Kind in FS.FIFO | FS.Character_Device | FS.Block_Device
+            then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            else
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Source, "posix_tools.diagnostic.file.unsupported_type", "unsupported file type");
+            end if;
+         end;
          return;
       end if;
 
@@ -6118,7 +6165,8 @@ package body Posix_Tools.Commands.Expanded is
                  and then Format (I + 1) in 'd' | 'i' | 'u' | 'o' | 'x' | 'X' | 'f' | 'e' | 'E' | 'g' | 'G'
                then
                   declare
-                     Numeric_Text : constant String := (if Arg <= Context.Argument_Count then Context.Argument (Arg) else "0");
+                     Numeric_Text : constant String :=
+                       (if Arg <= Context.Argument_Count then Context.Argument (Arg) else "0");
                      Numeric_Ok   : Boolean;
                      Image        : constant String :=
                        (if Format (I + 1) in 'd' | 'i'

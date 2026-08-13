@@ -1,10 +1,23 @@
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Calendar;
+with Interfaces;
 private with GNAT.OS_Lib;
 
 package Posix_Tools.Host_Adapters.File_System is
    type File_Kind is (Missing_File, Directory, Ordinary_File, Special_File);
+   type Special_File_Kind is
+     (Not_Special,
+      FIFO,
+      Character_Device,
+      Block_Device,
+      Other_Special);
+   type Special_File_Info is record
+      Available : Boolean := False;
+      Kind      : Special_File_Kind := Not_Special;
+      Device    : Interfaces.Unsigned_64 := 0;
+      Mode      : Natural := 0;
+   end record;
    type Copy_File_Status is
      (Copy_Ok,
       Source_Open_Failed,
@@ -17,7 +30,13 @@ package Posix_Tools.Host_Adapters.File_System is
    function Containing_Directory (Path : String) return String;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
+   function Create_Device
+     (Path   : String;
+      Kind   : Special_File_Kind;
+      Device : Interfaces.Unsigned_64;
+      Mode   : Natural) return Boolean;
    procedure Create_Directory (Path : String);
+   function Create_FIFO (Path : String; Mode : Natural) return Boolean;
    function Create_Hard_Link (Source : String; Target : String) return Boolean;
    function Create_Link (Source : String; Target : String) return Boolean;
    procedure Create_Path (Path : String);
@@ -61,6 +80,7 @@ package Posix_Tools.Host_Adapters.File_System is
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
    function Simple_Name (Path : String) return String;
    function Size (Path : String) return Long_Long_Integer;
+   function Special_File_Info_Of (Path : String) return Special_File_Info;
    function User_Id_For_Name (Name : String; Found : out Boolean) return Natural;
    function User_Name_For_Id (Id : Natural) return String;
 

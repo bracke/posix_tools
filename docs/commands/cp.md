@@ -51,7 +51,9 @@ non-directory.
 Copies that would write a source onto the same underlying destination file, including a destination hard link to the
 source where hostkit reports identity, fail before writing. Recursive copies that would place the destination at or
 below the source directory fail before creating the destination subtree.
-Portable special-file sources are rejected explicitly with an unsupported-file-type diagnostic.
+FIFOs and character or block device nodes are recreated through hostkit where the platform exposes portable special
+file metadata and permits creation. Unsupported or unknown special-file kinds fail with a localized
+unsupported-file-type diagnostic.
 
 ## Locale Behavior
 Diagnostics and help are localized; copied data is not localized.
@@ -59,6 +61,8 @@ Diagnostics and help are localized; copied data is not localized.
 ## Implementation-Defined Choices
 Multiple source operands require the target to be an existing directory. Ownership preservation with `-p` is attempted
 only when source and target ownership metadata are both available, and it can still be refused by host permissions.
+Special-file recreation is limited by host platform capabilities and ordinary filesystem permissions; device-node
+creation is commonly privileged.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -70,4 +74,5 @@ only when source and target ownership metadata are both available, and it can st
 Known deviation tracked by `CP-V1-DEVIATION-001`.
 
 ## Known Limitations
-Special files are not copied or recreated; portable special-file sources are rejected explicitly.
+Special-file recreation is implemented for FIFOs and character or block device nodes where hostkit can report source
+metadata and create the target kind. Other special-file kinds are rejected explicitly.
