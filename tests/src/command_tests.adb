@@ -599,6 +599,15 @@ package body Command_Tests is
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "existing-data", "cp -fi preserves target");
 
+      Context.Initialize ("cp", Three_Args ("-i", Source, Target));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
+      Posix_Tools.Commands.Cp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Error_Output (Context) = "cp: overskriv '" & Target & "'?" & EOL,
+         "REG-CP-0002 cp localizes interactive overwrite prompt");
+
       Ada.Directories.Create_Path (Tree & "/sub");
       Write_File (Tree & "/sub/file.txt", "tree-data");
       Context.Initialize ("cp", Three_Args ("-R", Tree, Tree_Copy));

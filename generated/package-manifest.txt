@@ -6,8 +6,8 @@ README.md bytes= 967 fnv1a64=843ab1fd5da4d686
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 .github/workflows/ci.yml bytes= 3333 fnv1a64=6fb740f9035b06ec
 generated/command_inventory.csv bytes= 4824 fnv1a64=6cbaea12c9e5e865
-generated/requirements.csv bytes= 67720 fnv1a64=2abf448a85e6092a
-generated/regressions.csv bytes= 5618 fnv1a64=31bf32fbf0674c89
+generated/requirements.csv bytes= 67734 fnv1a64=54d47fe054f36dc7
+generated/regressions.csv bytes= 5757 fnv1a64=8a322dad1ae98524
 generated/manual-index.md bytes= 931 fnv1a64=228c2919f76d77ee
 generated/man/posix-tools.1 bytes= 1758 fnv1a64=acc30b6ab4e2bcf8
 CHANGELOG.md bytes= 1094 fnv1a64=af7dcbc91ffe4a52
@@ -49,7 +49,7 @@ common/src/posix_tools-commands-echo.adb bytes= 839 fnv1a64=56567e0ae7c12ca9
 common/src/posix_tools-commands-echo.ads bytes= 283 fnv1a64=702f217b11c8e220
 common/src/posix_tools-commands-env.adb bytes= 376 fnv1a64=19404dc16acdd3de
 common/src/posix_tools-commands-env.ads bytes= 281 fnv1a64=94f54e6d25002d10
-common/src/posix_tools-commands-expanded.adb bytes= 360546 fnv1a64=fbeae6010baf1348
+common/src/posix_tools-commands-expanded.adb bytes= 361141 fnv1a64=cd1a405c69e357d4
 common/src/posix_tools-commands-expanded.ads bytes= 707 fnv1a64=5d07bbd7122daf9e
 common/src/posix_tools-commands-false_command.adb bytes= 544 fnv1a64=0e347518b98222e8
 common/src/posix_tools-commands-false_command.ads bytes= 301 fnv1a64=d1c3016e56e37b80
@@ -60,7 +60,7 @@ common/src/posix_tools-commands-find.ads bytes= 283 fnv1a64=dcf6ee51dcb111ac
 common/src/posix_tools-commands-head.adb bytes= 3463 fnv1a64=8383578380ee350b
 common/src/posix_tools-commands-head.ads bytes= 283 fnv1a64=2c9cdb6d69181254
 common/src/posix_tools-commands-helpers.adb bytes= 10616 fnv1a64=2aec4ca59c5f8148
-common/src/posix_tools-commands-helpers.ads bytes= 891 fnv1a64=703c86a9a896c90c
+common/src/posix_tools-commands-helpers.ads bytes= 952 fnv1a64=23071150f382e775
 common/src/posix_tools-commands-ln.adb bytes= 373 fnv1a64=273159cbc3e96b0f
 common/src/posix_tools-commands-ln.ads bytes= 279 fnv1a64=f84e7505ac8660b8
 common/src/posix_tools-commands-mkdir.adb bytes= 382 fnv1a64=d0d7cd63a75c9a72
@@ -147,7 +147,7 @@ common/generated/posix_tools-text-whitespace_data.ads bytes= 907 fnv1a64=ee53832
 common/src/posix_tools-version.ads bytes= 175 fnv1a64=b43e43227d90b763
 common/src/posix_tools-wc_fields.adb bytes= 958 fnv1a64=09621935da4f615a
 common/src/posix_tools-wc_fields.ads bytes= 774 fnv1a64=2cbc5a6bf75030a3
-common/messages/posix_tools.catalog bytes= 12360 fnv1a64=db5e43fb67870cc8
+common/messages/posix_tools.catalog bytes= 12791 fnv1a64=a6e8bb65dc9d24ee
 tests/alire.toml bytes= 569 fnv1a64=a7f41cd82ea20b64
 tests/posix_tools_tests.gpr bytes= 462 fnv1a64=6095a7344f38ff64
 tests/src/all_suites.adb bytes= 474 fnv1a64=878d440d1afc7777
@@ -156,9 +156,9 @@ tests/src/basic_tests-suite.adb bytes= 2228 fnv1a64=e3e6c820a63cf831
 tests/src/basic_tests-suite.ads bytes= 144 fnv1a64=f3410c36b0f313aa
 tests/src/basic_tests.adb bytes= 29974 fnv1a64=1803bc7fcbf2eeff
 tests/src/basic_tests.ads bytes= 993 fnv1a64=9ecaabaa14c3b7c5
-tests/src/command_tests-suite.adb bytes= 17934 fnv1a64=13eca97b398ffd6a
+tests/src/command_tests-suite.adb bytes= 18122 fnv1a64=7cb68b3426797195
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
-tests/src/command_tests.adb bytes= 367624 fnv1a64=538db588ffd5a843
+tests/src/command_tests.adb bytes= 368107 fnv1a64=4f6dc61d851f906c
 tests/src/command_tests.ads bytes= 5050 fnv1a64=841075d932a871a5
 tests/src/posix_tools_tests.adb bytes= 261516 fnv1a64=d9668145a9fd5d1d
 tests/src/test_contexts.adb bytes= 18152 fnv1a64=b061b26c6b04f65f
@@ -201,11 +201,11 @@ tools/cat/alire.toml bytes= 407 fnv1a64=8242d170a9dea0bc
 tools/cat/posix_tools_cat.gpr bytes= 343 fnv1a64=bafc72c7f8a9826d
 tools/cat/src/cat.adb bytes= 224 fnv1a64=5887e881e30b0b76
 docs/commands/cat.md bytes= 1478 fnv1a64=d7c58dc56dec17f3
-generated/man/cp.1 bytes= 3526 fnv1a64=e0e0774fca43d10b
+generated/man/cp.1 bytes= 3436 fnv1a64=19466b7e2473fb44
 tools/cp/alire.toml bytes= 403 fnv1a64=a857e0fb88bd3a56
 tools/cp/posix_tools_cp.gpr bytes= 339 fnv1a64=049e7d50130b3399
 tools/cp/src/cp.adb bytes= 219 fnv1a64=86ae54b85b1c04b7
-docs/commands/cp.md bytes= 3566 fnv1a64=a27aff22f5cda147
+docs/commands/cp.md bytes= 3478 fnv1a64=6dafae2dc51ea038
 generated/man/date.1 bytes= 2653 fnv1a64=d5ef98058135dbaf
 tools/date/alire.toml bytes= 411 fnv1a64=e5d4e8bd0e49eef2
 tools/date/posix_tools_date.gpr bytes= 347 fnv1a64=ddfab84cb5cf3071

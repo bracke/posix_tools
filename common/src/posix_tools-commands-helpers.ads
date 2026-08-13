@@ -2,6 +2,8 @@ with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Results;
 
 package Posix_Tools.Commands.Helpers is
+   function Escape_Untrusted (Text : String) return String;
+
    function Intercept_Extension
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;

@@ -40,7 +40,8 @@ Overwrite prompts and diagnostics for invalid usage and file failures.
 
 ## Behavioral Details
 The V1 expanded implementation copies file contents through bounded internal buffers at the command boundary. Recursive
-directory copying creates missing target directories and copies contained entries. Interactive overwrite prompts accept
+directory copying creates missing target directories and copies contained entries. Interactive overwrite prompts are
+localized through `messages`, safely escape untrusted path text, and accept
 an initial `y` or `Y` byte as confirmation; any other response, including end-of-input, skips that operand without
 treating the skip as a copy failure. Symbolic links are followed unless `-P` is the last selected symlink traversal
 mode.
@@ -69,6 +70,4 @@ only when source and target ownership metadata are both available, and it can st
 Known deviation tracked by `CP-V1-DEVIATION-001`.
 
 ## Known Limitations
-Special files are not copied or recreated; portable special-file sources are rejected explicitly. Some recursive
-subtree traversal failures still use the generic file-open diagnostic where the portable Ada directory API does not
-expose a more specific cause.
+Special files are not copied or recreated; portable special-file sources are rejected explicitly.

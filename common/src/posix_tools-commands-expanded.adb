@@ -312,14 +312,21 @@ package body Posix_Tools.Commands.Expanded is
                procedure For_Each_Child is new FS.For_Each_Directory_Entry (Copy_Child);
             begin
                For_Each_Child (Source, Iteration_Ok);
-               Ok := Ok and Iteration_Ok;
+               if not Iteration_Ok then
+                  Ok := False;
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context,
+                     Source,
+                     "posix_tools.diagnostic.file.read_directory_failed",
+                     "cannot read directory");
+               end if;
             end;
             return;
          exception
             when others =>
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Source, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+                 (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
                return;
          end;
       end if;
@@ -2203,7 +2210,13 @@ package body Posix_Tools.Commands.Expanded is
             return True;
          end if;
 
-         Context.Put_Error_Line ("cp: overwrite '" & Path & "'?");
+         Context.Put_Error_Line
+           (Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.cp.overwrite.prompt",
+               "path",
+               Posix_Tools.Commands.Helpers.Escape_Untrusted (Path),
+               "cp: overwrite '" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Path) & "'?"));
          if not Context.Try_Read_Standard_Input (Buffer, Last) or else Last < Buffer'First then
             return False;
          end if;
