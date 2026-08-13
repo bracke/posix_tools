@@ -1,0 +1,64 @@
+.TH find 1
+.SH NAME
+find - walk file hierarchies.
+.SH SYNOPSIS
+find [path...] [expression]
+.SH DESCRIPTION
+Writes each supplied path and recursively visits directory contents. The supported expression subset includes -name,
+-path, -exec, -ok, -group, -nogroup, -nouser, -mtime, -newer, -perm, -size, -type, -user, -depth,
+-prune, -xdev, !, -a, -o, parentheses, and explicit -print. When no expression action is present, matching
+pathnames are printed by the default action.
+.SH OPERANDS
+path: starting point. With no operands, . is used. A lone - is treated as
+an ordinary starting path, not as an option.
+.SH OPTIONS
+-- ends option recognition for path operands. -name pattern emits only paths whose final component matches simple
+*, ?, and bracket-list or bracket-range wildcard patterns. -perm mode matches exact octal or symbolic permission
+templates where hostkit reports permission bits, and -perm -mode matches paths where all selected bits are set.
+-type f emits ordinary files,
+-type d emits directories, -type l emits symbolic links, -type b, -type c, -type p, and -type s match
+Ada's portable special-file category where reported, -size n matches 512-byte block counts rounded up,
+-size nc matches byte counts, and +n or -n select greater-than or less-than comparisons. -mtime n matches
+24-hour periods since modification time using the same exact, greater-than, and less-than count prefixes. -newer file
+matches paths modified after the reference file. -user name and -group name match numeric ids or host-resolved names
+where hostkit reports ownership. -nouser and -nogroup match ownership ids that hostkit can read but cannot resolve
+to a user or group name. -path pattern matches the whole current pathname using the same wildcard rules as -name,
+-depth evaluates each directory after its contents, -prune prevents descent into the current directory when -depth
+is not active, -xdev is accepted as a true primary while device-boundary pruning remains a documented limitation,
+-exec utility [argument...] ; invokes a utility through the command context after replacing each standalone {}
+argument with the current pathname, -exec utility [argument...] {} + batches matching pathnames after the preceding
+arguments and invokes the utility after traversal, -ok utility [argument...] ; prompts on standard error and invokes
+the utility only for an affirmative y or Y response on standard input, and -print explicitly selects pathname
+output.
+Expressions may combine predicates with implicit AND, explicit -a,
+explicit -o, !, and parentheses. Project extensions --help, --version, and --posix-tools-identify are
+recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Visited pathnames, one per line.
+.SH STANDARD ERROR
+Diagnostics for traversal failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Traversal is synchronous and deterministic within host directory enumeration order.
+.SH LOCALE BEHAVIOR
+Path output is not localized. Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Only -name, -path, -exec ... ;, -exec ... +, -ok ... ;, -group, -nogroup, -nouser, -mtime, -newer,
+-perm mode, -perm -mode with octal or symbolic modes, -size n[c], -type f|d|l|b|c|p|s, -user, -depth,
+-prune, -xdev, boolean operators, parentheses, and -print expressions are interpreted in this increment.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+find src
+.SH CONFORMANCE STATUS
+Known deviation tracked by FIND-V1-DEVIATION-001.
+.SH KNOWN LIMITATIONS
+Predicates other than the supported set above are not implemented. -xdev is parsed and evaluated as true, but hostkit
+does not yet expose device identity for portable cross-device pruning. The special-file type letters share Ada's
+portable Special_File category until hostkit exposes exact device, FIFO, and socket type distinctions.
+.SH SEE ALSO
+docs/commands/find.md
+

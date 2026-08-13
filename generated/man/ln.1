@@ -1,0 +1,43 @@
+.TH ln 1
+.SH NAME
+ln - create a link.
+.SH SYNOPSIS
+ln [-fsv] [--] source... target
+.SH DESCRIPTION
+Creates a hard link by default or a symbolic link with -s.
+.SH OPERANDS
+source: source path. target: target path or existing directory.
+.SH OPTIONS
+-f removes an existing non-directory target before creating the replacement. -s creates a symbolic link. -v
+writes one deterministic source-to-target line after each successful link. -- ends option recognition. Options are
+recognized before the first source operand; later option-like words are source or target operands. Project
+extensions --help, --version, and
+--posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success unless -v is selected.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and link failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Hard links are created through hostkit. If the target operand names an existing directory, each source is linked inside
+that directory using its lexical basename. Symbolic links are attempted through hostkit and may fail as an ordinary
+operational failure on hosts that deny the required capability.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Directory target forms use the project POSIX lexical basename policy for the created link name. Link failures are
+reported through the project portable diagnostic categories.
+.SH EXTENSIONS
+-v, --help, --version, --posix-tools-identify.
+.SH EXAMPLES
+ln source target
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by LN-POSIX-001.
+.SH KNOWN LIMITATIONS
+None for the V1 supported surface.
+.SH SEE ALSO
+docs/commands/ln.md
+

@@ -1,0 +1,45 @@
+.TH mkdir 1
+.SH NAME
+mkdir - create directories.
+.SH SYNOPSIS
+mkdir [-p] [-m mode] [--] directory...
+.SH DESCRIPTION
+Creates each named directory.
+.SH OPERANDS
+directory: directory path to create.
+.SH OPTIONS
+-p creates parent directories as needed. -m mode and attached forms such as
+-m755 accept numeric octal mode operands and symbolic u, g, o, a
+clauses using +, -, = with r, w, x, X, s, t, and u, g,
+o permission-copy operands; grouped forms such as -pm755 are recognized.
+Parsed modes are applied through hostkit where the host supports them. Options are recognized before the first
+directory operand; later option-like words are directory operands. The end-of-options marker -- is accepted.
+Project extensions --help, --version, and --posix-tools-identify are
+recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and creation failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Operands are processed in order and recoverable failures are diagnosed.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Modes are applied after creation through hostkit. Symbolic relative modes are evaluated from the created directory mode
+where permission bits are available. Host-specific permission models may render these bits rather than store POSIX mode
+bits natively.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+mkdir -p a/b
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by MKDIR-POSIX-001.
+.SH KNOWN LIMITATIONS
+Host-specific permission models may not store every POSIX mode bit natively.
+.SH SEE ALSO
+docs/commands/mkdir.md
+

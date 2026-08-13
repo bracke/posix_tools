@@ -27,7 +27,8 @@ The executable accepts:
 Invoking `posix_tools_tests` with no arguments runs the normal AUnit suite.
 The `--suite` selector maps to AUnit test-name prefixes such as `basic`,
 `streams`, `root`, `wc`, `tail`, and other command names. `command` selects all
-command-package tests. Category selectors map `unit` to the full suite,
+command-package tests. Unknown suite names fail with usage status instead of
+running an empty AUnit selection. Category selectors map `unit` to the full suite,
 `integration` to root-command integration-shaped tests, `conformance` to
 inventory/conformance metadata tests, and `regression` to regression-prefixed
 tests. `locale` selects locale-dependent help and diagnostic tests.
@@ -35,8 +36,9 @@ tests. `locale` selects locale-dependent help and diagnostic tests.
 
 Current registered suites include path tests, numeric tests, tail ring arithmetic tests, and wc field arithmetic tests.
 They also include stream LF segment tests, stream byte and UTF-8 counting tests, command-package tests, root-command
-tests, locale-dependent help and diagnostic tests, and regression coverage for binary fixtures, `head`, `tail`, and
-`wc`.
+tests, locale-dependent help and diagnostic tests, and regression coverage for binary fixtures, expanded-command option
+ordering, `env` utility status propagation, verbose output failures in `cp`, `ln`, `mv`, and `rm`, `xargs` status
+classification, `head`, `tail`, and `wc`.
 
 Deterministic property coverage uses fixed seeds that are reported in assertion
 labels. The initial property suite exercises generated slash-only pathname
@@ -82,8 +84,8 @@ conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
 runs metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
 crate, every command subcrate, and the tests crate.
-The release gates run selector smoke tests for `--suite cat`, `--suite command`,
-`--category unit`, `--category integration`, `--category conformance`,
+The release gates run selector smoke tests for `--suite cat`, `--suite cp`,
+`--suite command`, `--category unit`, `--category integration`, `--category conformance`,
 `--category regression`, `--category locale`, and `--category presentation`
 through `project_tools` process execution after the tests executable is built.
 They also verify that incomplete or unknown selectors fail with usage status 2

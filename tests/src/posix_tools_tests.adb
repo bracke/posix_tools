@@ -511,7 +511,9 @@ procedure Posix_Tools_Tests is
                Relative_Path : constant String :=
                  Package_Relative_Path (Ada.Strings.Unbounded.To_String (Path));
             begin
-               if Count_Exact_Lines (Files, Relative_Path) = 0 then
+               if Project_Tools.Text.Starts_With (Relative_Path, "fixtures/expanded-") then
+                  null;
+               elsif Count_Exact_Lines (Files, Relative_Path) = 0 then
                   Project_Tools.Release_Checks.Fail
                     ("package file list missing test fixture " & Relative_Path);
                end if;
@@ -650,6 +652,36 @@ procedure Posix_Tools_Tests is
          return To_String (Content);
       end Expected_Manual_Index;
 
+      function Expected_Command_Reference_Index return String is
+         use Ada.Strings.Unbounded;
+         Content : Unbounded_String;
+         Root_Inserted : Boolean := False;
+      begin
+         Append (Content, "# Command References" & Character'Val (10) & Character'Val (10));
+         Append (Content, "V1 command references:" & Character'Val (10) & Character'Val (10));
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            if not Root_Inserted
+              and then "posix-tools" < Posix_Tools.Command_Inventory.Executable (I)
+            then
+               Append (Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
+               Root_Inserted := True;
+            end if;
+
+            Append
+              (Content,
+               "- [" & Posix_Tools.Command_Inventory.Executable (I) & "]("
+               & Posix_Tools.Command_Inventory.Executable (I) & ".md)"
+               & Character'Val (10));
+         end loop;
+
+         if not Root_Inserted then
+            Append (Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
+         end if;
+
+         return To_String (Content);
+      end Expected_Command_Reference_Index;
+
       procedure Require_File_Equals (Path : String; Expected : String; Message : String) is
          Actual : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
 
@@ -673,6 +705,10 @@ procedure Posix_Tools_Tests is
 
       procedure Require_Generated_Docs_Current is
       begin
+         Require_File_Equals
+           ("docs/commands/index.md",
+            Expected_Command_Reference_Index,
+            "command reference index is stale");
          Require_File_Equals
            ("generated/manual-index.md",
             Expected_Manual_Index,
@@ -878,6 +914,20 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-tail_rings.ads");
       Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-wc_fields.ads");
+      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "untrusted input");
+      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "elevated privileges");
+      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "temporary-storage");
+      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "bounded executable identity verification");
+      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "DOCS-SECURITY-CURRENT-001");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "28 POSIX-style utilities");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`awk`, `grep`, and `sed`");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "DOCS-CHANGELOG-CURRENT-001");
       Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
       Project_Tools.Release_Checks.Require_Text
@@ -979,6 +1029,46 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/posix_tools_tests.adb", "Run_Staged_Verification;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Run_Executable_Integration_Smoke;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "root executable help");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "Executable & "" executable help""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "cp executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "date executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "dd executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "env executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "find executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "ln executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "mkdir executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "mv executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "printf executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "rm executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "rmdir executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "sort executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "tee executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "test executable status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "touch executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "tr executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "uniq executable data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "xargs executable data");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Generate_Release_Archive;");
       Project_Tools.Release_Checks.Require_Text
@@ -1210,6 +1300,78 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-CAT-0003");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-CAT-0003");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-STDOUT-0004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-TAIL-0004");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-WC-0005");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-ENV-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-VERBOSE-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-XARGS-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-ENV-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-VERBOSE-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-XARGS-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:cp");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:date");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:dd");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:env");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:find");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:ln");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:mkdir");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:mv");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:printf");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:rm");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:rmdir");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:sort");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tee");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:test");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:touch");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:tr");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:uniq");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "command:xargs");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "test selector suite cp");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "test selector suite xargs");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "test selector suite root");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "test selector unknown suite");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "posix_tools_tests test --suite cp");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "`--suite cp`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "Unknown suite names fail with usage status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "posix_tools_tests test --suite cp");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) = ""--""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
@@ -1327,10 +1489,12 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-n""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-c""");
-      Forbid_Text
-        ("common/src/posix_tools-commands-tail.adb",
-         "Context.Argument (Index) = ""-f""",
-         "tail -f must remain omitted in V1");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-f""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""-F""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""--follow""");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'n'");
       Project_Tools.Release_Checks.Require_Text
@@ -1360,7 +1524,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail compact counts");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail follow rejected");
+        (Check, "tests/src/command_tests-suite.adb", "command:tail follow finite");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "command:tail invalid count");
       Project_Tools.Release_Checks.Require_Text
@@ -1390,9 +1554,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail -c+4 compact output");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "tail -f rejected status");
+        (Check, "tests/src/command_tests.adb", "tail -f finite status");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "tail --follow rejected status");
+        (Check, "tests/src/command_tests.adb", "tail --follow finite status");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail later -c overrides earlier -n");
       Project_Tools.Release_Checks.Require_Text
@@ -1568,6 +1732,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-helpers.adb", "Localized_Usage_Message");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-helpers.adb", "function Escape_Untrusted");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.option.unknown");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.extra_operand");
@@ -1583,6 +1749,12 @@ procedure Posix_Tools_Tests is
         (Check, "tests/src/command_tests-suite.adb", "locale:help");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests-suite.adb", "locale:diagnostic");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/command_tests-suite.adb", "regression:REG-DIAG-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/regressions.csv", "REG-DIAG-0001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "REG-DIAG-0001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "unknown locale no message-key leak");
       Project_Tools.Release_Checks.Require_Text
@@ -1783,6 +1955,16 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Hostkit.Descriptors;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.adb", "Hostkit.Metadata.Same_File");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "type File_Time is private");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Copy_Modification_Time");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "File_Time_Of");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Set_Modification_Time");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-file_system.adb",
          "Ada.Streams.Stream_IO",
@@ -1815,6 +1997,12 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-arguments.adb",
          "Ada.Command_Line",
          "argument value type must not capture process command-line state");
+      Forbid_Text
+        ("common/src/posix_tools-localization.adb",
+         "Ada.Directories",
+         "localization must use the project filesystem adapter for catalog path probing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-localization.adb", "with Posix_Tools.Host_Adapters.File_System;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd stale PWD fallback output");
       Project_Tools.Release_Checks.Require_Text
@@ -1919,6 +2107,30 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.File_System;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Streams;");
+      Forbid_Text
+        ("common/src/posix_tools-commands-expanded.adb",
+         "with Hostkit.Fs",
+         "expanded command algorithms must use the project filesystem adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-expanded.adb",
+         "with Hostkit.Metadata",
+         "expanded command algorithms must use the project filesystem adapter for metadata");
+      Forbid_Text
+        ("common/src/posix_tools-commands-expanded.adb",
+         "with Hostkit.Signals",
+         "expanded command algorithms must use the project signals adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-expanded.adb",
+         "with Ada.Directories",
+         "expanded command algorithms must use the project filesystem adapter");
+      Forbid_Text
+        ("common/src/posix_tools-commands-expanded.adb",
+         "GNAT.OS_Lib",
+         "expanded command algorithms must use the project filesystem adapter for timestamps");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-expanded.adb", "with Posix_Tools.Host_Adapters.File_System;");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-expanded.adb", "with Posix_Tools.Host_Adapters.Signals;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Terminals;");
       Project_Tools.Release_Checks.Require_Text
@@ -2220,6 +2432,18 @@ procedure Posix_Tools_Tests is
               (Command_Source, "with Terminal_Styles", Posix_Tools.Command_Inventory.Executable (I)
                & " command must keep styling at presentation boundaries");
             Forbid_Text
+              (Command_Source, "with Ada.Command_Line", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must not read process command-line state directly");
+            Forbid_Text
+              (Command_Source, "with Ada.Directories", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must use project filesystem adapters");
+            Forbid_Text
+              (Command_Source, "with Ada.Environment_Variables", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must use project environment adapters");
+            Forbid_Text
+              (Command_Source, "GNAT.OS_Lib", Posix_Tools.Command_Inventory.Executable (I)
+               & " command must use project host adapters for native services");
+            Forbid_Text
               (Command_Source, "with AUnit", Posix_Tools.Command_Inventory.Executable (I)
                & " command must not depend on tests");
             Forbid_Text
@@ -2227,6 +2451,8 @@ procedure Posix_Tools_Tests is
                & " command must not depend on tooling");
          end;
       end loop;
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "COMMAND-IMPORT-BOUNDARY-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "POSIX-WC-UTF8-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-UTF8-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "TEXT-WHITESPACE-001");
@@ -2311,6 +2537,10 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "stderr diagnostic styling policy");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-MANPAGES-CURRENT-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "DOCS-COMMAND-INDEX-CURRENT-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "DOCS-CHANGELOG-CURRENT-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "DOCS-COMMAND-SECTIONS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "GPR-DIRS-001");
       Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "RELEASE-CLEAN-TREE-001");
@@ -2334,6 +2564,27 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "FORMAL-PROOF-CI-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "STAGED-VERIFY-ROOT-001");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "EXTERNAL-COMMAND-SCOPE-001");
+      Forbid_Text
+        ("generated/command_inventory.csv",
+         "awk,posix_tools_awk",
+         "awk is implemented in a separate project and must not be in this repository inventory");
+      Forbid_Text
+        ("generated/command_inventory.csv",
+         "grep,posix_tools_grep",
+         "grep is implemented in a separate project and must not be in this repository inventory");
+      Forbid_Text
+        ("generated/command_inventory.csv",
+         "sed,posix_tools_sed",
+         "sed is implemented in a separate project and must not be in this repository inventory");
+      if Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/awk")) then
+         Project_Tools.Release_Checks.Fail ("awk command subcrate must not be present in posix_tools");
+      elsif Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/grep")) then
+         Project_Tools.Release_Checks.Fail ("grep command subcrate must not be present in posix_tools");
+      elsif Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/sed")) then
+         Project_Tools.Release_Checks.Fail ("sed command subcrate must not be present in posix_tools");
+      end if;
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
@@ -2343,6 +2594,35 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "timeout-minutes: 60");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "fail-fast: false");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: posix_tools");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/hostkit");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: hostkit");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/messages");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: messages");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/i18n");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: i18n");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/awklib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: awklib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/regexp");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: regexp");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/httpclient");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: httpclient");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/zlib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: zlib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/tarlib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: tarlib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/cryptolib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: cryptolib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/ssllib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: ssllib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/truststores");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: truststores");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "repository: bracke/terminal_styles");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: terminal_styles");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, ".github/workflows/ci.yml", "repository: bracke/project_tools");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: project_tools");
       Forbid_Text
         (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
       Forbid_Text
@@ -2376,6 +2656,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "Node 24 compatible checkout actions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "sibling dependency checkouts");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "Node 24 compatible setup-alire branch");
       Project_Tools.Release_Checks.Require_Text
@@ -2500,6 +2782,15 @@ procedure Posix_Tools_Tests is
             & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
       end loop;
       Project_Tools.Release_Checks.Require_Text (Check, "README.md", "posix_tools");
+      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         Project_Tools.Release_Checks.Require_Text
+           (Check, "README.md", "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`");
+      end loop;
+      Project_Tools.Release_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "README.md", "`awk`, `grep`, and `sed` are not implemented in this repository");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/requirements.csv", "DOCS-README-INVENTORY-001");
       Ada.Text_IO.Put_Line ("metadata checks passed");
    end Run_Metadata_Checks;
 
@@ -2606,29 +2897,67 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-commands-cat.ads");
       Add_Entry ("common/src/posix_tools-commands-contexts.adb");
       Add_Entry ("common/src/posix_tools-commands-contexts.ads");
+      Add_Entry ("common/src/posix_tools-commands-cp.adb");
+      Add_Entry ("common/src/posix_tools-commands-cp.ads");
+      Add_Entry ("common/src/posix_tools-commands-date.adb");
+      Add_Entry ("common/src/posix_tools-commands-date.ads");
+      Add_Entry ("common/src/posix_tools-commands-dd.adb");
+      Add_Entry ("common/src/posix_tools-commands-dd.ads");
       Add_Entry ("common/src/posix_tools-commands-dirname.adb");
       Add_Entry ("common/src/posix_tools-commands-dirname.ads");
       Add_Entry ("common/src/posix_tools-commands-echo.adb");
       Add_Entry ("common/src/posix_tools-commands-echo.ads");
+      Add_Entry ("common/src/posix_tools-commands-env.adb");
+      Add_Entry ("common/src/posix_tools-commands-env.ads");
+      Add_Entry ("common/src/posix_tools-commands-expanded.adb");
+      Add_Entry ("common/src/posix_tools-commands-expanded.ads");
       Add_Entry ("common/src/posix_tools-commands-false_command.adb");
       Add_Entry ("common/src/posix_tools-commands-false_command.ads");
       Add_Entry ("common/src/posix_tools-commands-file_helpers.adb");
       Add_Entry ("common/src/posix_tools-commands-file_helpers.ads");
+      Add_Entry ("common/src/posix_tools-commands-find.adb");
+      Add_Entry ("common/src/posix_tools-commands-find.ads");
       Add_Entry ("common/src/posix_tools-commands-head.adb");
       Add_Entry ("common/src/posix_tools-commands-head.ads");
       Add_Entry ("common/src/posix_tools-commands-helpers.adb");
       Add_Entry ("common/src/posix_tools-commands-helpers.ads");
+      Add_Entry ("common/src/posix_tools-commands-ln.adb");
+      Add_Entry ("common/src/posix_tools-commands-ln.ads");
+      Add_Entry ("common/src/posix_tools-commands-mkdir.adb");
+      Add_Entry ("common/src/posix_tools-commands-mkdir.ads");
+      Add_Entry ("common/src/posix_tools-commands-mv.adb");
+      Add_Entry ("common/src/posix_tools-commands-mv.ads");
+      Add_Entry ("common/src/posix_tools-commands-printf.adb");
+      Add_Entry ("common/src/posix_tools-commands-printf.ads");
       Add_Entry ("common/src/posix_tools-commands-pwd.adb");
       Add_Entry ("common/src/posix_tools-commands-pwd.ads");
       Add_Entry ("common/src/posix_tools-commands-results.ads");
+      Add_Entry ("common/src/posix_tools-commands-rm.adb");
+      Add_Entry ("common/src/posix_tools-commands-rm.ads");
+      Add_Entry ("common/src/posix_tools-commands-rmdir.adb");
+      Add_Entry ("common/src/posix_tools-commands-rmdir.ads");
       Add_Entry ("common/src/posix_tools-commands-root.adb");
       Add_Entry ("common/src/posix_tools-commands-root.ads");
+      Add_Entry ("common/src/posix_tools-commands-sort.adb");
+      Add_Entry ("common/src/posix_tools-commands-sort.ads");
       Add_Entry ("common/src/posix_tools-commands-tail.adb");
       Add_Entry ("common/src/posix_tools-commands-tail.ads");
+      Add_Entry ("common/src/posix_tools-commands-tee.adb");
+      Add_Entry ("common/src/posix_tools-commands-tee.ads");
+      Add_Entry ("common/src/posix_tools-commands-test_command.adb");
+      Add_Entry ("common/src/posix_tools-commands-test_command.ads");
+      Add_Entry ("common/src/posix_tools-commands-touch.adb");
+      Add_Entry ("common/src/posix_tools-commands-touch.ads");
+      Add_Entry ("common/src/posix_tools-commands-tr.adb");
+      Add_Entry ("common/src/posix_tools-commands-tr.ads");
       Add_Entry ("common/src/posix_tools-commands-true_command.adb");
       Add_Entry ("common/src/posix_tools-commands-true_command.ads");
+      Add_Entry ("common/src/posix_tools-commands-uniq.adb");
+      Add_Entry ("common/src/posix_tools-commands-uniq.ads");
       Add_Entry ("common/src/posix_tools-commands-wc.adb");
       Add_Entry ("common/src/posix_tools-commands-wc.ads");
+      Add_Entry ("common/src/posix_tools-commands-xargs.adb");
+      Add_Entry ("common/src/posix_tools-commands-xargs.ads");
       Add_Entry ("common/src/posix_tools-exit_status.ads");
       Add_Entry ("common/src/posix_tools-help.adb");
       Add_Entry ("common/src/posix_tools-help.ads");
@@ -2643,6 +2972,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-host_adapters-file_system.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-run_command.adb");
       Add_Entry ("common/src/posix_tools-host_adapters-run_command.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-signals.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-signals.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-streams.adb");
       Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
@@ -2787,6 +3118,22 @@ procedure Posix_Tools_Tests is
            ("release archive generation failed with status" & Integer'Image (Status));
       elsif not Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Archive)) then
          Project_Tools.Release_Checks.Fail ("release archive was not created");
+      end if;
+
+      Status :=
+        Project_Tools.Processes.Run_Status
+           (Label   => "test release archive",
+            Dir     => Root,
+            Program => Archiver,
+            Args    => Project_Tools.Processes.Arguments
+              ([Project_Tools.Processes.Argument ("t"),
+                Project_Tools.Processes.Argument (Archive)]),
+            Output  => Output,
+            Quiet   => True);
+
+      if Status /= 0 then
+         Project_Tools.Release_Checks.Fail
+           ("release archive integrity test failed with status" & Integer'Image (Status));
       end if;
 
       Ada.Text_IO.Put_Line (Archive);
@@ -3099,6 +3446,9 @@ procedure Posix_Tools_Tests is
            or else Reference = "posix_tools_tests test --category unit"
            or else Reference = "posix_tools_tests test --suite cat"
            or else Reference = "posix_tools_tests test --suite command"
+           or else Reference = "posix_tools_tests test --suite cp"
+           or else Reference = "posix_tools_tests test --suite root"
+           or else Reference = "posix_tools_tests test --suite xargs"
            or else Reference = "CI release check"
            or else Reference = "posix-tools verify smoke";
       end Is_Project_Tooling_Test;
@@ -3994,6 +4344,27 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("cat")]),
          "command:cat");
       Expect_Selector
+        ("test selector suite cp",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("cp")]),
+         "command:cp");
+      Expect_Selector
+        ("test selector suite xargs",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("xargs")]),
+         "command:xargs");
+      Expect_Selector
+        ("test selector suite root",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("root")]),
+         "command:root");
+      Expect_Selector
         ("test selector suite command",
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
@@ -4029,6 +4400,34 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("regression")]),
          "regression:REG-CAT-0001");
       Expect_Selector
+        ("test selector expanded regression",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("regression")]),
+         "regression:REG-STDOUT-0004");
+      Expect_Selector
+        ("test selector env regression",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("regression")]),
+         "regression:REG-ENV-0001");
+      Expect_Selector
+        ("test selector verbose regression",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("regression")]),
+         "regression:REG-VERBOSE-0001");
+      Expect_Selector
+        ("test selector xargs regression",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("regression")]),
+         "regression:REG-XARGS-0001");
+      Expect_Selector
         ("test selector category locale",
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
@@ -4047,6 +4446,12 @@ procedure Posix_Tools_Tests is
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
              Project_Tools.Processes.Argument ("--suite")]));
+      Expect_Usage_Error
+        ("test selector unknown suite",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("unknown")]));
       Expect_Usage_Error
         ("test selector unknown category",
          Project_Tools.Processes.Arguments
@@ -4101,6 +4506,25 @@ procedure Posix_Tools_Tests is
    procedure Run_Executable_Integration_Smoke is
       use Ada.Strings.Unbounded;
 
+      function Display_Output (Text : String) return String is
+         Result : Unbounded_String;
+      begin
+         for Ch of Text loop
+            case Ch is
+               when Character'Val (10) =>
+                  Append (Result, "\n");
+               when Character'Val (13) =>
+                  Append (Result, "\r");
+               when Character'Val (9) =>
+                  Append (Result, "\t");
+               when others =>
+                  Append (Result, Ch);
+            end case;
+         end loop;
+
+         return To_String (Result);
+      end Display_Output;
+
       procedure Expect_Output
         (Label           : String;
          Program         : String;
@@ -4121,7 +4545,10 @@ procedure Posix_Tools_Tests is
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of" & Integer'Image (Expected_Status));
          elsif To_String (Captured.Output) /= Expected_Output then
-            Project_Tools.Release_Checks.Fail (Label & " produced unexpected output");
+            Project_Tools.Release_Checks.Fail
+              (Label & " produced unexpected output: expected """
+               & Display_Output (Expected_Output) & """ actual """
+               & Display_Output (To_String (Captured.Output)) & """");
          end if;
       end Expect_Output;
 
@@ -4147,6 +4574,32 @@ procedure Posix_Tools_Tests is
          end if;
       end Expect_Nonempty_Line;
 
+      procedure Expect_Output_With_Input
+        (Label           : String;
+         Program         : String;
+         Args            : Project_Tools.Processes.Argument_Vectors.Vector;
+         Input           : String;
+         Expected_Status : Integer;
+         Expected_Output : String)
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture_Command
+             (Command   => Program,
+              Arguments => Args,
+              Input     => Input);
+      begin
+         if Captured.Status /= Expected_Status then
+            Project_Tools.Release_Checks.Fail
+              (Label & " returned status" & Integer'Image (Captured.Status)
+               & " instead of" & Integer'Image (Expected_Status));
+         elsif To_String (Captured.Output) /= Expected_Output then
+            Project_Tools.Release_Checks.Fail
+              (Label & " produced unexpected output: expected """
+               & Display_Output (Expected_Output) & """ actual """
+               & Display_Output (To_String (Captured.Output)) & """");
+         end if;
+      end Expect_Output_With_Input;
+
       LF : constant Character := Character'Val (10);
 
       function Identity_Output (Command : String) return String is
@@ -4161,6 +4614,33 @@ procedure Posix_Tools_Tests is
       Smoke_File : constant String :=
         Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-smoke.txt");
       Smoke_Leaf : constant String := "posix-tools-executable-smoke.txt";
+
+      procedure Expect_File (Label, Path, Expected_Content : String) is
+      begin
+         if not Project_Tools.Files.File_Exists (Path) then
+            Project_Tools.Release_Checks.Fail (Label & " did not create expected file");
+         else
+            declare
+               Actual_Content : constant String := Project_Tools.Files.Read_Raw_File (Path);
+            begin
+               if Actual_Content /= Expected_Content then
+                  Project_Tools.Release_Checks.Fail
+                    (Label & " created file with unexpected content: expected """
+                     & Display_Output (Expected_Content) & """ actual """
+                     & Display_Output (Actual_Content) & """");
+               end if;
+            end;
+         end if;
+      end Expect_File;
+
+      procedure Remove_Path (Path : String) is
+      begin
+         if Project_Tools.Files.Directory_Exists (Path) then
+            Project_Tools.Files.Delete_Tree (Path);
+         else
+            Project_Tools.Files.Delete_File_If_Present (Path);
+         end if;
+      end Remove_Path;
    begin
       Expect_Output
         ("root executable version",
@@ -4175,6 +4655,11 @@ procedure Posix_Tools_Tests is
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
          0,
          Identity_Output ("posix-tools"));
+
+      Expect_Nonempty_Line
+        ("root executable help",
+         Built_Root_Path,
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--help")]));
 
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          declare
@@ -4193,6 +4678,11 @@ procedure Posix_Tools_Tests is
                Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
                0,
                Identity_Output (Executable));
+
+            Expect_Nonempty_Line
+              (Executable & " executable help",
+               Built_Command_Path (Executable),
+               Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--help")]));
          end;
       end loop;
 
@@ -4229,6 +4719,41 @@ procedure Posix_Tools_Tests is
          "alpha beta" & LF);
 
       Expect_Output
+        ("printf executable data",
+         Built_Command_Path ("printf"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("%s:%s\n"),
+             Project_Tools.Processes.Argument ("alpha"),
+             Project_Tools.Processes.Argument ("beta")]),
+         0,
+         "alpha:beta" & LF);
+
+      Expect_Output
+        ("date executable data",
+         Built_Command_Path ("date"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-u"),
+                                             Project_Tools.Processes.Argument ("+%Z")]),
+         0,
+         "UTC" & LF);
+
+      Expect_Output
+        ("dd executable data",
+         Built_Command_Path ("dd"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("if=" & Smoke_File),
+                                             Project_Tools.Processes.Argument ("bs=5"),
+                                             Project_Tools.Processes.Argument ("count=1")]),
+         0,
+         "alpha");
+
+      Expect_Output
+        ("env executable data",
+         Built_Command_Path ("env"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-i"),
+                                             Project_Tools.Processes.Argument ("NAME=value")]),
+         0,
+         "NAME=value" & LF);
+
+      Expect_Output
         ("false executable status",
          Built_Command_Path ("false"),
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("ignored")]),
@@ -4245,10 +4770,132 @@ procedure Posix_Tools_Tests is
          0,
          "alpha" & LF);
 
+      declare
+         Copy_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-copy.txt");
+      begin
+         Project_Tools.Files.Delete_File_If_Present (Copy_Target);
+         Expect_Output
+           ("cp executable data",
+            Built_Command_Path ("cp"),
+            Project_Tools.Processes.Arguments
+              ([Project_Tools.Processes.Argument (Smoke_File),
+                Project_Tools.Processes.Argument (Copy_Target)]),
+            0,
+            "");
+         Expect_Output
+           ("cp executable copied data",
+            Built_Command_Path ("cat"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Copy_Target)]),
+            0,
+            "alpha" & LF & "beta" & LF);
+         Project_Tools.Files.Delete_File_If_Present (Copy_Target);
+      end;
+
+      Expect_Output
+        ("find executable data",
+         Built_Command_Path ("find"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File),
+                                             Project_Tools.Processes.Argument ("-type"),
+                                             Project_Tools.Processes.Argument ("f")]),
+         0,
+         Smoke_File & LF);
+
+      declare
+         Link_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-link.txt");
+      begin
+         Project_Tools.Files.Delete_File_If_Present (Link_Target);
+         Expect_Output
+           ("ln executable data",
+            Built_Command_Path ("ln"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File),
+                                                Project_Tools.Processes.Argument (Link_Target)]),
+            0,
+            "");
+         Expect_Output
+           ("ln executable linked data",
+            Built_Command_Path ("cat"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Link_Target)]),
+            0,
+            "alpha" & LF & "beta" & LF);
+         Project_Tools.Files.Delete_File_If_Present (Link_Target);
+      end;
+
+      declare
+         Made_Dir : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mkdir");
+      begin
+         Remove_Path (Made_Dir);
+         Expect_Output
+           ("mkdir executable data",
+            Built_Command_Path ("mkdir"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Made_Dir)]),
+            0,
+            "");
+         if not Project_Tools.Files.Directory_Exists (Made_Dir) then
+            Project_Tools.Release_Checks.Fail ("mkdir executable data did not create directory");
+         end if;
+         Expect_Output
+           ("rmdir executable data",
+            Built_Command_Path ("rmdir"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Made_Dir)]),
+            0,
+            "");
+         if Project_Tools.Files.Directory_Exists (Made_Dir) then
+            Project_Tools.Release_Checks.Fail ("rmdir executable data did not remove directory");
+         end if;
+      end;
+
+      declare
+         Mv_Source : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mv-source.txt");
+         Mv_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mv-target.txt");
+      begin
+         Project_Tools.Files.Delete_File_If_Present (Mv_Source);
+         Project_Tools.Files.Delete_File_If_Present (Mv_Target);
+         Project_Tools.Files.Write_Raw_File (Mv_Source, "move-data");
+         Expect_Output
+           ("mv executable data",
+            Built_Command_Path ("mv"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Mv_Source),
+                                                Project_Tools.Processes.Argument (Mv_Target)]),
+            0,
+            "");
+         Expect_File ("mv executable data", Mv_Target, "move-data");
+         Project_Tools.Files.Delete_File_If_Present (Mv_Target);
+      end;
+
+      declare
+         Rm_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-rm.txt");
+      begin
+         Project_Tools.Files.Write_Raw_File (Rm_Target, "remove-data");
+         Expect_Output
+           ("rm executable data",
+            Built_Command_Path ("rm"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Rm_Target)]),
+            0,
+            "");
+         if Project_Tools.Files.File_Exists (Rm_Target) then
+            Project_Tools.Release_Checks.Fail ("rm executable data did not remove file");
+         end if;
+      end;
+
       Expect_Nonempty_Line
         ("pwd executable data",
          Built_Command_Path ("pwd"),
          Project_Tools.Processes.No_Arguments);
+
+      Project_Tools.Files.Write_Raw_File (Smoke_File, "beta" & LF & "alpha");
+      Expect_Output
+        ("sort executable data",
+         Built_Command_Path ("sort"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF & "beta" & LF);
+      Project_Tools.Files.Write_Raw_File (Smoke_File, "alpha" & LF & "beta" & LF);
 
       Expect_Output
         ("tail executable data",
@@ -4264,6 +4911,71 @@ procedure Posix_Tools_Tests is
         ("true executable status",
          Built_Command_Path ("true"),
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("ignored")]),
+         0,
+         "");
+
+      declare
+         Tee_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-tee.txt");
+      begin
+         Project_Tools.Files.Delete_File_If_Present (Tee_Target);
+         Expect_Output_With_Input
+           ("tee executable data",
+            Built_Command_Path ("tee"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Tee_Target)]),
+            "tee-data",
+            0,
+            "tee-data");
+         Expect_File ("tee executable data", Tee_Target, "tee-data" & LF);
+         Project_Tools.Files.Delete_File_If_Present (Tee_Target);
+      end;
+
+      Expect_Output
+        ("test executable status",
+         Built_Command_Path ("test"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-f"),
+                                             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "");
+
+      declare
+         Touch_Target : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-touch.txt");
+      begin
+         Project_Tools.Files.Delete_File_If_Present (Touch_Target);
+         Expect_Output
+           ("touch executable data",
+            Built_Command_Path ("touch"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Touch_Target)]),
+            0,
+            "");
+         Expect_File ("touch executable data", Touch_Target, "");
+         Project_Tools.Files.Delete_File_If_Present (Touch_Target);
+      end;
+
+      Expect_Output_With_Input
+        ("tr executable data",
+         Built_Command_Path ("tr"),
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("a-z"),
+             Project_Tools.Processes.Argument ("A-Z")]),
+         "alpha",
+         0,
+         "ALPHA");
+
+      Expect_Output_With_Input
+        ("uniq executable data",
+         Built_Command_Path ("uniq"),
+         Project_Tools.Processes.No_Arguments,
+         "alpha" & LF & "alpha" & LF & "beta",
+         0,
+         "alpha" & LF & "beta");
+
+      Expect_Output_With_Input
+        ("xargs executable data",
+         Built_Command_Path ("xargs"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-r")]),
+         "",
          0,
          "");
 
@@ -4297,8 +5009,13 @@ procedure Posix_Tools_Tests is
          return "command:";
       elsif Name = "root" or else Name = "posix-tools" then
          return "command:root";
-      else
+      elsif Posix_Tools.Command_Inventory.Contains_Executable (Name) then
          return "command:" & Name;
+      else
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "posix_tools_tests: suite '" & Name & "' has no registered AUnit tests yet");
+         raise Invalid_Usage;
       end if;
    end Suite_Filter;
 

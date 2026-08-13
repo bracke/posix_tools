@@ -10,6 +10,8 @@
 
 `tail -c number [file...]`
 
+`tail -f [file...]`
+
 ## Description
 Copies a suffix of each input in line or byte mode. The default is ten lines
 from the end.
@@ -20,6 +22,7 @@ from the end.
 ## Options
 - `-n number`: line count.
 - `-c number`: byte count.
+- `-f`, `-F`, `--follow`: accepted as finite follow spellings in V1.
 
 ## Standard Input
 Used when no files are present or when an operand is `-`.
@@ -46,6 +49,9 @@ syntax, embedded whitespace, and numeric overflow are rejected before file
 processing. `--` ends option processing when it appears where the next file
 operand would be.
 
+The V1 follow spellings `-f`, `-F`, and `--follow` do not wait for appended
+data. They emit the ordinary suffix of the currently available input and exit.
+
 ## Locale Behavior
 Copied data and headers are not localized in V1.
 
@@ -64,7 +70,8 @@ fail with a resource diagnostic and no partial suffix output.
 `tail -c 32 file`
 
 ## Conformance Status
-Known deviation.
+Known deviation tracked by `TAIL-FOLLOW-001`.
 
 ## Known Limitations
-`TAIL-FOLLOW-001`: no `-f`, `-F`, or `--follow` support in V1.
+`TAIL-FOLLOW-001`: `-f`, `-F`, and `--follow` are finite in V1; live waiting
+and reopen behavior are not implemented.

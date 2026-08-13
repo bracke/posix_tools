@@ -1,0 +1,42 @@
+.TH tee 1
+.SH NAME
+tee - duplicate standard input.
+.SH SYNOPSIS
+tee [-ai] [--] [file...]
+.SH DESCRIPTION
+Copies standard input to standard output and each named file.
+.SH OPERANDS
+file: output file path.
+.SH OPTIONS
+-a appends to files. -i ignores interrupt signals while tee is running on hosts that provide interrupt signal
+disposition through hostkit. -- ends option recognition. Options are recognized before the first file operand; later
+option-like words are file operands. Project extensions --help, --version, and --posix-tools-identify are
+recognized.
+.SH STANDARD INPUT
+Input bytes to duplicate.
+.SH STANDARD OUTPUT
+Copied input bytes.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and output failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Options are validated before standard input is read. Input is copied in bounded chunks to standard output and each
+active file operand. File-output failures are reported once per failed operand while standard output still receives
+readable input data when it can be written. A standard-input read failure returns operational failure after any readable
+prefix has been copied.
+.SH LOCALE BEHAVIOR
+Copied data is not localized. Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+On hosts without POSIX interrupt signals, -i has no signal disposition to change.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+tee copy.txt
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by TEE-POSIX-001.
+.SH KNOWN LIMITATIONS
+No known V1 limitations beyond host I/O behavior exposed through the shared command context.
+.SH SEE ALSO
+docs/commands/tee.md
+

@@ -4,6 +4,43 @@ with Posix_Tools.Localization;
 with Posix_Tools.Presentation;
 
 package body Posix_Tools.Commands.Helpers is
+   function Escape_Untrusted (Text : String) return String is
+      function Hex_Digit (Value : Natural) return Character is
+      begin
+         if Value < 10 then
+            return Character'Val (Character'Pos ('0') + Value);
+         else
+            return Character'Val (Character'Pos ('A') + Value - 10);
+         end if;
+      end Hex_Digit;
+
+      Result : String (1 .. Text'Length * 4);
+      Last   : Natural := 0;
+   begin
+      if Text = "" then
+         return "";
+      end if;
+
+      for Ch of Text loop
+         declare
+            Code : constant Natural := Character'Pos (Ch);
+         begin
+            if Code < 32 or else Code = 127 then
+               Result (Last + 1) := '\';
+               Result (Last + 2) := 'x';
+               Result (Last + 3) := Hex_Digit (Code / 16);
+               Result (Last + 4) := Hex_Digit (Code mod 16);
+               Last := Last + 4;
+            else
+               Result (Last + 1) := Ch;
+               Last := Last + 1;
+            end if;
+         end;
+      end loop;
+
+      return Result (1 .. Last);
+   end Escape_Untrusted;
+
    function Localized_Usage_Message
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Message : String) return String
@@ -27,88 +64,134 @@ package body Posix_Tools.Commands.Helpers is
           = Missing_Option_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.missing_option_argument",
-            "option",
-            Message (Message'First + Missing_Option_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Option : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Missing_Option_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.missing_option_argument",
+               "option",
+               Option,
+               "missing option argument '" & Option & "'");
+         end;
       elsif Message'Length > Prefix'Length
         and then Message (Message'First .. Message'First + Prefix'Length - 1) = Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.extra_operand",
-            "operand",
-            Message (Message'First + Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Operand : constant String :=
+              Escape_Untrusted (Message (Message'First + Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.extra_operand",
+               "operand",
+               Operand,
+               "extra operand '" & Operand & "'");
+         end;
       elsif Message'Length > Invalid_Operand_Prefix'Length
         and then Message (Message'First .. Message'First + Invalid_Operand_Prefix'Length - 1)
           = Invalid_Operand_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.operand.invalid",
-            "operand",
-            Message (Message'First + Invalid_Operand_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Operand : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Invalid_Operand_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.operand.invalid",
+               "operand",
+               Operand,
+               "invalid operand '" & Operand & "'");
+         end;
       elsif Message'Length > Unknown_Option_Prefix'Length
         and then Message (Message'First .. Message'First + Unknown_Option_Prefix'Length - 1)
           = Unknown_Option_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.option.unknown",
-            "option",
-            Message (Message'First + Unknown_Option_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Option : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Unknown_Option_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.option.unknown",
+               "option",
+               Option,
+               "unknown option '" & Option & "'");
+         end;
       elsif Message'Length > Unknown_Command_Prefix'Length
         and then Message (Message'First .. Message'First + Unknown_Command_Prefix'Length - 1)
           = Unknown_Command_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.command.unknown",
-            "command",
-            Message (Message'First + Unknown_Command_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Command : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Unknown_Command_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.command.unknown",
+               "command",
+               Command,
+               "unknown command '" & Command & "'");
+         end;
       elsif Message'Length > Unknown_Subcommand_Prefix'Length
         and then Message (Message'First .. Message'First + Unknown_Subcommand_Prefix'Length - 1)
           = Unknown_Subcommand_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.subcommand.unknown",
-            "subcommand",
-            Message (Message'First + Unknown_Subcommand_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Subcommand : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Unknown_Subcommand_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.subcommand.unknown",
+               "subcommand",
+               Subcommand,
+               "unknown subcommand '" & Subcommand & "'");
+         end;
       elsif Message'Length > Invalid_Line_Count_Prefix'Length
         and then Message (Message'First .. Message'First + Invalid_Line_Count_Prefix'Length - 1)
           = Invalid_Line_Count_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.line_count.invalid",
-            "count",
-            Message (Message'First + Invalid_Line_Count_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Count : constant String :=
+              Escape_Untrusted
+                (Message (Message'First + Invalid_Line_Count_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.line_count.invalid",
+               "count",
+               Count,
+               "invalid line count '" & Count & "'");
+         end;
       elsif Message'Length > Invalid_Count_Prefix'Length
         and then Message (Message'First .. Message'First + Invalid_Count_Prefix'Length - 1)
           = Invalid_Count_Prefix
         and then Message (Message'Last) = '''
       then
-         return Posix_Tools.Localization.Text_1
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.count.invalid",
-            "count",
-            Message (Message'First + Invalid_Count_Prefix'Length .. Message'Last - 1),
-            Message);
+         declare
+            Count : constant String :=
+              Escape_Untrusted (Message (Message'First + Invalid_Count_Prefix'Length .. Message'Last - 1));
+         begin
+            return Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale,
+               "posix_tools.diagnostic.count.invalid",
+               "count",
+               Count,
+               "invalid count '" & Count & "'");
+         end;
       else
          return Message;
       end if;
@@ -186,7 +269,7 @@ package body Posix_Tools.Commands.Helpers is
       Context.Put_Error_Line
         (Diagnostic_Line
            (Context,
-            Context.Command_Name & ": '" & Subject & "': "
+            Context.Command_Name & ": '" & Escape_Untrusted (Subject) & "': "
             & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Subject_Operational_Error;
 end Posix_Tools.Commands.Helpers;

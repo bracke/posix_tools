@@ -13,5 +13,5 @@ package Posix_Tools.Host_Adapters.Streams is
 
    procedure Write_Standard_Output_Line (Text : String; Ok : out Boolean);
 
-   procedure Write_Standard_Error_Line (Text : String);
+   procedure Write_Standard_Error_Line (Text : String; Ok : out Boolean);
 end Posix_Tools.Host_Adapters.Streams;

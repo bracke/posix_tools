@@ -19,6 +19,9 @@ package Command_Tests is
    procedure Test_Echo_Output_Property (T : in out Fixture);
    procedure Test_Echo_Extensions_Are_Sole_Argument (T : in out Fixture);
    procedure Test_End_Of_Options (T : in out Fixture);
+   procedure Test_Env_Utility_Status (T : in out Fixture);
+   procedure Test_Expanded_Command_Smoke (T : in out Fixture);
+   procedure Test_Expanded_Verbose_Output_Failures (T : in out Fixture);
    procedure Test_False (T : in out Fixture);
    procedure Test_False_Extension_Edges (T : in out Fixture);
    procedure Test_Head_Counts (T : in out Fixture);
@@ -54,7 +57,7 @@ package Command_Tests is
    procedure Test_Root_Output_Failure (T : in out Fixture);
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture);
    procedure Test_Tail_Compact_Counts (T : in out Fixture);
-   procedure Test_Tail_Follow_Rejected (T : in out Fixture);
+   procedure Test_Tail_Follow_Finite (T : in out Fixture);
    procedure Test_Tail_Invalid_Count (T : in out Fixture);
    procedure Test_Tail_Line_Mode_Edges (T : in out Fixture);
    procedure Test_Tail_Multiple_File_Headers (T : in out Fixture);
@@ -79,4 +82,5 @@ package Command_Tests is
    procedure Test_Wc_Line_Count_Property (T : in out Fixture);
    procedure Test_Wc_Standard_Input_Line_Property (T : in out Fixture);
    procedure Test_Wc_Output_Failure (T : in out Fixture);
+   procedure Test_Xargs_Status_Bands (T : in out Fixture);
 end Command_Tests;

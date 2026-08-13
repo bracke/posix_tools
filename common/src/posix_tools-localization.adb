@@ -1,18 +1,18 @@
-with Ada.Directories;
 with Messages.Arguments;
 with Messages.Result;
 with Messages.Runtime;
+with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Localization is
    use type Messages.Result.Render_Status;
 
    function Catalog_Path return String is
    begin
-      if Ada.Directories.Exists ("common/messages/posix_tools.catalog") then
+      if Posix_Tools.Host_Adapters.File_System.Exists ("common/messages/posix_tools.catalog") then
          return "common/messages/posix_tools.catalog";
-      elsif Ada.Directories.Exists ("../common/messages/posix_tools.catalog") then
+      elsif Posix_Tools.Host_Adapters.File_System.Exists ("../common/messages/posix_tools.catalog") then
          return "../common/messages/posix_tools.catalog";
-      elsif Ada.Directories.Exists ("../../common/messages/posix_tools.catalog") then
+      elsif Posix_Tools.Host_Adapters.File_System.Exists ("../../common/messages/posix_tools.catalog") then
          return "../../common/messages/posix_tools.catalog";
       end if;
 

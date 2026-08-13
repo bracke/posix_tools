@@ -1,0 +1,42 @@
+.TH rmdir 1
+.SH NAME
+rmdir - remove empty directories.
+.SH SYNOPSIS
+rmdir [-p] [--] directory...
+.SH DESCRIPTION
+Removes each named empty directory.
+.SH OPERANDS
+directory: directory path to remove.
+.SH OPTIONS
+-p also removes empty parent directories named in the operand path. Options are recognized before the first directory
+operand; later option-like words are directory operands. The end-of-options marker -- is accepted. Project extensions --help, --version,
+and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and removal failures. With -p, a parent-cleanup failure names the parent component that
+could not be removed.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Each operand is attempted in order. With -p, empty child components already
+removed remain removed when cleanup later stops at a non-empty or otherwise
+unremovable parent; the diagnostic names the parent component that failed.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Parent cleanup stops when a parent is not empty, cannot be removed, or no further named parent is present. Native host
+errors are rendered through the project portable diagnostic categories.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+rmdir empty-dir
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by RMDIR-POSIX-001.
+.SH KNOWN LIMITATIONS
+None for the V1 supported surface.
+.SH SEE ALSO
+docs/commands/rmdir.md
+

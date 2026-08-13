@@ -128,6 +128,8 @@
 
 - A monolithic command dispatcher for POSIX utilities.
 - A plugin system for V1 commands.
+- In-repository `awk`, `grep`, or `sed` implementations; those command families
+  are owned by separate projects and must stay out of this command inventory.
 - Direct Hostkit use from command algorithms.
 - Direct terminal styling in command data paths.
 - Shell, Python, JavaScript, Make, CMake, or PowerShell project tooling.

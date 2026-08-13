@@ -1,0 +1,72 @@
+# touch
+
+## Name
+`touch` - create files.
+
+## Synopsis
+`touch [-acm] [-d date_time] [-r reference] [-t timestamp] [--] file...`
+
+## Description
+Creates missing files unless `-c` is supplied, and refreshes existing ordinary files without changing their contents.
+Timestamp-selection options `-a`, `-m`, `-d date_time`, `-r reference`, and `-t timestamp` are accepted.
+
+## Operands
+`file`: path to create when absent.
+
+## Options
+`-a` selects access time, `-m` selects modification time, `-c` suppresses creation of missing files, `-d date_time` and
+`-t timestamp` select an explicit modification timestamp, and `-r reference` selects a reference path whose modification
+timestamp is applied. In this increment `-d` accepts the same numeric `[[CC]YY]MMDDhhmm[.SS]` forms as `-t` plus
+`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM:SS`, and the same
+minute- or second-precision date-time forms with slash-separated dates, lowercase `t`, fractional seconds, a trailing
+`Z`, `+HH`, `+HHMM`, `+HH:MM`, `-HH`, `-HHMM`, or `-HH:MM` UTC offset suffix, plus deterministic English
+`Mon DD YYYY [HH:MM[:SS]]` and `DD Mon YYYY [HH:MM[:SS]]` month-name forms. `-a` is accepted but does not provide a
+separate
+access-time-only update. `--` ends option recognition. Options are recognized before the first file operand; later
+option-like words are file operands. Project extensions `--help`, `--version`, and `--posix-tools-identify` are
+recognized.
+
+## Standard Input
+Not used.
+
+## Standard Output
+No data output on success.
+
+## Standard Error
+Diagnostics for invalid usage and file failures.
+
+## Exit Status
+`0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
+
+## Behavioral Details
+Existing ordinary files are refreshed without changing their contents. Existing non-ordinary paths have their
+modification time refreshed where the host timestamp API supports it. Missing files are created unless `-c` is present.
+`-r reference` applies the reference path's modification time and fails if the reference path is absent. `-t timestamp`
+accepts `[[CC]YY]MMDDhhmm[.SS]` numeric forms, including explicit `CCYYMMDDhhmm` values. `-d date_time` accepts those
+numeric forms and deterministic
+`YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM:SS`, trailing-`Z`
+UTC minute- and second-precision forms, slash-separated date variants, lowercase `t`, fractional seconds, and explicit
+numeric UTC offsets on minute- and second-precision forms. It also accepts deterministic English month names and
+abbreviations in `Mon DD YYYY [HH:MM[:SS]]` or `DD Mon YYYY [HH:MM[:SS]]` form, with an optional comma after `DD`.
+Both options apply the selected
+modification time and reject invalid field ranges.
+
+## Locale Behavior
+Help and diagnostics are localized.
+
+## Implementation-Defined Choices
+Two-digit years in `-t` use the POSIX-style split where `00` through `68` map to 2000 through 2068 and `69` through
+`99` map to 1969 through 1999.
+
+## Extensions
+`--help`, `--version`, `--posix-tools-identify`.
+
+## Examples
+`touch file`
+
+## Conformance Status
+Known deviation tracked by `TOUCH-V1-DEVIATION-001`.
+
+## Known Limitations
+Real access-time-only updates and broader natural-language free-form date parsing are not implemented. `-a` alone
+preserves modification timestamps; `-m` updates modification timestamps.

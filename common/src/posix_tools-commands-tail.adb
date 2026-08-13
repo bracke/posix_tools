@@ -314,6 +314,11 @@ package body Posix_Tools.Commands.Tail is
          if Context.Argument (Index) = "--" then
             Index := Index + 1;
             exit;
+         elsif Context.Argument (Index) = "-f"
+           or else Context.Argument (Index) = "-F"
+           or else Context.Argument (Index) = "--follow"
+         then
+            Index := Index + 1;
          elsif Context.Argument (Index) = "-n" or else Context.Argument (Index) = "-c" then
             if Index = Count then
                Posix_Tools.Commands.Helpers.Usage_Error

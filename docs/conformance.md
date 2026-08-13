@@ -45,8 +45,9 @@ these comparisons remain deterministic on Windows, Linux, and macOS checkouts.
 Tail suffix processing is implemented for `-n number` and `-c number`,
 including host-backed spill storage when retained data exceeds the in-memory
 threshold and remains within the configured spill limit. Follow mode is a V1
-known deviation tracked as `TAIL-FOLLOW-001`: `-f`, `-F`, and `--follow` are not
-implemented in this release.
+known deviation tracked as `TAIL-FOLLOW-001`: `-f`, `-F`, and `--follow` are
+accepted as finite option spellings that emit the currently available suffix and
+exit; live waiting and reopen behavior are not implemented in this release.
 
 `wc -m` uses deterministic incremental UTF-8 decoding through
 `Posix_Tools.Text.UTF_8` and rejects malformed or incomplete sequences for

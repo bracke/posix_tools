@@ -1,0 +1,42 @@
+.TH rm 1
+.SH NAME
+rm - remove directory entries.
+.SH SYNOPSIS
+rm [-fidv] [-r|-R] [--] file...
+.SH DESCRIPTION
+Removes files, empty directories with -d, and directory trees with recursive mode.
+.SH OPERANDS
+file: path to remove.
+.SH OPTIONS
+-f suppresses missing-file failures and disables interactive prompting. -i prompts before each removal and disables
+force mode. When -f and -i are grouped or repeated, the last option wins. -d removes empty directories. -r and
+-R remove directory trees. -v writes a deterministic removal line after each successful operand removal. Project
+extensions are recognized. Options are recognized before the first file operand; later option-like words are file
+operands. The end-of-options marker -- is accepted.
+.SH STANDARD INPUT
+Used for interactive responses when -i is selected.
+.SH STANDARD OUTPUT
+No data output on success unless -v is selected.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and removal failures. Interactive prompts are written to standard error.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Operands are processed in order. In interactive mode, a response whose first byte is y or Y confirms removal; any
+other response, including end of input, skips that operand without treating it as a failure.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Recursive removal uses the host Ada directory tree deletion operation after the interactive decision for the top-level
+operand has been accepted.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+rm -f file
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by RM-POSIX-001.
+.SH KNOWN LIMITATIONS
+None for the V1 supported surface.
+.SH SEE ALSO
+docs/commands/rm.md
+

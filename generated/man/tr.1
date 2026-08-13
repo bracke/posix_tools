@@ -1,0 +1,52 @@
+.TH tr 1
+.SH NAME
+tr - translate or delete characters.
+.SH SYNOPSIS
+tr [-cCds] set1 [set2]
+.SH DESCRIPTION
+Reads standard input and translates, deletes, or squeezes bytes matching set1. Simple ascending byte ranges such as
+a-z and \141-\143, selected ASCII bracket classes, equivalence and collating-symbol identity forms,
+numeric repeated-output forms, and common backslash byte escapes are expanded.
+.SH OPERANDS
+set1: source byte set. set2: replacement byte set. Sets may contain simple ascending ranges, selected classes,
+equivalence and collating-symbol identity forms, numeric repeated-output forms, and backslash escapes.
+.SH OPTIONS
+-c and -C complement set1. -d deletes matching bytes. -s squeezes repeated output bytes from the selected
+squeeze set. With translation mode, complemented bytes use the deterministic byte-order complement of set1. Project
+extensions are recognized.
+.SH STANDARD INPUT
+Input bytes to transform.
+.SH STANDARD OUTPUT
+Transformed bytes.
+.SH STANDARD ERROR
+Diagnostics for invalid usage.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Sets are interpreted as byte strings with simple ascending range expansion. Backslash escapes \a, \b, \f, \n,
+\r, \t, \v, \\, and one- to three-digit octal byte escapes are expanded. The byte-oriented classes
+[:alnum:], [:alpha:], [:blank:], [:cntrl:], [:digit:], [:graph:], [:lower:], [:print:], [:punct:],
+[:space:], [:upper:], and [:xdigit:] are expanded. Complement mode and squeeze mode are byte-oriented; complement
+translation orders replacement positions over bytes 0 through 255 after removing bytes in set1. With -d -s, set1
+is deleted and set2 selects bytes to squeeze. Repeated-output forms use [byte*count], where
+byte may be escaped and count is decimal or octal when it has a leading zero, and [byte*], which repeats the byte
+across the 256-byte domain.
+Equivalence classes [=bytes=] and collating symbols [.bytes.] are accepted as deterministic byte-sequence identity
+forms; bytes may be escaped.
+.SH LOCALE BEHAVIOR
+Transformed data is not localized. Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Character classes are expanded with deterministic ASCII byte ranges. Complement translation uses deterministic byte
+ordering rather than the full POSIX locale collating element model.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+tr abc xyz
+.SH CONFORMANCE STATUS
+Known deviation tracked by TR-V1-DEVIATION-001.
+.SH KNOWN LIMITATIONS
+Locale-expanded equivalence classes, locale-dependent complement translation ordering, and multibyte locale collation
+semantics are not implemented.
+.SH SEE ALSO
+docs/commands/tr.md
+

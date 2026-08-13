@@ -23,6 +23,8 @@ package Test_Contexts is
      (Self   : in out Capturing_Context;
       Buffer : out Ada.Streams.Stream_Element_Array;
       Last   : out Ada.Streams.Stream_Element_Offset) return Boolean;
+   overriding function Environment_Pairs
+     (Self : Capturing_Context) return Posix_Tools.Arguments.Vector;
    overriding function Environment_Value (Self : Capturing_Context; Name : String) return String;
    overriding function Effective_Locale (Self : Capturing_Context) return String;
    overriding function Physical_Current_Directory (Self : Capturing_Context) return String;
@@ -31,10 +33,22 @@ package Test_Contexts is
       Path : out String;
       Last : out Natural) return Boolean;
    overriding function Path_Names_Current_Directory (Self : Capturing_Context; Path : String) return Boolean;
+   overriding function Standard_Input_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
+   overriding function Execute_Utility
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean;
+   overriding function Execute_Utility_With_Environment
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Environment : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean;
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String);
    procedure Set_Locale (Self : in out Capturing_Context; Value : String);
@@ -42,6 +56,7 @@ package Test_Contexts is
    procedure Set_Physical_Current_Directory (Self : in out Capturing_Context; Value : String);
    procedure Set_Standard_Input (Self : in out Capturing_Context; Value : String);
    procedure Set_Standard_Input_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
+   procedure Set_Standard_Input_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
@@ -59,11 +74,13 @@ private
       Err_Text : Ada.Strings.Unbounded.Unbounded_String;
       Pwd_Text : Ada.Strings.Unbounded.Unbounded_String;
       Locale_Text : Ada.Strings.Unbounded.Unbounded_String;
+      Env_Vars : Posix_Tools.Arguments.Vector;
       Physical_Text : Ada.Strings.Unbounded.Unbounded_String;
       Input_Text : Ada.Strings.Unbounded.Unbounded_String;
       Input_Position : Natural := 1;
       Input_Failure_Enabled : Boolean := False;
       Input_Failure_Limit : Natural := 0;
+      Input_Is_Terminal : Boolean := False;
       Output_Is_Terminal : Boolean := False;
       Error_Is_Terminal : Boolean := False;
       Logical_Pwd_Matches : Boolean := True;

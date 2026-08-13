@@ -1,0 +1,45 @@
+.TH mv 1
+.SH NAME
+mv - rename a file.
+.SH SYNOPSIS
+mv [-fiv] [--] source... target
+.SH DESCRIPTION
+Renames one source path to one target path, or moves multiple source paths into
+an existing target directory.
+.SH OPERANDS
+source: source path. target: target path or target directory.
+.SH OPTIONS
+-f forces overwrites without prompting. -i prompts before overwriting an existing destination. When -f
+and -i are both supplied, the last one wins. -v writes one deterministic source-to-target line after each
+successful move. Options are recognized before the first source operand; later option-like words are path operands.
+The end-of-options marker -- is accepted. Project extensions --help, --version, and
+--posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Used only for -i overwrite responses.
+.SH STANDARD OUTPUT
+No data output on success unless -v is selected.
+.SH STANDARD ERROR
+Overwrite prompts and diagnostics for invalid usage and move failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The implementation first delegates to the Ada runtime rename operation. If that fails, it attempts a portable
+copy-and-remove fallback for regular files and directory trees. Interactive overwrite prompts accept an initial y
+or Y byte as confirmation; any other response, including end-of-input, skips that operand without treating the skip
+as a move failure.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Multiple source operands require the target to be an existing directory.
+.SH EXTENSIONS
+-v, --help, --version, --posix-tools-identify.
+.SH EXAMPLES
+mv old new
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by MV-POSIX-001.
+.SH KNOWN LIMITATIONS
+The copy-and-remove fallback preserves source mode bits where supported by the host metadata adapter. Other metadata is
+best effort.
+.SH SEE ALSO
+docs/commands/mv.md
+

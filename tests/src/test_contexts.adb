@@ -13,11 +13,13 @@ package body Test_Contexts is
       Self.Err_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
       Self.Pwd_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
       Self.Locale_Text := Ada.Strings.Unbounded.To_Unbounded_String ("en");
+      Self.Env_Vars.Clear;
       Self.Physical_Text := Ada.Strings.Unbounded.To_Unbounded_String ("/physical");
       Self.Input_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
       Self.Input_Position := 1;
       Self.Input_Failure_Enabled := False;
       Self.Input_Failure_Limit := 0;
+      Self.Input_Is_Terminal := False;
       Self.Output_Is_Terminal := False;
       Self.Error_Is_Terminal := False;
       Self.Logical_Pwd_Matches := True;
@@ -58,8 +60,29 @@ package body Test_Contexts is
    end Put_Line;
 
    overriding procedure Put_Error_Line (Self : in out Capturing_Context; Text : String) is
+      Current_Length : constant Natural := Ada.Strings.Unbounded.Length (Self.Err_Text);
+      Line           : constant String := Text & Character'Val (10);
+      Remaining      : Natural;
    begin
-      Ada.Strings.Unbounded.Append (Self.Err_Text, Text & Character'Val (10));
+      if Self.Output_Failure_Enabled then
+         if Current_Length >= Self.Output_Failure_Limit then
+            Posix_Tools.Commands.Contexts.Mark_Output_Failure
+              (Posix_Tools.Commands.Contexts.Context (Self));
+            return;
+         end if;
+
+         Remaining := Self.Output_Failure_Limit - Current_Length;
+         if Line'Length > Remaining then
+            if Remaining > 0 then
+               Ada.Strings.Unbounded.Append (Self.Err_Text, Line (Line'First .. Line'First + Remaining - 1));
+            end if;
+            Posix_Tools.Commands.Contexts.Mark_Output_Failure
+              (Posix_Tools.Commands.Contexts.Context (Self));
+            return;
+         end if;
+      end if;
+
+      Ada.Strings.Unbounded.Append (Self.Err_Text, Line);
    end Put_Error_Line;
 
    overriding procedure Read_Standard_Input
@@ -120,15 +143,27 @@ package body Test_Contexts is
       return True;
    end Try_Read_Standard_Input;
 
+   overriding function Environment_Pairs
+     (Self : Capturing_Context) return Posix_Tools.Arguments.Vector is
+   begin
+      return Self.Env_Vars;
+   end Environment_Pairs;
+
    overriding function Environment_Value (Self : Capturing_Context; Name : String) return String is
    begin
-      if Name = "PWD" then
-         return Ada.Strings.Unbounded.To_String (Self.Pwd_Text);
-      elsif Name = "LC_ALL" then
-         return Ada.Strings.Unbounded.To_String (Self.Locale_Text);
-      else
-         return "";
-      end if;
+      for I in reverse 1 .. Natural (Self.Env_Vars.Length) loop
+         declare
+            Pair : constant String := Self.Env_Vars.Element (I);
+         begin
+            if Pair'Length > Name'Length
+              and then Pair (Pair'First .. Pair'First + Name'Length - 1) = Name
+              and then Pair (Pair'First + Name'Length) = '='
+            then
+               return Pair (Pair'First + Name'Length + 1 .. Pair'Last);
+            end if;
+         end;
+      end loop;
+      return "";
    end Environment_Value;
 
    overriding function Effective_Locale (Self : Capturing_Context) return String is
@@ -171,6 +206,11 @@ package body Test_Contexts is
       return Self.Logical_Pwd_Matches;
    end Path_Names_Current_Directory;
 
+   overriding function Standard_Input_Is_Terminal (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Input_Is_Terminal;
+   end Standard_Input_Is_Terminal;
+
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean is
    begin
       return Self.Output_Is_Terminal;
@@ -191,8 +231,101 @@ package body Test_Contexts is
       return Self.Tail_Memory_Bytes;
    end Tail_Memory_Threshold;
 
-   procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
+   overriding function Execute_Utility
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean
+   is
    begin
+      if Utility = "echo" then
+         for I in 1 .. Natural (Arguments.Length) loop
+            if I > 1 then
+               Put (Self, " ");
+            end if;
+            Put (Self, Arguments.Element (I));
+         end loop;
+         Put_Line (Self, "");
+         Exit_Status := 0;
+         return True;
+      elsif Utility = "true" then
+         Exit_Status := 0;
+         return True;
+      elsif Utility = "false" then
+         Exit_Status := 1;
+         return True;
+      elsif Utility = "xargs-cannot-invoke" then
+         Exit_Status := 126;
+         return True;
+      elsif Utility = "xargs-status-127" then
+         Exit_Status := 127;
+         return True;
+      elsif Utility = "xargs-status-255" then
+         Exit_Status := 255;
+         return True;
+      else
+         Exit_Status := 127;
+         return False;
+      end if;
+   end Execute_Utility;
+
+   overriding function Execute_Utility_With_Environment
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Environment : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean
+   is
+      function Environment_Value (Name : String) return String is
+      begin
+         for I in reverse 1 .. Natural (Environment.Length) loop
+            declare
+               Pair : constant String := Environment.Element (I);
+            begin
+               if Pair'Length > Name'Length
+                 and then Pair (Pair'First .. Pair'First + Name'Length - 1) = Name
+                 and then Pair (Pair'First + Name'Length) = '='
+               then
+                  return Pair (Pair'First + Name'Length + 1 .. Pair'Last);
+               end if;
+            end;
+         end loop;
+         return "";
+      end Environment_Value;
+   begin
+      if Utility = "printenv" then
+         for I in 1 .. Natural (Arguments.Length) loop
+            Put_Line (Self, Environment_Value (Arguments.Element (I)));
+         end loop;
+         Exit_Status := 0;
+         return True;
+      else
+         return Execute_Utility (Self, Utility, Arguments, Exit_Status);
+      end if;
+   end Execute_Utility_With_Environment;
+
+   procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
+      Pair : constant String := Name & "=" & Value;
+   begin
+      for I in 1 .. Natural (Self.Env_Vars.Length) loop
+         declare
+            Existing : constant String := Self.Env_Vars.Element (I);
+         begin
+            if Existing'Length > Name'Length
+              and then Existing (Existing'First .. Existing'First + Name'Length - 1) = Name
+              and then Existing (Existing'First + Name'Length) = '='
+            then
+               Self.Env_Vars.Replace_Element (I, Pair);
+               if Name = "PWD" then
+                  Self.Pwd_Text := Ada.Strings.Unbounded.To_Unbounded_String (Value);
+               elsif Name = "LC_ALL" then
+                  Self.Locale_Text := Ada.Strings.Unbounded.To_Unbounded_String (Value);
+               end if;
+               return;
+            end if;
+         end;
+      end loop;
+      Self.Env_Vars.Append (Pair);
       if Name = "PWD" then
          Self.Pwd_Text := Ada.Strings.Unbounded.To_Unbounded_String (Value);
       elsif Name = "LC_ALL" then
@@ -226,6 +359,11 @@ package body Test_Contexts is
       Self.Input_Failure_Enabled := True;
       Self.Input_Failure_Limit := Byte_Count;
    end Set_Standard_Input_Failure_After;
+
+   procedure Set_Standard_Input_Is_Terminal (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.Input_Is_Terminal := Value;
+   end Set_Standard_Input_Is_Terminal;
 
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean) is
    begin

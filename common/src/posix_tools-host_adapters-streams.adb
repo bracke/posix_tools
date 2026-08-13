@@ -119,12 +119,9 @@ package body Posix_Tools.Host_Adapters.Streams is
          return False;
    end Try_Read_Standard_Input;
 
-   procedure Write_Standard_Error_Line (Text : String) is
-      Ignored : constant Boolean :=
-        Write_Text (Hostkit.Descriptors.Standard_Error, Text & Character'Val (10));
+   procedure Write_Standard_Error_Line (Text : String; Ok : out Boolean) is
    begin
-      pragma Unreferenced (Ignored);
-      null;
+      Ok := Write_Text (Hostkit.Descriptors.Standard_Error, Text & Character'Val (10));
    end Write_Standard_Error_Line;
 
    function Write_Standard_Output (Text : String) return Boolean is

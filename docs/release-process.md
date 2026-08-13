@@ -9,9 +9,10 @@ should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
 The local metadata gate checks the workflow triggers, read-only repository
 permission, non-fail-fast matrix, timeout, Node 24-compatible checkout action,
-absence of direct Node 20-era setup/cache action pins, Node 24-compatible
-setup-alire branch, tests-crate build step, and release-check invocation so CI
-cannot silently stop exercising the Ada release gate.
+local sibling dependency checkouts, absence of direct Node 20-era setup/cache
+action pins, Node 24-compatible setup-alire branch, tests-crate build step, and
+release-check invocation so CI cannot silently stop exercising the Ada release
+gate.
 
 Current Ada tooling entry points:
 
@@ -94,8 +95,10 @@ Current Ada tooling entry points:
   release locale identifiers are checked by metadata validation, and the catalog
   must appear in the generated package manifest.
 - The release gate writes `dist/posix-tools-<version>-source.7z` from
-  `generated/package-files.txt`; `dist/` is ignored because release archives are
-  reproducible outputs, while their checksums are recorded in generated metadata.
+  `generated/package-files.txt`, immediately runs a 7z archive integrity test,
+  and records the archive checksum. `dist/` is ignored because release archives
+  are reproducible outputs, while their checksums are recorded in generated
+  metadata.
 - `posix_tools_tests release` first requires `git status --porcelain` to report
   a clean source tree, then runs the same implemented gates as `release-check`
   and reports completion.

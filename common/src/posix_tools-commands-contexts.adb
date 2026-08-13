@@ -1,5 +1,6 @@
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
 
@@ -42,6 +43,12 @@ package body Posix_Tools.Commands.Contexts is
    begin
       return Posix_Tools.Host_Adapters.Environment.Value (Name);
    end Environment_Value;
+
+   function Environment_Pairs (Self : Context) return Posix_Tools.Arguments.Vector is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Environment.Pairs;
+   end Environment_Pairs;
 
    function Effective_Locale (Self : Context) return String is
       LC_All      : constant String := Self.Environment_Value ("LC_ALL");
@@ -93,6 +100,36 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Numbers.Count (16) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
    end Tail_Memory_Threshold;
 
+   function Execute_Utility
+     (Self        : in out Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Processes.Run (Utility, Arguments, Exit_Status);
+   end Execute_Utility;
+
+   function Execute_Utility_With_Environment
+     (Self        : in out Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Environment : Posix_Tools.Arguments.Vector;
+      Exit_Status : out Integer) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Processes.Run_With_Environment
+        (Utility, Arguments, Environment, Exit_Status);
+   end Execute_Utility_With_Environment;
+
+   function Standard_Input_Is_Terminal (Self : Context) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Terminals.Standard_Input_Is_Terminal;
+   end Standard_Input_Is_Terminal;
+
    function Standard_Output_Is_Terminal (Self : Context) return Boolean is
       pragma Unreferenced (Self);
    begin
@@ -142,9 +179,12 @@ package body Posix_Tools.Commands.Contexts is
    end Put_Line;
 
    procedure Put_Error_Line (Self : in out Context; Text : String) is
-      pragma Unreferenced (Self);
+      Ok : Boolean;
    begin
-      Posix_Tools.Host_Adapters.Streams.Write_Standard_Error_Line (Text);
+      Posix_Tools.Host_Adapters.Streams.Write_Standard_Error_Line (Text, Ok);
+      if not Ok then
+         Self.Out_Failed := True;
+      end if;
    end Put_Error_Line;
 
    function Output_Failed (Self : Context) return Boolean is
