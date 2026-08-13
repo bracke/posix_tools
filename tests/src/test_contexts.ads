@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
@@ -40,6 +41,9 @@ package Test_Contexts is
    overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context);
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
+   overriding function Set_System_Date_Time
+     (Self : in out Capturing_Context;
+      Time : Ada.Calendar.Time) return Boolean;
    overriding function Execute_Utility
      (Self        : in out Capturing_Context;
       Utility     : String;
@@ -77,6 +81,8 @@ package Test_Contexts is
      (Self             : in out Capturing_Context;
       Memory_Threshold : Posix_Tools.Numbers.Count;
       Max_Spill_Bytes  : Posix_Tools.Numbers.Count);
+   procedure Set_Date_Set_Allowed (Self : in out Capturing_Context; Value : Boolean);
+   function Date_Set_Called (Self : Capturing_Context) return Boolean;
 
    function Output (Self : Capturing_Context) return String;
    function Error_Output (Self : Capturing_Context) return String;
@@ -108,5 +114,7 @@ private
       Tail_Append_Replaces : Boolean := False;
       Tail_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Tail_Spill_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
+      Date_Set_Allowed : Boolean := False;
+      Date_Set_Done : Boolean := False;
    end record;
 end Test_Contexts;

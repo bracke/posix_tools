@@ -3482,6 +3482,50 @@ package body Command_Tests is
             "date epoch seconds output");
       end;
 
+      Context.Initialize ("date", Two_Args ("-u", "010203042026.05"));
+      Test_Contexts.Set_Date_Set_Allowed (Context, True);
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "date set operand status");
+      AUnit.Assertions.Assert (Test_Contexts.Date_Set_Called (Context), "date set operand calls context setter");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "2026")
+         and then Contains (Test_Contexts.Output (Context), "03:04:05"),
+         "date set operand reports selected timestamp");
+
+      Context.Initialize ("date", Two_Args ("-u", "01020304"));
+      Test_Contexts.Set_Date_Set_Allowed (Context, True);
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "date set operand current year status");
+
+      Context.Initialize ("date", Two_Args ("-u", "0102030469"));
+      Test_Contexts.Set_Date_Set_Allowed (Context, True);
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "1969"),
+         "date set operand maps two-digit year 69 to 1969");
+
+      Context.Initialize ("date", Two_Args ("-u", "0102030468"));
+      Test_Contexts.Set_Date_Set_Allowed (Context, True);
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Output (Context), "2068"),
+         "date set operand maps two-digit year 68 to 2068");
+
+      Context.Initialize ("date", One_Arg ("13320304"));
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "date rejects invalid set operand");
+
+      Context.Initialize ("date", One_Arg ("010203042026"));
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "date reports failed system date set");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "date: cannot set system date" & EOL,
+         "date set failure diagnostic");
+
       Context.Initialize ("env", Two_Args ("-i", "NAME=value"));
       Posix_Tools.Commands.Env.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "env status");

@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Streams;
 with Posix_Tools.Arguments;
 with Posix_Tools.Numbers;
@@ -29,6 +30,7 @@ package Posix_Tools.Commands.Contexts is
    procedure Tail_Follow_Wait (Self : in out Context);
    function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count;
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
+   function Set_System_Date_Time (Self : in out Context; Time : Ada.Calendar.Time) return Boolean;
    function Execute_Utility
      (Self        : in out Context;
       Utility     : String;

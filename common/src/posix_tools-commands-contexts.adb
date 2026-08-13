@@ -1,3 +1,4 @@
+with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Processes;
@@ -111,6 +112,12 @@ package body Posix_Tools.Commands.Contexts is
    begin
       return Posix_Tools.Numbers.Count (16) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
    end Tail_Memory_Threshold;
+
+   function Set_System_Date_Time (Self : in out Context; Time : Ada.Calendar.Time) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Clock.Set_System_Time (Time);
+   end Set_System_Date_Time;
 
    function Execute_Utility
      (Self        : in out Context;

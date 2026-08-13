@@ -2,7 +2,7 @@ executable,crate,package,manifest_path,project_file_path,documentation_path,rele
 basename,posix_tools_basename,Posix_Tools.Commands.Basename,tools/basename/alire.toml,tools/basename/posix_tools_basename.gpr,docs/commands/basename.md,true,conforming_with_extensions,true,true,true
 cat,posix_tools_cat,Posix_Tools.Commands.Cat,tools/cat/alire.toml,tools/cat/posix_tools_cat.gpr,docs/commands/cat.md,true,conforming_with_extensions,true,true,true
 cp,posix_tools_cp,Posix_Tools.Commands.Cp,tools/cp/alire.toml,tools/cp/posix_tools_cp.gpr,docs/commands/cp.md,true,conforming_with_extensions,true,true,true
-date,posix_tools_date,Posix_Tools.Commands.Date,tools/date/alire.toml,tools/date/posix_tools_date.gpr,docs/commands/date.md,true,known_deviation,true,true,true
+date,posix_tools_date,Posix_Tools.Commands.Date,tools/date/alire.toml,tools/date/posix_tools_date.gpr,docs/commands/date.md,true,conforming_with_extensions,true,true,true
 dd,posix_tools_dd,Posix_Tools.Commands.Dd,tools/dd/alire.toml,tools/dd/posix_tools_dd.gpr,docs/commands/dd.md,true,known_deviation,true,true,true
 dirname,posix_tools_dirname,Posix_Tools.Commands.Dirname,tools/dirname/alire.toml,tools/dirname/posix_tools_dirname.gpr,docs/commands/dirname.md,true,conforming_with_extensions,true,true,true
 echo,posix_tools_echo,Posix_Tools.Commands.Echo,tools/echo/alire.toml,tools/echo/posix_tools_echo.gpr,docs/commands/echo.md,true,conforming_with_extensions,true,true,true

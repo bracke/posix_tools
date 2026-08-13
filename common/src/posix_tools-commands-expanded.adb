@@ -2388,9 +2388,100 @@ package body Posix_Tools.Commands.Expanded is
       Time_Zone_Name : Unbounded_String;
       Has_Format : Boolean := False;
       Format_Arg : Unbounded_String;
+      Has_Set_Time : Boolean := False;
+      Set_Time : Ada.Calendar.Time := Now;
       TZ_Text : constant String := Context.Environment_Value ("TZ");
       Force_UTC : Boolean := False;
       End_Options : Boolean := False;
+
+      function All_Digits (Text : String) return Boolean is
+      begin
+         return Text /= "" and then (for all Ch of Text => Ch in '0' .. '9');
+      end All_Digits;
+
+      function Two_Digit_Value (Text : String; First : Positive) return Natural is
+      begin
+         return (Character'Pos (Text (First)) - Character'Pos ('0')) * 10
+           + Character'Pos (Text (First + 1)) - Character'Pos ('0');
+      end Two_Digit_Value;
+
+      function Parse_Set_Date_Time (Text : String; Parsed : out Ada.Calendar.Time) return Boolean is
+         Dot : Natural := 0;
+      begin
+         if Text = "" then
+            return False;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = '.' then
+               if Dot /= 0 then
+                  return False;
+               end if;
+               Dot := I;
+            end if;
+         end loop;
+
+         declare
+            Main_Last : constant Natural := (if Dot = 0 then Text'Last else Dot - 1);
+            Main : constant String := Text (Text'First .. Main_Last);
+            Seconds_Text : constant String := (if Dot = 0 then "" else Text (Dot + 1 .. Text'Last));
+         begin
+            if Main'Length not in 8 | 10 | 12
+              or else not All_Digits (Main)
+              or else (Seconds_Text /= "" and then (Seconds_Text'Length /= 2 or else not All_Digits (Seconds_Text)))
+              or else (Dot /= 0 and then Seconds_Text = "")
+            then
+               return False;
+            end if;
+
+            declare
+               Month : constant Natural := Two_Digit_Value (Main, Main'First);
+               Day : constant Natural := Two_Digit_Value (Main, Main'First + 2);
+               Hour : constant Natural := Two_Digit_Value (Main, Main'First + 4);
+               Minute : constant Natural := Two_Digit_Value (Main, Main'First + 6);
+               Second : constant Natural :=
+                 (if Seconds_Text = "" then 0 else Two_Digit_Value (Seconds_Text, Seconds_Text'First));
+               Year : Natural := Natural (Ada.Calendar.Year (Now));
+            begin
+               if Main'Length = 10 then
+                  declare
+                     YY : constant Natural := Two_Digit_Value (Main, Main'First + 8);
+                  begin
+                     Year := (if YY >= 69 then 1900 + YY else 2000 + YY);
+                  end;
+               elsif Main'Length = 12 then
+                  Year :=
+                    Two_Digit_Value (Main, Main'First + 8) * 100
+                    + Two_Digit_Value (Main, Main'First + 10);
+               end if;
+
+               if Month not in 1 .. 12
+                 or else Day not in 1 .. 31
+                 or else Hour > 23
+                 or else Minute > 59
+                 or else Second > 60
+                 or else Year not in Natural (Ada.Calendar.Year_Number'First) .. Natural (Ada.Calendar.Year_Number'Last)
+               then
+                  return False;
+               end if;
+
+               Parsed :=
+                 Ada.Calendar.Formatting.Time_Of
+                   (Ada.Calendar.Year_Number (Year),
+                    Ada.Calendar.Month_Number (Month),
+                    Ada.Calendar.Day_Number (Day),
+                    Ada.Calendar.Formatting.Hour_Number (Hour),
+                    Ada.Calendar.Formatting.Minute_Number (Minute),
+                    Ada.Calendar.Formatting.Second_Number ((if Second = 60 then 59 else Second)),
+                    Leap_Second => Second = 60,
+                    Time_Zone => Time_Zone_Offset);
+               return True;
+            end;
+         end;
+      exception
+         when Constraint_Error | Ada.Calendar.Time_Error =>
+            return False;
+      end Parse_Set_Date_Time;
 
       function Parse_Fixed_TZ
         (Value : String;
@@ -2546,10 +2637,19 @@ package body Posix_Tools.Commands.Expanded is
          elsif Context.Argument (I)'Length > 0
            and then Context.Argument (I) (Context.Argument (I)'First) = '+'
            and then not Has_Format
+           and then not Has_Set_Time
          then
             Format_Arg := To_Unbounded_String
               (Context.Argument (I) (Context.Argument (I)'First + 1 .. Context.Argument (I)'Last));
             Has_Format := True;
+         elsif not Has_Format and then not Has_Set_Time then
+            if Parse_Set_Date_Time (Context.Argument (I), Set_Time) then
+               Has_Set_Time := True;
+            else
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               return;
+            end if;
          else
             Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Context.Argument (I) & "'");
             return;
@@ -2568,18 +2668,25 @@ package body Posix_Tools.Commands.Expanded is
          end;
       end if;
 
+      if Has_Set_Time and then not Context.Set_System_Date_Time (Set_Time) then
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.date.set_failed", "cannot set system date");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
       if Has_Format then
          Context.Put_Line
            (Format_Date
               (To_String (Format_Arg),
-               Now,
+               (if Has_Set_Time then Set_Time else Now),
                Time_Zone_Offset,
                To_String (Time_Zone_Name),
                Context.Effective_Locale));
       else
          Context.Put_Line
            (Ada.Calendar.Formatting.Image
-              (Now,
+              ((if Has_Set_Time then Set_Time else Now),
                Time_Zone => Time_Zone_Offset));
       end if;
 

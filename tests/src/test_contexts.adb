@@ -36,6 +36,8 @@ package body Test_Contexts is
       Self.Tail_Append_Replaces := False;
       Self.Tail_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Self.Tail_Spill_Bytes := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
+      Self.Date_Set_Allowed := False;
+      Self.Date_Set_Done := False;
    end Initialize;
 
    overriding procedure Put (Self : in out Capturing_Context; Text : String) is
@@ -274,6 +276,16 @@ package body Test_Contexts is
       return Self.Tail_Memory_Bytes;
    end Tail_Memory_Threshold;
 
+   overriding function Set_System_Date_Time
+     (Self : in out Capturing_Context;
+      Time : Ada.Calendar.Time) return Boolean
+   is
+      pragma Unreferenced (Time);
+   begin
+      Self.Date_Set_Done := Self.Date_Set_Allowed;
+      return Self.Date_Set_Allowed;
+   end Set_System_Date_Time;
+
    overriding function Execute_Utility
      (Self        : in out Capturing_Context;
       Utility     : String;
@@ -466,6 +478,16 @@ package body Test_Contexts is
       Self.Tail_Memory_Bytes := Memory_Threshold;
       Self.Tail_Spill_Bytes := Max_Spill_Bytes;
    end Set_Tail_Resource_Limits;
+
+   procedure Set_Date_Set_Allowed (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.Date_Set_Allowed := Value;
+   end Set_Date_Set_Allowed;
+
+   function Date_Set_Called (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Date_Set_Done;
+   end Date_Set_Called;
 
    function Output (Self : Capturing_Context) return String is
    begin
