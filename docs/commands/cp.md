@@ -51,9 +51,8 @@ non-directory.
 Copies that would write a source onto the same underlying destination file, including a destination hard link to the
 source where hostkit reports identity, fail before writing. Recursive copies that would place the destination at or
 below the source directory fail before creating the destination subtree.
-FIFOs and character or block device nodes are recreated through hostkit where the platform exposes portable special
-file metadata and permits creation. Unsupported or unknown special-file kinds fail with a localized
-unsupported-file-type diagnostic.
+FIFOs, character or block device nodes, and Unix-domain socket files are recreated through hostkit where the platform
+exposes portable special-file metadata and permits creation.
 
 ## Locale Behavior
 Diagnostics and help are localized; copied data is not localized.
@@ -61,8 +60,9 @@ Diagnostics and help are localized; copied data is not localized.
 ## Implementation-Defined Choices
 Multiple source operands require the target to be an existing directory. Ownership preservation with `-p` is attempted
 only when source and target ownership metadata are both available, and it can still be refused by host permissions.
-Special-file recreation is limited by host platform capabilities and ordinary filesystem permissions; device-node
-creation is commonly privileged.
+Special-file recreation is limited by host platform capabilities and ordinary filesystem permissions. Device-node
+creation is commonly privileged. Windows does not have POSIX pathname sockets or device nodes, so those creation
+operations are unavailable there.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -71,8 +71,8 @@ creation is commonly privileged.
 `cp input output`
 
 ## Conformance Status
-Known deviation tracked by `CP-V1-DEVIATION-001`.
+Conforming with extensions.
 
 ## Known Limitations
-Special-file recreation is implemented for FIFOs and character or block device nodes where hostkit can report source
-metadata and create the target kind. Other special-file kinds are rejected explicitly.
+No known limitation for the implemented V1 surface beyond host permission and platform capability limits documented
+above.

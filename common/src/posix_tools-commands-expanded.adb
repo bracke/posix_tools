@@ -367,12 +367,14 @@ package body Posix_Tools.Commands.Expanded is
                Created := FS.Create_FIFO (Target, Info.Mode);
             elsif Info.Available and then Info.Kind in FS.Character_Device | FS.Block_Device then
                Created := FS.Create_Device (Target, Info.Kind, Info.Device, Info.Mode);
+            elsif Info.Available and then Info.Kind = FS.Socket then
+               Created := FS.Create_Socket (Target, Info.Mode);
             end if;
 
             if Created then
                Apply_Source_Metadata;
             elsif Info.Available
-              and then Info.Kind in FS.FIFO | FS.Character_Device | FS.Block_Device
+              and then Info.Kind in FS.FIFO | FS.Character_Device | FS.Block_Device | FS.Socket
             then
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error

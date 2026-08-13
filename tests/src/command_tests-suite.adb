@@ -109,6 +109,11 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
+           ("regression:REG-CP-0004 socket recreation",
+            Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
            ("regression:REG-SORT-0001 stable unique sort",
             Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test

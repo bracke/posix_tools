@@ -11,6 +11,7 @@ package Posix_Tools.Host_Adapters.File_System is
       FIFO,
       Character_Device,
       Block_Device,
+      Socket,
       Other_Special);
    type Special_File_Info is record
       Available : Boolean := False;
@@ -37,6 +38,7 @@ package Posix_Tools.Host_Adapters.File_System is
       Mode   : Natural) return Boolean;
    procedure Create_Directory (Path : String);
    function Create_FIFO (Path : String; Mode : Natural) return Boolean;
+   function Create_Socket (Path : String; Mode : Natural) return Boolean;
    function Create_Hard_Link (Source : String; Target : String) return Boolean;
    function Create_Link (Source : String; Target : String) return Boolean;
    procedure Create_Path (Path : String);

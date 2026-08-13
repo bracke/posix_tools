@@ -143,6 +143,11 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Hostkit.Fs.Create_FIFO (Path, Mode);
    end Create_FIFO;
 
+   function Create_Socket (Path : String; Mode : Natural) return Boolean is
+   begin
+      return Hostkit.Fs.Create_Socket (Path, Mode);
+   end Create_Socket;
+
    function Create_Hard_Link (Source : String; Target : String) return Boolean is
    begin
       return Hostkit.Fs.Create_Hard_Link (Source, Target);
@@ -536,6 +541,7 @@ package body Posix_Tools.Host_Adapters.File_System is
               when Hostkit.Fs.FIFO => FIFO,
               when Hostkit.Fs.Character_Device => Character_Device,
               when Hostkit.Fs.Block_Device => Block_Device,
+              when Hostkit.Fs.Socket => Socket,
               when Hostkit.Fs.Other_Special => Other_Special),
          Device    => Source.Device,
          Mode      => Source.Mode);

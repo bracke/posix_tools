@@ -308,6 +308,8 @@ package body Command_Tests is
       Cp_Directory_Target : constant String := Fixture_Path ("expanded-cp-directory-target");
       Cp_FIFO_Source : constant String := Fixture_Path ("expanded-cp-fifo-source");
       Cp_FIFO_Target : constant String := Fixture_Path ("expanded-cp-fifo-target");
+      Cp_Socket_Source : constant String := Fixture_Path ("expanded-cp-socket-source");
+      Cp_Socket_Target : constant String := Fixture_Path ("expanded-cp-socket-target");
       Parent_Block : constant String := Fixture_Path ("expanded-parent-block");
       Option_Dir : constant String := Fixture_Path ("expanded-option-operands");
       Touched : constant String := Fixture_Path ("expanded-touch.txt");
@@ -397,6 +399,8 @@ package body Command_Tests is
       Remove_Any (Cp_Directory_Target);
       Remove_Any (Cp_FIFO_Source);
       Remove_Any (Cp_FIFO_Target);
+      Remove_Any (Cp_Socket_Source);
+      Remove_Any (Cp_Socket_Target);
       Remove_Any (Parent_Block);
       Remove_Any (Option_Dir);
       Remove_Any (Touched);
@@ -557,6 +561,20 @@ package body Command_Tests is
                and then Info.Available
                and then Info.Kind = Hostkit.Fs.FIFO,
                "REG-CP-0003 cp recreates FIFO special files through hostkit");
+         end;
+      end if;
+
+      if Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#) then
+         Context.Initialize ("cp", Two_Args (Cp_Socket_Source, Cp_Socket_Target));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         declare
+            Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Target);
+         begin
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success
+               and then Info.Available
+               and then Info.Kind = Hostkit.Fs.Socket,
+               "REG-CP-0004 cp recreates Unix-domain socket files through hostkit");
          end;
       end if;
 
