@@ -15,14 +15,17 @@ Timestamp-selection options `-a`, `-m`, `-d date_time`, `-r reference`, and `-t 
 
 ## Options
 `-a` selects access time, `-m` selects modification time, `-c` suppresses creation of missing files, `-d date_time` and
-`-t timestamp` select an explicit modification timestamp, and `-r reference` selects a reference path whose modification
-timestamp is applied. In this increment `-d` accepts the same numeric `[[CC]YY]MMDDhhmm[.SS]` forms as `-t` plus
+`-t timestamp` select an explicit timestamp, and `-r reference` selects a reference path whose modification timestamp is
+applied. When neither `-a` nor `-m` is supplied both access and modification timestamps are selected; when one is
+supplied only that timestamp is selected; when both are supplied both timestamps are selected. `-d` accepts the same
+numeric `[[CC]YY]MMDDhhmm[.SS]` forms as `-t` plus
 `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM:SS`, and the same
 minute- or second-precision date-time forms with slash-separated dates, lowercase `t`, fractional seconds, a trailing
 `Z`, `+HH`, `+HHMM`, `+HH:MM`, `-HH`, `-HHMM`, or `-HH:MM` UTC offset suffix, plus deterministic English
-`Mon DD YYYY [HH:MM[:SS]]` and `DD Mon YYYY [HH:MM[:SS]]` month-name forms. `-a` is accepted but does not provide a
-separate
-access-time-only update. `--` ends option recognition. Options are recognized before the first file operand; later
+`Mon DD YYYY [HH:MM[:SS]]` and `DD Mon YYYY [HH:MM[:SS]]` month-name forms, and project-defined free-form values
+`now`, `today`, `yesterday`, `tomorrow`, `noon`, `midnight`, `+N seconds|minutes|hours|days|weeks`,
+`-N seconds|minutes|hours|days|weeks`, `N seconds|minutes|hours|days|weeks ago`, and `next` or `last` weekday names.
+`--` ends option recognition. Options are recognized before the first file operand; later
 option-like words are file operands. Project extensions `--help`, `--version`, and `--posix-tools-identify` are
 recognized.
 
@@ -40,33 +43,33 @@ Diagnostics for invalid usage and file failures.
 
 ## Behavioral Details
 Existing ordinary files are refreshed without changing their contents. Existing non-ordinary paths have their
-modification time refreshed where the host timestamp API supports it. Missing files are created unless `-c` is present.
+selected timestamps refreshed where the host timestamp API supports it. Missing files are created unless `-c` is present.
 `-r reference` applies the reference path's modification time and fails if the reference path is absent. `-t timestamp`
 accepts `[[CC]YY]MMDDhhmm[.SS]` numeric forms, including explicit `CCYYMMDDhhmm` values. `-d date_time` accepts those
 numeric forms and deterministic
 `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DDTHH:MM:SS`, `YYYY-MM-DD HH:MM:SS`, trailing-`Z`
 UTC minute- and second-precision forms, slash-separated date variants, lowercase `t`, fractional seconds, and explicit
 numeric UTC offsets on minute- and second-precision forms. It also accepts deterministic English month names and
-abbreviations in `Mon DD YYYY [HH:MM[:SS]]` or `DD Mon YYYY [HH:MM[:SS]]` form, with an optional comma after `DD`.
-Both options apply the selected
-modification time and reject invalid field ranges.
+abbreviations in `Mon DD YYYY [HH:MM[:SS]]` or `DD Mon YYYY [HH:MM[:SS]]` form, with an optional comma after `DD`, and
+the project-defined free-form values listed above. Explicit timestamp options reject invalid field ranges.
 
 ## Locale Behavior
 Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
 Two-digit years in `-t` use the POSIX-style split where `00` through `68` map to 2000 through 2068 and `69` through
-`99` map to 1969 through 1999.
+`99` map to 1969 through 1999. Free-form `-d` parsing is deterministic and English-token based; it is not a
+locale-specific natural-language parser.
 
 ## Extensions
-`--help`, `--version`, `--posix-tools-identify`.
+`--help`, `--version`, `--posix-tools-identify`, deterministic English-token `-d` forms beyond the mandatory numeric
+timestamp grammar.
 
 ## Examples
 `touch file`
 
 ## Conformance Status
-Known deviation tracked by `TOUCH-V1-DEVIATION-001`.
+Conforming with extensions; see `POSIX-TOUCH-001`.
 
 ## Known Limitations
-Real access-time-only updates and broader natural-language free-form date parsing are not implemented. `-a` alone
-preserves modification timestamps; `-m` updates modification timestamps.
+Free-form `-d` parsing is intentionally limited to the documented deterministic forms.

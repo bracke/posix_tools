@@ -6,10 +6,14 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with I18N.Collation;
+with I18N.CLDR_Data;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Localization;
@@ -437,7 +441,230 @@ package body Posix_Tools.Commands.Expanded is
       return Lines;
    end Lines_Of;
 
-   function Expanded_Translation_Set (Text : String) return String is
+   procedure Append_UTF_8 (Output : in out Unbounded_String; Code_Point : Long_Long_Integer) is
+   begin
+      if Code_Point <= 16#7F# then
+         Append (Output, Character'Val (Natural (Code_Point)));
+      elsif Code_Point <= 16#7FF# then
+         Append (Output, Character'Val (16#C0# + Natural (Code_Point / 64)));
+         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
+      elsif Code_Point <= 16#FFFF# then
+         Append (Output, Character'Val (16#E0# + Natural (Code_Point / 4_096)));
+         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
+         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
+      else
+         Append (Output, Character'Val (16#F0# + Natural (Code_Point / 262_144)));
+         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 4_096) mod 64)));
+         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
+         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
+      end if;
+   end Append_UTF_8;
+
+   function Locale_Family (Locale : String) return String is
+      Dot : Natural := 0;
+   begin
+      for I in Locale'Range loop
+         if Locale (I) = '.' or else Locale (I) = '_' or else Locale (I) = '-' then
+            Dot := I - 1;
+            exit;
+         end if;
+      end loop;
+
+      if Dot = 0 then
+         return Locale;
+      elsif Dot < Locale'First then
+         return "";
+      else
+         return Locale (Locale'First .. Dot);
+      end if;
+   end Locale_Family;
+
+   function Locale_Equivalence_Class (Locale, Element : String) return String is
+      Family : constant String := Locale_Family (Locale);
+      Output : Unbounded_String;
+
+      function Equivalent (Candidate : String) return Boolean is
+      begin
+         return I18N.Collation.Available
+           and then I18N.Collation.Compare
+             (Candidate, Element, Locale, I18N.Collation.Primary) = 0;
+      exception
+         when Constraint_Error =>
+            return False;
+      end Equivalent;
+
+      procedure Append_If_Equivalent (Candidate : String) is
+      begin
+         if Equivalent (Candidate)
+           and then Ada.Strings.Fixed.Index (To_String (Output), Candidate) = 0
+         then
+            Append (Output, Candidate);
+         end if;
+      end Append_If_Equivalent;
+   begin
+      Append (Output, Element);
+      for Code in Character'Pos ('A') .. Character'Pos ('Z') loop
+         Append_If_Equivalent ([1 => Character'Val (Code)]);
+      end loop;
+      for Code in Character'Pos ('a') .. Character'Pos ('z') loop
+         Append_If_Equivalent ([1 => Character'Val (Code)]);
+      end loop;
+      for Code in 16#00C0# .. 16#017F# loop
+         declare
+            Candidate : Unbounded_String;
+         begin
+            Append_UTF_8 (Candidate, Long_Long_Integer (Code));
+            Append_If_Equivalent (To_String (Candidate));
+         end;
+      end loop;
+
+      if Element = "a" then
+         if Family = "da" then
+            Append_If_Equivalent ("a");
+            Append_If_Equivalent (Character'Val (16#C3#) & Character'Val (16#A1#));
+            Append_If_Equivalent (Character'Val (16#C3#) & Character'Val (16#A0#));
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#A1#)
+                    & Character'Val (16#C3#) & Character'Val (16#A0#));
+         elsif Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#A1#));
+         end if;
+      elsif Element = "e" then
+         if Family = "da" or else Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#A9#));
+         end if;
+      elsif Element = "o" then
+         if Family = "da" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#B8#));
+         elsif Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#B3#));
+         end if;
+      elsif Element = "A" then
+         if Family = "da" or else Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#81#));
+         end if;
+      elsif Element = "E" then
+         if Family = "da" or else Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#89#));
+         end if;
+      elsif Element = "O" then
+         if Family = "da" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#98#));
+         elsif Family = "es" then
+            Append (Output, Character'Val (16#C3#) & Character'Val (16#93#));
+         end if;
+      end if;
+
+      if Length (Output) > Element'Length then
+         return To_String (Output);
+      end if;
+
+      return Element;
+   end Locale_Equivalence_Class;
+
+   function Locale_Collating_Symbol (Locale, Element : String) return String is
+      Family : constant String := Locale_Family (Locale);
+   begin
+      if Family = "es" and then Element = "ch" then
+         return "ch";
+      elsif Family = "es" and then Element = "ll" then
+         return "ll";
+      elsif Family = "da" and then Element = "aa" then
+         return "aa";
+      else
+         return Element;
+      end if;
+   end Locale_Collating_Symbol;
+
+   function Locale_Collation_Order (Locale, Set1 : String) return String is
+      Family : constant String := Locale_Family (Locale);
+      Output : Unbounded_String;
+      Ordered : String (1 .. 256);
+      Last    : Natural := 0;
+      Spanish_After_Enye : constant String := "opqrstuvwxyzABCDEFGHIJKLMN";
+
+      procedure Append_If_Available (Ch : Character) is
+      begin
+         if (for all Item of Set1 => Item /= Ch)
+           and then (for all I in 1 .. Last => Ordered (I) /= Ch)
+         then
+            Last := Last + 1;
+            Ordered (Last) := Ch;
+         end if;
+      end Append_If_Available;
+
+      function Key (Ch : Character) return String is
+      begin
+         if I18N.Collation.Available
+           and then Family /= ""
+           and then Family /= "C"
+           and then Family /= "POSIX"
+           and then Family /= "en"
+         then
+            return I18N.Collation.Sort_Key ([1 => Ch], Locale, I18N.Collation.Primary);
+         else
+            return [1 => Ch];
+         end if;
+      exception
+         when Constraint_Error =>
+            return [1 => Ch];
+      end Key;
+   begin
+      if Family = "da" then
+         for Ch in Character range 'a' .. 'z' loop
+            Append_If_Available (Ch);
+         end loop;
+         Append_If_Available (Character'Val (16#C3#));
+         Append_If_Available (Character'Val (16#A6#));
+         Append_If_Available (Character'Val (16#B8#));
+         Append_If_Available (Character'Val (16#A5#));
+         for Ch in Character range 'A' .. 'Z' loop
+            Append_If_Available (Ch);
+         end loop;
+      elsif Family = "es" then
+         for Ch in Character range 'a' .. 'n' loop
+            Append_If_Available (Ch);
+         end loop;
+         Append_If_Available (Character'Val (16#C3#));
+         Append_If_Available (Character'Val (16#B1#));
+         for Ch of Spanish_After_Enye loop
+            Append_If_Available (Ch);
+         end loop;
+         Append_If_Available (Character'Val (16#91#));
+         for Ch in Character range 'O' .. 'Z' loop
+            Append_If_Available (Ch);
+         end loop;
+      end if;
+
+      for Code in 0 .. 255 loop
+         Append_If_Available (Character'Val (Code));
+      end loop;
+
+      if Family /= "da" and then Family /= "es" then
+         for I in 2 .. Last loop
+            declare
+               Item : constant Character := Ordered (I);
+               J    : Natural := I;
+            begin
+               while J > 1
+                 and then (Key (Item) < Key (Ordered (J - 1))
+                           or else (Key (Item) = Key (Ordered (J - 1)) and then Item < Ordered (J - 1)))
+               loop
+                  Ordered (J) := Ordered (J - 1);
+                  J := J - 1;
+               end loop;
+               Ordered (J) := Item;
+            end;
+         end loop;
+      end if;
+
+      for I in 1 .. Last loop
+         Append (Output, Ordered (I));
+      end loop;
+
+      return To_String (Output);
+   end Locale_Collation_Order;
+
+   function Expanded_Translation_Set (Text, Locale : String) return String is
       Output : Unbounded_String;
       I : Positive := Text'First;
 
@@ -620,9 +847,12 @@ package body Posix_Tools.Commands.Expanded is
                Handled       : Boolean := False;
             begin
                if Bracket_Sequence ('=', Sequence, Last_Index)
-                 or else Bracket_Sequence ('.', Sequence, Last_Index)
                then
-                  Append (Output, To_String (Sequence));
+                  Append (Output, Locale_Equivalence_Class (Locale, To_String (Sequence)));
+                  I := Last_Index + 1;
+                  Handled := True;
+               elsif Bracket_Sequence ('.', Sequence, Last_Index) then
+                  Append (Output, Locale_Collating_Symbol (Locale, To_String (Sequence)));
                   I := Last_Index + 1;
                   Handled := True;
                else
@@ -766,111 +996,117 @@ package body Posix_Tools.Commands.Expanded is
          end if;
       end Decode_At;
 
-      function Folded_Code_Point (Code_Point : Long_Long_Integer) return Long_Long_Integer is
+      procedure Append_Folded_Code_Point (Code_Point : Long_Long_Integer) is
       begin
          if Code_Point in Character'Pos ('A') .. Character'Pos ('Z') then
-            return Code_Point + 32;
+            Append_UTF_8 (Output, Code_Point + 32);
          elsif Code_Point in 16#00C0# .. 16#00D6# or else Code_Point in 16#00D8# .. 16#00DE# then
-            return Code_Point + 32;
+            Append_UTF_8 (Output, Code_Point + 32);
+         elsif Code_Point = 16#00DF# or else Code_Point = 16#1E9E# then
+            Append (Output, "ss");
          elsif Code_Point in 16#0100# .. 16#0136# and then Code_Point mod 2 = 0 then
-            return Code_Point + 1;
+            Append_UTF_8 (Output, Code_Point + 1);
          elsif Code_Point in 16#0139# .. 16#0147# and then Code_Point mod 2 = 1 then
-            return Code_Point + 1;
+            Append_UTF_8 (Output, Code_Point + 1);
+         elsif Code_Point = 16#0130# then
+            Append (Output, "i");
+            Append_UTF_8 (Output, 16#0307#);
          elsif Code_Point = 16#014A# then
-            return 16#014B#;
+            Append_UTF_8 (Output, 16#014B#);
          elsif Code_Point in 16#014C# .. 16#0176# and then Code_Point mod 2 = 0 then
-            return Code_Point + 1;
+            Append_UTF_8 (Output, Code_Point + 1);
          elsif Code_Point = 16#0178# then
-            return 16#00FF#;
+            Append_UTF_8 (Output, 16#00FF#);
          elsif Code_Point in 16#0179# .. 16#017D# and then Code_Point mod 2 = 1 then
-            return Code_Point + 1;
+            Append_UTF_8 (Output, Code_Point + 1);
+         elsif Code_Point = 16#017F# then
+            Append (Output, "s");
          elsif Code_Point = 16#0181# then
-            return 16#0253#;
+            Append_UTF_8 (Output, 16#0253#);
          elsif Code_Point in 16#0182# .. 16#0184# and then Code_Point mod 2 = 0 then
-            return Code_Point + 1;
+            Append_UTF_8 (Output, Code_Point + 1);
          elsif Code_Point = 16#0186# then
-            return 16#0254#;
+            Append_UTF_8 (Output, 16#0254#);
          elsif Code_Point = 16#0187# then
-            return 16#0188#;
+            Append_UTF_8 (Output, 16#0188#);
          elsif Code_Point = 16#0189# then
-            return 16#0256#;
+            Append_UTF_8 (Output, 16#0256#);
          elsif Code_Point = 16#018A# then
-            return 16#0257#;
+            Append_UTF_8 (Output, 16#0257#);
          elsif Code_Point = 16#018B# then
-            return 16#018C#;
+            Append_UTF_8 (Output, 16#018C#);
          elsif Code_Point = 16#018E# then
-            return 16#01DD#;
+            Append_UTF_8 (Output, 16#01DD#);
          elsif Code_Point = 16#018F# then
-            return 16#0259#;
+            Append_UTF_8 (Output, 16#0259#);
          elsif Code_Point = 16#0190# then
-            return 16#025B#;
+            Append_UTF_8 (Output, 16#025B#);
          elsif Code_Point = 16#0191# then
-            return 16#0192#;
+            Append_UTF_8 (Output, 16#0192#);
          elsif Code_Point = 16#0193# then
-            return 16#0260#;
+            Append_UTF_8 (Output, 16#0260#);
          elsif Code_Point = 16#0194# then
-            return 16#0263#;
+            Append_UTF_8 (Output, 16#0263#);
          elsif Code_Point = 16#0196# then
-            return 16#0269#;
+            Append_UTF_8 (Output, 16#0269#);
          elsif Code_Point = 16#0197# then
-            return 16#0268#;
+            Append_UTF_8 (Output, 16#0268#);
          elsif Code_Point = 16#0198# then
-            return 16#0199#;
+            Append_UTF_8 (Output, 16#0199#);
          elsif Code_Point = 16#019C# then
-            return 16#026F#;
+            Append_UTF_8 (Output, 16#026F#);
          elsif Code_Point = 16#019D# then
-            return 16#0272#;
+            Append_UTF_8 (Output, 16#0272#);
          elsif Code_Point = 16#019F# then
-            return 16#0275#;
+            Append_UTF_8 (Output, 16#0275#);
          elsif Code_Point = 16#0386# then
-            return 16#03AC#;
+            Append_UTF_8 (Output, 16#03AC#);
          elsif Code_Point in 16#0388# .. 16#038A# then
-            return Code_Point + 37;
+            Append_UTF_8 (Output, Code_Point + 37);
          elsif Code_Point = 16#038C# then
-            return 16#03CC#;
+            Append_UTF_8 (Output, 16#03CC#);
          elsif Code_Point in 16#038E# .. 16#038F# then
-            return Code_Point + 63;
+            Append_UTF_8 (Output, Code_Point + 63);
          elsif Code_Point in 16#0391# .. 16#03A1# or else Code_Point in 16#03A3# .. 16#03AB# then
-            return Code_Point + 32;
+            Append_UTF_8 (Output, Code_Point + 32);
+         elsif Code_Point = 16#03C2# then
+            Append_UTF_8 (Output, 16#03C3#);
          elsif Code_Point in 16#0400# .. 16#040F# then
-            return Code_Point + 80;
+            Append_UTF_8 (Output, Code_Point + 80);
          elsif Code_Point in 16#0410# .. 16#042F# then
-            return Code_Point + 32;
+            Append_UTF_8 (Output, Code_Point + 32);
          elsif Code_Point in 16#0531# .. 16#0556# then
-            return Code_Point + 48;
+            Append_UTF_8 (Output, Code_Point + 48);
          elsif Code_Point in 16#13A0# .. 16#13EF# then
-            return Code_Point + 16#97D0#;
+            Append_UTF_8 (Output, Code_Point + 16#97D0#);
          elsif Code_Point in 16#13F0# .. 16#13F5# then
-            return Code_Point + 8;
+            Append_UTF_8 (Output, Code_Point + 8);
          elsif Code_Point in 16#10400# .. 16#10427# then
-            return Code_Point + 40;
+            Append_UTF_8 (Output, Code_Point + 40);
          elsif Code_Point in 16#1C90# .. 16#1CBF# then
-            return Code_Point - 16#0BC0#;
+            Append_UTF_8 (Output, Code_Point - 16#0BC0#);
+         elsif Code_Point = 16#212A# then
+            Append (Output, "k");
+         elsif Code_Point = 16#212B# then
+            Append_UTF_8 (Output, 16#00E5#);
+         elsif Code_Point = 16#FB00# then
+            Append (Output, "ff");
+         elsif Code_Point = 16#FB01# then
+            Append (Output, "fi");
+         elsif Code_Point = 16#FB02# then
+            Append (Output, "fl");
+         elsif Code_Point = 16#FB03# then
+            Append (Output, "ffi");
+         elsif Code_Point = 16#FB04# then
+            Append (Output, "ffl");
+         elsif Code_Point = 16#FB05# or else Code_Point = 16#FB06# then
+            Append (Output, "st");
          elsif Code_Point in 16#FF21# .. 16#FF3A# then
-            return Code_Point + 32;
+            Append_UTF_8 (Output, Code_Point + 32);
          else
-            return Code_Point;
+            Append_UTF_8 (Output, Code_Point);
          end if;
-      end Folded_Code_Point;
-
-      procedure Append_UTF_8 (Code_Point : Long_Long_Integer) is
-      begin
-         if Code_Point <= 16#7F# then
-            Append (Output, Character'Val (Natural (Code_Point)));
-         elsif Code_Point <= 16#7FF# then
-            Append (Output, Character'Val (16#C0# + Natural (Code_Point / 64)));
-            Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-         elsif Code_Point <= 16#FFFF# then
-            Append (Output, Character'Val (16#E0# + Natural (Code_Point / 4_096)));
-            Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
-            Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-         else
-            Append (Output, Character'Val (16#F0# + Natural (Code_Point / 262_144)));
-            Append (Output, Character'Val (16#80# + Natural ((Code_Point / 4_096) mod 64)));
-            Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
-            Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-         end if;
-      end Append_UTF_8;
+      end Append_Folded_Code_Point;
    begin
       while I <= Text'Last loop
          declare
@@ -878,7 +1114,7 @@ package body Posix_Tools.Commands.Expanded is
             Width      : Natural;
          begin
             if Decode_At (I, Code_Point, Width) then
-               Append_UTF_8 (Folded_Code_Point (Code_Point));
+               Append_Folded_Code_Point (Code_Point);
                I := I + Width;
             else
                Append (Output, Text (I));
@@ -890,66 +1126,243 @@ package body Posix_Tools.Commands.Expanded is
       return To_String (Output);
    end Folded_Sort_Text;
 
-   function Numeric_Field (Text : String) return String is
+   function Locale_Sort_Text (Locale, Text : String) return String is
+      Family : constant String := Locale_Family (Locale);
+      Output : Unbounded_String;
+      I      : Positive := Text'First;
+
+      function Has_Bytes (Pattern : String) return Boolean is
+      begin
+         return I + Pattern'Length - 1 <= Text'Last
+           and then Text (I .. I + Pattern'Length - 1) = Pattern;
+      end Has_Bytes;
+
+      procedure Append_Byte_Order (Ch : Character) is
+      begin
+         Append (Output, Ch);
+         Append (Output, Character'Val (0));
+      end Append_Byte_Order;
+
+      procedure Append_Collation (Primary, Secondary : Character) is
+      begin
+         Append (Output, Primary);
+         Append (Output, Secondary);
+      end Append_Collation;
+   begin
+      if Family /= ""
+        and then Family /= "c"
+        and then Family /= "posix"
+        and then Family /= "da"
+        and then Family /= "es"
+        and then I18N.Collation.Available
+      then
+         declare
+            CLDR_Key : constant String := I18N.Collation.Sort_Key (Text, Locale, I18N.Collation.Tertiary);
+         begin
+            if CLDR_Key /= Text then
+               return CLDR_Key;
+            end if;
+         end;
+      end if;
+
+      if Family /= "da" and then Family /= "es" then
+         return Text;
+      end if;
+
+      while I <= Text'Last loop
+         if Family = "da" and then Has_Bytes (Character'Val (195) & Character'Val (166)) then
+            Append_Collation ('{', 'a');
+            I := I + 2;
+         elsif Family = "da" and then Has_Bytes (Character'Val (195) & Character'Val (134)) then
+            Append_Collation ('{', 'A');
+            I := I + 2;
+         elsif Family = "da" and then Has_Bytes (Character'Val (195) & Character'Val (184)) then
+            Append_Collation ('{', 'b');
+            I := I + 2;
+         elsif Family = "da" and then Has_Bytes (Character'Val (195) & Character'Val (152)) then
+            Append_Collation ('{', 'B');
+            I := I + 2;
+         elsif Family = "da"
+           and then (Has_Bytes (Character'Val (195) & Character'Val (165))
+                     or else Has_Bytes (Character'Val (226) & Character'Val (132) & Character'Val (171)))
+         then
+            Append_Collation ('{', 'c');
+            I := I + (if Character'Pos (Text (I)) = 195 then 2 else 3);
+         elsif Family = "da" and then Has_Bytes (Character'Val (195) & Character'Val (133)) then
+            Append_Collation ('{', 'C');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes ("ch") then
+            Append_Collation ('c', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes ("Ch") then
+            Append_Collation ('C', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes ("ll") then
+            Append_Collation ('l', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes ("Ll") then
+            Append_Collation ('L', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (177)) then
+            Append_Collation ('n', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (145)) then
+            Append_Collation ('N', '{');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (161)) then
+            Append_Collation ('a', 'a');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (169)) then
+            Append_Collation ('e', 'a');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (173)) then
+            Append_Collation ('i', 'a');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (179)) then
+            Append_Collation ('o', 'a');
+            I := I + 2;
+         elsif Family = "es" and then Has_Bytes (Character'Val (195) & Character'Val (186)) then
+            Append_Collation ('u', 'a');
+            I := I + 2;
+         else
+            Append_Byte_Order (Text (I));
+            I := I + 1;
+         end if;
+      end loop;
+
+      return To_String (Output);
+   end Locale_Sort_Text;
+
+   function Starts_With_At
+     (Text    : String;
+      Pattern : String;
+      Index   : Positive) return Boolean
+   is
+   begin
+      return Pattern /= ""
+        and then Index <= Text'Last
+        and then Index + Pattern'Length - 1 <= Text'Last
+        and then Text (Index .. Index + Pattern'Length - 1) = Pattern;
+   end Starts_With_At;
+
+   function Locale_Digit_At
+     (Locale : String;
+      Text   : String;
+      Index  : Positive;
+      Digit  : out Character;
+      Width  : out Natural) return Boolean
+   is
+   begin
+      if Index <= Text'Last and then Text (Index) in '0' .. '9' then
+         Digit := Text (Index);
+         Width := 1;
+         return True;
+      end if;
+
+      for Ch in Character range '0' .. '9' loop
+         declare
+            Localized : constant String := I18N.CLDR_Data.Digit_Text (Locale, Ch);
+         begin
+            if Localized /= String'(1 => Ch) and then Starts_With_At (Text, Localized, Index) then
+               Digit := Ch;
+               Width := Localized'Length;
+               return True;
+            end if;
+         end;
+      end loop;
+
+      Digit := '0';
+      Width := 0;
+      return False;
+   end Locale_Digit_At;
+
+   function Numeric_Field (Locale, Text : String) return String is
       Index     : Positive := Text'First;
-      Field_First : Positive;
-      Start     : Positive;
-      Last      : Natural;
+      Output    : Unbounded_String;
+      Decimal_Separator : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
+      Plus_Sign : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
+      Minus_Sign : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
       Has_Digit : Boolean := False;
+      Digit     : Character;
+      Width     : Natural;
+
+      function At_Decimal_Separator return Boolean is
+      begin
+         return (Index <= Text'Last and then Text (Index) = '.')
+           or else
+             (Decimal_Separator /= "."
+              and then Starts_With_At (Text, Decimal_Separator, Index));
+      end At_Decimal_Separator;
+
+      procedure Consume_Sign is
+      begin
+         if Index <= Text'Last and then Text (Index) in '-' | '+' then
+            Append (Output, Text (Index));
+            Index := Index + 1;
+         elsif Minus_Sign /= "-" and then Starts_With_At (Text, Minus_Sign, Index) then
+            Append (Output, "-");
+            Index := Index + Minus_Sign'Length;
+         elsif Plus_Sign /= "+" and then Starts_With_At (Text, Plus_Sign, Index) then
+            Append (Output, "+");
+            Index := Index + Plus_Sign'Length;
+         end if;
+      end Consume_Sign;
+
+      procedure Consume_Digits is
+      begin
+         while Index <= Text'Last and then Locale_Digit_At (Locale, Text, Index, Digit, Width) loop
+            Append (Output, Digit);
+            Has_Digit := True;
+            Index := Index + Width;
+         end loop;
+      end Consume_Digits;
    begin
       while Index <= Text'Last and then (Text (Index) = ' ' or else Text (Index) = Character'Val (9)) loop
          Index := Index + 1;
       end loop;
 
-      Field_First := Index;
-      if Index <= Text'Last and then (Text (Index) = '-' or else Text (Index) = '+') then
-         Index := Index + 1;
-      end if;
+      Consume_Sign;
+      Consume_Digits;
 
-      Start := Index;
-      while Index <= Text'Last and then Text (Index) in '0' .. '9' loop
-         Has_Digit := True;
-         Index := Index + 1;
-      end loop;
-
-      if Index <= Text'Last and then Text (Index) = '.' then
-         Index := Index + 1;
-         while Index <= Text'Last and then Text (Index) in '0' .. '9' loop
-            Has_Digit := True;
-            Index := Index + 1;
-         end loop;
+      if At_Decimal_Separator then
+         Append (Output, ".");
+         Index := Index + (if Index <= Text'Last and then Text (Index) = '.' then 1 else Decimal_Separator'Length);
+         Consume_Digits;
       end if;
 
       if not Has_Digit then
          return "0";
       end if;
 
-      Last := Index - 1;
       if Index <= Text'Last and then Text (Index) in 'e' | 'E' then
          declare
             Exponent_Start : constant Positive := Index;
+            Exponent_Output_Length : constant Natural := Length (Output);
+            Exponent_Has_Digit : Boolean := False;
          begin
+            Append (Output, Text (Index));
             Index := Index + 1;
-            if Index <= Text'Last and then Text (Index) in '-' | '+' then
-               Index := Index + 1;
-            end if;
+            Consume_Sign;
+            while Index <= Text'Last and then Locale_Digit_At (Locale, Text, Index, Digit, Width) loop
+               Append (Output, Digit);
+               Exponent_Has_Digit := True;
+               Index := Index + Width;
+            end loop;
 
-            if Index <= Text'Last and then Text (Index) in '0' .. '9' then
-               while Index <= Text'Last and then Text (Index) in '0' .. '9' loop
-                  Index := Index + 1;
-               end loop;
-               Last := Index - 1;
-            else
-               Last := Exponent_Start - 1;
+            if not Exponent_Has_Digit then
+               declare
+                  Previous : constant String := To_String (Output);
+               begin
+                  Output :=
+                    To_Unbounded_String
+                      (Previous (Previous'First .. Previous'First + Exponent_Output_Length - 1));
+                  Index := Exponent_Start;
+               end;
             end if;
          end;
       end if;
 
-      if Start > Last then
-         return "0";
-      end if;
-
-      return Text (Field_First .. Last);
+      return To_String (Output);
    end Numeric_Field;
 
    function Decimal_Compare (Left, Right : String) return Integer is
@@ -1140,7 +1553,9 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False) return String
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "";
+      Apply_Locale_Collation : Boolean := True) return String
    is
       First : Natural := Text'First;
       Last  : Natural := Text'Last;
@@ -1268,27 +1683,34 @@ package body Posix_Tools.Commands.Expanded is
       if First > Text'Last or else First > Last then
          return "";
       elsif not Fold_Case and then not Dictionary_Order and then not Ignore_Nonprinting then
-         return Text (First .. Last);
+         declare
+            Raw_Key : constant String := Text (First .. Last);
+         begin
+            return (if Apply_Locale_Collation then Locale_Sort_Text (Locale, Raw_Key) else Raw_Key);
+         end;
       elsif Fold_Case and then not Dictionary_Order and then not Ignore_Nonprinting then
-         return Folded_Sort_Text (Text (First .. Last));
+         declare
+            Raw_Key : constant String := Folded_Sort_Text (Text (First .. Last));
+         begin
+            return (if Apply_Locale_Collation then Locale_Sort_Text (Locale, Raw_Key) else Raw_Key);
+         end;
       else
          declare
             Key  : Unbounded_String;
-            Next : Character;
          begin
             for I in First .. Last loop
                if (not Dictionary_Order or else Dictionary_Character (Text (I)))
                  and then (not Ignore_Nonprinting or else Printable_Character (Text (I)))
                then
-                  Next :=
-                    (if Fold_Case and then Text (I) in 'A' .. 'Z'
-                     then Character'Val
-                       (Character'Pos (Text (I)) - Character'Pos ('A') + Character'Pos ('a'))
-                     else Text (I));
-                  Append (Key, Next);
+                  Append (Key, Text (I));
                end if;
             end loop;
-            return To_String (Key);
+            declare
+               Raw_Key : constant String :=
+                 (if Fold_Case then Folded_Sort_Text (To_String (Key)) else To_String (Key));
+            begin
+               return (if Apply_Locale_Collation then Locale_Sort_Text (Locale, Raw_Key) else Raw_Key);
+            end;
          end;
       end if;
    end Sort_Key;
@@ -1306,7 +1728,8 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False)
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "")
       return Boolean
    is
       Left_Char : Character;
@@ -1323,7 +1746,8 @@ package body Posix_Tools.Commands.Expanded is
            Character_Start,
            Character_End,
            Field_Separator,
-           Has_Field_Separator);
+           Has_Field_Separator,
+           Locale);
       Right_Key : constant String :=
         Sort_Key
           (Right,
@@ -1336,13 +1760,46 @@ package body Posix_Tools.Commands.Expanded is
            Character_Start,
            Character_End,
            Field_Separator,
-           Has_Field_Separator);
+           Has_Field_Separator,
+           Locale);
       Left_Index : Natural := Left_Key'First;
       Right_Index : Natural := Right_Key'First;
    begin
       if Numeric_Sort then
          declare
-            Numeric_Result : constant Integer := Decimal_Compare (Numeric_Field (Left_Key), Numeric_Field (Right_Key));
+            Left_Numeric_Key : constant String :=
+              Sort_Key
+                (Left,
+                 Fold_Case,
+                 Ignore_Leading_Blanks,
+                 Dictionary_Order,
+                 Ignore_Nonprinting,
+                 Field_Start,
+                 Field_End,
+                 Character_Start,
+                 Character_End,
+                 Field_Separator,
+                 Has_Field_Separator,
+                 Locale,
+                 False);
+            Right_Numeric_Key : constant String :=
+              Sort_Key
+                (Right,
+                 Fold_Case,
+                 Ignore_Leading_Blanks,
+                 Dictionary_Order,
+                 Ignore_Nonprinting,
+                 Field_Start,
+                 Field_End,
+                 Character_Start,
+                 Character_End,
+                 Field_Separator,
+                 Has_Field_Separator,
+                 Locale,
+                 False);
+            Numeric_Result : constant Integer :=
+              Decimal_Compare
+                (Numeric_Field (Locale, Left_Numeric_Key), Numeric_Field (Locale, Right_Numeric_Key));
          begin
             if Numeric_Result /= 0 then
                return Numeric_Result > 0;
@@ -1380,7 +1837,8 @@ package body Posix_Tools.Commands.Expanded is
       Dictionary_Order,
       Ignore_Nonprinting : Boolean;
       Field_Separator : Character;
-      Has_Field_Separator : Boolean) return Integer
+      Has_Field_Separator : Boolean;
+      Locale : String := "") return Integer
    is
       Effective_Fold_Case : constant Boolean := Fold_Case or else Key.Fold_Case;
       Effective_Numeric_Sort : constant Boolean := Numeric_Sort or else Key.Numeric_Sort;
@@ -1396,7 +1854,8 @@ package body Posix_Tools.Commands.Expanded is
            Key.Character_Start,
            Key.Character_End,
            Field_Separator,
-           Has_Field_Separator);
+           Has_Field_Separator,
+           Locale);
       Right_Key : constant String :=
         Sort_Key
           (Right,
@@ -1409,11 +1868,47 @@ package body Posix_Tools.Commands.Expanded is
            Key.Character_Start,
            Key.Character_End,
            Field_Separator,
-           Has_Field_Separator);
+           Has_Field_Separator,
+           Locale);
       Numeric_Result : Integer;
    begin
       if Effective_Numeric_Sort then
-         Numeric_Result := Decimal_Compare (Numeric_Field (Left_Key), Numeric_Field (Right_Key));
+         declare
+            Left_Numeric_Key : constant String :=
+              Sort_Key
+                (Left,
+                 Effective_Fold_Case,
+                 Ignore_Leading_Blanks or else Key.Ignore_Leading_Blanks,
+                 Dictionary_Order or else Key.Dictionary_Order,
+                 Ignore_Nonprinting or else Key.Ignore_Nonprinting,
+                 Key.Field_Start,
+                 Key.Field_End,
+                 Key.Character_Start,
+                 Key.Character_End,
+                 Field_Separator,
+                 Has_Field_Separator,
+                 Locale,
+                 False);
+            Right_Numeric_Key : constant String :=
+              Sort_Key
+                (Right,
+                 Effective_Fold_Case,
+                 Ignore_Leading_Blanks or else Key.Ignore_Leading_Blanks,
+                 Dictionary_Order or else Key.Dictionary_Order,
+                 Ignore_Nonprinting or else Key.Ignore_Nonprinting,
+                 Key.Field_Start,
+                 Key.Field_End,
+                 Key.Character_Start,
+                 Key.Character_End,
+                 Field_Separator,
+                 Has_Field_Separator,
+                 Locale,
+                 False);
+         begin
+            Numeric_Result :=
+              Decimal_Compare
+                (Numeric_Field (Locale, Left_Numeric_Key), Numeric_Field (Locale, Right_Numeric_Key));
+         end;
          if Numeric_Result /= 0 then
             return Numeric_Result;
          end if;
@@ -1442,7 +1937,8 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False)
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "")
       return Boolean
    is
       Comparison : Integer;
@@ -1462,7 +1958,8 @@ package body Posix_Tools.Commands.Expanded is
             Character_Start,
             Character_End,
             Field_Separator,
-            Has_Field_Separator);
+            Has_Field_Separator,
+            Locale);
       end if;
 
       for Key of Keys loop
@@ -1477,7 +1974,8 @@ package body Posix_Tools.Commands.Expanded is
               Dictionary_Order,
               Ignore_Nonprinting,
               Field_Separator,
-              Has_Field_Separator);
+              Has_Field_Separator,
+              Locale);
          if Comparison /= 0 then
             return (if Key.Reverse_Order then Comparison < 0 else Comparison > 0);
          end if;
@@ -1498,7 +1996,8 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False) return Boolean
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "") return Boolean
    is
    begin
       if Keys.Length = 0 then
@@ -1514,7 +2013,8 @@ package body Posix_Tools.Commands.Expanded is
               Character_Start,
               Character_End,
               Field_Separator,
-              Has_Field_Separator)
+              Has_Field_Separator,
+              Locale)
            =
            Sort_Key
              (Right,
@@ -1527,7 +2027,8 @@ package body Posix_Tools.Commands.Expanded is
               Character_Start,
               Character_End,
               Field_Separator,
-              Has_Field_Separator);
+              Has_Field_Separator,
+              Locale);
       end if;
 
       for Key of Keys loop
@@ -1541,7 +2042,8 @@ package body Posix_Tools.Commands.Expanded is
                Dictionary_Order,
                Ignore_Nonprinting,
                Field_Separator,
-               Has_Field_Separator) /= 0
+               Has_Field_Separator,
+               Locale) /= 0
          then
             return False;
          end if;
@@ -1564,7 +2066,8 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False)
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "")
    is
       Swapped : Boolean;
    begin
@@ -1590,7 +2093,8 @@ package body Posix_Tools.Commands.Expanded is
                Character_Start,
                Character_End,
                Field_Separator,
-               Has_Field_Separator)
+               Has_Field_Separator,
+               Locale)
             then
                declare
                   Temp : constant String := Lines.Element (I);
@@ -1621,7 +2125,8 @@ package body Posix_Tools.Commands.Expanded is
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False)
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "")
       return Boolean
    is
    begin
@@ -1646,7 +2151,8 @@ package body Posix_Tools.Commands.Expanded is
               Character_Start,
               Character_End,
               Field_Separator,
-              Has_Field_Separator)
+              Has_Field_Separator,
+              Locale)
          then
             return False;
          elsif Reverse_Order
@@ -1665,7 +2171,8 @@ package body Posix_Tools.Commands.Expanded is
               Character_Start,
               Character_End,
               Field_Separator,
-              Has_Field_Separator)
+              Has_Field_Separator,
+              Locale)
          then
             return False;
          end if;
@@ -1684,7 +2191,8 @@ package body Posix_Tools.Commands.Expanded is
                   Character_Start,
                   Character_End,
                   Field_Separator,
-                  Has_Field_Separator)
+                  Has_Field_Separator,
+                  Locale)
             then
                return False;
             end if;
@@ -2626,6 +3134,79 @@ package body Posix_Tools.Commands.Expanded is
          when Constraint_Error =>
             return False;
       end Parse_Fixed_TZ;
+
+      function Parse_I18N_TZ
+        (Value : String;
+         Reference_Time : Ada.Calendar.Time;
+         Offset : out Ada.Calendar.Time_Zones.Time_Offset;
+         Zone_Name : out Unbounded_String) return Boolean
+      is
+         Canonical : constant String := I18N.CLDR_Data.Canonical_Time_Zone (Value);
+         Year : Ada.Calendar.Year_Number;
+         Month : Ada.Calendar.Month_Number;
+         Day : Ada.Calendar.Day_Number;
+         Hour : Ada.Calendar.Formatting.Hour_Number;
+         Minute : Ada.Calendar.Formatting.Minute_Number;
+         Second : Ada.Calendar.Formatting.Second_Number;
+         Sub_Second : Ada.Calendar.Formatting.Second_Duration;
+         Valid : Boolean;
+         Offset_Seconds : Integer;
+         Base_Valid : Boolean;
+         Base_Minutes : Integer;
+         Family : Unbounded_String;
+         Short_Name : Unbounded_String;
+      begin
+         Ada.Calendar.Formatting.Split
+           (Reference_Time, Year, Month, Day, Hour, Minute, Second, Sub_Second, Time_Zone => 0);
+
+         Offset_Seconds :=
+           I18N.CLDR_Data.Time_Zone_Offset_Seconds_At_UTC
+             (Canonical,
+              Natural (Year),
+              Natural (Month),
+              Natural (Day),
+              Natural (Hour),
+              Natural (Minute),
+              Natural (Second),
+              Valid);
+
+         if not Valid or else Offset_Seconds mod 60 /= 0 then
+            return False;
+         end if;
+
+         Offset := Ada.Calendar.Time_Zones.Time_Offset (Offset_Seconds / 60);
+         Base_Minutes := I18N.CLDR_Data.Time_Zone_Base_Offset_Minutes (Canonical, Base_Valid);
+         Family := To_Unbounded_String (I18N.CLDR_Data.Time_Zone_DST_Family (Canonical));
+         if To_String (Family) /= "" then
+            Short_Name :=
+              To_Unbounded_String
+                (I18N.CLDR_Data.Time_Zone_Short_Name
+                   (Context.Effective_Locale,
+                    To_String (Family),
+                    Base_Valid and then Offset_Seconds /= Base_Minutes * 60));
+         end if;
+
+         Zone_Name :=
+           (if To_String (Short_Name) /= ""
+            then Short_Name
+            elsif Canonical in "UTC" | "Etc/UTC" | "Etc/GMT" | "Z"
+            then To_Unbounded_String ("UTC")
+            else To_Unbounded_String (Canonical));
+         return True;
+      exception
+         when Constraint_Error | Ada.Calendar.Time_Error =>
+            return False;
+      end Parse_I18N_TZ;
+
+      function Parse_Host_TZ
+        (Value : String;
+         Reference_Time : Ada.Calendar.Time;
+         Offset : out Ada.Calendar.Time_Zones.Time_Offset;
+         Zone_Name : out Unbounded_String) return Boolean
+      is
+      begin
+         return Posix_Tools.Host_Adapters.Clock.Resolve_Time_Zone (Value, Reference_Time, Offset, Zone_Name);
+      end Parse_Host_TZ;
    begin
       for I in 1 .. Context.Argument_Count loop
          if not End_Options and then Context.Argument (I) = "--" then
@@ -2661,7 +3242,12 @@ package body Posix_Tools.Commands.Expanded is
             Parsed_Offset : Ada.Calendar.Time_Zones.Time_Offset;
             Parsed_Name : Unbounded_String;
          begin
-            if Parse_Fixed_TZ (TZ_Text, Parsed_Offset, Parsed_Name) then
+            if Parse_Fixed_TZ (TZ_Text, Parsed_Offset, Parsed_Name)
+              or else Parse_Host_TZ
+                (TZ_Text, (if Has_Set_Time then Set_Time else Now), Parsed_Offset, Parsed_Name)
+              or else Parse_I18N_TZ
+                (TZ_Text, (if Has_Set_Time then Set_Time else Now), Parsed_Offset, Parsed_Name)
+            then
                Time_Zone_Offset := Parsed_Offset;
                Time_Zone_Name := Parsed_Name;
             end if;
@@ -2731,7 +3317,10 @@ package body Posix_Tools.Commands.Expanded is
       end Record_Count_Image;
 
       function Read_Dd_Standard_Input (Read_Ok : out Boolean) return String is
-         Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
+         Buffer : Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset
+                   (Posix_Tools.Numbers.Count'Min
+                      (Input_Block_Size, Posix_Tools.Numbers.Count (16 * 1024))));
          Last   : Ada.Streams.Stream_Element_Offset;
          Text   : Unbounded_String;
       begin
@@ -2751,6 +3340,31 @@ package body Posix_Tools.Commands.Expanded is
 
          return To_String (Text);
       end Read_Dd_Standard_Input;
+
+      function Selected_Input (Value : String) return String is
+         Selected : Unbounded_String;
+         Start    : Natural := Value'First;
+         Stop     : Natural;
+         Blocks   : Posix_Tools.Numbers.Count := 0;
+      begin
+         if Count = 0 or else Value = "" then
+            return "";
+         end if;
+
+         while Start <= Value'Last
+           and then Blocks < Count
+         loop
+            Stop :=
+              Natural'Min
+                (Start + Natural (Input_Block_Size) - 1,
+                 Value'Last);
+            Append (Selected, Value (Start .. Stop));
+            Blocks := Blocks + 1;
+            Start := Stop + 1;
+         end loop;
+
+         return To_String (Selected);
+      end Selected_Input;
 
       procedure Set_Record_Counts
         (Byte_Count   : Posix_Tools.Numbers.Count;
@@ -3050,6 +3664,9 @@ package body Posix_Tools.Commands.Expanded is
          begin
             if Factor'Length = 0 then
                return (Status => Posix_Tools.Numbers.Empty, Value => 0);
+            elsif Factor (Factor'Last) = 'c' then
+               Multiplier := 1;
+               Last := Factor'Last - 1;
             elsif Factor (Factor'Last) = 'b' then
                Multiplier := 512;
                Last := Factor'Last - 1;
@@ -3131,10 +3748,12 @@ package body Posix_Tools.Commands.Expanded is
                Input := To_Unbounded_String (Arg (Arg'First + 3 .. Arg'Last));
             elsif Arg'Length > 3 and then Arg (Arg'First .. Arg'First + 2) = "of=" then
                Output := To_Unbounded_String (Arg (Arg'First + 3 .. Arg'Last));
-            elsif Arg'Length > 6 and then Arg (Arg'First .. Arg'First + 5) = "count=" then
+            elsif Arg'Length >= 6 and then Arg (Arg'First .. Arg'First + 5) = "count=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last));
+                    (if Arg'Length = 6
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid count '" & Arg & "'");
@@ -3142,10 +3761,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Count := Parsed.Value;
                end;
-            elsif Arg'Length > 6 and then Arg (Arg'First .. Arg'First + 5) = "files=" then
+            elsif Arg'Length >= 6 and then Arg (Arg'First .. Arg'First + 5) = "files=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last));
+                    (if Arg'Length = 6
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid file count '" & Arg & "'");
@@ -3153,10 +3774,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Input_File_Count := Parsed.Value;
                end;
-            elsif Arg'Length > 5 and then Arg (Arg'First .. Arg'First + 4) = "skip=" then
+            elsif Arg'Length >= 5 and then Arg (Arg'First .. Arg'First + 4) = "skip=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 5 .. Arg'Last));
+                    (if Arg'Length = 5
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 5 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid skip '" & Arg & "'");
@@ -3164,10 +3787,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Skip_Blocks := Parsed.Value;
                end;
-            elsif Arg'Length > 6 and then Arg (Arg'First .. Arg'First + 5) = "iseek=" then
+            elsif Arg'Length >= 6 and then Arg (Arg'First .. Arg'First + 5) = "iseek=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last));
+                    (if Arg'Length = 6
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid skip '" & Arg & "'");
@@ -3175,10 +3800,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Skip_Blocks := Parsed.Value;
                end;
-            elsif Arg'Length > 5 and then Arg (Arg'First .. Arg'First + 4) = "seek=" then
+            elsif Arg'Length >= 5 and then Arg (Arg'First .. Arg'First + 4) = "seek=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 5 .. Arg'Last));
+                    (if Arg'Length = 5
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 5 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid seek '" & Arg & "'");
@@ -3186,10 +3813,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Seek_Blocks := Parsed.Value;
                end;
-            elsif Arg'Length > 6 and then Arg (Arg'First .. Arg'First + 5) = "oseek=" then
+            elsif Arg'Length >= 6 and then Arg (Arg'First .. Arg'First + 5) = "oseek=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last));
+                    (if Arg'Length = 6
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 6 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid seek '" & Arg & "'");
@@ -3197,10 +3826,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Seek_Blocks := Parsed.Value;
                end;
-            elsif Arg'Length > 4 and then Arg (Arg'First .. Arg'First + 3) = "ibs=" then
+            elsif Arg'Length >= 4 and then Arg (Arg'First .. Arg'First + 3) = "ibs=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last));
+                    (if Arg'Length = 4
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid block size '" & Arg & "'");
@@ -3208,10 +3839,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Input_Block_Size := Parsed.Value;
                end;
-            elsif Arg'Length > 4 and then Arg (Arg'First .. Arg'First + 3) = "obs=" then
+            elsif Arg'Length >= 4 and then Arg (Arg'First .. Arg'First + 3) = "obs=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last));
+                    (if Arg'Length = 4
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid block size '" & Arg & "'");
@@ -3219,10 +3852,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Output_Block_Size := Parsed.Value;
                end;
-            elsif Arg'Length > 4 and then Arg (Arg'First .. Arg'First + 3) = "cbs=" then
+            elsif Arg'Length >= 4 and then Arg (Arg'First .. Arg'First + 3) = "cbs=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last));
+                    (if Arg'Length = 4
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 4 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid block size '" & Arg & "'");
@@ -3230,10 +3865,12 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                   Conversion_Block_Size := Parsed.Value;
                end;
-            elsif Arg'Length > 3 and then Arg (Arg'First .. Arg'First + 2) = "bs=" then
+            elsif Arg'Length >= 3 and then Arg (Arg'First .. Arg'First + 2) = "bs=" then
                declare
                   Parsed : constant Posix_Tools.Numbers.Parse_Result :=
-                    Parse_Dd_Nonnegative (Arg (Arg'First + 3 .. Arg'Last));
+                    (if Arg'Length = 3
+                     then (Status => Posix_Tools.Numbers.Empty, Value => 0)
+                     else Parse_Dd_Nonnegative (Arg (Arg'First + 3 .. Arg'Last)));
                begin
                   if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid block size '" & Arg & "'");
@@ -3242,8 +3879,8 @@ package body Posix_Tools.Commands.Expanded is
                   Input_Block_Size := Parsed.Value;
                   Output_Block_Size := Parsed.Value;
                end;
-            elsif Arg'Length > 5 and then Arg (Arg'First .. Arg'First + 4) = "conv=" then
-               if not Parse_Conversions (Arg (Arg'First + 5 .. Arg'Last)) then
+            elsif Arg'Length >= 5 and then Arg (Arg'First .. Arg'First + 4) = "conv=" then
+               if Arg'Length = 5 or else not Parse_Conversions (Arg (Arg'First + 5 .. Arg'Last)) then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid conversion '" & Arg & "'");
                   return;
                end if;
@@ -3343,7 +3980,7 @@ package body Posix_Tools.Commands.Expanded is
 
          declare
             Prefix : constant String (1 .. Natural (Prefix_Count)) := [others => Character'Val (0)];
-            Raw_Slice : constant String := (if Last < Start then "" else Full (Start .. Last));
+            Raw_Slice : constant String := Selected_Input (if Last < Start then "" else Full (Start .. Last));
             Slice  : constant String := Apply_Conversion (Raw_Slice);
 
             procedure Write_Dd_Output_File is
@@ -3586,7 +4223,14 @@ package body Posix_Tools.Commands.Expanded is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       type Find_Type_Filter is
-        (Any_Type, Directory_Type, Regular_File_Type, Symbolic_Link_Type, Special_File_Type);
+        (Any_Type,
+         Directory_Type,
+         Regular_File_Type,
+         Symbolic_Link_Type,
+         Block_Device_Type,
+         Character_Device_Type,
+         FIFO_Type,
+         Socket_Type);
       type Find_Count_Relation is (Exact_Count, Greater_Than_Count, Less_Than_Count);
       type Find_Exec_Batch is record
          Start_Index : Positive := 1;
@@ -3660,6 +4304,11 @@ package body Posix_Tools.Commands.Expanded is
          return (for some Token of Expression => Token = "-depth");
       end Has_Depth;
 
+      function Has_Xdev return Boolean is
+      begin
+         return (for some Token of Expression => Token = "-xdev");
+      end Has_Xdev;
+
       function Is_Expression_Start (Arg : String) return Boolean is
       begin
          return Arg = "!"
@@ -3695,8 +4344,14 @@ package body Posix_Tools.Commands.Expanded is
             return Regular_File_Type;
          elsif Text = "l" then
             return Symbolic_Link_Type;
-         elsif Text in "b" | "c" | "p" | "s" then
-            return Special_File_Type;
+         elsif Text = "b" then
+            return Block_Device_Type;
+         elsif Text = "c" then
+            return Character_Device_Type;
+         elsif Text = "p" then
+            return FIFO_Type;
+         elsif Text = "s" then
+            return Socket_Type;
          else
             Valid := False;
             return Any_Type;
@@ -4160,20 +4815,52 @@ package body Posix_Tools.Commands.Expanded is
          return True;
       end Validate_Expression;
 
-      procedure Visit (Path : String; Ok : in out Boolean) is
+      procedure Visit
+        (Path                 : String;
+         Ok                   : in out Boolean;
+         Root_Device          : Long_Long_Integer;
+         Root_Device_Available : Boolean)
+      is
          Name : constant String := Simple_Name (Path);
          Exists : constant Boolean := FS.Exists (Path);
          Is_Link : constant Boolean := FS.Is_Link (Path);
-         Kind   : FS.File_Kind := FS.Kind (Path);
+         Kind   : constant FS.File_Kind := FS.Kind (Path);
          Pruned : Boolean := False;
+         Current_Device_Available : Boolean := False;
+         Current_Device : constant Long_Long_Integer := FS.Device_Id (Path, Current_Device_Available);
+         Crosses_Device : constant Boolean :=
+           Has_Xdev
+           and then Root_Device_Available
+           and then Current_Device_Available
+           and then Current_Device /= Root_Device;
 
          function Type_Matches (Filter : Find_Type_Filter) return Boolean is
          begin
-            return Filter = Any_Type
-              or else (Filter = Directory_Type and then Exists and then Kind = FS.Directory)
-              or else (Filter = Regular_File_Type and then Exists and then Kind = FS.Ordinary_File)
-              or else (Filter = Symbolic_Link_Type and then Is_Link)
-              or else (Filter = Special_File_Type and then Exists and then Kind = FS.Special_File);
+            if Filter = Any_Type then
+               return True;
+            elsif Filter = Directory_Type then
+               return Exists and then Kind = FS.Directory;
+            elsif Filter = Regular_File_Type then
+               return Exists and then Kind = FS.Ordinary_File;
+            elsif Filter = Symbolic_Link_Type then
+               return Is_Link;
+            elsif not Exists or else Kind /= FS.Special_File then
+               return False;
+            else
+               declare
+                  Info : constant FS.Special_File_Info := FS.Special_File_Info_Of (Path);
+               begin
+                  if not Info.Available then
+                     return False;
+                  end if;
+
+                  return
+                    (Filter = Block_Device_Type and then Info.Kind = FS.Block_Device)
+                    or else (Filter = Character_Device_Type and then Info.Kind = FS.Character_Device)
+                    or else (Filter = FIFO_Type and then Info.Kind = FS.FIFO)
+                    or else (Filter = Socket_Type and then Info.Kind = FS.Socket);
+               end;
+            end if;
          end Type_Matches;
 
          function Permission_Matches (Text : String; Valid : in out Boolean) return Boolean is
@@ -4703,14 +5390,14 @@ package body Posix_Tools.Commands.Expanded is
                Context.Put_Line (Path);
             end if;
          end if;
-         if Exists and then Kind = FS.Directory and then not Pruned then
+         if Exists and then Kind = FS.Directory and then not Pruned and then not Crosses_Device then
             declare
                Iteration_Ok : Boolean;
 
                procedure Visit_Child (Name : String; Full_Name : String; Stop : in out Boolean) is
                begin
                   pragma Unreferenced (Name, Stop);
-                  Visit (Full_Name, Ok);
+                  Visit (Full_Name, Ok, Root_Device, Root_Device_Available);
                end Visit_Child;
 
                procedure For_Each_Child is new FS.For_Each_Directory_Entry (Visit_Child);
@@ -4776,10 +5463,20 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       if Paths.Length = 0 then
-         Visit (".", Ok);
+         declare
+            Available : Boolean := False;
+            Device    : constant Long_Long_Integer := FS.Device_Id (".", Available);
+         begin
+            Visit (".", Ok, Device, Available);
+         end;
       else
          for I in 1 .. Natural (Paths.Length) loop
-            Visit (Paths.Element (I), Ok);
+            declare
+               Available : Boolean := False;
+               Device    : constant Long_Long_Integer := FS.Device_Id (Paths.Element (I), Available);
+            begin
+               Visit (Paths.Element (I), Ok, Device, Available);
+            end;
          end loop;
       end if;
       Flush_Exec_Batches (Ok);
@@ -5457,6 +6154,50 @@ package body Posix_Tools.Commands.Expanded is
          Used_Argument : Boolean := False;
          Format_Ok : Boolean := True;
          Stop_Output : Boolean := False;
+
+         function Numeric_Locale return String is
+            LC_All     : constant String := Context.Environment_Value ("LC_ALL");
+            LC_Numeric : constant String := Context.Environment_Value ("LC_NUMERIC");
+            Lang       : constant String := Context.Environment_Value ("LANG");
+         begin
+            if LC_All /= "" then
+               return LC_All;
+            elsif LC_Numeric /= "" then
+               return LC_Numeric;
+            elsif Lang /= "" then
+               return Lang;
+            else
+               return Context.Effective_Locale;
+            end if;
+         end Numeric_Locale;
+
+         function Localize_Decimal_Number
+           (Text                : String;
+            Localize_Radix      : Boolean;
+            Localize_Digit_Glyphs : Boolean := True) return String
+         is
+            Locale  : constant String := Numeric_Locale;
+            Radix   : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
+            Plus    : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
+            Minus   : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
+            Output  : Unbounded_String;
+         begin
+            for I in Text'Range loop
+               if Text (I) in '0' .. '9' and then Localize_Digit_Glyphs then
+                  Append (Output, I18N.CLDR_Data.Digit_Text (Locale, Text (I)));
+               elsif Text (I) = '.' and then Localize_Radix then
+                  Append (Output, Radix);
+               elsif Text (I) = '+' then
+                  Append (Output, Plus);
+               elsif Text (I) = '-' then
+                  Append (Output, Minus);
+               else
+                  Append (Output, Text (I));
+               end if;
+            end loop;
+
+            return To_String (Output);
+         end Localize_Decimal_Number;
 
          function Canonical_Decimal (Text : String; Ok : out Boolean) return String is
             First    : Positive := Text'First;
@@ -6307,7 +7048,11 @@ package body Posix_Tools.Commands.Expanded is
                         else Unsigned_Image (Numeric_Text, 16, Format (I + 1) = 'X', Numeric_Ok));
                   begin
                      if Numeric_Ok then
-                        Context.Put (Image);
+                        Context.Put
+                          ((if Format (I + 1) in 'd' | 'i' | 'u' | 'f' | 'e' | 'E' | 'g' | 'G'
+                            then Localize_Decimal_Number
+                              (Image, Format (I + 1) in 'f' | 'e' | 'E' | 'g' | 'G')
+                            else Image));
                      else
                         Format_Ok := False;
                      end if;
@@ -6521,9 +7266,15 @@ package body Posix_Tools.Commands.Expanded is
                                        elsif Alternate and then Format (J) = 'X' and then not Zero_Value
                                        then "0X" & Formatted
                                        else Formatted);
+                                    Localized_Image : constant String :=
+                                      (if Format (J) in 'd' | 'i' | 'u' | 'f' | 'e' | 'E' | 'g' | 'G'
+                                       then Localize_Decimal_Number
+                                         (Alternate_Image,
+                                          Format (J) in 'f' | 'e' | 'E' | 'g' | 'G')
+                                       else Alternate_Image);
                                  begin
                                     Emit_Field
-                                      (Alternate_Image,
+                                      (Localized_Image,
                                        Width,
                                        Left_Justify,
                                        Pad =>
@@ -6804,6 +7555,7 @@ package body Posix_Tools.Commands.Expanded is
       Ok          : Boolean := True;
       Skip_Next   : Boolean := False;
       Parsing_Operands : Boolean := False;
+      Locale      : constant String := Context.Effective_Locale;
 
       function Parse_Sort_Key
          (Text : String;
@@ -7068,7 +7820,8 @@ package body Posix_Tools.Commands.Expanded is
                      Key_Character,
                      Key_End_Character,
                      Field_Separator,
-                     Has_Field_Separator)
+                     Has_Field_Separator,
+                     Locale)
                then Posix_Tools.Exit_Status.Success
                else Posix_Tools.Exit_Status.Operational_Failure);
             return;
@@ -7088,7 +7841,8 @@ package body Posix_Tools.Commands.Expanded is
             Key_Character,
             Key_End_Character,
             Field_Separator,
-            Has_Field_Separator);
+            Has_Field_Separator,
+            Locale);
          if Reverse_Order and then Lines.Length > 0 then
             for I in reverse 1 .. Natural (Lines.Length) loop
                if (not Unique)
@@ -7106,7 +7860,8 @@ package body Posix_Tools.Commands.Expanded is
                     Key_Character,
                     Key_End_Character,
                     Field_Separator,
-                    Has_Field_Separator)
+                    Has_Field_Separator,
+                    Locale)
                then
                   Append (Output, Lines.Element (I) & LF);
                end if;
@@ -7130,7 +7885,8 @@ package body Posix_Tools.Commands.Expanded is
                     Key_Character,
                     Key_End_Character,
                     Field_Separator,
-                    Has_Field_Separator)
+                    Has_Field_Separator,
+                    Locale)
                then
                   Append (Output, Line & LF);
                end if;
@@ -7405,7 +8161,16 @@ package body Posix_Tools.Commands.Expanded is
          elsif Op = "-f" then
             return FS.Kind (Operand) = FS.Ordinary_File;
          elsif Op in "-b" | "-c" | "-p" | "-S" then
-            return FS.Kind (Operand) = FS.Special_File;
+            declare
+               Info : constant FS.Special_File_Info := FS.Special_File_Info_Of (Operand);
+            begin
+               return Info.Available
+                 and then
+                   (if Op = "-b" then Info.Kind = FS.Block_Device
+                    elsif Op = "-c" then Info.Kind = FS.Character_Device
+                    elsif Op = "-p" then Info.Kind = FS.FIFO
+                    else Info.Kind = FS.Socket);
+            end;
          elsif Op = "-s" then
             return FS.Kind (Operand) = FS.Ordinary_File
               and then FS.Size (Operand) > 0;
@@ -7572,6 +8337,7 @@ package body Posix_Tools.Commands.Expanded is
       Create_Missing : Boolean := True;
       Target_Time : FS.File_Time := FS.Current_File_Time;
       Have_Target_Time : Boolean := False;
+      Touch_Access : Boolean := True;
       Touch_Modify : Boolean := True;
       Have_Time_Selector : Boolean := False;
       First : Positive := 1;
@@ -8050,6 +8816,222 @@ package body Posix_Tools.Commands.Expanded is
             return False;
       end Parse_Touch_Month_Name_Date_Time;
 
+      function Parse_Touch_Free_Form_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean is
+         Tokens : String_Vectors.Vector;
+
+         function Lowered (Value : String) return String is
+            Result : String := Value;
+         begin
+            for I in Result'Range loop
+               if Result (I) in 'A' .. 'Z' then
+                  Result (I) := Character'Val
+                    (Character'Pos (Result (I)) - Character'Pos ('A') + Character'Pos ('a'));
+               end if;
+            end loop;
+            return Result;
+         end Lowered;
+
+         function Decimal_Value (Value : String; Result : out Natural) return Boolean is
+         begin
+            Result := 0;
+            if Value = "" or else (for some Ch of Value => Ch not in '0' .. '9') then
+               return False;
+            end if;
+            for Ch of Value loop
+               if Result > (Natural'Last - (Character'Pos (Ch) - Character'Pos ('0'))) / 10 then
+                  return False;
+               end if;
+               Result := Result * 10 + Character'Pos (Ch) - Character'Pos ('0');
+            end loop;
+            return True;
+         end Decimal_Value;
+
+         function Unit_Seconds (Unit : String) return Long_Long_Integer is
+            Name : constant String := Lowered (Unit);
+         begin
+            if Name in "second" | "seconds" | "sec" | "secs" then
+               return 1;
+            elsif Name in "minute" | "minutes" | "min" | "mins" then
+               return 60;
+            elsif Name in "hour" | "hours" then
+               return 3_600;
+            elsif Name in "day" | "days" then
+               return 86_400;
+            elsif Name in "week" | "weeks" then
+               return 604_800;
+            else
+               return 0;
+            end if;
+         end Unit_Seconds;
+
+         function Weekday_Number (Name : String) return Natural is
+            Lower : constant String := Lowered (Name);
+         begin
+            if Lower in "mon" | "monday" then
+               return 1;
+            elsif Lower in "tue" | "tues" | "tuesday" then
+               return 2;
+            elsif Lower in "wed" | "wednesday" then
+               return 3;
+            elsif Lower in "thu" | "thur" | "thurs" | "thursday" then
+               return 4;
+            elsif Lower in "fri" | "friday" then
+               return 5;
+            elsif Lower in "sat" | "saturday" then
+               return 6;
+            elsif Lower in "sun" | "sunday" then
+               return 7;
+            else
+               return 0;
+            end if;
+         end Weekday_Number;
+
+         function Today_At (Seconds : Duration) return Ada.Calendar.Time is
+            Now : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+            Year : Ada.Calendar.Year_Number;
+            Month : Ada.Calendar.Month_Number;
+            Day : Ada.Calendar.Day_Number;
+            Ignored : Duration;
+         begin
+            Ada.Calendar.Split (Now, Year, Month, Day, Ignored);
+            return Ada.Calendar.Time_Of (Year, Month, Day, Seconds);
+         end Today_At;
+
+         function Calendar_To_File_Time (Value : Ada.Calendar.Time) return Boolean is
+            Year : Ada.Calendar.Year_Number;
+            Month : Ada.Calendar.Month_Number;
+            Day : Ada.Calendar.Day_Number;
+            Seconds : Duration;
+            Whole : Natural;
+         begin
+            Ada.Calendar.Split (Value, Year, Month, Day, Seconds);
+            Whole := Natural (Seconds);
+            return FS.File_Time_Of
+              (Natural (Year),
+               Natural (Month),
+               Natural (Day),
+               Whole / 3_600,
+               (Whole mod 3_600) / 60,
+               Whole mod 60,
+               Parsed);
+         end Calendar_To_File_Time;
+
+         procedure Tokenize is
+            Start : Positive := Text'First;
+         begin
+            while Start <= Text'Last loop
+               while Start <= Text'Last and then Text (Start) in ' ' | Character'Val (9) loop
+                  Start := Start + 1;
+               end loop;
+               exit when Start > Text'Last;
+               declare
+                  Stop : Natural := Start;
+               begin
+                  while Stop <= Text'Last and then Text (Stop) not in ' ' | Character'Val (9) loop
+                     Stop := Stop + 1;
+                  end loop;
+                  Tokens.Append (Text (Start .. Stop - 1));
+                  Start := Stop + 1;
+               end;
+            end loop;
+         end Tokenize;
+      begin
+         Parsed := FS.Current_File_Time;
+         if Text = "" then
+            return False;
+         end if;
+
+         Tokenize;
+         if Natural (Tokens.Length) = 0 then
+            return False;
+         end if;
+
+         declare
+            First : constant String := Lowered (Tokens.Element (1));
+         begin
+            if Natural (Tokens.Length) = 1 then
+               if First = "now" then
+                  Parsed := FS.Current_File_Time;
+                  return True;
+               elsif First = "today" then
+                  return Calendar_To_File_Time (Today_At (0.0));
+               elsif First = "yesterday" then
+                  return Calendar_To_File_Time (Today_At (0.0) - 86_400.0);
+               elsif First = "tomorrow" then
+                  return Calendar_To_File_Time (Today_At (0.0) + 86_400.0);
+               elsif First = "noon" then
+                  return Calendar_To_File_Time (Today_At (12.0 * 3_600.0));
+               elsif First = "midnight" then
+                  return Calendar_To_File_Time (Today_At (0.0));
+               end if;
+            elsif Natural (Tokens.Length) = 2 and then First in "next" | "last" then
+               declare
+                  Target : constant Natural := Weekday_Number (Tokens.Element (2));
+                  Now_Day : constant Natural :=
+                    (case Ada.Calendar.Formatting.Day_Of_Week (Ada.Calendar.Clock) is
+                       when Ada.Calendar.Formatting.Monday => 1,
+                       when Ada.Calendar.Formatting.Tuesday => 2,
+                       when Ada.Calendar.Formatting.Wednesday => 3,
+                       when Ada.Calendar.Formatting.Thursday => 4,
+                       when Ada.Calendar.Formatting.Friday => 5,
+                       when Ada.Calendar.Formatting.Saturday => 6,
+                       when Ada.Calendar.Formatting.Sunday => 7);
+                  Day_Offset : Integer;
+               begin
+                  if Target = 0 then
+                     return False;
+                  end if;
+
+                  if First = "next" then
+                     Day_Offset := Integer (Target) - Integer (Now_Day);
+                     if Day_Offset <= 0 then
+                        Day_Offset := Day_Offset + 7;
+                     end if;
+                  else
+                     Day_Offset := Integer (Target) - Integer (Now_Day);
+                     if Day_Offset >= 0 then
+                        Day_Offset := Day_Offset - 7;
+                     end if;
+                  end if;
+
+                  return Calendar_To_File_Time (Today_At (0.0) + Duration (Day_Offset * 86_400));
+               end;
+            elsif Natural (Tokens.Length) = 2 and then First'Length >= 2 and then First (First'First) in '+' | '-' then
+               declare
+                  Count : Natural;
+                  Sign : constant Long_Long_Integer := (if First (First'First) = '-' then -1 else 1);
+                  Unit : constant Long_Long_Integer := Unit_Seconds (Tokens.Element (2));
+               begin
+                  if Unit = 0
+                    or else not Decimal_Value (First (First'First + 1 .. First'Last), Count)
+                  then
+                     return False;
+                  end if;
+
+                  return Calendar_To_File_Time
+                    (Ada.Calendar.Clock + Duration (Sign * Long_Long_Integer (Count) * Unit));
+               end;
+            elsif Natural (Tokens.Length) = 3 and then Lowered (Tokens.Element (3)) = "ago" then
+               declare
+                  Count : Natural;
+                  Unit : constant Long_Long_Integer := Unit_Seconds (Tokens.Element (2));
+               begin
+                  if Unit = 0 or else not Decimal_Value (Tokens.Element (1), Count) then
+                     return False;
+                  end if;
+
+                  return Calendar_To_File_Time
+                    (Ada.Calendar.Clock - Duration (Long_Long_Integer (Count) * Unit));
+               end;
+            end if;
+         end;
+
+         return False;
+      exception
+         when Constraint_Error =>
+            return False;
+      end Parse_Touch_Free_Form_Date_Time;
+
       procedure Select_Reference_Time (Reference : String; Selected : out Boolean) is
       begin
          Selected := False;
@@ -8090,6 +9072,7 @@ package body Posix_Tools.Commands.Expanded is
            or else Parse_Touch_Date_Time (Timestamp, Target_Time)
            or else Parse_Touch_Normalized_Date_Time (Timestamp, Target_Time)
            or else Parse_Touch_Month_Name_Date_Time (Timestamp, Target_Time)
+           or else Parse_Touch_Free_Form_Date_Time (Timestamp, Target_Time)
          then
             Have_Target_Time := True;
             Selected := True;
@@ -8099,20 +9082,36 @@ package body Posix_Tools.Commands.Expanded is
       end Select_Date_Time;
 
       procedure Apply_Touch (Path : String) is
-         procedure Apply_Modification_Time (Time : FS.File_Time) is
+         procedure Apply_Selected_Time (Time : FS.File_Time) is
+            Access_Time       : FS.File_Time := Time;
+            Modification_Time : FS.File_Time := Time;
          begin
-            if not FS.Set_Modification_Time (Path, Time) then
+            if not Touch_Access and then not FS.File_Access_Time_From_File (Path, Access_Time) then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+               return;
+            end if;
+
+            if not Touch_Modify and then not FS.File_Time_From_File (Path, Modification_Time) then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+               return;
+            end if;
+
+            if not FS.Set_File_Times (Path, Access_Time, Modification_Time) then
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
                  (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
             end if;
-         end Apply_Modification_Time;
+         end Apply_Selected_Time;
       begin
          if FS.Exists (Path) then
-            if not Touch_Modify then
-               null;
-            elsif Have_Target_Time then
-               Apply_Modification_Time (Target_Time);
+            if Have_Target_Time then
+               Apply_Selected_Time (Target_Time);
+            elsif not Touch_Access or else not Touch_Modify then
+               Apply_Selected_Time (FS.Current_File_Time);
             elsif FS.Kind (Path) = FS.Ordinary_File then
                declare
                   File_Ok : Boolean;
@@ -8126,13 +9125,17 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                end;
             else
-               Apply_Modification_Time (FS.Current_File_Time);
+               Apply_Selected_Time (FS.Current_File_Time);
             end if;
          elsif Create_Missing then
             Write_File (Path, "", False, Written);
             Ok := Ok and Written;
-            if Written and then Have_Target_Time and then Touch_Modify then
-               Apply_Modification_Time (Target_Time);
+            if Written then
+               if Have_Target_Time then
+                  Apply_Selected_Time (Target_Time);
+               elsif not Touch_Access or else not Touch_Modify then
+                  Apply_Selected_Time (FS.Current_File_Time);
+               end if;
             end if;
          end if;
       end Apply_Touch;
@@ -8196,9 +9199,10 @@ package body Posix_Tools.Commands.Expanded is
                         Touch_Modify := False;
                         Have_Time_Selector := True;
                      end if;
+                     Touch_Access := True;
                   when 'm' =>
                      if not Have_Time_Selector then
-                        Touch_Modify := True;
+                        Touch_Access := False;
                         Have_Time_Selector := True;
                      end if;
                      Touch_Modify := True;
@@ -8373,13 +9377,15 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       declare
-         Set1 : constant String := Expanded_Translation_Set (Context.Argument (First));
+         Locale : constant String := Context.Effective_Locale;
+         Set1   : constant String := Expanded_Translation_Set (Context.Argument (First), Locale);
          Set2 : constant String :=
            (if (Delete_Mode and then Squeeze) or else ((not Delete_Mode) and then Context.Argument_Count = First + 1)
-            then Expanded_Translation_Set (Context.Argument (First + 1))
+            then Expanded_Translation_Set (Context.Argument (First + 1), Locale)
             else "");
          Squeeze_Set : constant String :=
            (if Squeeze and then Set2 /= "" then Set2 elsif Squeeze then Set1 else "");
+         Complement_Order : constant String := Locale_Collation_Order (Locale, Set1);
          Previous : Character := Character'Val (0);
          Have_Previous : Boolean := False;
 
@@ -8389,14 +9395,13 @@ package body Posix_Tools.Commands.Expanded is
          end In_Set;
 
          function Complement_Position (Ch : Character) return Natural is
-            Position : Natural := 0;
          begin
-            for Code in 0 .. Character'Pos (Ch) loop
-               if not In_Set (Set1, Character'Val (Code)) then
-                  Position := Position + 1;
+            for I in Complement_Order'Range loop
+               if Complement_Order (I) = Ch then
+                  return I - Complement_Order'First + 1;
                end if;
             end loop;
-            return Position;
+            return 0;
          end Complement_Position;
 
          procedure Append_Translated (Ch : Character) is
@@ -8543,10 +9548,14 @@ package body Posix_Tools.Commands.Expanded is
 
          if Position > Line'Last then
             return "";
-         elsif not Fold_Case then
-            return Line (Position .. Line'Last);
          else
-            return Folded_Sort_Text (Line (Position .. Line'Last));
+            declare
+               Text_Key : constant String :=
+                 (if Fold_Case then Folded_Sort_Text (Line (Position .. Line'Last))
+                  else Line (Position .. Line'Last));
+            begin
+               return Locale_Sort_Text (Context.Effective_Locale, Text_Key);
+            end;
          end if;
       end Comparison_Key;
    begin

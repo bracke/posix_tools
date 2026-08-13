@@ -886,14 +886,6 @@ procedure Posix_Tools_Tests is
             "root manifest must not depend on command crate "
             & Posix_Tools.Command_Inventory.Crate (I));
       end loop;
-      if Project_Tools.Files.File_Contains
-        (Project_Tools.Files.Join (Root, "common/alire.toml"), "i18n =")
-        or else Project_Tools.Files.File_Contains
-          (Project_Tools.Files.Join (Root, "common/posix_tools_common.gpr"), "i18n.gpr")
-      then
-         Project_Tools.Release_Checks.Fail ("common crate has prohibited direct i18n dependency");
-      end if;
-
       Project_Tools.Release_Checks.Require_File (Check, "alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, ".gitattributes");
       Project_Tools.Release_Checks.Require_File (Check, "posix_tools.gpr");
@@ -901,6 +893,10 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Exec_Dir use ""bin""");
       Project_Tools.Release_Checks.Require_File (Check, "common/alire.toml");
       Project_Tools.Release_Checks.Require_File (Check, "common/posix_tools_common.gpr");
+      Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "i18n = ""*""");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/alire.toml", "i18n = { path = ""../../i18n"" }");
+      Project_Tools.Release_Checks.Require_Text (Check, "common/posix_tools_common.gpr", "../../i18n/i18n.gpr");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/posix_tools_common.gpr", "for Object_Dir use ""obj/common""");
       Project_Tools.Release_Checks.Require_Text

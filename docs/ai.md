@@ -30,8 +30,9 @@
 
 - Command crates depend only on `posix_tools_common`.
 - The root crate depends only on `posix_tools_common`.
-- `posix_tools_common` depends on `hostkit`, `messages`, and
-  `terminal_styles`; it must not depend on `aunit` or `project_tools`.
+- `posix_tools_common` depends on `hostkit`, `i18n`, `messages`, and
+  `terminal_styles`; `i18n` is used for deterministic date timezone data. The
+  common crate must not depend on `aunit` or `project_tools`.
 - The tests crate depends on `posix_tools_common`, `aunit`, and
   `project_tools`.
 - No command crate may depend on another command crate.

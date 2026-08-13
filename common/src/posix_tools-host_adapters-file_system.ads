@@ -46,6 +46,7 @@ package Posix_Tools.Host_Adapters.File_System is
    procedure Delete_File (Path : String);
    function Delete_Link (Path : String) return Boolean;
    procedure Delete_Tree (Path : String);
+   function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer;
    function Exists (Path : String) return Boolean;
    procedure File_Ownership
      (Path      : String;
@@ -61,6 +62,7 @@ package Posix_Tools.Host_Adapters.File_System is
    function Kind (Path : String) return File_Kind;
    function Current_File_Time return File_Time;
    function File_Time_From_File (Path : String; Time : out File_Time) return Boolean;
+   function File_Access_Time_From_File (Path : String; Time : out File_Time) return Boolean;
    function File_Time_Of
      (Year   : Natural;
       Month  : Natural;
@@ -78,6 +80,8 @@ package Posix_Tools.Host_Adapters.File_System is
    procedure Rename (Old_Path : String; New_Path : String);
    function Same_File (Left : String; Right : String) return Boolean;
    function Set_Modification_Time (Path : String; Time : File_Time) return Boolean;
+   function Set_Access_Time (Path : String; Time : File_Time) return Boolean;
+   function Set_File_Times (Path : String; Access_Time, Modified_Time : File_Time) return Boolean;
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
    function Simple_Name (Path : String) return String;

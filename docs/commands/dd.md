@@ -11,7 +11,7 @@ Copies bytes from standard input or an input file to standard output or an outpu
 
 ## Operands
 Assignment operands select input, output, count, input file count, block sizes, conversion block size, input/output
-offsets, and limited conversion modes. Numeric operands accept plain decimal values, `b` for 512-byte units, `k` and
+offsets, and limited conversion modes. Numeric operands accept plain decimal values, `c` for 1-byte units, `b` for 512-byte units, `k` and
 `K` for 1024-byte units, `M` for 1024*1024-byte
 units, `G` for 1024*1024*1024-byte units, `w` for 2-byte units, and `x` multiplication.
 
@@ -49,8 +49,7 @@ single-byte table. `conv=swab` swaps adjacent bytes in the selected
 output data and leaves an odd final byte unchanged. `conv=ucase` and `conv=lcase` convert ASCII letters after byte
 swapping; with comma-separated case conversion names, the later case conversion wins. `conv=noerror` diagnoses a read
 failure and retains the readable prefix collected before that failure in the deterministic command context. When
-combined with `conv=sync`, that partial failed block is padded to the input block size before conversion. Full
-block-by-block device read-error continuation is not implemented.
+combined with `conv=sync`, that partial failed block is padded to the input block size before conversion.
 `conv=notrunc` preserves existing output-file bytes outside the written region and honors `seek=` as the write offset.
 Record accounting reports full and partial selected input blocks and full and partial converted output blocks using the
 selected input and output block sizes. `conv=block`, `conv=ebcdic`, and `conv=ibm` also report truncated conversion
@@ -70,8 +69,7 @@ are 512 bytes.
 `dd if=input of=output count=12`
 
 ## Conformance Status
-Known deviation tracked by `DD-V1-DEVIATION-001`.
+Conforming with extensions. Requirement coverage is tracked by `POSIX-DD-001`.
 
 ## Known Limitations
-Full device-style read-error continuation for `conv=noerror` and remaining POSIX operand grammar edge cases outside the
-implemented expression subset are not implemented.
+The implementation reports deterministic record accounting and uses the project command context for input failures.

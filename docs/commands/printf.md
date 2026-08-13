@@ -38,7 +38,10 @@ general decimal precision for `%g` and `%G`, field width and left justification 
 remain when a conversion consumes operands.
 
 ## Locale Behavior
-Formatted data is not localized. Help and diagnostics are localized.
+Numeric conversions use the effective numeric locale selected from `LC_ALL`, `LC_NUMERIC`, then `LANG`.
+For decimal integer and floating conversions, digit glyphs and signs come from `i18n`; floating conversions use the
+locale decimal separator. Octal and hexadecimal conversions keep ASCII base digits and prefixes. Help and diagnostics are
+localized.
 
 ## Implementation-Defined Choices
 Missing `%s`, `%b`, and `%c` arguments are treated as empty strings; missing numeric and dynamic width or precision
@@ -46,9 +49,9 @@ arguments are treated as zero. `%b` expands backslash escapes in the
 argument; `\c` stops further output. `%d` and `%i` validate signed decimal operands and emit canonical decimal digits. `%u`,
 `%o`, `%x`, and `%X` validate nonnegative decimal operands and emit the selected base. `%f`, `%e`, and `%E` accept decimal
 operands; `%e`, `%E`, `%g`, and `%G` also accept exponent notation. Floating formats round using decimal half-up
-rounding. `%f`, `%e`, and `%E` emit six fractional digits unless precision is supplied; `%g` and `%G` use six
-significant digits unless precision is supplied and trim trailing zeros unless alternate form is selected. `%c` emits the
-first character of the supplied operand.
+rounding before numeric-locale rendering. `%f`, `%e`, and `%E` emit six fractional digits unless precision is supplied;
+`%g` and `%G` use six significant digits unless precision is supplied and trim trailing zeros unless alternate form is
+selected. `%c` emits the first character of the supplied operand.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -60,5 +63,4 @@ first character of the supplied operand.
 Conforming with extensions tracked by `PRINTF-POSIX-001`.
 
 ## Known Limitations
-Locale-sensitive numeric formatting is not implemented. Field width is supported for `%c`; precision on `%c` has no
-observable effect.
+Field width is supported for `%c`; precision on `%c` has no observable effect.

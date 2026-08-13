@@ -44,8 +44,12 @@ alphabetic zone prefixes and fixed numeric offsets are honored in deterministic 
 `GMT+00:00`, `UTC+02:30`, `GMT-0330`, `CET-1`, and `FOO+02:30`. Quoted zone names such as `<UTC+1>+02:30` are also
 accepted for fixed-offset mode. POSIX-style strings with a DST suffix or rule tail, such as `EST5EDT` and
 `EST5EDT,M3.2.0,M11.1.0`, use only the standard fixed offset and ignore DST transition rules. Zero-offset `UTC` and
-`GMT` forms report `%Z` as `UTC`, while other fixed-offset forms report the zone name prefix. Outside fixed-offset
-mode, `%Z` uses the numeric `%z` offset as a deterministic fallback.
+`GMT` forms report `%Z` as `UTC`, while other fixed-offset forms report the zone name prefix. IANA-style timezone
+identifiers and aliases such as `Etc/UTC`, `Asia/Kolkata`, `Europe/Copenhagen`, and `US/Eastern` are resolved through
+hostkit using the host timezone database where the platform exposes it; otherwise the sibling `i18n` crate's generated
+tzdb data is used for the selected UTC instant. For named zones, `%z` reports the resolved numeric offset and `%Z`
+reports the host abbreviation, an i18n short name, or the canonical zone identifier depending on the provider.
+Unknown `TZ` values leave the implementation-defined local timezone behavior unchanged.
 Weekday names, month names, and AM/PM markers are read from the messages catalog for the effective locale with English
 fallback. The `%c`, `%x`, and `%X` composites use deterministic V1 layouts.
 Set-time operands are parsed before invoking the host adapter. Invalid dates, invalid times, and malformed seconds are
@@ -56,8 +60,9 @@ Help and diagnostics are localized. Weekday names, month names, and AM/PM marker
 through messages; numeric fields and literal format text are not localized.
 
 ## Implementation-Defined Choices
-The default timestamp format is implementation-defined. Fixed-offset `TZ` handling is deterministic and does not use a
-geographic timezone database.
+The default timestamp format is implementation-defined. POSIX-style DST suffix and transition-rule tails on fixed-offset
+`TZ` strings are accepted but only the standard offset is applied. Named timezone support prefers hostkit host-database
+resolution and falls back to the generated tzdb subset provided by `i18n`.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -69,5 +74,4 @@ geographic timezone database.
 Conforming with extensions.
 
 ## Known Limitations
-Daylight-saving transitions and geographic timezone databases are not implemented; fixed-offset POSIX-style `TZ`
-strings are used instead.
+None recorded for the implemented V1 `date` scope.

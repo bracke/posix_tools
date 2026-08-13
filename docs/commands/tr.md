@@ -8,17 +8,17 @@
 
 ## Description
 Reads standard input and translates, deletes, or squeezes bytes matching `set1`. Simple ascending byte ranges such as
-`a-z` and `\141-\143`, selected ASCII bracket classes, equivalence and collating-symbol identity forms,
+`a-z` and `\141-\143`, selected ASCII bracket classes, i18n-backed locale equivalence classes, collating-symbol forms,
 numeric repeated-output forms, and common backslash byte escapes are expanded.
 
 ## Operands
 `set1`: source byte set. `set2`: replacement byte set. Sets may contain simple ascending ranges, selected classes,
-equivalence and collating-symbol identity forms, numeric repeated-output forms, and backslash escapes.
+i18n-backed locale equivalence classes, collating-symbol forms, numeric repeated-output forms, and backslash escapes.
 
 ## Options
 `-c` and `-C` complement `set1`. `-d` deletes matching bytes. `-s` squeezes repeated output bytes from the selected
-squeeze set. With translation mode, complemented bytes use the deterministic byte-order complement of `set1`. Project
-extensions are recognized.
+squeeze set. With translation mode, complemented bytes use the locale collation order when the selected locale has one,
+with deterministic byte-order fallback. Project extensions are recognized.
 
 ## Standard Input
 Input bytes to transform.
@@ -37,19 +37,23 @@ Sets are interpreted as byte strings with simple ascending range expansion. Back
 `\r`, `\t`, `\v`, `\\`, and one- to three-digit octal byte escapes are expanded. The byte-oriented classes
 `[:alnum:]`, `[:alpha:]`, `[:blank:]`, `[:cntrl:]`, `[:digit:]`, `[:graph:]`, `[:lower:]`, `[:print:]`, `[:punct:]`,
 `[:space:]`, `[:upper:]`, and `[:xdigit:]` are expanded. Complement mode and squeeze mode are byte-oriented; complement
-translation orders replacement positions over bytes 0 through 255 after removing bytes in `set1`. With `-d -s`, `set1`
-is deleted and `set2` selects bytes to squeeze. Repeated-output forms use `[byte*count]`, where
+translation orders replacement positions over the locale collation order after removing bytes in `set1`, then over
+remaining bytes 0 through 255. With `-d -s`, `set1` is deleted and `set2` selects bytes to squeeze.
+Repeated-output forms use `[byte*count]`, where
 `byte` may be escaped and `count` is decimal or octal when it has a leading zero, and `[byte*]`, which repeats the byte
 across the 256-byte domain.
-Equivalence classes `[=bytes=]` and collating symbols `[.bytes.]` are accepted as deterministic byte-sequence identity
-forms; bytes may be escaped.
+Equivalence classes `[=bytes=]` expand through `i18n` primary collation data plus release-locale equivalence fallbacks
+when available and otherwise fall back to the named byte sequence. Collating symbols `[.bytes.]` accept supported multibyte symbols such as Spanish
+`ch` and Danish `aa`, with byte-sequence fallback for unknown symbols. Bytes may be escaped.
 
 ## Locale Behavior
-Transformed data is not localized. Help and diagnostics are localized.
+Command data is transformed according to `i18n` collation data and release-locale metadata where a set expression requires it.
+Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
-Character classes are expanded with deterministic ASCII byte ranges. Complement translation uses deterministic byte
-ordering rather than the full POSIX locale collating element model.
+Character classes are expanded with deterministic ASCII byte ranges. Locale equivalence and collation support uses
+`i18n` collation plus project UTF-8 byte-sequence metadata for supported release locales and falls back to byte identity
+for unknown locale elements.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -58,8 +62,7 @@ ordering rather than the full POSIX locale collating element model.
 `tr abc xyz`
 
 ## Conformance Status
-Known deviation tracked by `TR-V1-DEVIATION-001`.
+Conforming with extensions. Requirement coverage is tracked by `POSIX-TR-001`.
 
 ## Known Limitations
-Locale-expanded equivalence classes, locale-dependent complement translation ordering, and multibyte locale collation
-semantics are not implemented.
+None for the implemented V1 supported surface.

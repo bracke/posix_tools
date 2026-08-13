@@ -1,4 +1,5 @@
 with "../../hostkit/hostkit.gpr";
+with "../../i18n/i18n.gpr";
 with "../../messages/messages.gpr";
 with "../../terminal_styles/terminal_styles.gpr";
 

@@ -34,10 +34,12 @@ REG-ENV-0001,env,preserve env utility exit-status propagation and 126 or 127 exe
 REG-VERBOSE-0001,cp ln mv rm,return operational failure when verbose command-data output cannot be written after a successful file operation,command:expanded verbose output failures
 REG-OPTIONS-0002,cp ln mkdir mv rm rmdir sort tee touch uniq xargs,stop option parsing at the command-specific operand or utility boundary so later option-like words remain operands,command:expanded utilities
 REG-SORT-0001,sort,write sorted data to the -o output file and return operational failure when that output file cannot be written,command:expanded utilities
+REG-SORT-0002,sort,apply supported release-locale collation keys and Unicode special case-fold mappings consistently in sort output check and key comparison modes,command:expanded utilities
 REG-UNIQ-0001,uniq,write filtered data to the output operand including option-like output names and return operational failure when that output file cannot be written,command:expanded utilities
 REG-STDOUT-0002,find printf,return operational failure when command-data standard output cannot be written,command:expanded utilities
 REG-STDOUT-0003,date env,return operational failure when date or environment-listing command-data standard output cannot be written,command:expanded utilities
 REG-STDOUT-0004,dd,return operational failure without record-count diagnostics when standard-output data cannot be written,command:expanded utilities
 REG-STDOUT-0005,tr,return operational failure when translated byte output cannot be written,command:expanded utilities
+REG-TR-0001,tr,expand locale equivalence classes use locale collation order for complement translation and accept supported multibyte collating symbols,command:expanded utilities
 REG-STDERR-0001,xargs,return operational failure when -t trace output cannot be written before utility execution,command:expanded utilities
 REG-XARGS-0001,xargs,preserve POSIX xargs utility exit-status band mapping for statuses 1 through 125 126 127 255 and missing utilities,command:xargs status bands

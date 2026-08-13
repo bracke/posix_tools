@@ -15,7 +15,7 @@ The same inventory-driven metadata check rejects any dependency from the root
 crate to a command binary crate, and rejects command-to-command crate
 dependencies. It also keeps the tests crate limited to `posix_tools_common`,
 `aunit`, and `project_tools`; tests must not depend on root or command binary
-crates or bypass common-library adapters with direct hostkit, messages, or
+crates or bypass common-library adapters with direct hostkit, i18n, messages, or
 terminal_styles dependencies. Commands share code only through
 `posix_tools_common`.
 

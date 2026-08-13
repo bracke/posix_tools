@@ -1188,6 +1188,18 @@ package body Command_Tests is
            (Ada.Directories.Modification_Time (Touched),
             Ada.Calendar.Time_Of (2026, 8, 12, Duration (10 * 3_600))),
          "touch -a leaves modification timestamp unchanged");
+      declare
+         Expected_Access : constant Ada.Calendar.Time :=
+           Ada.Calendar.Time_Of (1970, 1, 1) + 1_786_542_011.0;
+         Available : Boolean;
+         Accessed  : constant Ada.Calendar.Time := Hostkit.Metadata.File_Access_Time (Touched, Available);
+      begin
+         if Available then
+            AUnit.Assertions.Assert
+              (Time_Near (Accessed, Expected_Access),
+               "touch -a applies explicit access timestamp");
+         end if;
+      end;
 
       Context.Initialize ("touch", Three_Args ("-m", "-t202608121540.11", Touched));
       Posix_Tools.Commands.Touch.Run (Context, Result);
@@ -1429,6 +1441,45 @@ package body Command_Tests is
             Ada.Calendar.Time_Of (2026, 9, 14, 0.0)),
          "touch -d day-first full month-name date-only timestamp");
 
+      Context.Initialize ("touch", Three_Args ("-d", "noon", Touched));
+      Posix_Tools.Commands.Touch.Run (Context, Result);
+      declare
+         Year : Ada.Calendar.Year_Number;
+         Month : Ada.Calendar.Month_Number;
+         Day : Ada.Calendar.Day_Number;
+         Seconds : Duration;
+      begin
+         Ada.Calendar.Split (Ada.Calendar.Clock, Year, Month, Day, Seconds);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Time_Near
+              (Ada.Directories.Modification_Time (Touched),
+               Ada.Calendar.Time_Of (Year, Month, Day, Duration (12 * 3_600))),
+            "touch -d noon timestamp");
+      end;
+
+      Context.Initialize ("touch", Three_Args ("-d", "2 hours ago", Touched));
+      declare
+         Expected : constant Ada.Calendar.Time := Ada.Calendar.Clock - Duration (2 * 3_600);
+      begin
+         Posix_Tools.Commands.Touch.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Time_Near (Ada.Directories.Modification_Time (Touched), Expected),
+            "touch -d relative hours ago timestamp");
+      end;
+
+      Context.Initialize ("touch", Three_Args ("-d", "+1 day", Touched));
+      declare
+         Expected : constant Ada.Calendar.Time := Ada.Calendar.Clock + 86_400.0;
+      begin
+         Posix_Tools.Commands.Touch.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Time_Near (Ada.Directories.Modification_Time (Touched), Expected),
+            "touch -d relative plus day timestamp");
+      end;
+
       Context.Initialize ("touch", Three_Args ("-d", "bad", Touched));
       Posix_Tools.Commands.Touch.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -1482,6 +1533,15 @@ package body Command_Tests is
          and then Test_Contexts.Error_Output (Context) = "3+0 records in" & EOL & "3+0 records out" & EOL,
          "dd count output and records");
 
+      Context.Initialize ("dd", Two_Args ("bs=1", "count=0"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "0+0 records in" & EOL & "0+0 records out" & EOL,
+         "dd count zero copies no records");
+
       Context.Initialize ("dd", Two_Args ("bs=1", "count=1"));
       Test_Contexts.Set_Standard_Input (Context, "abcdef");
       Test_Contexts.Set_Output_Failure_After (Context, 0);
@@ -1511,10 +1571,20 @@ package body Command_Tests is
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abcdef", "dd count w suffix output");
 
+      Context.Initialize ("dd", Two_Args ("bs=1", "count=3c"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdefghi");
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abc", "dd count c suffix output");
+
       Context.Initialize ("dd", Two_Args ("bs=1", "count=2x3"));
       Test_Contexts.Set_Standard_Input (Context, "abcdefghi");
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abcdef", "dd count x multiplier output");
+
+      Context.Initialize ("dd", Three_Args ("bs=1", "count=2", "count=4"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdefghi");
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abcd", "dd later count operand wins");
 
       Context.Initialize ("dd", Two_Args ("bs=2", "count=2"));
       Test_Contexts.Set_Standard_Input (Context, "abcdef");
@@ -1649,6 +1719,17 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "ab",
          "dd conv=noerror retains readable prefix");
+
+      Context.Initialize ("dd", Two_Args ("ibs=4", "conv=noerror"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 2);
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "ab"
+         and then Contains (Test_Contexts.Error_Output (Context), "cannot read file")
+         and then Contains (Test_Contexts.Error_Output (Context), "0+1 records in"),
+         "dd conv=noerror omits failed unsynchronized block tail");
 
       Context.Initialize ("dd", Two_Args ("ibs=4", "conv=noerror,sync"));
       Test_Contexts.Set_Standard_Input (Context, "abc");
@@ -1953,6 +2034,21 @@ package body Command_Tests is
         (Test_Contexts.Output (Context) = "+7:-0007",
          "printf signed integer flag precision output");
 
+      Context.Initialize ("printf", Three_Args ("%f:%.2e", "1.5", "-12.3"));
+      Test_Contexts.Set_Environment_Value (Context, "LC_NUMERIC", "da");
+      Posix_Tools.Commands.Printf.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "1,500000:-1,23e+01",
+         "printf uses LC_NUMERIC decimal separator");
+
+      Context.Initialize ("printf", Three_Args ("%f:%.2e", "1.5", "-12.3"));
+      Test_Contexts.Set_Environment_Value (Context, "LC_NUMERIC", "da");
+      Test_Contexts.Set_Environment_Value (Context, "LC_ALL", "en");
+      Posix_Tools.Commands.Printf.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "1.500000:-1.23e+01",
+         "printf LC_ALL overrides LC_NUMERIC");
+
       Context.Initialize ("printf", Four_Args ("%05d:%05d:%05u", "7", "-7", "7"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -2167,6 +2263,84 @@ package body Command_Tests is
            & Character'Val (16#EF#) & Character'Val (16#BC#) & Character'Val (16#A1#) & EOL,
          "sort -f folds UTF-8 Cherokee and Fullwidth Latin pairs");
 
+      Context.Initialize ("sort", Two_Args ("-fu", "-"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (16#C3#) & Character'Val (16#9F#) & EOL
+         & "ss" & EOL
+         & Character'Val (16#EF#) & Character'Val (16#AC#) & Character'Val (16#83#) & EOL
+         & "ffi" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           Character'Val (16#EF#) & Character'Val (16#AC#) & Character'Val (16#83#) & EOL
+           & Character'Val (16#C3#) & Character'Val (16#9F#) & EOL,
+         "sort -f folds Unicode multi-code-point case mappings");
+
+      Context.Initialize ("sort", Two_Args ("-fu", "-"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AA#) & EOL
+         & "k" & EOL
+         & Character'Val (16#CF#) & Character'Val (16#82#) & EOL
+         & Character'Val (16#CF#) & Character'Val (16#83#) & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AA#) & EOL
+           & Character'Val (16#CF#) & Character'Val (16#82#) & EOL,
+         "sort -f folds Unicode compatibility and final-sigma mappings");
+
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (16#C3#) & Character'Val (16#A5#) & EOL
+         & "z" & EOL
+         & Character'Val (16#C3#) & Character'Val (16#A6#) & EOL
+         & Character'Val (16#C3#) & Character'Val (16#B8#) & EOL
+         & "a" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "a" & EOL
+           & "z" & EOL
+           & Character'Val (16#C3#) & Character'Val (16#A6#) & EOL
+           & Character'Val (16#C3#) & Character'Val (16#B8#) & EOL
+           & Character'Val (16#C3#) & Character'Val (16#A5#) & EOL,
+         "sort uses Danish locale collation order");
+
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Locale (Context, "es");
+      Test_Contexts.Set_Standard_Input (Context, "d" & EOL & "ch" & EOL & "c" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "c" & EOL & "ch" & EOL & "d" & EOL,
+         "sort uses Spanish multibyte collation symbols");
+
+      Context.Initialize ("sort", Two_Args ("-c", "-"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         "z" & EOL
+         & Character'Val (16#C3#) & Character'Val (16#A6#) & EOL
+         & Character'Val (16#C3#) & Character'Val (16#B8#) & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "sort -c uses Danish locale collation order");
+
+      Context.Initialize ("sort", Two_Args ("-c", "-"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (16#C3#) & Character'Val (16#A6#) & EOL
+         & "z" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "sort -c rejects Danish locale unordered input");
+
       Context.Initialize ("sort", Two_Args ("-b", "-"));
       Test_Contexts.Set_Standard_Input (Context, "  b" & EOL & " a" & EOL);
       Posix_Tools.Commands.Sort.Run (Context, Result);
@@ -2215,6 +2389,14 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "a 1" & EOL & "b 2" & EOL & "c 3" & EOL,
          "sort -k attached field key output");
+
+      Context.Initialize ("sort", Two_Args ("-k2", "-"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Test_Contexts.Set_Standard_Input (Context, "x d" & EOL & "x ch" & EOL & "x c" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "x c" & EOL & "x ch" & EOL & "x d" & EOL,
+         "sort -k uses locale collation order");
 
       Context.Initialize ("sort", Four_Args ("-t", ":", "-k", "2"));
       Test_Contexts.Set_Standard_Input (Context, "x:b" & EOL & "z:a" & EOL & "y:c" & EOL);
@@ -2351,6 +2533,15 @@ package body Command_Tests is
          "sort -n decimal output");
 
       Context.Initialize ("sort", Two_Args ("-n", "-"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input
+        (Context, "2,50 two" & EOL & "-1,25 minus" & EOL & "2,05 low" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "-1,25 minus" & EOL & "2,05 low" & EOL & "2,50 two" & EOL,
+         "sort -n uses locale decimal separator");
+
+      Context.Initialize ("sort", Two_Args ("-n", "-"));
       Test_Contexts.Set_Standard_Input
         (Context,
          "1e3 high" & EOL
@@ -2393,6 +2584,14 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
          "sort -cn rejects decimal unordered input");
+
+      Context.Initialize ("sort", Two_Args ("-cn", "-"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input (Context, "1,5" & EOL & "1,25" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
+         "sort -cn uses locale decimal separator");
 
       Context.Initialize ("sort", Two_Args ("-cns", "-"));
       Test_Contexts.Set_Standard_Input (Context, "2 z" & EOL & "2 a" & EOL);
@@ -2661,6 +2860,15 @@ package body Command_Tests is
       Posix_Tools.Commands.Tr.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "caX", "tr uppercase complement translate output");
 
+      Test_Contexts.Set_Locale (Context, "da");
+      Context.Initialize ("tr", Three_Args ("-c", "a-c", "XYZ"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input (Context, "defA");
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "XYZZ",
+         "tr locale collation orders complement translation");
+
       Context.Initialize ("tr", Two_Args ("-s", "a-c"));
       Test_Contexts.Set_Standard_Input (Context, "aaabbbdd");
       Posix_Tools.Commands.Tr.Run (Context, Result);
@@ -2717,12 +2925,28 @@ package body Command_Tests is
       Posix_Tools.Commands.Tr.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "aNb", "tr escaped equivalence output");
 
+      Context.Initialize ("tr", Two_Args ("[=a=]", "X"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Test_Contexts.Set_Standard_Input (Context, "a" & Character'Val (16#C3#) & Character'Val (16#A1#) & "b");
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "XXXb",
+         "tr locale equivalence expands accented UTF-8 bytes");
+
       Context.Initialize ("tr", Two_Args ("[.ab.][=cd=]", "XY"));
       Test_Contexts.Set_Standard_Input (Context, "abcd");
       Posix_Tools.Commands.Tr.Run (Context, Result);
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "XYYY",
          "tr multibyte identity bracket output");
+
+      Context.Initialize ("tr", Two_Args ("[.ch.]", "X"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Test_Contexts.Set_Standard_Input (Context, "chico");
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "XXiXo",
+         "tr locale collating symbol expands as a multibyte element");
 
       Context.Initialize ("tr", Two_Args ("[.a\n.]", "XY"));
       Test_Contexts.Set_Standard_Input (Context, "a" & EOL);
@@ -2887,6 +3111,28 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "      2 Alpha" & EOL & "      1 Beta" & EOL,
          "uniq grouped -ci output");
+
+      Context.Initialize ("uniq", One_Arg ("-c"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (16#C3#) & Character'Val (16#A5#) & EOL
+         & Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AB#) & EOL
+         & "z" & EOL);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "      2 " & Character'Val (16#C3#) & Character'Val (16#A5#) & EOL
+           & "      1 z" & EOL,
+         "uniq uses Danish locale collation equivalence");
+
+      Context.Initialize ("uniq", One_Arg ("-i"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Test_Contexts.Set_Standard_Input (Context, "Ch" & EOL & "ch" & EOL & "d" & EOL);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "Ch" & EOL & "d" & EOL,
+         "uniq -i uses locale collation key after case folding");
 
       Context.Initialize ("uniq", Two_Args ("-i", "-s1"));
       Test_Contexts.Set_Standard_Input (Context, "xAlpha" & EOL & "yalpha" & EOL & "zBeta" & EOL);
@@ -3434,6 +3680,19 @@ package body Command_Tests is
       Posix_Tools.Commands.Date.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "+0000 BAR" & EOL, "date TZ named zero offset");
 
+      Context.Initialize ("date", One_Arg ("+%z %Z"));
+      Test_Contexts.Set_Environment_Value (Context, "TZ", "Etc/UTC");
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "+0000 UTC" & EOL, "date TZ i18n UTC zone");
+
+      Context.Initialize ("date", One_Arg ("+%z %Z"));
+      Test_Contexts.Set_Environment_Value (Context, "TZ", "Asia/Kolkata");
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "+0530 IST" & EOL
+         or else Test_Contexts.Output (Context) = "+0530 Asia/Kolkata" & EOL,
+         "date TZ i18n regional zone");
+
       Context.Initialize ("date", Two_Args ("-u", "+%Z"));
       Posix_Tools.Commands.Date.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "UTC" & EOL, "date -u timezone name output");
@@ -3682,7 +3941,43 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "",
-         "find accepts special-file type primary");
+         "find exact FIFO type excludes ordinary tree entries");
+
+      if Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Source).Kind = Hostkit.Fs.FIFO then
+         Context.Initialize ("find", Three_Args (Cp_FIFO_Source, "-type", "p"));
+         Posix_Tools.Commands.Find.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = Cp_FIFO_Source & EOL,
+            "find -type p matches FIFO exactly");
+      end if;
+
+      if Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Source).Kind = Hostkit.Fs.Socket then
+         Context.Initialize ("find", Three_Args (Cp_Socket_Source, "-type", "s"));
+         Posix_Tools.Commands.Find.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = Cp_Socket_Source & EOL,
+            "find -type s matches socket exactly");
+      end if;
+
+      if Ada.Directories.Exists ("/dev/null")
+        and then Hostkit.Fs.Special_File_Info_Of ("/dev/null").Kind = Hostkit.Fs.Character_Device
+      then
+         Context.Initialize ("find", Three_Args ("/dev/null", "-type", "c"));
+         Posix_Tools.Commands.Find.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = "/dev/null" & EOL,
+            "find -type c matches character device exactly");
+
+         Context.Initialize ("find", Three_Args ("/dev/null", "-type", "b"));
+         Posix_Tools.Commands.Find.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = "",
+            "find -type b excludes character device");
+      end if;
 
       Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "9c"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -3830,7 +4125,7 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), Tree & EOL)
          and then Contains (Test_Contexts.Output (Context), "file.txt" & EOL),
-         "find -xdev accepted as best-effort primary");
+         "find -xdev keeps traversal on the starting device");
 
       if Hostkit.Metadata.Permissions_Supported then
          AUnit.Assertions.Assert
@@ -4149,6 +4444,50 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "test -S regular file status");
+
+      if Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Source).Kind = Hostkit.Fs.FIFO then
+         Context.Initialize ("test", Two_Args ("-p", Cp_FIFO_Source));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "test -p FIFO status");
+
+         Context.Initialize ("test", Two_Args ("-S", Cp_FIFO_Source));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+            "test -S excludes FIFO status");
+      end if;
+
+      if Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Source).Kind = Hostkit.Fs.Socket then
+         Context.Initialize ("test", Two_Args ("-S", Cp_Socket_Source));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "test -S socket status");
+
+         Context.Initialize ("test", Two_Args ("-p", Cp_Socket_Source));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+            "test -p excludes socket status");
+      end if;
+
+      if Ada.Directories.Exists ("/dev/null")
+        and then Hostkit.Fs.Special_File_Info_Of ("/dev/null").Kind = Hostkit.Fs.Character_Device
+      then
+         Context.Initialize ("test", Two_Args ("-c", "/dev/null"));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "test -c character device status");
+
+         Context.Initialize ("test", Two_Args ("-b", "/dev/null"));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+            "test -b excludes character device status");
+      end if;
 
       Context.Initialize ("test", Two_Args ("-t", "0"));
       Test_Contexts.Set_Standard_Input_Is_Terminal (Context, True);

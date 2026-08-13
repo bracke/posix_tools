@@ -1,7 +1,7 @@
 # Development
 
 Use Ada 2022 and Alire. Local development pins point at sibling crates for `hostkit`,
-`messages`, `terminal_styles`, and `project_tools`.
+`i18n`, `messages`, `terminal_styles`, and `project_tools`.
 Metadata validation also requires `posix_tools_common` to be pinned locally from
 the root crate, every command crate, and the tests/tooling crate.
 
