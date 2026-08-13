@@ -39,6 +39,83 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end Copy_Modification_Time;
 
+   procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status) is
+      use Hostkit.Descriptors;
+
+      Input   : Descriptor := Invalid;
+      Output  : Descriptor := Invalid;
+      Buffer  : Byte_Buffer;
+      Last    : Ada.Streams.Stream_Element_Offset;
+      First   : Ada.Streams.Stream_Element_Offset;
+      Written : Ada.Streams.Stream_Element_Offset;
+      Outcome : Transfer_Outcome;
+
+      procedure Close_All is
+      begin
+         Close (Input);
+         Close (Output);
+      end Close_All;
+   begin
+      if not Open_File (Source, Open_Read, Input) then
+         Status := Source_Open_Failed;
+         return;
+      end if;
+
+      if not Open_File (Target, Open_Write_Truncate, Output) then
+         Close (Input);
+         Status := Target_Open_Failed;
+         return;
+      end if;
+
+      loop
+         Outcome := Read (Input, Buffer, Last);
+         case Outcome is
+            when Transfer_Ok =>
+               if Last >= Buffer'First then
+                  First := Buffer'First;
+                  while First <= Last loop
+                     Outcome := Write (Output, Buffer (First .. Last), Written);
+                     case Outcome is
+                        when Transfer_Ok =>
+                           if Written < First then
+                              Close_All;
+                              Status := Target_Write_Failed;
+                              return;
+                           end if;
+
+                           First := Written + 1;
+
+                        when Transfer_Interrupted =>
+                           null;
+
+                        when others =>
+                           Close_All;
+                           Status := Target_Write_Failed;
+                           return;
+                     end case;
+                  end loop;
+               end if;
+
+            when Transfer_Interrupted =>
+               null;
+
+            when Transfer_End_Of_File =>
+               Close_All;
+               Status := Copy_Ok;
+               return;
+
+            when others =>
+               Close_All;
+               Status := Source_Read_Failed;
+               return;
+         end case;
+      end loop;
+   exception
+      when others =>
+         Close_All;
+         Status := Source_Read_Failed;
+   end Copy_Regular_File;
+
    procedure Create_Directory (Path : String) is
    begin
       Ada.Directories.Create_Directory (Path);

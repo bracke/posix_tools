@@ -46,6 +46,7 @@ package body Posix_Tools.Commands.Expanded is
    use type Posix_Tools.Numbers.Parse_Status;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   use type Posix_Tools.Host_Adapters.File_System.Copy_File_Status;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    procedure Set_Success
@@ -144,8 +145,6 @@ package body Posix_Tools.Commands.Expanded is
       Preserve_Links : Boolean;
       Ok      : out Boolean)
    is
-      Written : Boolean;
-
       function Full_Path_Or_Raw (Path : String) return String is
       begin
          return FS.Full_Name (Path);
@@ -341,22 +340,22 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       declare
-         Text : constant String := Read_File (Source, Ok);
+         Copy_Status : FS.Copy_File_Status;
       begin
-         if not Ok then
-            Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Source, "posix_tools.diagnostic.file.open_failed", "cannot open file");
-            return;
-         end if;
+         FS.Copy_Regular_File (Source, Target, Copy_Status);
+         Ok := Copy_Status = FS.Copy_Ok;
+         case Copy_Status is
+            when FS.Copy_Ok =>
+               Apply_Source_Metadata;
 
-         Write_File (Target, Text, False, Written);
-         Ok := Written;
-         if not Ok then
-            Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
-         else
-            Apply_Source_Metadata;
-         end if;
+            when FS.Source_Open_Failed | FS.Source_Read_Failed =>
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Source, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+
+            when FS.Target_Open_Failed | FS.Target_Write_Failed =>
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         end case;
       end;
    end Copy_Path;
 

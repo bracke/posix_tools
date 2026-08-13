@@ -5,11 +5,18 @@ private with GNAT.OS_Lib;
 
 package Posix_Tools.Host_Adapters.File_System is
    type File_Kind is (Missing_File, Directory, Ordinary_File, Special_File);
+   type Copy_File_Status is
+     (Copy_Ok,
+      Source_Open_Failed,
+      Target_Open_Failed,
+      Source_Read_Failed,
+      Target_Write_Failed);
    type File_Time is private;
 
    function Can_Open_For_Read (Path : String) return Boolean;
    function Containing_Directory (Path : String) return String;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
+   procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
    procedure Create_Directory (Path : String);
    function Create_Hard_Link (Source : String; Target : String) return Boolean;
    function Create_Link (Source : String; Target : String) return Boolean;

@@ -2,6 +2,7 @@ id,command,summary,test
 REG-CAT-0001,cat,preserve binary file bytes without adding a newline,regression:REG-CAT-0001 binary fixture
 REG-CAT-0002,cat,continue after a missing file while preserving later operand output and aggregate failure,command:cat continues after missing file
 REG-CAT-0003,cat,stop copying and return operational failure when stdout fails without emitting a read diagnostic,command:cat output failure
+REG-CP-0001,cp,copy regular files through bounded binary-preserving hostkit descriptor transfers,regression:REG-CP-0001 bounded binary copy
 REG-DIAG-0001,all,escape control characters in untrusted diagnostic operands and subjects before terminal presentation,command:usage errors
 REG-STREAMS-0001,head tail,preserve LF-delimited byte segments and final partial segments,streams:lf segment splitting
 REG-STDIN-0001,cat head tail wc,preserve standard input bytes and counts without adding a newline or rewinding repeated dash operands,command:cat standard input; command:head standard input; command:tail standard input; command:wc standard input

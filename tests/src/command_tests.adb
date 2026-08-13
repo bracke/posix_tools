@@ -284,6 +284,8 @@ package body Command_Tests is
       Result  : Posix_Tools.Commands.Results.Result;
       Source  : constant String := Fixture_Path ("expanded-source.txt");
       Target  : constant String := Fixture_Path ("expanded-target.txt");
+      Large_Source : constant String := Fixture_Path ("expanded-large-source.bin");
+      Large_Target : constant String := Fixture_Path ("expanded-large-target.bin");
       Dash_Target : constant String := Fixture_Path ("expanded-dash-target.txt");
       Linked  : constant String := Fixture_Path ("expanded-linked.txt");
       Symlinked : constant String := Fixture_Path ("expanded-symlinked.txt");
@@ -349,9 +351,21 @@ package body Command_Tests is
       begin
          return abs Difference <= 2.0;
       end Time_Near;
+
+      function Large_Copy_Data return String is
+         Data : String (1 .. 70 * 1024);
+      begin
+         for I in Data'Range loop
+            Data (I) := Character'Val ((I - Data'First) mod 256);
+         end loop;
+
+         return Data;
+      end Large_Copy_Data;
    begin
       Remove_Any (Source);
       Remove_Any (Target);
+      Remove_Any (Large_Source);
+      Remove_Any (Large_Target);
       Remove_Any (Dash_Target);
       Remove_Any (Linked);
       Remove_Any (Symlinked);
@@ -385,6 +399,23 @@ package body Command_Tests is
       Context.Initialize ("cat", One_Arg (Target));
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "copy-data", "cp copied data");
+
+      declare
+         Data : constant String := Large_Copy_Data;
+      begin
+         Write_File (Large_Source, Data);
+         Context.Initialize ("cp", Two_Args (Large_Source, Large_Target));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "REG-CP-0001 cp copies large binary file");
+
+         Context.Initialize ("cat", One_Arg (Large_Target));
+         Posix_Tools.Commands.Cat.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = Data,
+            "REG-CP-0001 cp preserves large binary file bytes");
+      end;
 
       Ada.Directories.Create_Directory (Option_Dir);
       Ada.Directories.Create_Directory (Hostkit.Fs.Join (Option_Dir, "copies"));
@@ -4122,6 +4153,8 @@ package body Command_Tests is
 
       Remove_Any (Source);
       Remove_Any (Target);
+      Remove_Any (Large_Source);
+      Remove_Any (Large_Target);
       Remove_Any (Linked);
       Remove_Any (Symlinked);
       Remove_Any (Link_Dir);
