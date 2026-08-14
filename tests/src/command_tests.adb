@@ -15,7 +15,11 @@ with Posix_Tools.Commands.Cat;
 with Posix_Tools.Commands.Chgrp;
 with Posix_Tools.Commands.Chmod;
 with Posix_Tools.Commands.Chown;
+with Posix_Tools.Commands.Cksum;
+with Posix_Tools.Commands.Cmp;
+with Posix_Tools.Commands.Comm;
 with Posix_Tools.Commands.Cp;
+with Posix_Tools.Commands.Cut;
 with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Dd;
 with Posix_Tools.Commands.Dirname;
@@ -29,8 +33,11 @@ with Posix_Tools.Commands.Kill;
 with Posix_Tools.Commands.Link;
 with Posix_Tools.Commands.Ln;
 with Posix_Tools.Commands.Logname;
+with Posix_Tools.Commands.Ls;
 with Posix_Tools.Commands.Mkdir;
 with Posix_Tools.Commands.Mv;
+with Posix_Tools.Commands.Od;
+with Posix_Tools.Commands.Paste;
 with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
 with Posix_Tools.Commands.Readlink;
@@ -40,6 +47,7 @@ with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Root;
 with Posix_Tools.Commands.Sleep;
+with Posix_Tools.Commands.Split;
 with Posix_Tools.Commands.Sort;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
@@ -172,8 +180,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Chmod.Run (Context, Result);
       elsif Name = "chown" then
          Posix_Tools.Commands.Chown.Run (Context, Result);
+      elsif Name = "cksum" then
+         Posix_Tools.Commands.Cksum.Run (Context, Result);
+      elsif Name = "cmp" then
+         Posix_Tools.Commands.Cmp.Run (Context, Result);
+      elsif Name = "comm" then
+         Posix_Tools.Commands.Comm.Run (Context, Result);
       elsif Name = "cp" then
          Posix_Tools.Commands.Cp.Run (Context, Result);
+      elsif Name = "cut" then
+         Posix_Tools.Commands.Cut.Run (Context, Result);
       elsif Name = "date" then
          Posix_Tools.Commands.Date.Run (Context, Result);
       elsif Name = "dd" then
@@ -200,10 +216,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Ln.Run (Context, Result);
       elsif Name = "logname" then
          Posix_Tools.Commands.Logname.Run (Context, Result);
+      elsif Name = "ls" then
+         Posix_Tools.Commands.Ls.Run (Context, Result);
       elsif Name = "mkdir" then
          Posix_Tools.Commands.Mkdir.Run (Context, Result);
       elsif Name = "mv" then
          Posix_Tools.Commands.Mv.Run (Context, Result);
+      elsif Name = "od" then
+         Posix_Tools.Commands.Od.Run (Context, Result);
+      elsif Name = "paste" then
+         Posix_Tools.Commands.Paste.Run (Context, Result);
       elsif Name = "printf" then
          Posix_Tools.Commands.Printf.Run (Context, Result);
       elsif Name = "pwd" then
@@ -218,6 +240,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Rmdir.Run (Context, Result);
       elsif Name = "sleep" then
          Posix_Tools.Commands.Sleep.Run (Context, Result);
+      elsif Name = "split" then
+         Posix_Tools.Commands.Split.Run (Context, Result);
       elsif Name = "sort" then
          Posix_Tools.Commands.Sort.Run (Context, Result);
       elsif Name = "tail" then
@@ -353,6 +377,20 @@ package body Command_Tests is
       No_Create : constant String := Fixture_Path ("expanded-no-create.txt");
       Tee_Out : constant String := Fixture_Path ("expanded-tee.txt");
       Chmod_Target : constant String := Fixture_Path ("expanded-chmod.txt");
+      Cksum_File : constant String := Fixture_Path ("expanded-cksum.txt");
+      Cmp_First : constant String := Fixture_Path ("expanded-cmp-first.txt");
+      Cmp_Second : constant String := Fixture_Path ("expanded-cmp-second.txt");
+      Paste_First : constant String := Fixture_Path ("expanded-paste-first.txt");
+      Paste_Second : constant String := Fixture_Path ("expanded-paste-second.txt");
+      Cut_File : constant String := Fixture_Path ("expanded-cut.txt");
+      Comm_First : constant String := Fixture_Path ("expanded-comm-first.txt");
+      Comm_Second : constant String := Fixture_Path ("expanded-comm-second.txt");
+      Od_File : constant String := Fixture_Path ("expanded-od.bin");
+      Ls_Dir : constant String := Fixture_Path ("expanded-ls-dir");
+      Ls_Other_Dir : constant String := Fixture_Path ("expanded-ls-other-dir");
+      Split_Input : constant String := Fixture_Path ("expanded-split.txt");
+      Split_Prefix : constant String := Fixture_Path ("expanded-split-out-");
+      Split_Long_Prefix : constant String := Fixture_Path ("expanded-split-long-");
       EOL     : constant Character := Character'Val (10);
 
       procedure Remove_Any (Path : String) is
@@ -451,6 +489,23 @@ package body Command_Tests is
       Remove_Any (No_Create);
       Remove_Any (Tee_Out);
       Remove_Any (Chmod_Target);
+      Remove_Any (Cksum_File);
+      Remove_Any (Cmp_First);
+      Remove_Any (Cmp_Second);
+      Remove_Any (Paste_First);
+      Remove_Any (Paste_Second);
+      Remove_Any (Cut_File);
+      Remove_Any (Comm_First);
+      Remove_Any (Comm_Second);
+      Remove_Any (Od_File);
+      Remove_Any (Ls_Dir);
+      Remove_Any (Ls_Other_Dir);
+      Remove_Any (Split_Input);
+      Remove_Any (Split_Prefix & "aa");
+      Remove_Any (Split_Prefix & "ab");
+      Remove_Any (Split_Long_Prefix & "aaa");
+      Remove_Any (Split_Long_Prefix & "aab");
+      Remove_Any (Split_Long_Prefix & "aac");
 
       Write_File (Source, "copy-data");
       Context.Initialize ("cp", Two_Args (Source, Target));
@@ -865,7 +920,9 @@ package body Command_Tests is
       Context.Initialize ("uname", One_Arg ("-a"));
       Posix_Tools.Commands.Uname.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Contains (Test_Contexts.Output (Context), " "),
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), " ")
+         and then not Contains (Test_Contexts.Output (Context), "unknown"),
          "uname -a writes multiple system fields");
 
       Context.Initialize ("sleep", One_Arg ("0"));
@@ -897,6 +954,13 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "test-login" & EOL,
          "logname writes context login name");
+
+      Context.Initialize ("logname", No_Args);
+      Posix_Tools.Commands.Logname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context)'Length > 1,
+         "logname falls back to host login database");
 
       Context.Initialize ("kill", One_Arg ("-l"));
       Posix_Tools.Commands.Kill.Run (Context, Result);
@@ -4749,12 +4813,477 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "test rejects unknown binary operator");
 
+      Write_File (Cksum_File, "abc");
+      Context.Initialize ("cksum", One_Arg (Cksum_File));
+      Posix_Tools.Commands.Cksum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), " 3 " & Cksum_File),
+         "cksum prints checksum length and operand");
+
+      Context.Initialize ("cksum", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "abc");
+      Posix_Tools.Commands.Cksum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1219131554 3" & EOL,
+         "cksum reads implicit standard input");
+
+      Context.Initialize ("cksum", One_Arg ("--"));
+      Test_Contexts.Set_Standard_Input (Context, "abc");
+      Posix_Tools.Commands.Cksum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1219131554 3" & EOL,
+         "cksum treats a sole -- as end-of-options before implicit standard input");
+
+      Write_File (Cmp_First, "same" & EOL);
+      Write_File (Cmp_Second, "same" & EOL);
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "",
+         "cmp accepts equal files quietly");
+
+      Write_File (Cmp_Second, "sage" & EOL);
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Output (Context), "differ"),
+         "cmp reports the first difference");
+
+      Write_File (Cmp_First, "abc");
+      Write_File (Cmp_Second, "axd");
+      Context.Initialize ("cmp", Three_Args ("-l", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "2 142 170" & EOL & "3 143 144" & EOL,
+         "cmp -l lists all differing byte values in octal");
+
+      Context.Initialize ("cmp", Four_Args ("-l", "-s", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "",
+         "cmp -s suppresses cmp -l output");
+
+      Context.Initialize ("cmp", Four_Args ("-s", "--", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "",
+         "cmp accepts -- after -s and stays silent");
+
+      Write_File (Paste_First, "a" & EOL & "b" & EOL);
+      Write_File (Paste_Second, "1" & EOL & "2" & EOL);
+      Context.Initialize ("paste", Two_Args (Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & Character'Val (9) & "1" & EOL
+           & "b" & Character'Val (9) & "2" & EOL,
+         "paste merges lines with tabs");
+
+      Context.Initialize ("paste", Three_Args ("--", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & Character'Val (9) & "1" & EOL
+           & "b" & Character'Val (9) & "2" & EOL,
+         "paste honors end-of-options before file operands");
+
+      Context.Initialize ("paste", Four_Args ("-d", "|", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a|1" & EOL & "b|2" & EOL,
+         "paste accepts a separate delimiter list");
+
+      Context.Initialize ("paste", Three_Args ("-d,", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a,1" & EOL & "b,2" & EOL,
+         "paste accepts an attached delimiter list");
+
+      Context.Initialize ("paste", Three_Args ("-s", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & Character'Val (9) & "b" & EOL
+           & "1" & Character'Val (9) & "2" & EOL,
+         "paste serial mode combines each file separately");
+
+      Context.Initialize ("paste", One_Arg ("-d"));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "missing option argument '-d'"),
+         "paste rejects a missing delimiter list");
+
+      Write_File (Cut_File, "abcd" & EOL & "wxyz" & EOL);
+      Context.Initialize ("cut", Three_Args ("-b", "2-3", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "bc" & EOL & "xy" & EOL,
+         "cut selects byte ranges");
+
+      Context.Initialize ("cut", Three_Args ("-b", "1 4", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "ad" & EOL & "wz" & EOL,
+         "cut accepts blank-separated list entries");
+
+      Context.Initialize ("cut", Four_Args ("-n", "-b", "1-2", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "ab" & EOL & "wx" & EOL,
+         "cut accepts -n with byte mode");
+
+      Context.Initialize ("cut", Three_Args ("-n", "-c", "1"));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "cut rejects -n outside byte mode");
+
+      Write_File (Cut_File, "a,b,c" & EOL);
+      Context.Initialize ("cut", Five_Args ("-f", "2", "-d", ",", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "b" & EOL,
+         "cut selects delimited fields");
+
+      Context.Initialize ("cut", Four_Args ("-f", "2", "-d,", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "b" & EOL,
+         "cut accepts an attached delimiter option argument");
+
+      Context.Initialize ("cut", Two_Args ("-f", "2"));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "",
+         "cut reads standard input when only a list option is supplied");
+
+      Context.Initialize ("cut", Three_Args ("-f", "2", "-d"));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "missing option argument '-d'"),
+         "cut rejects a missing delimiter argument");
+
+      Write_File (Comm_First, "a" & EOL & "b" & EOL);
+      Write_File (Comm_Second, "b" & EOL & "c" & EOL);
+      Context.Initialize ("comm", Two_Args (Comm_First, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL
+           & Character'Val (9) & Character'Val (9) & "b" & EOL
+           & Character'Val (9) & "c" & EOL,
+         "comm merges sorted files into three columns");
+
+      Write_File (Od_File, "A");
+      Context.Initialize ("od", One_Arg (Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "0000000 000101")
+         and then Contains (Test_Contexts.Output (Context), "0000001"),
+         "od emits octal byte dump");
+
+      Context.Initialize ("od", Two_Args ("-An", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = " 000101" & EOL,
+         "od -An suppresses address output");
+
+      Context.Initialize ("od", Two_Args ("-Ax", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 000101" & EOL & "0000001" & EOL,
+         "od -Ax emits hexadecimal address output");
+
+      Context.Initialize ("od", Three_Args ("-A", "d", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0 000101" & EOL & "1" & EOL,
+         "od accepts a separate decimal address-base argument");
+
+      Context.Initialize ("od", One_Arg ("-A"));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "missing option argument '-A'"),
+         "od rejects a missing address-base argument");
+
+      Context.Initialize ("od", Two_Args ("-A", "bad"));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "od rejects an invalid address base");
+
+      Write_File (Od_File, "ABCDEF");
+      Context.Initialize ("od", Five_Args ("-j", "2", "-N", "3", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000002 042103 000105" & EOL & "0000005" & EOL,
+         "od skips and limits input bytes");
+
+      Context.Initialize ("od", Three_Args ("-j0x2", "-N03", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000002 042103 000105" & EOL & "0000005" & EOL,
+         "od accepts attached hexadecimal skip and octal count");
+
+      Context.Initialize ("od", Three_Args ("-N", "0", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000" & EOL,
+         "od accepts a zero byte limit");
+
+      Write_File (Od_File, String'(1 .. 512 => 'x') & "AB");
+      Context.Initialize ("od", Two_Args ("-j1b", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0001000 041101" & EOL & "0001002" & EOL,
+         "od supports block suffix skip arguments");
+
+      Context.Initialize ("od", Two_Args ("-j1k", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "od rejects skips beyond input");
+
+      Context.Initialize ("od", One_Arg ("-j"));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "missing option argument '-j'"),
+         "od rejects a missing skip argument");
+
+      Context.Initialize ("od", Two_Args ("-N", "0x"));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "od rejects malformed count arguments");
+
+      Write_File (Od_File, "ABCDEF");
+      Context.Initialize ("od", Two_Args ("-tx1", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 41 42 43 44 45 46" & EOL & "0000006" & EOL,
+         "od supports attached hexadecimal byte type strings");
+
+      Write_File (Od_File, String'(1 .. 32 => 'A'));
+      Context.Initialize ("od", Two_Args ("-tx1", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "0000000 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41" & EOL
+           & "*" & EOL
+           & "0000040" & EOL,
+         "od suppresses duplicate output blocks by default");
+
+      Context.Initialize ("od", Three_Args ("-v", "-tx1", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "0000000 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41" & EOL
+           & "0000020 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41" & EOL
+           & "0000040" & EOL,
+         "od -v emits duplicate output blocks");
+
+      Write_File (Od_File, "ABCDEF");
+      Context.Initialize ("od", Three_Args ("-t", "u1", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 65 66 67 68 69 70" & EOL & "0000006" & EOL,
+         "od supports separate unsigned byte type strings");
+
+      Context.Initialize ("od", Two_Args ("-tx2", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 4241 4443 4645" & EOL & "0000006" & EOL,
+         "od supports two-byte hexadecimal type strings");
+
+      Context.Initialize ("od", Two_Args ("-td2", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 16961 17475 17989" & EOL & "0000006" & EOL,
+         "od supports two-byte decimal type strings");
+
+      Write_File (Od_File, Character'Val (255) & Character'Val (255));
+      Context.Initialize ("od", Two_Args ("-td2", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 -1" & EOL & "0000002" & EOL,
+         "od supports signed multi-byte type strings");
+
+      Context.Initialize ("od", Two_Args ("-s", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 -1" & EOL & "0000002" & EOL,
+         "od supports signed decimal shorthand");
+
+      Context.Initialize ("od", Two_Args ("-d", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 65535" & EOL & "0000002" & EOL,
+         "od supports unsigned decimal shorthand");
+
+      Write_File (Od_File, Character'Val (0) & Character'Val (0) & Character'Val (128) & Character'Val (63));
+      Context.Initialize ("od", Two_Args ("-tf4", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000  1.00000E+00" & EOL & "0000004" & EOL,
+         "od supports single-precision floating type strings");
+
+      Write_File
+        (Od_File,
+         Character'Val (0) & Character'Val (0) & Character'Val (0) & Character'Val (0)
+         & Character'Val (0) & Character'Val (0) & Character'Val (240) & Character'Val (63));
+      Context.Initialize ("od", Two_Args ("-tfD", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000  1.00000000000000E+00" & EOL & "0000010" & EOL,
+         "od supports double-precision floating type strings");
+
+      Write_File (Od_File, "A" & Character'Val (10) & Character'Val (0));
+      Context.Initialize ("od", Two_Args ("-tc", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000   A  \\n  \\0" & EOL & "0000003" & EOL,
+         "od supports character byte type strings");
+
+      Context.Initialize ("od", Two_Args ("-ta", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000   A  nl nul" & EOL & "0000003" & EOL,
+         "od supports named character type strings");
+
+      Write_File (Od_File, "AB");
+      Context.Initialize ("od", Five_Args ("-t", "x1", "-t", "c", Od_File));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0000000 41 42" & EOL & "   A   B" & EOL & "0000002" & EOL,
+         "od supports multiple type-string output lines");
+
+      Context.Initialize ("od", Two_Args ("-t", "f1"));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "od rejects unsupported type strings");
+
+      Context.Initialize ("ls", One_Arg (Od_File));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Od_File & EOL,
+         "ls prints file operands");
+
+      Ada.Directories.Create_Directory (Ls_Dir);
+      Write_File (Hostkit.Fs.Join (Ls_Dir, "visible"), "visible" & EOL);
+      Write_File (Hostkit.Fs.Join (Ls_Dir, ".hidden"), "hidden" & EOL);
+      Context.Initialize ("ls", One_Arg (Ls_Dir));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "visible" & EOL,
+         "ls hides dot-prefixed entries by default");
+
+      Context.Initialize ("ls", Two_Args ("-A", Ls_Dir));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ".hidden" & EOL & "visible" & EOL,
+         "ls -A includes hidden entries other than dot and dot-dot");
+
+      Ada.Directories.Create_Directory (Ls_Other_Dir);
+      Write_File (Hostkit.Fs.Join (Ls_Other_Dir, "zeta"), "zeta" & EOL);
+      Context.Initialize ("ls", Two_Args (Ls_Dir, Ls_Other_Dir));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Ls_Dir & ":" & EOL
+           & "visible" & EOL & EOL
+           & Ls_Other_Dir & ":" & EOL
+           & "zeta" & EOL,
+         "ls labels multiple directory operands");
+
+      Write_File (Split_Input, "a" & EOL & "b" & EOL & "c" & EOL);
+      Context.Initialize ("split", Four_Args ("-l", "2", Split_Input, Split_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split status");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "aa"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL, "split first file");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "ab"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c" & EOL, "split second file");
+
+      Context.Initialize ("split", Six_Args ("-a", "3", "-l", "1", Split_Input, Split_Long_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split -a status");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "aaa"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "a" & EOL, "split -a first file");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "aac"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c" & EOL, "split -a third file");
+
+      Context.Initialize ("split", One_Arg ("-a"));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "missing option argument '-a'"),
+         "split rejects a missing suffix length");
+
+      Context.Initialize ("split", Two_Args ("-a", "0"));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "split rejects a zero suffix length");
+
       Remove_Any (Source);
       Remove_Any (Target);
       Remove_Any (Large_Source);
       Remove_Any (Large_Target);
+      Remove_Any (Dash_Target);
       Remove_Any (Linked);
+      Remove_Any (Link_Command_Target);
       Remove_Any (Symlinked);
+      Remove_Any (Cp_Symlinked);
       Remove_Any (Link_Dir);
       Remove_Any (Moved);
       Remove_Any (Made);
@@ -4767,10 +5296,38 @@ package body Command_Tests is
       Remove_Any (Tree_Copy);
       Remove_Any (Sort_Out);
       Remove_Any (Empty);
+      Remove_Any (Cp_Directory_Source);
+      Remove_Any (Cp_Directory_Target);
+      Remove_Any (Cp_FIFO_Source);
+      Remove_Any (Cp_FIFO_Target);
+      Remove_Any (Cp_Socket_Source);
+      Remove_Any (Cp_Socket_Target);
       Remove_Any (Parent_Block);
+      Remove_Any (Option_Dir);
       Remove_Any (Touched);
       Remove_Any (No_Create);
       Remove_Any (Tee_Out);
+      Remove_Any (Chmod_Target);
+      Remove_Any (Cksum_File);
+      Remove_Any (Cmp_First);
+      Remove_Any (Cmp_Second);
+      Remove_Any (Paste_First);
+      Remove_Any (Paste_Second);
+      Remove_Any (Cut_File);
+      Remove_Any (Comm_First);
+      Remove_Any (Comm_Second);
+      Remove_Any (Od_File);
+      Remove_Any (Ls_Dir);
+      Remove_Any (Ls_Other_Dir);
+      Remove_Any (Split_Input);
+      Remove_Any (Split_Prefix & "aa");
+      Remove_Any (Split_Prefix & "ab");
+      Remove_Any (Split_Long_Prefix & "aaa");
+      Remove_Any (Split_Long_Prefix & "aab");
+      Remove_Any (Split_Long_Prefix & "aac");
+      Ada.Directories.Create_Path (Option_Dir);
+      Write_File (Hostkit.Fs.Join (Option_Dir, "-c"), "x" & EOL);
+      Write_File (Hostkit.Fs.Join (Option_Dir, "plain"), "x" & EOL);
    end Test_Expanded_Command_Smoke;
 
    procedure Test_Xargs_Status_Bands (T : in out Fixture) is

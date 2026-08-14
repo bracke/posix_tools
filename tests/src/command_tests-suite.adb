@@ -67,16 +67,24 @@ package body Command_Tests.Suite is
            ("command:expanded verbose output failures",
             Test_Expanded_Verbose_Output_Failures'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cp", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cksum", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cmp", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:comm", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cut", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:date", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dd", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:env", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:find", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ln", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ls", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkdir", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mv", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:od", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:paste", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:printf", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rm", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rmdir", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:split", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sort", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tee", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:test", Test_Expanded_Command_Smoke'Access));

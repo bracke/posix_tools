@@ -35,8 +35,8 @@ System, node, release, version, and machine fields come from hostkit. Missing fi
 Help and diagnostics are localized; system fields are not localized.
 
 ## Implementation-Defined Choices
-Linux and macOS use the host `uname` data exposed through hostkit. Windows reports the fields that the hostkit
-Windows adapter exposes and writes `unknown` for unavailable fields.
+Linux and macOS use the host `uname` data exposed through hostkit. Windows reports system, node, release, version, and
+machine fields through hostkit's native Windows adapters.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -48,5 +48,4 @@ Windows adapter exposes and writes `unknown` for unavailable fields.
 Conforming with extensions tracked by `UNAME-POSIX-001`.
 
 ## Known Limitations
-Some Windows release and version fields remain unavailable until hostkit defines a stable Windows version-reporting
-policy.
+No known V1 limitation.

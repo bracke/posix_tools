@@ -9,7 +9,11 @@ V1 inventory:
 - `chgrp`
 - `chmod`
 - `chown`
+- `cksum`
+- `cmp`
+- `comm`
 - `cp`
+- `cut`
 - `date`
 - `dd`
 - `dirname`
@@ -23,8 +27,11 @@ V1 inventory:
 - `link`
 - `ln`
 - `logname`
+- `ls`
 - `mkdir`
 - `mv`
+- `od`
+- `paste`
 - `printf`
 - `pwd`
 - `readlink`
@@ -32,6 +39,7 @@ V1 inventory:
 - `rm`
 - `rmdir`
 - `sleep`
+- `split`
 - `sort`
 - `tail`
 - `tee`

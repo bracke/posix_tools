@@ -62,6 +62,11 @@ package body Posix_Tools.Host_Adapters.Host is
       return Hostkit.Host.Native_Locale;
    end Native_Locale;
 
+   function Login_Name return String is
+   begin
+      return Hostkit.Host.Login_Name;
+   end Login_Name;
+
    function Own_Process_Id return Integer is
    begin
       return Hostkit.Host.Own_Process_Id;

@@ -8,9 +8,12 @@ with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Ada.Unchecked_Conversion;
+with Interfaces;
 with I18N.Collation;
 with I18N.CLDR_Data;
 with Posix_Tools.Arguments;
+with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Clock;
@@ -25,10 +28,17 @@ with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Expanded is
    use Ada.Strings.Unbounded;
+   use type Interfaces.Unsigned_64;
 
-   LF : constant Character := Character'Val (10);
+   NUL : constant Character := Character'Val (0);
+   BS  : constant Character := Character'Val (8);
+   HT  : constant Character := Character'Val (9);
+   LF  : constant Character := Character'Val (10);
+   FF  : constant Character := Character'Val (12);
+   CR  : constant Character := Character'Val (13);
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
+   package String_Vector_Sorting is new String_Vectors.Generic_Sorting;
    type Sort_Key_Definition is record
       Field_Start : Positive := 1;
       Field_End : Natural := 0;
@@ -5640,7 +5650,7 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      Name : constant String := Context.Environment_Value ("LOGNAME");
+      Name : Unbounded_String := To_Unbounded_String (Context.Environment_Value ("LOGNAME"));
    begin
       if Context.Argument_Count > 0 then
          Posix_Tools.Commands.Helpers.Usage_Error
@@ -5648,8 +5658,22 @@ package body Posix_Tools.Commands.Expanded is
          return;
       end if;
 
-      if Name /= "" then
-         Context.Put_Line (Name);
+      if Length (Name) = 0 then
+         Name := To_Unbounded_String (Host.Login_Name);
+      end if;
+
+      if Length (Name) = 0 then
+         declare
+            User_Id : Natural;
+         begin
+            if Host.Current_User_Id (User_Id) then
+               Name := To_Unbounded_String (FS.User_Name_For_Id (User_Id));
+            end if;
+         end;
+      end if;
+
+      if Length (Name) > 0 then
+         Context.Put_Line (To_String (Name));
          Set_Success (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Operational_Error
@@ -11332,6 +11356,1681 @@ package body Posix_Tools.Commands.Expanded is
       Set_Success (Context, Result);
    end Run_Xargs;
 
+   procedure Read_All
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Data      : out Unbounded_String;
+      Ok        : out Boolean)
+   is
+      procedure Append_Chunk
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset)
+      is
+         pragma Unreferenced (Context);
+      begin
+         if Last >= Buffer'First then
+            for I in Buffer'First .. Last loop
+               Append (Data, Character'Val (Integer (Buffer (I))));
+            end loop;
+         end if;
+      end Append_Chunk;
+
+      procedure Each_Chunk is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+        (Action => Append_Chunk);
+   begin
+      Data := Null_Unbounded_String;
+      Each_Chunk (Context, File_Name, Ok);
+   end Read_All;
+
+   function Line_Count_Through (Text : String; Last : Natural) return Natural is
+      Lines : Natural := 1;
+   begin
+      for I in Text'First .. Last loop
+         if Text (I) = LF then
+            Lines := Lines + 1;
+         end if;
+      end loop;
+      return Lines;
+   end Line_Count_Through;
+
+   function Decimal_Image (Value : Long_Long_Integer) return String is
+      Raw : constant String := Long_Long_Integer'Image (Value);
+   begin
+      return Raw (Raw'First + 1 .. Raw'Last);
+   end Decimal_Image;
+
+   function Octal_Image (Value : Natural; Width : Positive) return String is
+      Octal_Digit : constant String := "01234567";
+      Result : String (1 .. Width) := [others => '0'];
+      Work   : Natural := Value;
+   begin
+      for I in reverse Result'Range loop
+         Result (I) := Octal_Digit ((Work mod 8) + 1);
+         Work := Work / 8;
+      end loop;
+      return Result;
+   end Octal_Image;
+
+   function Hex_Image (Value : Natural; Width : Positive) return String is
+      Hex_Digit : constant String := "0123456789abcdef";
+      Result : String (1 .. Width) := [others => '0'];
+      Work   : Natural := Value;
+   begin
+      for I in reverse Result'Range loop
+         Result (I) := Hex_Digit ((Work mod 16) + 1);
+         Work := Work / 16;
+      end loop;
+      return Result;
+   end Hex_Image;
+
+   procedure Split_Lines (Text : String; Lines : in out String_Vectors.Vector) is
+      Start : Positive := Text'First;
+   begin
+      Lines.Clear;
+      if Text = "" then
+         return;
+      end if;
+
+      for I in Text'Range loop
+         if Text (I) = LF then
+            Lines.Append (Text (Start .. I - 1));
+            Start := I + 1;
+         end if;
+      end loop;
+
+      if Start <= Text'Last then
+         Lines.Append (Text (Start .. Text'Last));
+      end if;
+   end Split_Lines;
+
+   type Range_Item is record
+      First : Positive := 1;
+      Last  : Natural := 0;
+   end record;
+   package Range_Vectors is new Ada.Containers.Vectors (Positive, Range_Item);
+
+   function Parse_List (Text : String; Ranges : in out Range_Vectors.Vector) return Boolean is
+      Index : Positive := Text'First;
+
+      function Is_List_Separator (Ch : Character) return Boolean is
+      begin
+         return Ch = ',' or else Ch = ' ' or else Ch = Character'Val (9);
+      end Is_List_Separator;
+
+      function Parse_Number (Value : out Natural) return Boolean is
+      begin
+         Value := 0;
+         if Index > Text'Last or else Text (Index) not in '0' .. '9' then
+            return False;
+         end if;
+         while Index <= Text'Last and then Text (Index) in '0' .. '9' loop
+            Value := Value * 10 + Character'Pos (Text (Index)) - Character'Pos ('0');
+            Index := Index + 1;
+         end loop;
+         return Value > 0;
+      end Parse_Number;
+   begin
+      Ranges.Clear;
+      if Text = "" then
+         return False;
+      end if;
+
+      while Index <= Text'Last loop
+         declare
+            First_Value : Natural := 0;
+            Last_Value  : Natural := 0;
+            Open_End    : Boolean := False;
+         begin
+            if Text (Index) = '-' then
+               First_Value := 1;
+               Index := Index + 1;
+               if not Parse_Number (Last_Value) then
+                  return False;
+               end if;
+            else
+               if not Parse_Number (First_Value) then
+                  return False;
+               end if;
+               if Index <= Text'Last and then Text (Index) = '-' then
+                  Index := Index + 1;
+                  if Index <= Text'Last and then Text (Index) in '0' .. '9' then
+                     if not Parse_Number (Last_Value) then
+                        return False;
+                     end if;
+                  else
+                     Open_End := True;
+                  end if;
+               else
+                  Last_Value := First_Value;
+               end if;
+            end if;
+
+            if not Open_End and then Last_Value < First_Value then
+               return False;
+            end if;
+            Ranges.Append
+              (Range_Item'(Positive (First_Value), (if Open_End then 0 else Last_Value)));
+            exit when Index > Text'Last;
+            if not Is_List_Separator (Text (Index)) then
+               return False;
+            end if;
+            while Index <= Text'Last and then Is_List_Separator (Text (Index)) loop
+               Index := Index + 1;
+            end loop;
+            if Index > Text'Last then
+               return False;
+            end if;
+         end;
+      end loop;
+      return True;
+   end Parse_List;
+
+   function Selected (Ranges : Range_Vectors.Vector; Position : Positive) return Boolean is
+   begin
+      for Item of Ranges loop
+         if Position >= Item.First and then (Item.Last = 0 or else Position <= Item.Last) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Selected;
+
+   procedure Run_Cksum
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Polynomial : constant Interfaces.Unsigned_32 := 16#04C11DB7#;
+      All_Ok     : Boolean := True;
+      First      : Positive := 1;
+
+      function CRC_For (Text : String) return Interfaces.Unsigned_32 is
+         use type Interfaces.Unsigned_32;
+         CRC : Interfaces.Unsigned_32 := 0;
+      begin
+         for Ch of Text loop
+            CRC := CRC xor Interfaces.Shift_Left (Interfaces.Unsigned_32 (Character'Pos (Ch)), 24);
+            for Bit in 1 .. 8 loop
+               if (CRC and 16#80000000#) /= 0 then
+                  CRC := Interfaces.Shift_Left (CRC, 1) xor Polynomial;
+               else
+                  CRC := Interfaces.Shift_Left (CRC, 1);
+               end if;
+            end loop;
+         end loop;
+
+         declare
+            Length_Value : Natural := Text'Length;
+         begin
+            while Length_Value /= 0 loop
+               CRC := CRC xor Interfaces.Shift_Left (Interfaces.Unsigned_32 (Length_Value mod 256), 24);
+               for Bit in 1 .. 8 loop
+                  if (CRC and 16#80000000#) /= 0 then
+                     CRC := Interfaces.Shift_Left (CRC, 1) xor Polynomial;
+                  else
+                     CRC := Interfaces.Shift_Left (CRC, 1);
+                  end if;
+               end loop;
+               Length_Value := Length_Value / 256;
+            end loop;
+         end;
+         return not CRC;
+      end CRC_For;
+
+      procedure Emit (Name : String) is
+         Data : Unbounded_String;
+         Ok   : Boolean;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if Ok then
+            Context.Put_Line
+              (Decimal_Image (Long_Long_Integer (CRC_For (To_String (Data)))) & " "
+               & Decimal_Image (Long_Long_Integer (Length (Data)))
+               & (if Name = "-" then "" else " " & Name));
+         else
+            All_Ok := False;
+         end if;
+      end Emit;
+   begin
+      if Context.Argument_Count >= 1 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
+         Emit ("-");
+      else
+         for I in First .. Context.Argument_Count loop
+            Emit (Context.Argument (I));
+         end loop;
+      end if;
+      Result.Status :=
+        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Cksum;
+
+   procedure Run_Cmp
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Silent : Boolean := False;
+      List   : Boolean := False;
+      First  : Positive := 1;
+      Left   : Unbounded_String;
+      Right  : Unbounded_String;
+      Ok     : Boolean;
+   begin
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "-s" then
+            Silent := True;
+            First := First + 1;
+         elsif Context.Argument (First) = "-l" then
+            List := True;
+            First := First + 1;
+         elsif Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         else
+            exit;
+         end if;
+      end loop;
+      if Context.Argument_Count /= First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      Read_All (Context, Context.Argument (First), Left, Ok);
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+      Read_All (Context, Context.Argument (First + 1), Right, Ok);
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
+      declare
+         L : constant String := To_String (Left);
+         R : constant String := To_String (Right);
+         Different : Boolean := False;
+      begin
+         for I in 1 .. Natural'Min (L'Length, R'Length) loop
+            if L (I) /= R (I) then
+               Different := True;
+               if List and then not Silent then
+                  Context.Put_Line
+                    (Decimal_Image (Long_Long_Integer (I)) & " "
+                     & Octal_Image (Character'Pos (L (I)), 3) & " "
+                     & Octal_Image (Character'Pos (R (I)), 3));
+               elsif not Silent then
+                  Context.Put_Line
+                    (Context.Argument (First) & " " & Context.Argument (First + 1)
+                     & " differ: byte " & Decimal_Image (Long_Long_Integer (I))
+                     & ", line " & Decimal_Image (Long_Long_Integer (Line_Count_Through (L, I))));
+                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                  return;
+               end if;
+            end if;
+         end loop;
+         if L'Length /= R'Length then
+            if not Silent then
+               Context.Put_Line
+                 ("cmp: EOF on "
+                  & (if L'Length < R'Length then Context.Argument (First) else Context.Argument (First + 1)));
+            end if;
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         elsif Different then
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         else
+            Set_Success (Context, Result);
+         end if;
+      end;
+   end Run_Cmp;
+
+   procedure Run_Paste
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      type Line_Vector_Array is array (Positive range <>) of String_Vectors.Vector;
+      First       : Positive := 1;
+      Serial      : Boolean := False;
+      Delimiters  : Unbounded_String := To_Unbounded_String (Character'Val (9) & "");
+
+      function Delimiter (Position : Positive) return String is
+         Text : constant String := To_String (Delimiters);
+      begin
+         if Text = "" then
+            return "";
+         else
+            return Text (((Position - 1) mod Text'Length) + 1) & "";
+         end if;
+      end Delimiter;
+   begin
+      while First <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First);
+         begin
+            if Arg = "--" then
+               First := First + 1;
+               exit;
+            elsif Arg = "-s" then
+               Serial := True;
+               First := First + 1;
+            elsif Arg = "-d" then
+               if First >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "missing option argument '-d'");
+                  return;
+               end if;
+               Delimiters := To_Unbounded_String (Context.Argument (First + 1));
+               First := First + 2;
+            elsif Arg'Length > 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) = 'd'
+            then
+               Delimiters := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+               First := First + 1;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+      declare
+         Count : constant Natural :=
+           (if Context.Argument_Count < First then 1 else Context.Argument_Count - First + 1);
+         Files : Line_Vector_Array (1 .. Count);
+         Max   : Natural := 0;
+         Ok    : Boolean := True;
+      begin
+         for I in 1 .. Count loop
+            declare
+               Data : Unbounded_String;
+               Name : constant String :=
+                 (if Context.Argument_Count < First then "-" else Context.Argument (First + I - 1));
+            begin
+               Read_All (Context, Name, Data, Ok);
+               exit when not Ok;
+               Split_Lines (To_String (Data), Files (I));
+               Max := Natural'Max (Max, Natural (Files (I).Length));
+            end;
+         end loop;
+         if not Ok then
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+            return;
+         end if;
+
+         if Serial then
+            for File_Index in 1 .. Count loop
+               declare
+                  Output : Unbounded_String;
+               begin
+                  for Row in 1 .. Natural (Files (File_Index).Length) loop
+                     if Row > 1 then
+                        Append (Output, Delimiter (Row - 1));
+                     end if;
+                     Append (Output, Files (File_Index).Element (Row));
+                  end loop;
+                  if Natural (Files (File_Index).Length) > 0 then
+                     Context.Put_Line (To_String (Output));
+                     exit when Context.Output_Failed;
+                  end if;
+               end;
+            end loop;
+         else
+            for Row in 1 .. Max loop
+               declare
+                  Output : Unbounded_String;
+               begin
+                  for File_Index in 1 .. Count loop
+                     if File_Index > 1 then
+                        Append (Output, Delimiter (File_Index - 1));
+                     end if;
+                     if Row <= Natural (Files (File_Index).Length) then
+                        Append (Output, Files (File_Index).Element (Row));
+                     end if;
+                  end loop;
+                  Context.Put_Line (To_String (Output));
+                  if Context.Output_Failed then
+                     exit;
+                  end if;
+               end;
+            end loop;
+         end if;
+      end;
+      Result.Status :=
+        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
+         else Posix_Tools.Exit_Status.Success);
+   end Run_Paste;
+
+   procedure Run_Cut
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Mode       : Character := Character'Val (0);
+      Ranges     : Range_Vectors.Vector;
+      Delimiter  : Character := Character'Val (9);
+      Suppress   : Boolean := False;
+      No_Split   : Boolean := False;
+      First_File : Positive := 1;
+      All_Ok     : Boolean := True;
+
+      procedure Emit_Line (Line : String) is
+         Clean  : constant String :=
+           (if Line'Length > 0 and then Line (Line'Last) = LF
+            then Line (Line'First .. Line'Last - 1)
+            else Line);
+         Output : Unbounded_String;
+         Field  : Positive := 1;
+         Start  : Positive := Clean'First;
+         Seen_Delimiter : Boolean := False;
+      begin
+         if Mode = 'b' or else Mode = 'c' then
+            for I in Clean'Range loop
+               if Selected (Ranges, I - Clean'First + 1) then
+                  Append (Output, Clean (I));
+               end if;
+            end loop;
+            Context.Put_Line (To_String (Output));
+         else
+            for I in Clean'Range loop
+               if Clean (I) = Delimiter then
+                  Seen_Delimiter := True;
+                  if Selected (Ranges, Field) then
+                     if Length (Output) > 0 then
+                        Append (Output, Delimiter);
+                     end if;
+                     Append (Output, Clean (Start .. I - 1));
+                  end if;
+                  Field := Field + 1;
+                  Start := I + 1;
+               end if;
+            end loop;
+            if Selected (Ranges, Field) then
+               if Length (Output) > 0 then
+                  Append (Output, Delimiter);
+               end if;
+               if Start <= Clean'Last then
+                  Append (Output, Clean (Start .. Clean'Last));
+               end if;
+            end if;
+            if Seen_Delimiter or else not Suppress then
+               Context.Put_Line ((if Seen_Delimiter then To_String (Output) else Clean));
+            end if;
+         end if;
+      end Emit_Line;
+
+      procedure Cut_File (Name : String; Ok : out Boolean) is
+         Data  : Unbounded_String;
+         Lines : String_Vectors.Vector;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if not Ok then
+            return;
+         end if;
+         Split_Lines (To_String (Data), Lines);
+         for Line of Lines loop
+            Emit_Line (Line);
+            if Context.Output_Failed then
+               Ok := False;
+               return;
+            end if;
+         end loop;
+      end Cut_File;
+   begin
+      while First_File <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First_File);
+         begin
+            if Arg = "-s" then
+               Suppress := True;
+               First_File := First_File + 1;
+            elsif Arg = "-n" then
+               No_Split := True;
+               First_File := First_File + 1;
+            elsif Arg = "-d" then
+               if First_File >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "missing option argument '-d'");
+                  return;
+               elsif Context.Argument (First_File + 1)'Length /= 1 then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
+                  return;
+               end if;
+               Delimiter := Context.Argument (First_File + 1) (Context.Argument (First_File + 1)'First);
+               First_File := First_File + 2;
+            elsif Arg'Length > 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) = 'd'
+            then
+               if Arg'Length /= 3 then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
+                  return;
+               end if;
+               Delimiter := Arg (Arg'First + 2);
+               First_File := First_File + 1;
+            elsif Arg'Length >= 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) in 'b' | 'c' | 'f'
+            then
+               Mode := Arg (Arg'First + 1);
+               declare
+                  Spec : constant String :=
+                    (if Arg'Length > 2 then Arg (Arg'First + 2 .. Arg'Last)
+                     elsif First_File < Context.Argument_Count then Context.Argument (First_File + 1)
+                     else "");
+               begin
+                  if Spec = "" then
+                     Posix_Tools.Commands.Helpers.Usage_Error
+                       (Context, Result, "missing option argument '-" & Mode & "'");
+                     return;
+                  end if;
+                  if not Parse_List (Spec, Ranges) then
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Spec & "'");
+                     return;
+                  end if;
+                  First_File := First_File + (if Arg'Length > 2 then 1 else 2);
+               end;
+            elsif Arg = "--" then
+               First_File := First_File + 1;
+               exit;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if Mode = Character'Val (0) then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+      if No_Split and then Mode /= 'b' then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '-n'");
+         return;
+      end if;
+      if Context.Argument_Count < First_File then
+         Cut_File ("-", All_Ok);
+      else
+         for I in First_File .. Context.Argument_Count loop
+            declare
+               Ok : Boolean;
+            begin
+               Cut_File (Context.Argument (I), Ok);
+               All_Ok := All_Ok and Ok;
+            end;
+         end loop;
+      end if;
+      Result.Status :=
+        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Cut;
+
+   procedure Run_Comm
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Suppress_1 : Boolean := False;
+      Suppress_2 : Boolean := False;
+      Suppress_3 : Boolean := False;
+      First      : Positive := 1;
+      Left_Data  : Unbounded_String;
+      Right_Data : Unbounded_String;
+      Left_Lines : String_Vectors.Vector;
+      Right_Lines : String_Vectors.Vector;
+      Ok         : Boolean;
+      L          : Positive := 1;
+      R          : Positive := 1;
+
+      procedure Emit (Column : Positive; Text : String) is
+         Prefix : Unbounded_String;
+      begin
+         if Column = 2 then
+            if not Suppress_1 then
+               Append (Prefix, Character'Val (9));
+            end if;
+         elsif Column = 3 then
+            if not Suppress_1 then
+               Append (Prefix, Character'Val (9));
+            end if;
+            if not Suppress_2 then
+               Append (Prefix, Character'Val (9));
+            end if;
+         end if;
+         Context.Put_Line (To_String (Prefix) & Text);
+      end Emit;
+   begin
+      while First <= Context.Argument_Count
+        and then Context.Argument (First)'Length > 1
+        and then Context.Argument (First) (Context.Argument (First)'First) = '-'
+      loop
+         exit when Context.Argument (First) = "--";
+         for Ch of Context.Argument (First) (Context.Argument (First)'First + 1 .. Context.Argument (First)'Last) loop
+            case Ch is
+               when '1' => Suppress_1 := True;
+               when '2' => Suppress_2 := True;
+               when '3' => Suppress_3 := True;
+               when others =>
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                  return;
+            end case;
+         end loop;
+         First := First + 1;
+      end loop;
+      if First <= Context.Argument_Count and then Context.Argument (First) = "--" then
+         First := First + 1;
+      end if;
+      if Context.Argument_Count /= First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      Read_All (Context, Context.Argument (First), Left_Data, Ok);
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+      Read_All (Context, Context.Argument (First + 1), Right_Data, Ok);
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+      Split_Lines (To_String (Left_Data), Left_Lines);
+      Split_Lines (To_String (Right_Data), Right_Lines);
+
+      while L <= Natural (Left_Lines.Length) or else R <= Natural (Right_Lines.Length) loop
+         if L > Natural (Left_Lines.Length) then
+            if not Suppress_2 then
+               Emit (2, Right_Lines.Element (R));
+            end if;
+            R := R + 1;
+         elsif R > Natural (Right_Lines.Length) then
+            if not Suppress_1 then
+               Emit (1, Left_Lines.Element (L));
+            end if;
+            L := L + 1;
+         elsif Left_Lines.Element (L) = Right_Lines.Element (R) then
+            if not Suppress_3 then
+               Emit (3, Left_Lines.Element (L));
+            end if;
+            L := L + 1;
+            R := R + 1;
+         elsif Left_Lines.Element (L) < Right_Lines.Element (R) then
+            if not Suppress_1 then
+               Emit (1, Left_Lines.Element (L));
+            end if;
+            L := L + 1;
+         else
+            if not Suppress_2 then
+               Emit (2, Right_Lines.Element (R));
+            end if;
+            R := R + 1;
+         end if;
+      end loop;
+      Result.Status :=
+        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
+         else Posix_Tools.Exit_Status.Success);
+   end Run_Comm;
+
+   procedure Run_Od
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      type Address_Base is (No_Address, Octal_Address, Decimal_Address, Hex_Address);
+      type Dump_Kind is
+        (Named_Byte, Character_Byte, Signed_Integer, Floating_Point, Octal_Integer, Unsigned_Integer, Hex_Integer);
+      type Dump_Spec is record
+         Kind : Dump_Kind := Octal_Integer;
+         Size : Positive := 1;
+      end record;
+      package Dump_Spec_Vectors is new Ada.Containers.Vectors (Positive, Dump_Spec);
+
+      Address : Address_Base := Octal_Address;
+      Formats : Dump_Spec_Vectors.Vector;
+      Skip    : Natural := 0;
+      Limit   : Natural := 0;
+      Has_Limit : Boolean := False;
+      Verbose : Boolean := False;
+      First : Positive := 1;
+      Data  : Unbounded_String;
+      Ok    : Boolean := True;
+
+      function Address_Image (Value : Natural) return String is
+      begin
+         case Address is
+            when No_Address =>
+               return "";
+            when Octal_Address =>
+               return Octal_Image (Value, 7);
+            when Decimal_Address =>
+               return Decimal_Image (Long_Long_Integer (Value));
+            when Hex_Address =>
+               return Hex_Image (Value, 7);
+         end case;
+      end Address_Image;
+
+      function Decimal_U64_Image (Value : Interfaces.Unsigned_64) return String is
+         Decimal_Digit : constant String := "0123456789";
+         Result : String (1 .. 20) := [others => '0'];
+         Work   : Interfaces.Unsigned_64 := Value;
+         First  : Positive := Result'Last;
+      begin
+         loop
+            Result (First) := Decimal_Digit (Natural (Work mod 10) + 1);
+            Work := Work / 10;
+            exit when Work = 0;
+            First := First - 1;
+         end loop;
+         return Result (First .. Result'Last);
+      end Decimal_U64_Image;
+
+      function Hex_U64_Image (Value : Interfaces.Unsigned_64; Width : Positive) return String is
+         Hex_Digit : constant String := "0123456789abcdef";
+         Result : String (1 .. Width) := [others => '0'];
+         Work   : Interfaces.Unsigned_64 := Value;
+      begin
+         for I in reverse Result'Range loop
+            Result (I) := Hex_Digit (Natural (Work mod 16) + 1);
+            Work := Work / 16;
+         end loop;
+         return Result;
+      end Hex_U64_Image;
+
+      function Octal_U64_Image (Value : Interfaces.Unsigned_64; Width : Positive) return String is
+         Octal_Digit : constant String := "01234567";
+         Result : String (1 .. Width) := [others => '0'];
+         Work   : Interfaces.Unsigned_64 := Value;
+      begin
+         for I in reverse Result'Range loop
+            Result (I) := Octal_Digit (Natural (Work mod 8) + 1);
+            Work := Work / 8;
+         end loop;
+         return Result;
+      end Octal_U64_Image;
+
+      function Floating_Image (Value : Interfaces.Unsigned_64; Size : Positive) return String is
+         subtype U32 is Interfaces.Unsigned_32;
+         subtype U64 is Interfaces.Unsigned_64;
+         function To_Float_32 is new Ada.Unchecked_Conversion (U32, Interfaces.IEEE_Float_32);
+         function To_Float_64 is new Ada.Unchecked_Conversion (U64, Interfaces.IEEE_Float_64);
+      begin
+         if Size = 4 then
+            return Interfaces.IEEE_Float_32'Image (To_Float_32 (U32 (Value)));
+         else
+            return Interfaces.IEEE_Float_64'Image (To_Float_64 (Value));
+         end if;
+      end Floating_Image;
+
+      function Set_Address_Base (Spec : String) return Boolean is
+      begin
+         if Spec = "n" then
+            Address := No_Address;
+         elsif Spec = "o" then
+            Address := Octal_Address;
+         elsif Spec = "d" then
+            Address := Decimal_Address;
+         elsif Spec = "x" then
+            Address := Hex_Address;
+         else
+            return False;
+         end if;
+         return True;
+      end Set_Address_Base;
+
+      function Named_Field (Item : Character) return String is
+         Names : constant array (Natural range 0 .. 127) of String (1 .. 3) :=
+           [0 => "nul", 1 => "soh", 2 => "stx", 3 => "etx", 4 => "eot", 5 => "enq", 6 => "ack", 7 => "bel",
+            8 => " bs", 9 => " ht", 10 => " nl", 11 => " vt", 12 => " ff", 13 => " cr", 14 => " so", 15 => " si",
+            16 => "dle", 17 => "dc1", 18 => "dc2", 19 => "dc3", 20 => "dc4", 21 => "nak", 22 => "syn",
+            23 => "etb", 24 => "can", 25 => " em", 26 => "sub", 27 => "esc", 28 => " fs", 29 => " gs",
+            30 => " rs", 31 => " us", 32 => " sp", 127 => "del", others => "   "];
+         Value : constant Natural := Character'Pos (Item) mod 128;
+      begin
+         if Value in 33 .. 126 then
+            return "   " & Character'Val (Value);
+         else
+            return " " & Names (Value);
+         end if;
+      end Named_Field;
+
+      function Character_Field (Item : Character) return String is
+      begin
+         case Item is
+            when NUL =>
+               return "  \\0";
+            when BS =>
+               return "  \\b";
+            when HT =>
+               return "  \\t";
+            when LF =>
+               return "  \\n";
+            when FF =>
+               return "  \\f";
+            when CR =>
+               return "  \\r";
+            when ' ' .. '~' =>
+               return "   " & Item;
+            when others =>
+               return " " & Octal_Image (Character'Pos (Item), 3);
+         end case;
+      end Character_Field;
+
+      function Parse_Offset_Count
+        (Text         : String;
+         Allow_Suffix : Boolean;
+         Value        : out Natural) return Boolean
+      is
+         Base       : Natural := 10;
+         Index      : Positive := Text'First;
+         Last_Index : Natural := Text'Last;
+         Multiplier : Natural := 1;
+      begin
+         Value := 0;
+         if Text = "" then
+            return False;
+         elsif Text'Length > 2
+           and then Text (Text'First) = '0'
+           and then Text (Text'First + 1) in 'x' | 'X'
+         then
+            Base := 16;
+            Index := Text'First + 2;
+         elsif Text'Length > 1 and then Text (Text'First) = '0' then
+            Base := 8;
+         end if;
+
+         if Allow_Suffix and then Base /= 16 and then Last_Index >= Index then
+            case Text (Last_Index) is
+               when 'b' =>
+                  Multiplier := 512;
+                  Last_Index := Last_Index - 1;
+               when 'k' =>
+                  Multiplier := 1_024;
+                  Last_Index := Last_Index - 1;
+               when 'm' =>
+                  Multiplier := 1_048_576;
+                  Last_Index := Last_Index - 1;
+               when others =>
+                  null;
+            end case;
+         end if;
+
+         if Index > Last_Index then
+            return False;
+         end if;
+
+         while Index <= Last_Index loop
+            declare
+               Digit : Natural;
+            begin
+               if Text (Index) in '0' .. '9' then
+                  Digit := Character'Pos (Text (Index)) - Character'Pos ('0');
+               elsif Text (Index) in 'a' .. 'f' then
+                  Digit := Character'Pos (Text (Index)) - Character'Pos ('a') + 10;
+               elsif Text (Index) in 'A' .. 'F' then
+                  Digit := Character'Pos (Text (Index)) - Character'Pos ('A') + 10;
+               else
+                  return False;
+               end if;
+
+               if Digit >= Base or else Value > (Natural'Last - Digit) / Base then
+                  return False;
+               end if;
+               Value := Value * Base + Digit;
+               Index := Index + 1;
+            end;
+         end loop;
+         if Value > Natural'Last / Multiplier then
+            return False;
+         end if;
+         Value := Value * Multiplier;
+         return True;
+      end Parse_Offset_Count;
+
+      function Type_Size (Marker : Character; Default : Positive; Size : out Positive) return Boolean is
+      begin
+         case Marker is
+            when '0' =>
+               Size := Default;
+            when 'C' =>
+               Size := 1;
+            when 'S' =>
+               Size := 2;
+            when 'I' =>
+               Size := 4;
+            when 'L' =>
+               Size := 8;
+            when others =>
+               return False;
+         end case;
+         return True;
+      end Type_Size;
+
+      function Append_Dump_Formats (Spec : String) return Boolean is
+         Index : Positive := Spec'First;
+      begin
+         if Spec = "" then
+            return False;
+         end if;
+
+         while Index <= Spec'Last loop
+            declare
+               Kind : Dump_Kind;
+               Default_Size : Positive := 1;
+               Size : Positive := 1;
+            begin
+               case Spec (Index) is
+                  when 'a' =>
+                     Formats.Append (Dump_Spec'(Kind => Named_Byte, Size => 1));
+                     Index := Index + 1;
+                     goto Continue;
+                  when 'c' =>
+                     Formats.Append (Dump_Spec'(Kind => Character_Byte, Size => 1));
+                     Index := Index + 1;
+                     goto Continue;
+                  when 'd' =>
+                     Kind := Signed_Integer;
+                     Default_Size := 2;
+                  when 'f' =>
+                     Kind := Floating_Point;
+                     Default_Size := 8;
+                  when 'o' =>
+                     Kind := Octal_Integer;
+                     Default_Size := 2;
+                  when 'u' =>
+                     Kind := Unsigned_Integer;
+                     Default_Size := 2;
+                  when 'x' =>
+                     Kind := Hex_Integer;
+                     Default_Size := 2;
+                  when others =>
+                     return False;
+               end case;
+
+               Index := Index + 1;
+               if Index <= Spec'Last and then Spec (Index) in '0' .. '9' then
+                  declare
+                     Value : Natural := 0;
+                     Start : constant Positive := Index;
+                  begin
+                     while Index <= Spec'Last and then Spec (Index) in '0' .. '9' loop
+                        if Value > (Natural'Last - (Character'Pos (Spec (Index)) - Character'Pos ('0'))) / 10 then
+                           return False;
+                        end if;
+                        Value := Value * 10 + Character'Pos (Spec (Index)) - Character'Pos ('0');
+                        Index := Index + 1;
+                     end loop;
+                     if Value not in 1 | 2 | 4 | 8 then
+                        return False;
+                     end if;
+                     pragma Assert (Start <= Spec'Last);
+                     Size := Positive (Value);
+                  end;
+               elsif Index <= Spec'Last and then Spec (Index) in 'C' | 'S' | 'I' | 'L' | 'F' | 'D' then
+                  if Kind = Floating_Point then
+                     case Spec (Index) is
+                        when 'F' =>
+                           Size := 4;
+                        when 'D' | 'L' =>
+                           Size := 8;
+                        when others =>
+                           return False;
+                     end case;
+                  elsif not Type_Size (Spec (Index), Default_Size, Size) then
+                     return False;
+                  end if;
+                  Index := Index + 1;
+               else
+                  Size := Default_Size;
+               end if;
+
+               if Kind = Floating_Point and then Size not in 4 | 8 then
+                  return False;
+               end if;
+
+               Formats.Append (Dump_Spec'(Kind => Kind, Size => Size));
+               <<Continue>>
+            end;
+         end loop;
+         return True;
+      end Append_Dump_Formats;
+
+      procedure Set_Required_Number_Option
+        (Option  : String;
+         Text    : String;
+         Present : Boolean;
+         Target  : out Natural;
+         Valid   : out Boolean)
+      is
+      begin
+         if not Present then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "missing option argument '" & Option & "'");
+            Valid := False;
+         elsif not Parse_Offset_Count (Text, Option = "-j", Target) then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "invalid operand '" & Text & "'");
+            Valid := False;
+         else
+            Valid := True;
+         end if;
+      end Set_Required_Number_Option;
+
+      function Unit_Value (Text : String; First : Positive; Size : Positive) return Interfaces.Unsigned_64 is
+         Value : Interfaces.Unsigned_64 := 0;
+      begin
+         for Offset in 0 .. Size - 1 loop
+            declare
+               Index : constant Natural := First + Offset;
+               Byte  : constant Interfaces.Unsigned_64 :=
+                 (if Index <= Text'Last then Interfaces.Unsigned_64 (Character'Pos (Text (Index))) else 0);
+            begin
+               Value := Value or Interfaces.Shift_Left (Byte, Offset * 8);
+            end;
+         end loop;
+         return Value;
+      end Unit_Value;
+
+      function Signed_Image (Value : Interfaces.Unsigned_64; Size : Positive) return String is
+         Bits : constant Natural := Size * 8;
+         Sign_Bit : constant Interfaces.Unsigned_64 := Interfaces.Shift_Left (1, Bits - 1);
+      begin
+         if (Value and Sign_Bit) = 0 then
+            return Decimal_U64_Image (Value);
+         elsif Size = 8 then
+            return "-" & Decimal_U64_Image (Interfaces.Unsigned_64'Last - Value + 1);
+         else
+            return "-" & Decimal_U64_Image (Interfaces.Shift_Left (1, Bits) - Value);
+         end if;
+      end Signed_Image;
+
+      function Unit_Field (Spec : Dump_Spec; Text : String; First : Positive) return String is
+         Value : constant Interfaces.Unsigned_64 := Unit_Value (Text, First, Spec.Size);
+      begin
+         case Spec.Kind is
+            when Named_Byte =>
+               return Named_Field (Text (First));
+            when Character_Byte =>
+               return Character_Field (Text (First));
+            when Signed_Integer =>
+               return " " & Signed_Image (Value, Spec.Size);
+            when Floating_Point =>
+               return " " & Floating_Image (Value, Spec.Size);
+            when Octal_Integer =>
+               return " " & Octal_U64_Image (Value, Spec.Size * 3);
+            when Unsigned_Integer =>
+               return " " & Decimal_U64_Image (Value);
+            when Hex_Integer =>
+               return " " & Hex_U64_Image (Value, Spec.Size * 2);
+         end case;
+      end Unit_Field;
+
+      function Append_Shorthand_Format (Option : Character) return Boolean is
+      begin
+         case Option is
+            when 'a' =>
+               Formats.Append (Dump_Spec'(Kind => Named_Byte, Size => 1));
+            when 'b' =>
+               Formats.Append (Dump_Spec'(Kind => Octal_Integer, Size => 1));
+            when 'c' =>
+               Formats.Append (Dump_Spec'(Kind => Character_Byte, Size => 1));
+            when 'd' =>
+               Formats.Append (Dump_Spec'(Kind => Unsigned_Integer, Size => 2));
+            when 'o' =>
+               Formats.Append (Dump_Spec'(Kind => Octal_Integer, Size => 2));
+            when 's' =>
+               Formats.Append (Dump_Spec'(Kind => Signed_Integer, Size => 2));
+            when 'x' =>
+               Formats.Append (Dump_Spec'(Kind => Hex_Integer, Size => 2));
+            when others =>
+               return False;
+         end case;
+         return True;
+      end Append_Shorthand_Format;
+
+      function Append_Shorthand_Formats (Option : String) return Boolean is
+      begin
+         if Option'Length <= 1 then
+            return False;
+         end if;
+
+         for I in Option'First + 1 .. Option'Last loop
+            if Option (I) not in 'a' | 'b' | 'c' | 'd' | 'o' | 's' | 'x' then
+               return False;
+            end if;
+         end loop;
+
+         for I in Option'First + 1 .. Option'Last loop
+            if not Append_Shorthand_Format (Option (I)) then
+               return False;
+            end if;
+         end loop;
+         return True;
+      end Append_Shorthand_Formats;
+   begin
+      while First <= Context.Argument_Count and then Context.Argument (First)'Length > 0
+        and then Context.Argument (First) (Context.Argument (First)'First) = '-'
+      loop
+         if Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         elsif Context.Argument (First) in "-a" | "-b" | "-c" | "-d" | "-o" | "-s" | "-x" then
+            if not Append_Shorthand_Format (Context.Argument (First) (Context.Argument (First)'First + 1)) then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+               return;
+            end if;
+            First := First + 1;
+         elsif Context.Argument (First) = "-v" then
+            Verbose := True;
+            First := First + 1;
+         elsif Context.Argument (First) = "-A" then
+            if First >= Context.Argument_Count then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "missing option argument '-A'");
+               return;
+            elsif not Set_Address_Base (Context.Argument (First + 1)) then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+               return;
+            end if;
+            First := First + 2;
+         elsif Context.Argument (First)'Length > 2
+           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
+             = "-A"
+         then
+            if not Set_Address_Base
+              (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
+            then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '"
+                  & Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last)
+                  & "'");
+               return;
+            end if;
+            First := First + 1;
+         elsif Context.Argument (First) = "-j" then
+            declare
+               Valid : Boolean;
+            begin
+               Set_Required_Number_Option
+                 ("-j",
+                  (if First < Context.Argument_Count then Context.Argument (First + 1) else ""),
+                  First < Context.Argument_Count,
+                  Skip,
+                  Valid);
+               if not Valid then
+                  return;
+               end if;
+            end;
+            First := First + 2;
+         elsif Context.Argument (First)'Length > 2
+           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
+             = "-j"
+         then
+            declare
+               Valid : Boolean;
+            begin
+               Set_Required_Number_Option
+                 ("-j",
+                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last),
+                  True,
+                  Skip,
+                  Valid);
+               if not Valid then
+                  return;
+               end if;
+            end;
+            First := First + 1;
+         elsif Context.Argument (First) = "-N" then
+            declare
+               Valid : Boolean;
+            begin
+               Set_Required_Number_Option
+                 ("-N",
+                  (if First < Context.Argument_Count then Context.Argument (First + 1) else ""),
+                  First < Context.Argument_Count,
+                  Limit,
+                  Valid);
+               if not Valid then
+                  return;
+               end if;
+            end;
+            Has_Limit := True;
+            First := First + 2;
+         elsif Context.Argument (First)'Length > 2
+           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
+             = "-N"
+         then
+            declare
+               Valid : Boolean;
+            begin
+               Set_Required_Number_Option
+                 ("-N",
+                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last),
+                  True,
+                  Limit,
+                  Valid);
+               if not Valid then
+                  return;
+               end if;
+            end;
+            Has_Limit := True;
+            First := First + 1;
+         elsif Context.Argument (First) = "-t" then
+            if First >= Context.Argument_Count then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "missing option argument '-t'");
+               return;
+            elsif not Append_Dump_Formats (Context.Argument (First + 1)) then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+               return;
+            end if;
+            First := First + 2;
+         elsif Context.Argument (First)'Length > 2
+           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
+             = "-t"
+         then
+            if not Append_Dump_Formats
+              (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
+            then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '"
+                  & Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last)
+                  & "'");
+               return;
+            end if;
+            First := First + 1;
+         elsif Context.Argument (First)'Length > 2
+           and then Append_Shorthand_Formats (Context.Argument (First))
+         then
+            First := First + 1;
+         else
+            exit;
+         end if;
+      end loop;
+      if Formats.Is_Empty then
+         Formats.Append (Dump_Spec'(Kind => Octal_Integer, Size => 2));
+      end if;
+      if Context.Argument_Count < First then
+         Read_All (Context, "-", Data, Ok);
+      else
+         for I in First .. Context.Argument_Count loop
+            declare
+               Chunk : Unbounded_String;
+            begin
+               Read_All (Context, Context.Argument (I), Chunk, Ok);
+               exit when not Ok;
+               Append (Data, To_String (Chunk));
+            end;
+         end loop;
+      end if;
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
+      declare
+         Source : constant String := To_String (Data);
+         Actual_Skip : constant Natural := Natural'Min (Skip, Source'Length);
+         Available : constant Natural := Source'Length - Actual_Skip;
+         Selected_Length : constant Natural := (if Has_Limit then Natural'Min (Limit, Available) else Available);
+         Text   : constant String :=
+           (if Selected_Length = 0 then ""
+            else Source (Source'First + Actual_Skip .. Source'First + Actual_Skip + Selected_Length - 1));
+         Offset : Natural := 0;
+         Previous_Block : String_Vectors.Vector;
+         Have_Previous  : Boolean := False;
+         Suppressed     : Boolean := False;
+      begin
+         if Skip > Source'Length then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+            return;
+         end if;
+
+         while Offset < Text'Length loop
+            declare
+               Line_Last : constant Natural := Natural'Min (Text'Length, Offset + 16);
+               Current_Block : String_Vectors.Vector;
+            begin
+               for Format_Index in Formats.First_Index .. Formats.Last_Index loop
+                  declare
+                     Spec : constant Dump_Spec := Formats.Element (Format_Index);
+                     Output : Unbounded_String;
+                  begin
+                     declare
+                        I : Natural := Text'First + Offset;
+                     begin
+                        while I <= Text'First + Line_Last - 1 loop
+                           Append (Output, Unit_Field (Spec, Text, I));
+                           I := I + Spec.Size;
+                        end loop;
+                     end;
+                     Current_Block.Append (To_String (Output));
+                  end;
+               end loop;
+
+               if not Verbose and then Have_Previous and then String_Vectors."=" (Current_Block, Previous_Block) then
+                  if not Suppressed then
+                     Context.Put_Line ("*");
+                     Suppressed := True;
+                  end if;
+               else
+                  for Format_Index in Current_Block.First_Index .. Current_Block.Last_Index loop
+                     Context.Put_Line
+                       ((if Address = No_Address or else Format_Index /= Current_Block.First_Index
+                         then ""
+                         else Address_Image (Actual_Skip + Offset))
+                        & Current_Block.Element (Format_Index));
+                  end loop;
+                  Previous_Block := Current_Block;
+                  Have_Previous := True;
+                  Suppressed := False;
+               end if;
+               Offset := Line_Last;
+            end;
+         end loop;
+         if Address /= No_Address then
+            Context.Put_Line (Address_Image (Actual_Skip + Text'Length));
+         end if;
+      end;
+      Result.Status :=
+        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
+         else Posix_Tools.Exit_Status.Success);
+   end Run_Od;
+
+   procedure Run_Ls
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      type Hidden_Mode is (Hide_Hidden, Almost_All, All_Entries);
+
+      Hidden        : Hidden_Mode := Hide_Hidden;
+      Directory_As_File : Boolean := False;
+      First         : Positive := 1;
+      Ok            : Boolean := True;
+      Emitted       : Boolean := False;
+
+      procedure Emit_Line (Text : String) is
+      begin
+         Context.Put_Line (Text);
+         Emitted := True;
+      end Emit_Line;
+
+      function Visible (Name : String) return Boolean is
+      begin
+         case Hidden is
+            when All_Entries =>
+               return True;
+            when Almost_All =>
+               return Name /= "." and then Name /= "..";
+            when Hide_Hidden =>
+               return Name = "" or else Name (Name'First) /= '.';
+         end case;
+      end Visible;
+
+      procedure List_Path (Path : String; With_Header : Boolean) is
+         Names : String_Vectors.Vector;
+         Listed : Boolean := True;
+
+         procedure Add_Entry (Name : String; Full_Name : String; Stop : in out Boolean) is
+            pragma Unreferenced (Full_Name, Stop);
+         begin
+            if Visible (Name) then
+               Names.Append (Name);
+            end if;
+         end Add_Entry;
+
+         procedure Each is new FS.For_Each_Directory_Entry (Add_Entry);
+      begin
+         if FS.Kind (Path) = FS.Directory and then not Directory_As_File then
+            if With_Header then
+               if Emitted then
+                  Context.Put_Line ("");
+               end if;
+               Emit_Line (Path & ":");
+            end if;
+            Each (Path, Listed);
+            if not Listed then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+               return;
+            end if;
+            String_Vector_Sorting.Sort (Names);
+            for Name of Names loop
+               Emit_Line (Name);
+            end loop;
+         elsif FS.Exists (Path) then
+            Emit_Line (Path);
+         else
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+         end if;
+      end List_Path;
+   begin
+      while First <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First);
+         begin
+            if Arg = "--" then
+               First := First + 1;
+               exit;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
+                  case Ch is
+                     when '1' => null;
+                     when 'a' => Hidden := All_Entries;
+                     when 'A' =>
+                        if Hidden /= All_Entries then
+                           Hidden := Almost_All;
+                        end if;
+                     when 'd' => Directory_As_File := True;
+                     when others =>
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        return;
+                  end case;
+               end loop;
+               First := First + 1;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+      if Context.Argument_Count < First then
+         List_Path (".", False);
+      else
+         for I in First .. Context.Argument_Count loop
+            List_Path
+              (Context.Argument (I),
+               With_Header =>
+                 Context.Argument_Count - First + 1 > 1
+                 and then FS.Kind (Context.Argument (I)) = FS.Directory
+                 and then not Directory_As_File);
+         end loop;
+      end if;
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Ls;
+
+   procedure Run_Split
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Lines_Per_File : Natural := 1000;
+      Bytes_Per_File : Natural := 0;
+      Suffix_Length  : Positive := 2;
+      First          : Positive := 1;
+      Input          : Unbounded_String := To_Unbounded_String ("-");
+      Prefix         : Unbounded_String := To_Unbounded_String ("x");
+      Data           : Unbounded_String;
+      Ok             : Boolean;
+
+      function Suffix_Capacity return Natural is
+         Result : Natural := 1;
+      begin
+         for I in 1 .. Suffix_Length loop
+            if Result > Natural'Last / 26 then
+               return Natural'Last;
+            end if;
+            Result := Result * 26;
+         end loop;
+         return Result;
+      end Suffix_Capacity;
+
+      function Suffix (Index : Natural) return String is
+         Result : String (1 .. Suffix_Length) := [others => 'a'];
+         Work   : Natural := Index;
+      begin
+         for I in reverse Result'Range loop
+            Result (I) := Character'Val (Character'Pos ('a') + Work mod 26);
+            Work := Work / 26;
+         end loop;
+         return Result;
+      end Suffix;
+
+      function Write_Output (Name, Text : String) return Boolean is
+         File : Ada.Streams.Stream_IO.File_Type;
+      begin
+         Ada.Streams.Stream_IO.Create (File, Ada.Streams.Stream_IO.Out_File, Name);
+         for Ch of Text loop
+            declare
+               Item : Ada.Streams.Stream_Element_Array (1 .. 1);
+            begin
+               Item (1) := Ada.Streams.Stream_Element (Character'Pos (Ch));
+               Ada.Streams.Stream_IO.Write (File, Item);
+            end;
+         end loop;
+         Ada.Streams.Stream_IO.Close (File);
+         return True;
+      exception
+         when others =>
+            if Ada.Streams.Stream_IO.Is_Open (File) then
+               Ada.Streams.Stream_IO.Close (File);
+            end if;
+            return False;
+      end Write_Output;
+   begin
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "-a" and then First < Context.Argument_Count then
+            declare
+               Parsed : Natural;
+            begin
+               if not Parse_Natural_Text (Context.Argument (First + 1), Parsed)
+                 or else Parsed = 0
+                 or else Parsed > 12
+               then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                  return;
+               end if;
+               Suffix_Length := Positive (Parsed);
+            end;
+            First := First + 2;
+         elsif Context.Argument (First) = "-l" and then First < Context.Argument_Count then
+            if not Parse_Natural_Text (Context.Argument (First + 1), Lines_Per_File)
+              or else Lines_Per_File = 0
+            then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+               return;
+            end if;
+            First := First + 2;
+         elsif Context.Argument (First) = "-b" and then First < Context.Argument_Count then
+            if not Parse_Natural_Text (Context.Argument (First + 1), Bytes_Per_File)
+              or else Bytes_Per_File = 0
+            then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+               return;
+            end if;
+            First := First + 2;
+         elsif Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         elsif Context.Argument (First) = "-a"
+           or else Context.Argument (First) = "-l"
+           or else Context.Argument (First) = "-b"
+         then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "missing option argument '" & Context.Argument (First) & "'");
+            return;
+         else
+            exit;
+         end if;
+      end loop;
+      declare
+         Remaining : constant Natural :=
+           (if First > Context.Argument_Count then 0 else Context.Argument_Count - First + 1);
+      begin
+         if Remaining > 2 then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "extra operand '" & Context.Argument (First + 2) & "'");
+            return;
+         elsif Remaining >= 1 then
+            Input := To_Unbounded_String (Context.Argument (First));
+            if Remaining = 2 then
+               Prefix := To_Unbounded_String (Context.Argument (First + 1));
+            end if;
+         end if;
+      end;
+
+      Read_All (Context, To_String (Input), Data, Ok);
+      if not Ok then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
+      declare
+         Text  : constant String := To_String (Data);
+         Start : Positive := 1;
+         Part  : Natural := 0;
+      begin
+         while Start <= Text'Length loop
+            declare
+               Last : Natural := Start - 1;
+            begin
+               if Bytes_Per_File > 0 then
+                  Last := Natural'Min (Text'Length, Start + Bytes_Per_File - 1);
+               else
+                  for Count in 1 .. Lines_Per_File loop
+                     exit when Last >= Text'Length;
+                     Last := Last + 1;
+                     while Last < Text'Length and then Text (Last) /= LF loop
+                        Last := Last + 1;
+                     end loop;
+                  end loop;
+               end if;
+               if Part >= Suffix_Capacity then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context,
+                     To_String (Prefix),
+                     "posix_tools.diagnostic.resource.limit",
+                     "resource limit exceeded");
+                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                  return;
+               end if;
+               if not Write_Output (To_String (Prefix) & Suffix (Part), Text (Start .. Last)) then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context,
+                     To_String (Prefix) & Suffix (Part),
+                     "posix_tools.diagnostic.file.open_failed",
+                     "cannot open file");
+                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                  return;
+               end if;
+               Part := Part + 1;
+               Start := Last + 1;
+            end;
+         end loop;
+      end;
+      Set_Success (Context, Result);
+   end Run_Split;
+
    procedure Run
      (Command : Expanded_Command;
       Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -11346,7 +13045,11 @@ package body Posix_Tools.Commands.Expanded is
          when Chgrp_Command => Run_Chgrp (Context, Result);
          when Chmod_Command => Run_Chmod (Context, Result);
          when Chown_Command => Run_Chown (Context, Result);
+         when Cksum_Command => Run_Cksum (Context, Result);
+         when Cmp_Command => Run_Cmp (Context, Result);
+         when Comm_Command => Run_Comm (Context, Result);
          when Cp_Command => Run_Cp (Context, Result);
+         when Cut_Command => Run_Cut (Context, Result);
          when Date_Command => Run_Date (Context, Result);
          when Dd_Command => Run_Dd (Context, Result);
          when Env_Command => Run_Env (Context, Result);
@@ -11356,14 +13059,18 @@ package body Posix_Tools.Commands.Expanded is
          when Link_Command => Run_Link (Context, Result);
          when Ln_Command => Run_Ln (Context, Result);
          when Logname_Command => Run_Logname (Context, Result);
+         when Ls_Command => Run_Ls (Context, Result);
          when Mkdir_Command => Run_Mkdir (Context, Result);
          when Mv_Command => Run_Mv (Context, Result);
+         when Od_Command => Run_Od (Context, Result);
+         when Paste_Command => Run_Paste (Context, Result);
          when Printf_Command => Run_Printf (Context, Result);
          when Readlink_Command => Run_Readlink (Context, Result);
          when Realpath_Command => Run_Realpath (Context, Result);
          when Rm_Command => Run_Rm (Context, Result);
          when Rmdir_Command => Run_Rmdir (Context, Result);
          when Sleep_Command => Run_Sleep (Context, Result);
+         when Split_Command => Run_Split (Context, Result);
          when Sort_Command => Run_Sort (Context, Result);
          when Tee_Command => Run_Tee (Context, Result);
          when Test_Command => Run_Test (Context, Result);

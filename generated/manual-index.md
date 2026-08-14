@@ -7,7 +7,11 @@ Version: 0.1.0
 - `chgrp`: docs/commands/chgrp.md
 - `chmod`: docs/commands/chmod.md
 - `chown`: docs/commands/chown.md
+- `cksum`: docs/commands/cksum.md
+- `cmp`: docs/commands/cmp.md
+- `comm`: docs/commands/comm.md
 - `cp`: docs/commands/cp.md
+- `cut`: docs/commands/cut.md
 - `date`: docs/commands/date.md
 - `dd`: docs/commands/dd.md
 - `dirname`: docs/commands/dirname.md
@@ -21,8 +25,11 @@ Version: 0.1.0
 - `link`: docs/commands/link.md
 - `ln`: docs/commands/ln.md
 - `logname`: docs/commands/logname.md
+- `ls`: docs/commands/ls.md
 - `mkdir`: docs/commands/mkdir.md
 - `mv`: docs/commands/mv.md
+- `od`: docs/commands/od.md
+- `paste`: docs/commands/paste.md
 - `printf`: docs/commands/printf.md
 - `pwd`: docs/commands/pwd.md
 - `readlink`: docs/commands/readlink.md
@@ -30,6 +37,7 @@ Version: 0.1.0
 - `rm`: docs/commands/rm.md
 - `rmdir`: docs/commands/rmdir.md
 - `sleep`: docs/commands/sleep.md
+- `split`: docs/commands/split.md
 - `sort`: docs/commands/sort.md
 - `tail`: docs/commands/tail.md
 - `tee`: docs/commands/tee.md

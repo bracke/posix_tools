@@ -10,6 +10,7 @@ package Posix_Tools.Host_Adapters.Host is
       Last   : out Natural)
       return Boolean;
    function Native_Locale return String;
+   function Login_Name return String;
    function Own_Process_Id return Integer;
    function System_Name return String;
    function Node_Name return String;

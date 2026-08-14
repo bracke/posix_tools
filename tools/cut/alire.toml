@@ -1,0 +1,18 @@
+name = "posix_tools_cut"
+description = "cut command for posix_tools"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["cut"]
+project-files = ["posix_tools_cut.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[pins]]
+posix_tools_common = { path = "../../common" }
+
+[build-profiles]
+"*" = "development"

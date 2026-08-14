@@ -1,0 +1,38 @@
+.TH ls 1
+.SH NAME
+ls - list directory contents.
+.SH SYNOPSIS
+ls [-1aAd] [--] [file...]
+.SH DESCRIPTION
+Lists file operands and directory entries.
+.SH OPERANDS
+file: file or directory path.
+.SH OPTIONS
+-1 writes one entry per line. -a includes dot-prefixed entries. -A includes dot-prefixed entries other than . and
+\&.. when the host reports them. -d lists directory operands as operands instead of listing their contents. Project
+extensions --help, --version, and --posix-tools-identify are recognized. The end-of-options marker -- is
+accepted.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Listed names, one per line.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and filesystem failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Directory entries are sorted deterministically before output.
+.SH LOCALE BEHAVIOR
+Data output is not localized. Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The V1 output format is the deterministic one-entry-per-line form.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+ls -a src
+.SH CONFORMANCE STATUS
+Conforming with extensions. Requirement coverage is tracked by LS-POSIX-001.
+.SH KNOWN LIMITATIONS
+None for the implemented V1 supported surface.
+.SH SEE ALSO
+docs/commands/ls.md

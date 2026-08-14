@@ -4,7 +4,11 @@ cat,posix_tools_cat,Posix_Tools.Commands.Cat,tools/cat/alire.toml,tools/cat/posi
 chgrp,posix_tools_chgrp,Posix_Tools.Commands.Chgrp,tools/chgrp/alire.toml,tools/chgrp/posix_tools_chgrp.gpr,docs/commands/chgrp.md,true,conforming_with_extensions,true,true,true
 chmod,posix_tools_chmod,Posix_Tools.Commands.Chmod,tools/chmod/alire.toml,tools/chmod/posix_tools_chmod.gpr,docs/commands/chmod.md,true,conforming_with_extensions,true,true,true
 chown,posix_tools_chown,Posix_Tools.Commands.Chown,tools/chown/alire.toml,tools/chown/posix_tools_chown.gpr,docs/commands/chown.md,true,conforming_with_extensions,true,true,true
+cksum,posix_tools_cksum,Posix_Tools.Commands.Cksum,tools/cksum/alire.toml,tools/cksum/posix_tools_cksum.gpr,docs/commands/cksum.md,true,conforming_with_extensions,true,true,true
+cmp,posix_tools_cmp,Posix_Tools.Commands.Cmp,tools/cmp/alire.toml,tools/cmp/posix_tools_cmp.gpr,docs/commands/cmp.md,true,conforming_with_extensions,true,true,true
+comm,posix_tools_comm,Posix_Tools.Commands.Comm,tools/comm/alire.toml,tools/comm/posix_tools_comm.gpr,docs/commands/comm.md,true,conforming_with_extensions,true,true,true
 cp,posix_tools_cp,Posix_Tools.Commands.Cp,tools/cp/alire.toml,tools/cp/posix_tools_cp.gpr,docs/commands/cp.md,true,conforming_with_extensions,true,true,true
+cut,posix_tools_cut,Posix_Tools.Commands.Cut,tools/cut/alire.toml,tools/cut/posix_tools_cut.gpr,docs/commands/cut.md,true,conforming_with_extensions,true,true,true
 date,posix_tools_date,Posix_Tools.Commands.Date,tools/date/alire.toml,tools/date/posix_tools_date.gpr,docs/commands/date.md,true,conforming_with_extensions,true,true,true
 dd,posix_tools_dd,Posix_Tools.Commands.Dd,tools/dd/alire.toml,tools/dd/posix_tools_dd.gpr,docs/commands/dd.md,true,conforming_with_extensions,true,true,true
 dirname,posix_tools_dirname,Posix_Tools.Commands.Dirname,tools/dirname/alire.toml,tools/dirname/posix_tools_dirname.gpr,docs/commands/dirname.md,true,conforming_with_extensions,true,true,true
@@ -18,8 +22,11 @@ kill,posix_tools_kill,Posix_Tools.Commands.Kill,tools/kill/alire.toml,tools/kill
 link,posix_tools_link,Posix_Tools.Commands.Link,tools/link/alire.toml,tools/link/posix_tools_link.gpr,docs/commands/link.md,true,conforming_with_extensions,true,true,true
 ln,posix_tools_ln,Posix_Tools.Commands.Ln,tools/ln/alire.toml,tools/ln/posix_tools_ln.gpr,docs/commands/ln.md,true,conforming_with_extensions,true,true,true
 logname,posix_tools_logname,Posix_Tools.Commands.Logname,tools/logname/alire.toml,tools/logname/posix_tools_logname.gpr,docs/commands/logname.md,true,conforming_with_extensions,true,true,true
+ls,posix_tools_ls,Posix_Tools.Commands.Ls,tools/ls/alire.toml,tools/ls/posix_tools_ls.gpr,docs/commands/ls.md,true,conforming_with_extensions,true,true,true
 mkdir,posix_tools_mkdir,Posix_Tools.Commands.Mkdir,tools/mkdir/alire.toml,tools/mkdir/posix_tools_mkdir.gpr,docs/commands/mkdir.md,true,conforming_with_extensions,true,true,true
 mv,posix_tools_mv,Posix_Tools.Commands.Mv,tools/mv/alire.toml,tools/mv/posix_tools_mv.gpr,docs/commands/mv.md,true,conforming_with_extensions,true,true,true
+od,posix_tools_od,Posix_Tools.Commands.Od,tools/od/alire.toml,tools/od/posix_tools_od.gpr,docs/commands/od.md,true,conforming_with_extensions,true,true,true
+paste,posix_tools_paste,Posix_Tools.Commands.Paste,tools/paste/alire.toml,tools/paste/posix_tools_paste.gpr,docs/commands/paste.md,true,conforming_with_extensions,true,true,true
 printf,posix_tools_printf,Posix_Tools.Commands.Printf,tools/printf/alire.toml,tools/printf/posix_tools_printf.gpr,docs/commands/printf.md,true,conforming_with_extensions,true,true,true
 pwd,posix_tools_pwd,Posix_Tools.Commands.Pwd,tools/pwd/alire.toml,tools/pwd/posix_tools_pwd.gpr,docs/commands/pwd.md,true,conforming_with_extensions,true,true,true
 readlink,posix_tools_readlink,Posix_Tools.Commands.Readlink,tools/readlink/alire.toml,tools/readlink/posix_tools_readlink.gpr,docs/commands/readlink.md,true,conforming_with_extensions,true,true,true
@@ -27,6 +34,7 @@ realpath,posix_tools_realpath,Posix_Tools.Commands.Realpath,tools/realpath/alire
 rm,posix_tools_rm,Posix_Tools.Commands.Rm,tools/rm/alire.toml,tools/rm/posix_tools_rm.gpr,docs/commands/rm.md,true,conforming_with_extensions,true,true,true
 rmdir,posix_tools_rmdir,Posix_Tools.Commands.Rmdir,tools/rmdir/alire.toml,tools/rmdir/posix_tools_rmdir.gpr,docs/commands/rmdir.md,true,conforming_with_extensions,true,true,true
 sleep,posix_tools_sleep,Posix_Tools.Commands.Sleep,tools/sleep/alire.toml,tools/sleep/posix_tools_sleep.gpr,docs/commands/sleep.md,true,conforming_with_extensions,true,true,true
+split,posix_tools_split,Posix_Tools.Commands.Split,tools/split/alire.toml,tools/split/posix_tools_split.gpr,docs/commands/split.md,true,conforming_with_extensions,true,true,true
 sort,posix_tools_sort,Posix_Tools.Commands.Sort,tools/sort/alire.toml,tools/sort/posix_tools_sort.gpr,docs/commands/sort.md,true,conforming_with_extensions,true,true,true
 tail,posix_tools_tail,Posix_Tools.Commands.Tail,tools/tail/alire.toml,tools/tail/posix_tools_tail.gpr,docs/commands/tail.md,true,conforming_with_extensions,true,true,true
 tee,posix_tools_tee,Posix_Tools.Commands.Tee,tools/tee/alire.toml,tools/tee/posix_tools_tee.gpr,docs/commands/tee.md,true,conforming_with_extensions,true,true,true
