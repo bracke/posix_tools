@@ -2,7 +2,7 @@
 .SH NAME
 unexpand - convert spaces to tabs.
 .SH SYNOPSIS
-unexpand [-a] [-t tabstop] [file...]
+unexpand [-a] [-t tabstop[,tabstop...]] [file...]
 .SH DESCRIPTION
 Writes each input file to standard output, replacing selected space-byte runs with tab bytes where doing so reaches the
 same tab stops. With no file operands, or with an operand exactly equal to -, unexpand reads standard input.
@@ -11,7 +11,7 @@ file: input file to unexpand, or - for standard input.
 .SH OPTIONS
 -a: convert space-byte runs beyond the leading blank portion of a line.
 
--t tabstop: use the given positive decimal tab width instead of the default width of 8.
+-t tabstop[,tabstop...]: use one positive decimal tab width or a strictly increasing list of decimal tab stops.
 
 Project extensions --help, --version, and --posix-tools-identify are recognized.
 .SH STANDARD INPUT
@@ -24,13 +24,15 @@ Diagnostics are written for invalid options, invalid tab widths, and operands th
 0 success, 1 one or more operands could not be read or output failed, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
 Without -a, only leading spaces on each line are considered for tab replacement. With -a, every run of spaces is
-considered. Other bytes are copied unchanged.
+considered. When a tab-stop list is given, stops must be strictly increasing. Columns after the final listed stop repeat
+using the distance between the last two stops, or the single listed stop when only one stop was supplied. Other bytes are
+copied unchanged.
 .SH LOCALE BEHAVIOR
 Help and diagnostics are localized. Input data, inserted tabs, widths, and pathnames are command data and are not
 localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
-V1 supports a single positive decimal tab width. It does not yet implement comma-separated tab stop lists or
-display-column adjustment for backspaces, wide characters, or combining characters.
+V1 counts bytes for column movement. It does not perform display-column adjustment for backspaces, wide characters, or
+combining characters.
 .SH EXTENSIONS
 --help, --version, --posix-tools-identify.
 .SH EXAMPLES
@@ -40,6 +42,6 @@ unexpand -a -t 4 text.txt
 .SH CONFORMANCE STATUS
 Conforming with implementation-defined behavior tracked by UNEXPAND-POSIX-001.
 .SH KNOWN LIMITATIONS
-Tab stop lists are not yet implemented.
+Display-column adjustment for backspaces, wide characters, and combining characters is not yet implemented.
 .SH SEE ALSO
 docs/commands/unexpand.md

@@ -35,14 +35,16 @@ Diagnostics for invalid options and paths that cannot be inspected.
 `125` internal failure.
 
 ## Behavioral Details
-Directories are traversed recursively. The V1 implementation uses host-reported file byte sizes rounded to the selected
-unit size; it does not yet use a separate allocated-block count when a platform exposes one.
+Directories are traversed recursively. Directory identities are tracked during each top-level traversal to avoid
+filesystem cycles. The V1 implementation reports allocated usage when the host adapter exposes it and otherwise uses
+host-reported byte sizes rounded to the selected unit size as the portable fallback.
 
 ## Locale Behavior
 Help and diagnostics are localized. Numeric counts and pathnames are command data and are not localized.
 
 ## Implementation-Defined Choices
 Default units are 512 bytes. `-k` selects 1024-byte units. Directory entry traversal order follows the host adapter.
+Platforms without an allocated-block query use rounded byte sizes.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -56,4 +58,4 @@ Default units are 512 bytes. `-k` selects 1024-byte units. Directory entry trave
 Conforming with implementation-defined behavior tracked by `DU-POSIX-001`.
 
 ## Known Limitations
-Allocated block accounting and filesystem-cycle detection are not yet implemented.
+Allocated-block precision depends on the host adapter capability for the target platform.

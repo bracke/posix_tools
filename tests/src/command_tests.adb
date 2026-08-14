@@ -178,6 +178,26 @@ package body Command_Tests is
       return False;
    end Contains;
 
+   function Occurrences (Text, Pattern : String) return Natural is
+      Count : Natural := 0;
+      Index : Positive := Text'First;
+   begin
+      if Pattern = "" or else Text'Length < Pattern'Length then
+         return 0;
+      end if;
+
+      while Index <= Text'Last - Pattern'Length + 1 loop
+         if Text (Index .. Index + Pattern'Length - 1) = Pattern then
+            Count := Count + 1;
+            Index := Index + Pattern'Length;
+         else
+            Index := Index + 1;
+         end if;
+      end loop;
+
+      return Count;
+   end Occurrences;
+
    procedure Run_Command_By_Name
      (Name    : String;
       Context : in out Test_Contexts.Capturing_Context;
@@ -5517,6 +5537,10 @@ package body Command_Tests is
       Data_Path : constant String := Fixture_Path ("file-data.bin");
       Empty_Path : constant String := Fixture_Path ("file-empty.bin");
       Dir_Path : constant String := Fixture_Path ("file-dir");
+      Png_Path : constant String := Fixture_Path ("file-image.png");
+      Zip_Path : constant String := Fixture_Path ("file-archive.zip");
+      Script_Path : constant String := Fixture_Path ("file-script.sh");
+      Tar_Path : constant String := Fixture_Path ("file-archive.tar");
       Missing_Path : constant String := Fixture_Path ("file-missing.txt");
       LF : constant Character := Character'Val (10);
 
@@ -5535,10 +5559,19 @@ package body Command_Tests is
       Delete_If_Exists (Data_Path);
       Delete_If_Exists (Empty_Path);
       Delete_If_Exists (Dir_Path);
+      Delete_If_Exists (Png_Path);
+      Delete_If_Exists (Zip_Path);
+      Delete_If_Exists (Script_Path);
+      Delete_If_Exists (Tar_Path);
 
       Write_File (Text_Path, "hello" & LF);
       Write_File (Data_Path, "a" & Character'Val (0) & "b");
       Write_File (Empty_Path, "");
+      Write_File (Png_Path, Character'Val (16#89#) & "PNG" & Character'Val (13) & LF
+                  & Character'Val (16#1A#) & LF);
+      Write_File (Zip_Path, "PK" & Character'Val (3) & Character'Val (4) & "rest");
+      Write_File (Script_Path, "#!/bin/sh" & LF & "echo ok" & LF);
+      Write_File (Tar_Path, String'(1 .. 257 => Character'Val (0)) & "ustar");
       if not Ada.Directories.Exists (Dir_Path) then
          Ada.Directories.Create_Directory (Dir_Path);
       end if;
@@ -5553,8 +5586,34 @@ package body Command_Tests is
            Text_Path & ": text" & LF
            & Data_Path & ": data" & LF
            & Empty_Path & ": empty" & LF
-           & Dir_Path & ": directory" & LF,
+         & Dir_Path & ": directory" & LF,
          "file classification output");
+
+      Context.Initialize ("file", Four_Args (Png_Path, Zip_Path, Script_Path, Tar_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           Png_Path & ": PNG image data" & LF
+           & Zip_Path & ": Zip archive data" & LF
+           & Script_Path & ": script text executable" & LF
+           & Tar_Path & ": tar archive data" & LF,
+         "file applies built-in content signatures");
+
+      Context.Initialize ("file", Two_Args ("-i", Png_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Png_Path & ": image/png" & LF,
+         "file -i emits MIME classification");
+
+      Context.Initialize ("file", One_Arg ("-"));
+      Test_Contexts.Set_Standard_Input (Context, "%PDF-1.7" & LF);
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "-: PDF document" & LF,
+         "file classifies standard input operand");
 
       Context.Initialize ("file", One_Arg (Missing_Path));
       Posix_Tools.Commands.File.Run (Context, Result);
@@ -5584,6 +5643,10 @@ package body Command_Tests is
       Delete_If_Exists (Data_Path);
       Delete_If_Exists (Empty_Path);
       Delete_If_Exists (Dir_Path);
+      Delete_If_Exists (Png_Path);
+      Delete_If_Exists (Zip_Path);
+      Delete_If_Exists (Script_Path);
+      Delete_If_Exists (Tar_Path);
    end Test_File;
 
    procedure Test_Du (T : in out Fixture) is
@@ -5639,6 +5702,13 @@ package body Command_Tests is
          and then Contains (Test_Contexts.Output (Context), HT & Child_Path & LF)
          and then Contains (Test_Contexts.Output (Context), HT & Dir_Path & LF),
          "du -a reports child and directory paths");
+
+      Context.Initialize ("du", Two_Args (Dir_Path, Dir_Path));
+      Posix_Tools.Commands.Du.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Occurrences (Test_Contexts.Output (Context), HT & Dir_Path & LF) = 2,
+         "du resets cycle tracking for each top-level operand");
 
       Context.Initialize ("du", One_Arg (Missing_Path));
       Posix_Tools.Commands.Du.Run (Context, Result);
@@ -5760,6 +5830,14 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "ab  c" & LF & "    d",
          "expand -t changes the tab width and resets after newline");
 
+      Context.Initialize ("expand", Two_Args ("-t", "3,6"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & HT & "b" & HT & "c");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a  b  c",
+         "expand supports comma-separated tab stop lists");
+
       Delete_If_Exists (Path);
       Write_File (Path, "x" & HT & "y");
       Context.Initialize ("expand", Two_Args ("-t4", Path));
@@ -5768,6 +5846,12 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "x   y",
          "expand reads file operands");
+
+      Context.Initialize ("expand", One_Arg ("-t4,3"));
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expand rejects non-increasing tab stop lists");
 
       Context.Initialize ("expand", Two_Args ("-t", "0"));
       Posix_Tools.Commands.Expand.Run (Context, Result);
@@ -5824,6 +5908,14 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "x" & HT & "y",
          "unexpand -a compresses non-leading blanks");
 
+      Context.Initialize ("unexpand", Two_Args ("-a", "-t3,6"));
+      Test_Contexts.Set_Standard_Input (Context, "   x  y");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = HT & "x" & HT & "y",
+         "unexpand supports comma-separated tab stop lists");
+
       Delete_If_Exists (Path);
       Write_File (Path, "    x" & LF & "  y");
       Context.Initialize ("unexpand", Two_Args ("-t4", Path));
@@ -5832,6 +5924,12 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = HT & "x" & LF & "  y",
          "unexpand reads file operands and honors tab width");
+
+      Context.Initialize ("unexpand", One_Arg ("-t4,3"));
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "unexpand rejects non-increasing tab stop lists");
 
       Context.Initialize ("unexpand", Two_Args ("-t", "0"));
       Posix_Tools.Commands.Unexpand.Run (Context, Result);

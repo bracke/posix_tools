@@ -4138,6 +4138,7 @@ package body Posix_Tools.Commands.Expanded is
       Summary_Only : Boolean := False;
       Unit_Size    : Long_Long_Integer := 512;
       All_Ok       : Boolean := True;
+      Seen_Dirs    : String_Vectors.Vector;
 
       function Long_Image (Value : Long_Long_Integer) return String is
       begin
@@ -4152,6 +4153,28 @@ package body Posix_Tools.Commands.Expanded is
             return (Bytes + Unit_Size - 1) / Unit_Size;
          end if;
       end Rounded_Units;
+
+      function Allocated_Units (Path : String) return Long_Long_Integer is
+      begin
+         --  Hostkit does not currently expose allocated-block counts through this adapter.
+         --  Use the byte size rounded to the selected reporting unit as the portable fallback.
+         return Rounded_Units (FS.Size (Path));
+      end Allocated_Units;
+
+      function Already_Seen_Directory (Path : String) return Boolean is
+      begin
+         for I in 1 .. Natural (Seen_Dirs.Length) loop
+            begin
+               if FS.Same_File (Path, Seen_Dirs.Element (I)) then
+                  return True;
+               end if;
+            exception
+               when others =>
+                  null;
+            end;
+         end loop;
+         return False;
+      end Already_Seen_Directory;
 
       procedure Print_Usage (Units : Long_Long_Integer; Path : String) is
       begin
@@ -4178,7 +4201,7 @@ package body Posix_Tools.Commands.Expanded is
                   Size_Units : Long_Long_Integer := 0;
                begin
                   begin
-                     Size_Units := Rounded_Units (FS.Size (Path));
+                     Size_Units := Allocated_Units (Path);
                   exception
                      when others =>
                         Posix_Tools.Commands.Helpers.Subject_Operational_Error
@@ -4196,6 +4219,7 @@ package body Posix_Tools.Commands.Expanded is
                declare
                   Directory_Units : Long_Long_Integer := 0;
                   Iteration_Ok    : Boolean := True;
+                  Full_Path       : constant String := FS.Full_Name (Path);
 
                   procedure Visit_Child
                     (Name      : String;
@@ -4212,8 +4236,13 @@ package body Posix_Tools.Commands.Expanded is
 
                   procedure Each is new FS.For_Each_Directory_Entry (Visit_Child);
                begin
+                  if Already_Seen_Directory (Path) then
+                     Total_Units := 0;
+                     return;
+                  end if;
+                  Seen_Dirs.Append (Full_Path);
                   begin
-                     Directory_Units := Rounded_Units (FS.Size (Path));
+                     Directory_Units := Allocated_Units (Path);
                   exception
                      when others =>
                         Directory_Units := 0;
@@ -4264,6 +4293,7 @@ package body Posix_Tools.Commands.Expanded is
          declare
             Total : Long_Long_Integer := 0;
          begin
+            Seen_Dirs.Clear;
             Walk (".", True, Total, All_Ok);
          end;
       else
@@ -4271,6 +4301,7 @@ package body Posix_Tools.Commands.Expanded is
             declare
                Total : Long_Long_Integer := 0;
             begin
+               Seen_Dirs.Clear;
                Walk (Context.Argument (I), True, Total, All_Ok);
                exit when Context.Output_Failed;
             end;
@@ -4794,8 +4825,9 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First  : Positive := 1;
-      All_Ok : Boolean := True;
+      First     : Positive := 1;
+      All_Ok    : Boolean := True;
+      Mime_Mode : Boolean := False;
 
       function Is_Text_Byte (Byte : Ada.Streams.Stream_Element) return Boolean is
          Ch : constant Character := Character'Val (Byte);
@@ -4807,13 +4839,69 @@ package body Posix_Tools.Commands.Expanded is
            or else (Ch >= ' ' and then Ch <= '~');
       end Is_Text_Byte;
 
-      function Description (Path : String) return String is
+      function Starts_With (Text, Prefix : String) return Boolean is
+      begin
+         return Text'Length >= Prefix'Length
+           and then Text (Text'First .. Text'First + Prefix'Length - 1) = Prefix;
+      end Starts_With;
+
+      function Contains_At (Text : String; Offset : Natural; Needle : String) return Boolean is
+         Start : constant Natural := Text'First + Offset;
+      begin
+         return Offset <= Text'Length
+           and then Start >= Text'First
+           and then Start + Needle'Length - 1 <= Text'Last
+           and then Text (Start .. Start + Needle'Length - 1) = Needle;
+      end Contains_At;
+
+      function Content_Description (Data : String) return String is
          Saw_Byte : Boolean := False;
          Saw_NUL  : Boolean := False;
          Saw_Text : Boolean := True;
-         Read_Ok  : Boolean := True;
+      begin
+         if Data = "" then
+            return (if Mime_Mode then "inode/x-empty" else "empty");
+         elsif Starts_With (Data, "%PDF-") then
+            return (if Mime_Mode then "application/pdf" else "PDF document");
+         elsif Starts_With (Data, Character'Val (16#7F#) & "ELF") then
+            return (if Mime_Mode then "application/x-elf" else "ELF executable");
+         elsif Starts_With (Data, Character'Val (16#89#) & "PNG" & CR & LF & Character'Val (16#1A#) & LF) then
+            return (if Mime_Mode then "image/png" else "PNG image data");
+         elsif Starts_With (Data, "GIF87a") or else Starts_With (Data, "GIF89a") then
+            return (if Mime_Mode then "image/gif" else "GIF image data");
+         elsif Starts_With (Data, "PK" & Character'Val (3) & Character'Val (4)) then
+            return (if Mime_Mode then "application/zip" else "Zip archive data");
+         elsif Starts_With (Data, Character'Val (16#1F#) & Character'Val (16#8B#)) then
+            return (if Mime_Mode then "application/gzip" else "gzip compressed data");
+         elsif Contains_At (Data, 257, "ustar") then
+            return (if Mime_Mode then "application/x-tar" else "tar archive data");
+         elsif Starts_With (Data, "#!") then
+            return (if Mime_Mode then "text/x-script" else "script text executable");
+         end if;
 
-         procedure Inspect
+         for Ch of Data loop
+            Saw_Byte := True;
+            if Ch = NUL then
+               Saw_NUL := True;
+            elsif not Is_Text_Byte (Ada.Streams.Stream_Element (Character'Pos (Ch))) then
+                  Saw_Text := False;
+            end if;
+         end loop;
+
+         if not Saw_Byte then
+            return (if Mime_Mode then "inode/x-empty" else "empty");
+         elsif Saw_NUL or else not Saw_Text then
+            return (if Mime_Mode then "application/octet-stream" else "data");
+         else
+            return (if Mime_Mode then "text/plain" else "text");
+         end if;
+      end Content_Description;
+
+      function Description (Path : String) return String is
+         Data    : Unbounded_String;
+         Read_Ok : Boolean := True;
+
+         procedure Collect
            (Buffer : Ada.Streams.Stream_Element_Array;
             Last   : Ada.Streams.Stream_Element_Offset;
             Stop   : in out Boolean)
@@ -4821,17 +4909,16 @@ package body Posix_Tools.Commands.Expanded is
             pragma Unreferenced (Stop);
          begin
             for Index in Buffer'First .. Last loop
-               Saw_Byte := True;
-               if Buffer (Index) = Ada.Streams.Stream_Element (0) then
-                  Saw_NUL := True;
-               elsif not Is_Text_Byte (Buffer (Index)) then
-                  Saw_Text := False;
-               end if;
+               Append (Data, Character'Val (Integer (Buffer (Index))));
             end loop;
-         end Inspect;
+         end Collect;
 
-         procedure Read_File is new FS.For_Each_File_Chunk (Inspect);
+         procedure Read_File_Data is new FS.For_Each_File_Chunk (Collect);
       begin
+         if Path = "-" then
+            return Content_Description (Read_Standard_Input (Context));
+         end if;
+
          case FS.Kind (Path) is
             when FS.Missing_File =>
                All_Ok := False;
@@ -4839,22 +4926,18 @@ package body Posix_Tools.Commands.Expanded is
                  (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
                return "";
             when FS.Directory =>
-               return "directory";
+               return (if Mime_Mode then "inode/directory" else "directory");
             when FS.Special_File =>
-               return "special file";
+               return (if Mime_Mode then "application/octet-stream" else "special file");
             when FS.Ordinary_File =>
-               Read_File (Path, Read_Ok);
+               Read_File_Data (Path, Read_Ok);
                if not Read_Ok then
                   All_Ok := False;
                   Posix_Tools.Commands.Helpers.Subject_Operational_Error
                     (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
                   return "";
-               elsif not Saw_Byte then
-                  return "empty";
-               elsif Saw_NUL or else not Saw_Text then
-                  return "data";
                else
-                  return "text";
+                  return Content_Description (To_String (Data));
                end if;
          end case;
       end Description;
@@ -4866,6 +4949,9 @@ package body Posix_Tools.Commands.Expanded is
             if Arg = "--" then
                First := First + 1;
                exit;
+            elsif Arg = "-i" or else Arg = "--mime" or else Arg = "--mime-type" then
+               Mime_Mode := True;
+               First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
                Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
                return;
@@ -4908,6 +4994,7 @@ package body Posix_Tools.Commands.Expanded is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Tab_Stop   : Natural := 8;
+      Tab_Stops  : String_Vectors.Vector;
       First_File : Positive := 1;
       All_Ok     : Boolean := True;
 
@@ -4916,6 +5003,79 @@ package body Posix_Tools.Commands.Expanded is
          return Parse_Natural_Text (Text, Value) and then Value > 0;
       end Valid_Tab_Stop;
 
+      function Parse_Tab_Stops (Text : String) return Boolean is
+         Start : Positive := Text'First;
+         Value : Natural;
+         Previous : Natural := 0;
+      begin
+         Tab_Stops.Clear;
+         if Text = "" then
+            return False;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = ',' then
+               if Start > I - 1
+                 or else not Valid_Tab_Stop (Text (Start .. I - 1), Value)
+                 or else Value <= Previous
+               then
+                  return False;
+               end if;
+               Tab_Stops.Append (Natural'Image (Value));
+               Previous := Value;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start > Text'Last
+           or else not Valid_Tab_Stop (Text (Start .. Text'Last), Value)
+           or else Value <= Previous
+         then
+            return False;
+         end if;
+         Tab_Stops.Append (Natural'Image (Value));
+         Tab_Stop := Value;
+         return True;
+      end Parse_Tab_Stops;
+
+      function Stop_Value (Index : Positive) return Natural is
+         Value : Natural;
+      begin
+         if Parse_Natural_Text (Ada.Strings.Fixed.Trim (Tab_Stops.Element (Index), Ada.Strings.Left), Value) then
+            return Value;
+         else
+            return Tab_Stop;
+         end if;
+      end Stop_Value;
+
+      function Next_Tab_Column (Column : Natural) return Natural is
+         Last_Stop : Natural := 0;
+         Step      : Natural := Tab_Stop;
+      begin
+         if Tab_Stops.Length = 0 then
+            return Column + (Tab_Stop - (Column mod Tab_Stop));
+         end if;
+
+         for I in 1 .. Natural (Tab_Stops.Length) loop
+            declare
+               Stop : constant Natural := Stop_Value (I);
+            begin
+               if Stop > Column then
+                  return Stop;
+               end if;
+               if I > 1 then
+                  Step := Stop - Last_Stop;
+               end if;
+               Last_Stop := Stop;
+            end;
+         end loop;
+
+         if Step = 0 then
+            Step := Tab_Stop;
+         end if;
+         return Last_Stop + (((Column - Last_Stop) / Step) + 1) * Step;
+      end Next_Tab_Column;
+
       procedure Expand_Text (Text : String; Ok : out Boolean) is
          Column : Natural := 0;
          Spaces : Natural;
@@ -4923,7 +5083,7 @@ package body Posix_Tools.Commands.Expanded is
          Ok := True;
          for Ch of Text loop
             if Ch = HT then
-               Spaces := Tab_Stop - (Column mod Tab_Stop);
+               Spaces := Next_Tab_Column (Column) - Column;
                for Count in 1 .. Spaces loop
                   Context.Put (" ");
                   exit when Context.Output_Failed;
@@ -4966,7 +5126,7 @@ package body Posix_Tools.Commands.Expanded is
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "missing option argument '-t'");
                   return;
-               elsif not Valid_Tab_Stop (Context.Argument (First_File + 1), Tab_Stop) then
+               elsif not Parse_Tab_Stops (Context.Argument (First_File + 1)) then
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
                   return;
@@ -4976,7 +5136,7 @@ package body Posix_Tools.Commands.Expanded is
               and then Arg (Arg'First) = '-'
               and then Arg (Arg'First + 1) = 't'
             then
-               if not Valid_Tab_Stop (Arg (Arg'First + 2 .. Arg'Last), Tab_Stop) then
+               if not Parse_Tab_Stops (Arg (Arg'First + 2 .. Arg'Last)) then
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
                   return;
@@ -5015,6 +5175,7 @@ package body Posix_Tools.Commands.Expanded is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Tab_Stop   : Natural := 8;
+      Tab_Stops  : String_Vectors.Vector;
       All_Blanks : Boolean := False;
       First_File : Positive := 1;
       All_Ok     : Boolean := True;
@@ -5024,14 +5185,79 @@ package body Posix_Tools.Commands.Expanded is
          return Parse_Natural_Text (Text, Value) and then Value > 0;
       end Valid_Tab_Stop;
 
+      function Parse_Tab_Stops (Text : String) return Boolean is
+         Start : Positive := Text'First;
+         Value : Natural;
+         Previous : Natural := 0;
+      begin
+         Tab_Stops.Clear;
+         if Text = "" then
+            return False;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = ',' then
+               if Start > I - 1
+                 or else not Valid_Tab_Stop (Text (Start .. I - 1), Value)
+                 or else Value <= Previous
+               then
+                  return False;
+               end if;
+               Tab_Stops.Append (Natural'Image (Value));
+               Previous := Value;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start > Text'Last
+           or else not Valid_Tab_Stop (Text (Start .. Text'Last), Value)
+           or else Value <= Previous
+         then
+            return False;
+         end if;
+         Tab_Stops.Append (Natural'Image (Value));
+         Tab_Stop := Value;
+         return True;
+      end Parse_Tab_Stops;
+
       procedure Put_Byte (Ch : Character) is
       begin
          Context.Put ("" & Ch);
       end Put_Byte;
 
       function Spaces_To_Next_Tab (Column : Natural) return Natural is
+         Last_Stop : Natural := 0;
+         Step      : Natural := Tab_Stop;
       begin
-         return Tab_Stop - (Column mod Tab_Stop);
+         if Tab_Stops.Length = 0 then
+            return Tab_Stop - (Column mod Tab_Stop);
+         end if;
+
+         for I in 1 .. Natural (Tab_Stops.Length) loop
+            declare
+               Value : Natural;
+               Stop  : Natural;
+            begin
+               if not Parse_Natural_Text
+                 (Ada.Strings.Fixed.Trim (Tab_Stops.Element (I), Ada.Strings.Left), Value)
+               then
+                  return Tab_Stop - (Column mod Tab_Stop);
+               end if;
+               Stop := Value;
+               if Stop > Column then
+                  return Stop - Column;
+               end if;
+               if I > 1 then
+                  Step := Stop - Last_Stop;
+               end if;
+               Last_Stop := Stop;
+            end;
+         end loop;
+
+         if Step = 0 then
+            Step := Tab_Stop;
+         end if;
+         return Last_Stop + (((Column - Last_Stop) / Step) + 1) * Step - Column;
       end Spaces_To_Next_Tab;
 
       procedure Emit_Blanks
@@ -5134,7 +5360,7 @@ package body Posix_Tools.Commands.Expanded is
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "missing option argument '-t'");
                   return;
-               elsif not Valid_Tab_Stop (Context.Argument (First_File + 1), Tab_Stop) then
+               elsif not Parse_Tab_Stops (Context.Argument (First_File + 1)) then
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
                   return;
@@ -5144,7 +5370,7 @@ package body Posix_Tools.Commands.Expanded is
               and then Arg (Arg'First) = '-'
               and then Arg (Arg'First + 1) = 't'
             then
-               if not Valid_Tab_Stop (Arg (Arg'First + 2 .. Arg'Last), Tab_Stop) then
+               if not Parse_Tab_Stops (Arg (Arg'First + 2 .. Arg'Last)) then
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
                   return;
