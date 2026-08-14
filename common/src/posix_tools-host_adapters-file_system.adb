@@ -366,6 +366,21 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Hostkit.Metadata.Group_Name_For_Id (Id);
    end Group_Name_For_Id;
 
+   function Group_Name_For_Current_User return String is
+      User      : Natural;
+      Group     : Natural;
+      Available : Boolean;
+   begin
+      Hostkit.Metadata.File_Ownership (Ada.Directories.Current_Directory, User, Group, Available);
+      if Available then
+         return Hostkit.Metadata.Group_Name_For_Id (Group);
+      end if;
+      return "";
+   exception
+      when others =>
+         return "";
+   end Group_Name_For_Current_User;
+
    function Is_Link (Path : String) return Boolean is
    begin
       return Hostkit.Fs.Is_Link (Path);
@@ -564,6 +579,11 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Hostkit.Fs.Read_Link_Target (Path, Target);
    end Read_Link_Target;
+
+   function Real_Path (Path : String) return String is
+   begin
+      return Hostkit.Fs.Real_Path (Path);
+   end Real_Path;
 
    procedure Rename (Old_Path : String; New_Path : String) is
    begin

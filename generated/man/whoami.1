@@ -1,0 +1,36 @@
+.TH whoami 1
+.SH NAME
+whoami - write effective user name.
+.SH SYNOPSIS
+whoami
+.SH DESCRIPTION
+Writes the effective user name for the current process.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The user name followed by a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid usage or unsupported identity queries.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The current user identifier and name are obtained through hostkit-backed adapters.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; the user name is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Platforms that cannot report the current user produce an operational failure.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+whoami
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by WHOAMI-POSIX-001.
+.SH KNOWN LIMITATIONS
+None for the V1 supported surface.
+.SH SEE ALSO
+docs/commands/whoami.md
+

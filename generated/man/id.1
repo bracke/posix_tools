@@ -1,0 +1,42 @@
+.TH id 1
+.SH NAME
+id - write user and group identity.
+.SH SYNOPSIS
+id [-Ggnu]
+.SH DESCRIPTION
+Writes identity information for the current process.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+-u writes the current process user identifier. -g writes the current process group identifier. -G writes the
+primary and supplementary group set available from hostkit. -n writes a name instead of a number where a name is
+available.
+Project extensions --help,
+--version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Identity data followed by a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid usage or unsupported identity queries.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The current user identifier, primary group identifier, and supplementary group identifiers are read through hostkit.
+Names are resolved through hostkit metadata services. If supplementary groups are unavailable, the primary group is
+still reported when the host exposes it.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; identity data is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Group ordering starts with the primary group and then includes host-reported supplementary groups without duplicates.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+id -u
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by ID-POSIX-001.
+.SH KNOWN LIMITATIONS
+Hosts without POSIX-style numeric user and group identities report operational failure.
+.SH SEE ALSO
+docs/commands/id.md
+

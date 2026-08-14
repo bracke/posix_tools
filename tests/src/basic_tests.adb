@@ -60,26 +60,26 @@ package body Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 28), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 40), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "basename", "first command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (28) = "xargs", "last command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (40) = "xargs", "last command");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Manifest_Path (1) = "tools/basename/alire.toml",
          "manifest path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Project_File_Path (27) = "tools/wc/posix_tools_wc.gpr",
+        (Posix_Tools.Command_Inventory.Project_File_Path (38) = "tools/wc/posix_tools_wc.gpr",
          "project file path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Documentation_Path (20) = "docs/commands/tail.md",
+        (Posix_Tools.Command_Inventory.Documentation_Path (30) = "docs/commands/tail.md",
          "documentation path");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Help (1), "help flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Version (1), "version flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Identity (1), "identity flag");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (20) = "conforming_with_extensions",
+        (Posix_Tools.Command_Inventory.Posix_Status (30) = "conforming_with_extensions",
          "tail status value");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (27) = "conforming_with_extensions",
+        (Posix_Tools.Command_Inventory.Posix_Status (38) = "conforming_with_extensions",
          "wc status value");
    end Test_Command_Inventory;
 

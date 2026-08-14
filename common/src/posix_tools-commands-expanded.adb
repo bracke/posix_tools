@@ -15,6 +15,7 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Localization;
 with Posix_Tools.Numbers;
@@ -50,9 +51,40 @@ package body Posix_Tools.Commands.Expanded is
    use type Posix_Tools.Numbers.Parse_Status;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   package Host renames Posix_Tools.Host_Adapters.Host;
+   package Signals renames Posix_Tools.Host_Adapters.Signals;
    use type Posix_Tools.Host_Adapters.File_System.Copy_File_Status;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
    use type Posix_Tools.Host_Adapters.File_System.Special_File_Kind;
+
+   function Trimmed_Image (Value : Integer) return String is
+   begin
+      return Ada.Strings.Fixed.Trim (Integer'Image (Value), Ada.Strings.Left);
+   end Trimmed_Image;
+
+   function Parse_Natural_Text (Text : String; Value : out Natural) return Boolean is
+      Acc : Long_Long_Integer := 0;
+   begin
+      if Text = "" then
+         Value := 0;
+         return False;
+      end if;
+
+      for Ch of Text loop
+         if Ch not in '0' .. '9' then
+            Value := 0;
+            return False;
+         end if;
+         Acc := Acc * 10 + Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'));
+         if Acc > Long_Long_Integer (Natural'Last) then
+            Value := 0;
+            return False;
+         end if;
+      end loop;
+
+      Value := Natural (Acc);
+      return True;
+   end Parse_Natural_Text;
 
    procedure Set_Success
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
@@ -5486,6 +5518,1125 @@ package body Posix_Tools.Commands.Expanded is
          else Posix_Tools.Exit_Status.Operational_Failure);
    end Run_Find;
 
+   procedure Run_Link
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First : Positive := 1;
+   begin
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count - First + 1 < 2 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif Context.Argument_Count - First + 1 > 2 then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (First + 2) & "'");
+         return;
+      end if;
+
+      if FS.Create_Hard_Link (Context.Argument (First), Context.Argument (First + 1)) then
+         Set_Success (Context, Result);
+      else
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Context.Argument (First + 1), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Link;
+
+   procedure Run_Readlink
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First  : Positive := 1;
+      Target : Unbounded_String;
+   begin
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif Context.Argument_Count > First then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (First + 1) & "'");
+         return;
+      end if;
+
+      if FS.Read_Link_Target (Context.Argument (First), Target) then
+         Context.Put_Line (To_String (Target));
+         Set_Success (Context, Result);
+      else
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Readlink;
+
+   procedure Run_Realpath
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First : Positive := 1;
+      Ok    : Boolean := True;
+   begin
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      for I in First .. Context.Argument_Count loop
+         begin
+            Context.Put_Line (FS.Real_Path (Context.Argument (I)));
+         exception
+            when others =>
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Context.Argument (I), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         end;
+      end loop;
+
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed
+         then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Realpath;
+
+   procedure Run_Whoami
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      User_Id : Natural;
+      Name    : Unbounded_String;
+   begin
+      if Context.Argument_Count > 0 then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (1) & "'");
+         return;
+      end if;
+
+      if Host.Current_User_Id (User_Id) then
+         Name := To_Unbounded_String (FS.User_Name_For_Id (User_Id));
+      end if;
+
+      if Length (Name) > 0 then
+         Context.Put_Line (To_String (Name));
+         Set_Success (Context, Result);
+      else
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Whoami;
+
+   procedure Run_Logname
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Name : constant String := Context.Environment_Value ("LOGNAME");
+   begin
+      if Context.Argument_Count > 0 then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (1) & "'");
+         return;
+      end if;
+
+      if Name /= "" then
+         Context.Put_Line (Name);
+         Set_Success (Context, Result);
+      else
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Logname;
+
+   procedure Run_Uname
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Show_System  : Boolean := False;
+      Show_Node    : Boolean := False;
+      Show_Release : Boolean := False;
+      Show_Version : Boolean := False;
+      Show_Machine : Boolean := False;
+
+      procedure Add_Field (Output : in out Unbounded_String; Value : String) is
+      begin
+         if Length (Output) > 0 then
+            Append (Output, " ");
+         end if;
+         Append (Output, (if Value = "" then "unknown" else Value));
+      end Add_Field;
+
+   begin
+      for I in 1 .. Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (I);
+         begin
+            if Arg = "--" then
+               if I < Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "extra operand '" & Context.Argument (I + 1) & "'");
+                  return;
+               end if;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
+                  case Ch is
+                     when 'a' =>
+                        Show_System := True;
+                        Show_Node := True;
+                        Show_Release := True;
+                        Show_Version := True;
+                        Show_Machine := True;
+                     when 's' =>
+                        Show_System := True;
+                     when 'n' =>
+                        Show_Node := True;
+                     when 'r' =>
+                        Show_Release := True;
+                     when 'v' =>
+                        Show_Version := True;
+                     when 'm' =>
+                        Show_Machine := True;
+                     when others =>
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        return;
+                  end case;
+               end loop;
+            else
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Arg & "'");
+               return;
+            end if;
+         end;
+      end loop;
+
+      if not (Show_System or else Show_Node or else Show_Release or else Show_Version or else Show_Machine) then
+         Show_System := True;
+      end if;
+
+      declare
+         Output : Unbounded_String;
+      begin
+         if Show_System then
+            Add_Field (Output, Host.System_Name);
+         end if;
+         if Show_Node then
+            Add_Field (Output, Host.Node_Name);
+         end if;
+         if Show_Release then
+            Add_Field (Output, Host.Release_Name);
+         end if;
+         if Show_Version then
+            Add_Field (Output, Host.Version_Name);
+         end if;
+         if Show_Machine then
+            Add_Field (Output, Host.Machine_Name);
+         end if;
+         Context.Put_Line (To_String (Output));
+      end;
+      Set_Success (Context, Result);
+   end Run_Uname;
+
+   procedure Run_Id
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Show_User       : Boolean := False;
+      Show_Group      : Boolean := False;
+      Show_All_Groups : Boolean := False;
+      Show_Name       : Boolean := False;
+      User_Id         : Natural := 0;
+      Group_Id        : Natural := 0;
+      Groups          : Host.Group_Id_List (1 .. 256);
+      Group_Last      : Natural := 0;
+
+      function Name_Or_Id (Is_User : Boolean; Id : Natural) return String is
+         Name : constant String := (if Is_User then FS.User_Name_For_Id (Id) else FS.Group_Name_For_Id (Id));
+      begin
+         if Show_Name and then Name /= "" then
+            return Name;
+         else
+            return Trimmed_Image (Id);
+         end if;
+      end Name_Or_Id;
+
+      function Decorated_Id (Is_User : Boolean; Id : Natural) return String is
+         Name : constant String := (if Is_User then FS.User_Name_For_Id (Id) else FS.Group_Name_For_Id (Id));
+      begin
+         if Name = "" then
+            return Trimmed_Image (Id);
+         else
+            return Trimmed_Image (Id) & "(" & Name & ")";
+         end if;
+      end Decorated_Id;
+
+      procedure Append_Group (Id : Natural) is
+      begin
+         for Index in 1 .. Group_Last loop
+            if Groups (Index) = Id then
+               return;
+            end if;
+         end loop;
+         if Group_Last < Groups'Length then
+            Group_Last := Group_Last + 1;
+            Groups (Group_Last) := Id;
+         end if;
+      end Append_Group;
+
+      function Group_List (Named : Boolean; Decorated : Boolean) return String is
+         Output : Unbounded_String;
+      begin
+         for Index in 1 .. Group_Last loop
+            if Index > 1 then
+               Append (Output, (if Decorated then "," else " "));
+            end if;
+            if Decorated then
+               Append (Output, Decorated_Id (False, Groups (Index)));
+            elsif Named then
+               Append (Output, Name_Or_Id (False, Groups (Index)));
+            else
+               Append (Output, Trimmed_Image (Groups (Index)));
+            end if;
+         end loop;
+         return To_String (Output);
+      end Group_List;
+   begin
+      for I in 1 .. Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (I);
+         begin
+            if Arg = "--" then
+               if I < Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "extra operand '" & Context.Argument (I + 1) & "'");
+                  return;
+               end if;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
+                  case Ch is
+                     when 'u' =>
+                        Show_User := True;
+                     when 'g' =>
+                        Show_Group := True;
+                     when 'G' =>
+                        Show_All_Groups := True;
+                     when 'n' =>
+                        Show_Name := True;
+                     when others =>
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        return;
+                  end case;
+               end loop;
+            else
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Arg & "'");
+               return;
+            end if;
+         end;
+      end loop;
+
+      if not Host.Current_User_Id (User_Id) then
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
+      if not Host.Current_Group_Id (Group_Id) then
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
+
+      Append_Group (Group_Id);
+      declare
+         Raw_Groups : Host.Group_Id_List (1 .. 256);
+         Raw_Last   : Natural := 0;
+      begin
+         if Host.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
+            for Index in 1 .. Raw_Last loop
+               Append_Group (Raw_Groups (Index));
+            end loop;
+         end if;
+      end;
+
+      if Show_User then
+         Context.Put_Line (Name_Or_Id (True, User_Id));
+      elsif Show_Group then
+         Context.Put_Line (Name_Or_Id (False, Group_Id));
+      elsif Show_All_Groups then
+         Context.Put_Line (Group_List (Show_Name, False));
+      else
+         Context.Put_Line
+           ("uid=" & Decorated_Id (True, User_Id) & " gid=" & Decorated_Id (False, Group_Id)
+            & " groups=" & Group_List (False, True));
+      end if;
+      Set_Success (Context, Result);
+   end Run_Id;
+
+   procedure Run_Sleep
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Total : Duration := 0.0;
+
+      function Parse_Duration (Text : String; Value : out Duration) return Boolean is
+         Whole      : Long_Long_Integer := 0;
+         Fraction   : Duration := 0.0;
+         Scale      : Duration := 1.0;
+         Seen_Digit : Boolean := False;
+         Seen_Dot   : Boolean := False;
+      begin
+         if Text = "" or else Text (Text'First) = '-' then
+            Value := 0.0;
+            return False;
+         end if;
+         for Ch of Text loop
+            if Ch in '0' .. '9' then
+               Seen_Digit := True;
+               if Seen_Dot then
+                  Scale := Scale / 10.0;
+                  Fraction := Fraction + Duration (Character'Pos (Ch) - Character'Pos ('0')) * Scale;
+               else
+                  Whole := Whole * 10 + Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'));
+                  if Whole > 31_622_400 then
+                     Value := 0.0;
+                     return False;
+                  end if;
+               end if;
+            elsif Ch = '.' and then not Seen_Dot then
+               Seen_Dot := True;
+            else
+               Value := 0.0;
+               return False;
+            end if;
+         end loop;
+         Value := Duration (Whole) + Fraction;
+         return Seen_Digit;
+      end Parse_Duration;
+   begin
+      if Context.Argument_Count = 0 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      for I in 1 .. Context.Argument_Count loop
+         declare
+            Value : Duration;
+         begin
+            if not Parse_Duration (Context.Argument (I), Value) then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               return;
+            end if;
+            Total := Total + Value;
+         end;
+      end loop;
+
+      delay Total;
+      Set_Success (Context, Result);
+   end Run_Sleep;
+
+   procedure Run_Kill
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First  : Positive := 1;
+      Chosen : Signals.Signal := Signals.Terminate_Signal;
+      Ok     : Boolean := True;
+
+      function Signal_From_Name (Text : String; Item : out Signals.Signal) return Boolean is
+         function Upper (Ch : Character) return Character is
+         begin
+            if Ch in 'a' .. 'z' then
+               return Character'Val (Character'Pos (Ch) - Character'Pos ('a') + Character'Pos ('A'));
+            else
+               return Ch;
+            end if;
+         end Upper;
+
+         Clean : String (1 .. Text'Length);
+      begin
+         if Text = "" then
+            Item := Signals.Terminate_Signal;
+            return False;
+         end if;
+         for I in Text'Range loop
+            Clean (I - Text'First + 1) := Upper (Text (I));
+         end loop;
+         declare
+            Name   : constant String :=
+              (if Clean'Length > 3 and then Clean (1 .. 3) = "SIG" then Clean (4 .. Clean'Last) else Clean);
+            Number : Natural;
+         begin
+            if Parse_Natural_Text (Name, Number) then
+               return Signals.From_Number (Integer (Number), Item);
+            elsif Name = "HUP" then
+               Item := Signals.Hangup;
+            elsif Name = "INT" then
+               Item := Signals.Interrupt;
+            elsif Name = "QUIT" then
+               Item := Signals.Quit;
+            elsif Name = "KILL" then
+               Item := Signals.Kill;
+            elsif Name = "TERM" then
+               Item := Signals.Terminate_Signal;
+            elsif Name = "STOP" then
+               Item := Signals.Stop;
+            elsif Name = "TSTP" then
+               Item := Signals.Terminal_Stop;
+            elsif Name = "CONT" then
+               Item := Signals.Continue;
+            elsif Name = "PIPE" then
+               Item := Signals.Pipe;
+            else
+               Item := Signals.Terminate_Signal;
+               return False;
+            end if;
+            return Signals.Is_Supported (Item);
+         end;
+      end Signal_From_Name;
+   begin
+      if Context.Argument_Count = 0 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      if Context.Argument (1) = "-l" then
+         for Item in Signals.Signal loop
+            if Signals.Is_Supported (Item) then
+               Context.Put_Line (Signals.Name (Item));
+            end if;
+         end loop;
+         Set_Success (Context, Result);
+         return;
+      elsif Context.Argument_Count >= 2 and then Context.Argument (1) = "-s" then
+         if not Signal_From_Name (Context.Argument (2), Chosen) then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "invalid operand '" & Context.Argument (2) & "'");
+            return;
+         end if;
+         First := 3;
+      elsif Context.Argument (1)'Length > 1 and then Context.Argument (1) (1) = '-' then
+         if not Signal_From_Name (Context.Argument (1) (2 .. Context.Argument (1)'Last), Chosen) then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "invalid operand '" & Context.Argument (1) & "'");
+            return;
+         end if;
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      for I in First .. Context.Argument_Count loop
+         declare
+            Pid : Natural;
+         begin
+            if not Parse_Natural_Text (Context.Argument (I), Pid)
+              or else not Signals.Send_To_Process (Integer (Pid), Chosen)
+            then
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Context.Argument (I), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            end if;
+         end;
+      end loop;
+
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed
+         then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Kill;
+
+   procedure Run_Chmod
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First            : Positive := 1;
+      Recursive        : Boolean := False;
+      Mode_Bits        : Natural := 0;
+      Mode_Text        : Unbounded_String;
+      Mode_Is_Symbolic : Boolean := False;
+      Ok               : Boolean := True;
+
+      type Permission_Bit_List is array (Positive range <>) of Natural;
+      Permission_Bits : constant Permission_Bit_List :=
+        [8#4000#, 8#2000#, 8#1000#, 8#400#, 8#200#, 8#100#, 8#040#, 8#020#, 8#010#, 8#004#, 8#002#, 8#001#];
+
+      function Has_Bit (Value : Natural; Bit : Natural) return Boolean is
+      begin
+         return (Value / Bit) mod 2 = 1;
+      end Has_Bit;
+
+      procedure Set_Bit (Value : in out Natural; Bit : Natural) is
+      begin
+         if not Has_Bit (Value, Bit) then
+            Value := Value + Bit;
+         end if;
+      end Set_Bit;
+
+      procedure Clear_Bit (Value : in out Natural; Bit : Natural) is
+      begin
+         if Has_Bit (Value, Bit) then
+            Value := Value - Bit;
+         end if;
+      end Clear_Bit;
+
+      procedure Clear_Mask (Value : in out Natural; Mask : Natural) is
+      begin
+         for Bit of Permission_Bits loop
+            if Has_Bit (Mask, Bit) then
+               Clear_Bit (Value, Bit);
+            end if;
+         end loop;
+      end Clear_Mask;
+
+      function Parse_Octal_Mode (Text : String; Value : out Natural) return Boolean is
+      begin
+         Value := 0;
+         if Text = "" or else Text'Length > 4 then
+            return False;
+         end if;
+         for Ch of Text loop
+            if Ch not in '0' .. '7' then
+               Value := 0;
+               return False;
+            end if;
+            Value := Value * 8 + Character'Pos (Ch) - Character'Pos ('0');
+         end loop;
+         return True;
+      end Parse_Octal_Mode;
+
+      function Apply_Symbolic_Mode (Mode : String; Base : Natural; Valid : out Boolean) return Natural is
+         Result_Mode : Natural := Base mod 8#10000#;
+         Index       : Positive := Mode'First;
+      begin
+         Valid := Mode'Length > 0;
+         while Valid and then Index <= Mode'Last loop
+            declare
+               Who_Mask : Natural := 0;
+               Perms    : Natural := 0;
+               Op       : Character := Character'Val (0);
+            begin
+               while Index <= Mode'Last and then Mode (Index) in 'a' | 'u' | 'g' | 'o' loop
+                  case Mode (Index) is
+                     when 'a' =>
+                        Who_Mask := 8#7777#;
+                     when 'u' =>
+                        Who_Mask := Who_Mask + (if Has_Bit (Who_Mask, 8#400#) then 0 else 8#4700#);
+                     when 'g' =>
+                        Who_Mask := Who_Mask + (if Has_Bit (Who_Mask, 8#040#) then 0 else 8#2070#);
+                     when 'o' =>
+                        Who_Mask := Who_Mask + (if Has_Bit (Who_Mask, 8#004#) then 0 else 8#1007#);
+                     when others =>
+                        null;
+                  end case;
+                  Index := Index + 1;
+               end loop;
+               if Who_Mask = 0 then
+                  Who_Mask := 8#7777#;
+               end if;
+               if Index > Mode'Last or else Mode (Index) not in '+' | '-' | '=' then
+                  Valid := False;
+                  return Result_Mode;
+               end if;
+               Op := Mode (Index);
+               Index := Index + 1;
+               if (Index > Mode'Last or else Mode (Index) = ',') and then Op /= '=' then
+                  Valid := False;
+                  return Result_Mode;
+               end if;
+               while Index <= Mode'Last and then Mode (Index) /= ',' loop
+                  case Mode (Index) is
+                     when 'r' =>
+                        if Has_Bit (Who_Mask, 8#400#) then
+                           Set_Bit (Perms, 8#400#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#040#) then
+                           Set_Bit (Perms, 8#040#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#004#) then
+                           Set_Bit (Perms, 8#004#);
+                        end if;
+                     when 'w' =>
+                        if Has_Bit (Who_Mask, 8#200#) then
+                           Set_Bit (Perms, 8#200#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#020#) then
+                           Set_Bit (Perms, 8#020#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#002#) then
+                           Set_Bit (Perms, 8#002#);
+                        end if;
+                     when 'x' | 'X' =>
+                        if Has_Bit (Who_Mask, 8#100#) then
+                           Set_Bit (Perms, 8#100#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#010#) then
+                           Set_Bit (Perms, 8#010#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#001#) then
+                           Set_Bit (Perms, 8#001#);
+                        end if;
+                     when 's' =>
+                        if Has_Bit (Who_Mask, 8#4000#) then
+                           Set_Bit (Perms, 8#4000#);
+                        end if;
+                        if Has_Bit (Who_Mask, 8#2000#) then
+                           Set_Bit (Perms, 8#2000#);
+                        end if;
+                     when 't' =>
+                        if Has_Bit (Who_Mask, 8#1000#) then
+                           Set_Bit (Perms, 8#1000#);
+                        end if;
+                     when 'u' | 'g' | 'o' =>
+                        declare
+                           Source_Read  : constant Boolean :=
+                             Has_Bit
+                               (Result_Mode,
+                                (case Mode (Index) is
+                                    when 'u' => 8#400#,
+                                    when 'g' => 8#040#,
+                                    when others => 8#004#));
+                           Source_Write : constant Boolean :=
+                             Has_Bit
+                               (Result_Mode,
+                                (case Mode (Index) is
+                                    when 'u' => 8#200#,
+                                    when 'g' => 8#020#,
+                                    when others => 8#002#));
+                           Source_Exec  : constant Boolean :=
+                             Has_Bit
+                               (Result_Mode,
+                                (case Mode (Index) is
+                                    when 'u' => 8#100#,
+                                    when 'g' => 8#010#,
+                                    when others => 8#001#));
+                        begin
+                           if Source_Read then
+                              if Has_Bit (Who_Mask, 8#400#) then
+                                 Set_Bit (Perms, 8#400#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#040#) then
+                                 Set_Bit (Perms, 8#040#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#004#) then
+                                 Set_Bit (Perms, 8#004#);
+                              end if;
+                           end if;
+                           if Source_Write then
+                              if Has_Bit (Who_Mask, 8#200#) then
+                                 Set_Bit (Perms, 8#200#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#020#) then
+                                 Set_Bit (Perms, 8#020#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#002#) then
+                                 Set_Bit (Perms, 8#002#);
+                              end if;
+                           end if;
+                           if Source_Exec then
+                              if Has_Bit (Who_Mask, 8#100#) then
+                                 Set_Bit (Perms, 8#100#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#010#) then
+                                 Set_Bit (Perms, 8#010#);
+                              end if;
+                              if Has_Bit (Who_Mask, 8#001#) then
+                                 Set_Bit (Perms, 8#001#);
+                              end if;
+                           end if;
+                        end;
+                     when others =>
+                        Valid := False;
+                        return Result_Mode;
+                  end case;
+                  Index := Index + 1;
+               end loop;
+               case Op is
+                  when '+' =>
+                     for Bit of Permission_Bits loop
+                        if Has_Bit (Perms, Bit) then
+                           Set_Bit (Result_Mode, Bit);
+                        end if;
+                     end loop;
+                  when '-' =>
+                     Clear_Mask (Result_Mode, Perms);
+                  when '=' =>
+                     Clear_Mask (Result_Mode, Who_Mask);
+                     for Bit of Permission_Bits loop
+                        if Has_Bit (Perms, Bit) then
+                           Set_Bit (Result_Mode, Bit);
+                        end if;
+                     end loop;
+                  when others =>
+                     Valid := False;
+                     return Result_Mode;
+               end case;
+               if Index <= Mode'Last then
+                  if Mode (Index) /= ',' or else Index = Mode'Last then
+                     Valid := False;
+                     return Result_Mode;
+                  end if;
+                  Index := Index + 1;
+               end if;
+            end;
+         end loop;
+         return Result_Mode;
+      end Apply_Symbolic_Mode;
+
+      function Parse_Mode (Text : String) return Boolean is
+         Valid   : Boolean;
+         Ignored : Natural;
+      begin
+         if Parse_Octal_Mode (Text, Mode_Bits) then
+            Mode_Is_Symbolic := False;
+            Mode_Text := Null_Unbounded_String;
+            return True;
+         end if;
+
+         Ignored := Apply_Symbolic_Mode (Text, 0, Valid);
+         if Valid then
+            Mode_Is_Symbolic := True;
+            Mode_Text := To_Unbounded_String (Text);
+            Mode_Bits := 0;
+         end if;
+         return Valid;
+      end Parse_Mode;
+
+      function Selected_Mode_For (Path : String; Valid : out Boolean) return Natural is
+         Available : Boolean := False;
+         Base      : Natural := 0;
+      begin
+         if not Mode_Is_Symbolic then
+            Valid := True;
+            return Mode_Bits;
+         end if;
+
+         Base := FS.File_Permission_Bits (Path, Available) mod 8#10000#;
+         if not Available then
+            Valid := False;
+            return 0;
+         end if;
+         return Apply_Symbolic_Mode (To_String (Mode_Text), Base, Valid);
+      end Selected_Mode_For;
+
+      procedure Apply_One (Path : String);
+
+      procedure Apply_Children (Path : String) is
+         procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean) is
+            pragma Unreferenced (Name, Stop);
+         begin
+            Apply_One (Full_Name);
+         end Visit;
+
+         procedure Each is new FS.For_Each_Directory_Entry (Visit);
+         Listed : Boolean;
+      begin
+         if FS.Kind (Path) = FS.Directory then
+            Each (Path, Listed);
+            Ok := Ok and Listed;
+         end if;
+      end Apply_Children;
+
+      procedure Apply_One (Path : String) is
+         Desired_Mode : Natural;
+         Mode_Ok      : Boolean;
+      begin
+         if Recursive then
+            Apply_Children (Path);
+         end if;
+         Desired_Mode := Selected_Mode_For (Path, Mode_Ok);
+         if not Mode_Ok or else not FS.Set_Permissions (Path, Desired_Mode) then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         end if;
+      exception
+         when others =>
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+      end Apply_One;
+   begin
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         elsif Context.Argument (First) = "-R" then
+            Recursive := True;
+            First := First + 1;
+         else
+            exit;
+         end if;
+      end loop;
+
+      if Context.Argument_Count < First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif not Parse_Mode (Context.Argument (First)) then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+         return;
+      end if;
+
+      for I in First + 1 .. Context.Argument_Count loop
+         Apply_One (Context.Argument (I));
+      end loop;
+
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed
+         then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Chmod;
+
+   procedure Run_Chown
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First     : Positive := 1;
+      Recursive : Boolean := False;
+      Owner     : Natural := 0;
+      Group     : Natural := 0;
+      Owner_Set : Boolean := False;
+      Group_Set : Boolean := False;
+      Ok        : Boolean := True;
+
+      function Resolve_User (Text : String; Value : out Natural) return Boolean is
+         Found : Boolean;
+      begin
+         if Parse_Natural_Text (Text, Value) then
+            return True;
+         end if;
+         Value := FS.User_Id_For_Name (Text, Found);
+         return Found;
+      end Resolve_User;
+
+      function Resolve_Group (Text : String; Value : out Natural) return Boolean is
+         Found : Boolean;
+      begin
+         if Parse_Natural_Text (Text, Value) then
+            return True;
+         end if;
+         Value := FS.Group_Id_For_Name (Text, Found);
+         return Found;
+      end Resolve_Group;
+
+      procedure Parse_Owner_Group (Spec : String; Valid : out Boolean) is
+         Split : Natural := 0;
+      begin
+         for I in Spec'Range loop
+            if Spec (I) = ':' then
+               Split := I;
+               exit;
+            end if;
+         end loop;
+
+         if Split = 0 then
+            Valid := Resolve_User (Spec, Owner);
+            Owner_Set := Valid;
+         else
+            if Split > Spec'First then
+               Valid := Resolve_User (Spec (Spec'First .. Split - 1), Owner);
+               Owner_Set := Valid;
+            else
+               Valid := True;
+            end if;
+            if Valid and then Split < Spec'Last then
+               Valid := Resolve_Group (Spec (Split + 1 .. Spec'Last), Group);
+               Group_Set := Valid;
+            end if;
+         end if;
+      end Parse_Owner_Group;
+
+      procedure Apply_One (Path : String);
+
+      procedure Apply_Children (Path : String) is
+         procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean) is
+            pragma Unreferenced (Name, Stop);
+         begin
+            Apply_One (Full_Name);
+         end Visit;
+
+         procedure Each is new FS.For_Each_Directory_Entry (Visit);
+         Listed : Boolean;
+      begin
+         if FS.Kind (Path) = FS.Directory then
+            Each (Path, Listed);
+            Ok := Ok and Listed;
+         end if;
+      end Apply_Children;
+
+      procedure Apply_One (Path : String) is
+         Current_User  : Natural;
+         Current_Group : Natural;
+         Available     : Boolean;
+      begin
+         if Recursive then
+            Apply_Children (Path);
+         end if;
+         FS.File_Ownership (Path, Current_User, Current_Group, Available);
+         if not Available then
+            Current_User := Owner;
+            Current_Group := Group;
+         end if;
+         if not FS.Set_Ownership
+           (Path,
+            (if Owner_Set then Owner else Current_User),
+            (if Group_Set then Group else Current_Group))
+         then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         end if;
+      exception
+         when others =>
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+      end Apply_One;
+   begin
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         elsif Context.Argument (First) = "-R" then
+            Recursive := True;
+            First := First + 1;
+         else
+            exit;
+         end if;
+      end loop;
+
+      if Context.Argument_Count < First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      declare
+         Valid : Boolean;
+      begin
+         Parse_Owner_Group (Context.Argument (First), Valid);
+         if not Valid or else not (Owner_Set or else Group_Set) then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+            return;
+         end if;
+      end;
+
+      for I in First + 1 .. Context.Argument_Count loop
+         Apply_One (Context.Argument (I));
+      end loop;
+
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed
+         then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Chown;
+
+   procedure Run_Chgrp
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First     : Positive := 1;
+      Recursive : Boolean := False;
+      Group     : Natural := 0;
+      Ok        : Boolean := True;
+
+      function Resolve_Group (Text : String; Value : out Natural) return Boolean is
+         Found : Boolean;
+      begin
+         if Parse_Natural_Text (Text, Value) then
+            return True;
+         end if;
+         Value := FS.Group_Id_For_Name (Text, Found);
+         return Found;
+      end Resolve_Group;
+
+      procedure Apply_One (Path : String);
+
+      procedure Apply_Children (Path : String) is
+         procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean) is
+            pragma Unreferenced (Name, Stop);
+         begin
+            Apply_One (Full_Name);
+         end Visit;
+
+         procedure Each is new FS.For_Each_Directory_Entry (Visit);
+         Listed : Boolean;
+      begin
+         if FS.Kind (Path) = FS.Directory then
+            Each (Path, Listed);
+            Ok := Ok and Listed;
+         end if;
+      end Apply_Children;
+
+      procedure Apply_One (Path : String) is
+         User      : Natural;
+         Old_Group : Natural;
+         Available : Boolean;
+      begin
+         if Recursive then
+            Apply_Children (Path);
+         end if;
+         FS.File_Ownership (Path, User, Old_Group, Available);
+         if not Available then
+            User := 0;
+         end if;
+         if not FS.Set_Ownership (Path, User, Group) then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         end if;
+      exception
+         when others =>
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+      end Apply_One;
+   begin
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         elsif Context.Argument (First) = "-R" then
+            Recursive := True;
+            First := First + 1;
+         else
+            exit;
+         end if;
+      end loop;
+
+      if Context.Argument_Count < First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif not Resolve_Group (Context.Argument (First), Group) then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+         return;
+      end if;
+
+      for I in First + 1 .. Context.Argument_Count loop
+         Apply_One (Context.Argument (I));
+      end loop;
+
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed
+         then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Chgrp;
+
    procedure Run_Ln
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -10192,23 +11343,35 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       case Command is
+         when Chgrp_Command => Run_Chgrp (Context, Result);
+         when Chmod_Command => Run_Chmod (Context, Result);
+         when Chown_Command => Run_Chown (Context, Result);
          when Cp_Command => Run_Cp (Context, Result);
          when Date_Command => Run_Date (Context, Result);
          when Dd_Command => Run_Dd (Context, Result);
          when Env_Command => Run_Env (Context, Result);
          when Find_Command => Run_Find (Context, Result);
+         when Id_Command => Run_Id (Context, Result);
+         when Kill_Command => Run_Kill (Context, Result);
+         when Link_Command => Run_Link (Context, Result);
          when Ln_Command => Run_Ln (Context, Result);
+         when Logname_Command => Run_Logname (Context, Result);
          when Mkdir_Command => Run_Mkdir (Context, Result);
          when Mv_Command => Run_Mv (Context, Result);
          when Printf_Command => Run_Printf (Context, Result);
+         when Readlink_Command => Run_Readlink (Context, Result);
+         when Realpath_Command => Run_Realpath (Context, Result);
          when Rm_Command => Run_Rm (Context, Result);
          when Rmdir_Command => Run_Rmdir (Context, Result);
+         when Sleep_Command => Run_Sleep (Context, Result);
          when Sort_Command => Run_Sort (Context, Result);
          when Tee_Command => Run_Tee (Context, Result);
          when Test_Command => Run_Test (Context, Result);
          when Touch_Command => Run_Touch (Context, Result);
          when Tr_Command => Run_Tr (Context, Result);
+         when Uname_Command => Run_Uname (Context, Result);
          when Uniq_Command => Run_Uniq (Context, Result);
+         when Whoami_Command => Run_Whoami (Context, Result);
          when Xargs_Command => Run_Xargs (Context, Result);
       end case;
    end Run;

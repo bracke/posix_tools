@@ -1,0 +1,37 @@
+.TH chown 1
+.SH NAME
+chown - change file owner and group.
+.SH SYNOPSIS
+chown [-R] [--] owner[:group] file...
+.SH DESCRIPTION
+Changes the owner and optionally the group of each named file.
+.SH OPERANDS
+owner[:group]: owner name or numeric identifier with optional group. file: file or directory path.
+.SH OPTIONS
+-R applies the change recursively to directory operands. -- ends option recognition. Project extensions --help,
+--version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and ownership failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Names and numeric identifiers are resolved through hostkit metadata services.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The V1 owner/group separator is colon.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+chown root:staff file
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by CHOWN-POSIX-001.
+.SH KNOWN LIMITATIONS
+Symbolic-link traversal details follow the hostkit file-system adapter.
+.SH SEE ALSO
+docs/commands/chown.md
+

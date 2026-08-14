@@ -1,0 +1,42 @@
+.TH chmod 1
+.SH NAME
+chmod - change file modes.
+.SH SYNOPSIS
+chmod [-R] [--] mode file...
+.SH DESCRIPTION
+Changes permission bits on each named file.
+.SH OPERANDS
+mode: octal or symbolic file mode. file: file or directory path.
+.SH OPTIONS
+-R applies the mode recursively to directory operands. -- ends option recognition. Project extensions --help,
+--version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and permission failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+V1 accepts octal modes of one to four digits and symbolic mode clauses using u, g, o, a, +, -, =,
+r, w, x, X, s, t, and permission-copy operands. Symbolic modes are evaluated from the current target
+mode reported by hostkit.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Hostkit supplies the existing mode bits and applies the selected final mode. Host platforms that cannot report or set
+permission bits return operational failure for the affected path.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+chmod 644 file
+
+chmod u=rw,go=r file
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by CHMOD-POSIX-001.
+.SH KNOWN LIMITATIONS
+Host-specific permission-bit availability is determined by hostkit.
+.SH SEE ALSO
+docs/commands/chmod.md
+

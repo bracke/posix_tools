@@ -1,0 +1,38 @@
+.TH chgrp 1
+.SH NAME
+chgrp - change file group ownership.
+.SH SYNOPSIS
+chgrp [-R] [--] group file...
+.SH DESCRIPTION
+Changes the group ownership of each named file.
+.SH OPERANDS
+group: group name or numeric group identifier. file: file or directory path.
+.SH OPTIONS
+-R applies the change recursively to directory operands. -- ends option recognition. Project extensions --help,
+--version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and ownership failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Ownership changes are performed through hostkit metadata services. Recursive traversal processes child entries before
+the directory itself.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Unsupported ownership metadata is reported as an operational failure.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+chgrp staff file
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by CHGRP-POSIX-001.
+.SH KNOWN LIMITATIONS
+Symbolic-link traversal details follow the hostkit file-system adapter.
+.SH SEE ALSO
+docs/commands/chgrp.md
+

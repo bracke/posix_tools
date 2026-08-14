@@ -6,6 +6,9 @@ V1 inventory:
 
 - `basename`
 - `cat`
+- `chgrp`
+- `chmod`
+- `chown`
 - `cp`
 - `date`
 - `dd`
@@ -15,13 +18,20 @@ V1 inventory:
 - `false`
 - `find`
 - `head`
+- `id`
+- `kill`
+- `link`
 - `ln`
+- `logname`
 - `mkdir`
 - `mv`
 - `printf`
 - `pwd`
+- `readlink`
+- `realpath`
 - `rm`
 - `rmdir`
+- `sleep`
 - `sort`
 - `tail`
 - `tee`
@@ -29,8 +39,10 @@ V1 inventory:
 - `touch`
 - `tr`
 - `true`
+- `uname`
 - `uniq`
 - `wc`
+- `whoami`
 - `xargs`
 - `posix-tools`
 

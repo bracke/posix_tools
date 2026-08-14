@@ -1,0 +1,37 @@
+.TH kill 1
+.SH NAME
+kill - send a signal to processes.
+.SH SYNOPSIS
+kill [-s signal_name] pid...
+.SH DESCRIPTION
+Sends the selected signal to each process identifier.
+.SH OPERANDS
+pid: decimal process identifier.
+.SH OPTIONS
+-s signal_name selects a signal. -l lists supported signal names. -signal selects a signal by name or number.
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Signal names when -l is selected.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and failed signal delivery.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Signals are resolved and delivered through hostkit. No shell is invoked.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; signal names are stable host/project data.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The supported signal set is the portable set exposed by hostkit.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+kill -s TERM 12345
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by KILL-POSIX-001.
+.SH KNOWN LIMITATIONS
+Signal availability is platform dependent.
+.SH SEE ALSO
+docs/commands/kill.md
+

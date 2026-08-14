@@ -3,23 +3,35 @@ with Posix_Tools.Commands.Results;
 
 package Posix_Tools.Commands.Expanded is
    type Expanded_Command is
-     (Cp_Command,
+     (Chgrp_Command,
+      Chmod_Command,
+      Chown_Command,
+      Cp_Command,
       Date_Command,
       Dd_Command,
       Env_Command,
       Find_Command,
+      Id_Command,
+      Kill_Command,
+      Link_Command,
       Ln_Command,
+      Logname_Command,
       Mkdir_Command,
       Mv_Command,
       Printf_Command,
+      Readlink_Command,
+      Realpath_Command,
       Rm_Command,
       Rmdir_Command,
+      Sleep_Command,
       Sort_Command,
       Tee_Command,
       Test_Command,
       Touch_Command,
       Tr_Command,
       Uniq_Command,
+      Uname_Command,
+      Whoami_Command,
       Xargs_Command);
 
    procedure Run

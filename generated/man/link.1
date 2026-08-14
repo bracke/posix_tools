@@ -1,0 +1,36 @@
+.TH link 1
+.SH NAME
+link - call the link function.
+.SH SYNOPSIS
+link [--] source target
+.SH DESCRIPTION
+Creates a hard link named by target for source.
+.SH OPERANDS
+source: existing path. target: link path to create.
+.SH OPTIONS
+-- ends option recognition. Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and link failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The command delegates hard-link creation to hostkit.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Host file-system restrictions are reported as operational failures.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+link source target
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by LINK-POSIX-001.
+.SH KNOWN LIMITATIONS
+Hard links may be unavailable on some file systems.
+.SH SEE ALSO
+docs/commands/link.md
+

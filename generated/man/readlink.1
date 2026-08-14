@@ -1,0 +1,36 @@
+.TH readlink 1
+.SH NAME
+readlink - write a symbolic link target.
+.SH SYNOPSIS
+readlink [--] file
+.SH DESCRIPTION
+Writes the target stored in a symbolic link.
+.SH OPERANDS
+file: symbolic link path.
+.SH OPTIONS
+-- ends option recognition. Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The link target followed by a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and readlink failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The link target is read through hostkit without shelling out.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; path data is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The command supports the POSIX-style single operand surface in V1.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+readlink shortcut
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by READLINK-POSIX-001.
+.SH KNOWN LIMITATIONS
+Host platforms without symbolic-link support report operational failure.
+.SH SEE ALSO
+docs/commands/readlink.md
+

@@ -1,0 +1,36 @@
+.TH logname 1
+.SH NAME
+logname - write the user's login name.
+.SH SYNOPSIS
+logname
+.SH DESCRIPTION
+Writes the login name from the command environment.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The login name followed by a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid usage or unavailable login name.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+V1 reads LOGNAME from the command context environment.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; the login name is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+An empty or absent LOGNAME is an operational failure.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+logname
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by LOGNAME-POSIX-001.
+.SH KNOWN LIMITATIONS
+No system login database fallback is implemented in this pass.
+.SH SEE ALSO
+docs/commands/logname.md
+

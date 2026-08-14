@@ -12,6 +12,9 @@ with Posix_Tools.Arguments;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Basename;
 with Posix_Tools.Commands.Cat;
+with Posix_Tools.Commands.Chgrp;
+with Posix_Tools.Commands.Chmod;
+with Posix_Tools.Commands.Chown;
 with Posix_Tools.Commands.Cp;
 with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Dd;
@@ -21,15 +24,22 @@ with Posix_Tools.Commands.Env;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Head;
+with Posix_Tools.Commands.Id;
+with Posix_Tools.Commands.Kill;
+with Posix_Tools.Commands.Link;
 with Posix_Tools.Commands.Ln;
+with Posix_Tools.Commands.Logname;
 with Posix_Tools.Commands.Mkdir;
 with Posix_Tools.Commands.Mv;
 with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
+with Posix_Tools.Commands.Readlink;
+with Posix_Tools.Commands.Realpath;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Root;
+with Posix_Tools.Commands.Sleep;
 with Posix_Tools.Commands.Sort;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
@@ -37,8 +47,10 @@ with Posix_Tools.Commands.Test_Command;
 with Posix_Tools.Commands.Touch;
 with Posix_Tools.Commands.Tr;
 with Posix_Tools.Commands.True_Command;
+with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
+with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Signals;
@@ -154,6 +166,12 @@ package body Command_Tests is
          Posix_Tools.Commands.Basename.Run (Context, Result);
       elsif Name = "cat" then
          Posix_Tools.Commands.Cat.Run (Context, Result);
+      elsif Name = "chgrp" then
+         Posix_Tools.Commands.Chgrp.Run (Context, Result);
+      elsif Name = "chmod" then
+         Posix_Tools.Commands.Chmod.Run (Context, Result);
+      elsif Name = "chown" then
+         Posix_Tools.Commands.Chown.Run (Context, Result);
       elsif Name = "cp" then
          Posix_Tools.Commands.Cp.Run (Context, Result);
       elsif Name = "date" then
@@ -172,8 +190,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Find.Run (Context, Result);
       elsif Name = "head" then
          Posix_Tools.Commands.Head.Run (Context, Result);
+      elsif Name = "id" then
+         Posix_Tools.Commands.Id.Run (Context, Result);
+      elsif Name = "kill" then
+         Posix_Tools.Commands.Kill.Run (Context, Result);
+      elsif Name = "link" then
+         Posix_Tools.Commands.Link.Run (Context, Result);
       elsif Name = "ln" then
          Posix_Tools.Commands.Ln.Run (Context, Result);
+      elsif Name = "logname" then
+         Posix_Tools.Commands.Logname.Run (Context, Result);
       elsif Name = "mkdir" then
          Posix_Tools.Commands.Mkdir.Run (Context, Result);
       elsif Name = "mv" then
@@ -182,10 +208,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Printf.Run (Context, Result);
       elsif Name = "pwd" then
          Posix_Tools.Commands.Pwd.Run (Context, Result);
+      elsif Name = "readlink" then
+         Posix_Tools.Commands.Readlink.Run (Context, Result);
+      elsif Name = "realpath" then
+         Posix_Tools.Commands.Realpath.Run (Context, Result);
       elsif Name = "rm" then
          Posix_Tools.Commands.Rm.Run (Context, Result);
       elsif Name = "rmdir" then
          Posix_Tools.Commands.Rmdir.Run (Context, Result);
+      elsif Name = "sleep" then
+         Posix_Tools.Commands.Sleep.Run (Context, Result);
       elsif Name = "sort" then
          Posix_Tools.Commands.Sort.Run (Context, Result);
       elsif Name = "tail" then
@@ -200,10 +232,14 @@ package body Command_Tests is
          Posix_Tools.Commands.Tr.Run (Context, Result);
       elsif Name = "true" then
          Posix_Tools.Commands.True_Command.Run (Context, Result);
+      elsif Name = "uname" then
+         Posix_Tools.Commands.Uname.Run (Context, Result);
       elsif Name = "uniq" then
          Posix_Tools.Commands.Uniq.Run (Context, Result);
       elsif Name = "wc" then
          Posix_Tools.Commands.Wc.Run (Context, Result);
+      elsif Name = "whoami" then
+         Posix_Tools.Commands.Whoami.Run (Context, Result);
       elsif Name = "xargs" then
          Posix_Tools.Commands.Xargs.Run (Context, Result);
       else
@@ -289,6 +325,7 @@ package body Command_Tests is
       Large_Target : constant String := Fixture_Path ("expanded-large-target.bin");
       Dash_Target : constant String := Fixture_Path ("expanded-dash-target.txt");
       Linked  : constant String := Fixture_Path ("expanded-linked.txt");
+      Link_Command_Target : constant String := Fixture_Path ("expanded-link-command.txt");
       Symlinked : constant String := Fixture_Path ("expanded-symlinked.txt");
       Cp_Symlinked : constant String := Fixture_Path ("expanded-cp-symlinked.txt");
       Link_Dir : constant String := Fixture_Path ("expanded-ln-dir");
@@ -315,6 +352,7 @@ package body Command_Tests is
       Touched : constant String := Fixture_Path ("expanded-touch.txt");
       No_Create : constant String := Fixture_Path ("expanded-no-create.txt");
       Tee_Out : constant String := Fixture_Path ("expanded-tee.txt");
+      Chmod_Target : constant String := Fixture_Path ("expanded-chmod.txt");
       EOL     : constant Character := Character'Val (10);
 
       procedure Remove_Any (Path : String) is
@@ -373,6 +411,11 @@ package body Command_Tests is
 
          return Data;
       end Large_Copy_Data;
+
+      function Trim_Natural (Value : Natural) return String is
+      begin
+         return Ada.Strings.Fixed.Trim (Natural'Image (Value), Ada.Strings.Left);
+      end Trim_Natural;
    begin
       Remove_Any (Source);
       Remove_Any (Target);
@@ -380,6 +423,7 @@ package body Command_Tests is
       Remove_Any (Large_Target);
       Remove_Any (Dash_Target);
       Remove_Any (Linked);
+      Remove_Any (Link_Command_Target);
       Remove_Any (Symlinked);
       Remove_Any (Cp_Symlinked);
       Remove_Any (Link_Dir);
@@ -406,6 +450,7 @@ package body Command_Tests is
       Remove_Any (Touched);
       Remove_Any (No_Create);
       Remove_Any (Tee_Out);
+      Remove_Any (Chmod_Target);
 
       Write_File (Source, "copy-data");
       Context.Initialize ("cp", Two_Args (Source, Target));
@@ -740,6 +785,124 @@ package body Command_Tests is
         (Hostkit.Metadata.Same_File (Source, Hostkit.Fs.Join (Link_Dir, "expanded-source.txt"))
          and then Hostkit.Metadata.Same_File (Other, Hostkit.Fs.Join (Link_Dir, "expanded-other.txt")),
          "ln creates links inside directory target");
+
+      Context.Initialize ("link", Two_Args (Source, Link_Command_Target));
+      Posix_Tools.Commands.Link.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Hostkit.Metadata.Same_File (Source, Link_Command_Target),
+         "link creates hard link");
+
+      if Hostkit.Fs.Is_Link (Symlinked) then
+         Context.Initialize ("readlink", One_Arg (Symlinked));
+         Posix_Tools.Commands.Readlink.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = Source & EOL,
+            "readlink writes symbolic link target");
+      end if;
+
+      Context.Initialize ("realpath", One_Arg (Source));
+      Posix_Tools.Commands.Realpath.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Hostkit.Fs.Real_Path (Source) & EOL,
+         "realpath writes resolved path");
+
+      Write_File (Chmod_Target, "mode-data");
+      Context.Initialize ("chmod", Two_Args ("600", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod status");
+      Assert_Mode_When_Available (Chmod_Target, 8#600#, "chmod applies octal mode");
+
+      Context.Initialize ("chmod", Two_Args ("u=rw,go=", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic assignment status");
+      Assert_Mode_When_Available (Chmod_Target, 8#600#, "chmod applies symbolic assignment mode");
+
+      Context.Initialize ("chmod", Two_Args ("g+r,o+r", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic add status");
+      Assert_Mode_When_Available (Chmod_Target, 8#644#, "chmod applies symbolic add mode");
+
+      Context.Initialize ("chmod", Two_Args ("-w", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic hyphen-start status");
+      Assert_Mode_When_Available (Chmod_Target, 8#444#, "chmod treats -w as a symbolic mode");
+
+      Context.Initialize ("chmod", Two_Args ("u+x,g=u,o=g", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic copy status");
+      Assert_Mode_When_Available (Chmod_Target, 8#555#, "chmod applies symbolic copy mode");
+
+      Context.Initialize ("chmod", Two_Args ("u+", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects incomplete symbolic mode");
+
+      declare
+         User      : Natural;
+         Group     : Natural;
+         Available : Boolean;
+      begin
+         Hostkit.Metadata.File_Ownership (Chmod_Target, User, Group, Available);
+         if Available then
+            Context.Initialize ("chown", Two_Args (Trim_Natural (User), Chmod_Target));
+            Posix_Tools.Commands.Chown.Run (Context, Result);
+            AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chown current user status");
+            Context.Initialize ("chgrp", Two_Args (Trim_Natural (Group), Chmod_Target));
+            Posix_Tools.Commands.Chgrp.Run (Context, Result);
+            AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chgrp current group status");
+         end if;
+      end;
+
+      Context.Initialize ("uname", No_Args);
+      Posix_Tools.Commands.Uname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+         "uname writes system name");
+
+      Context.Initialize ("uname", One_Arg ("-a"));
+      Posix_Tools.Commands.Uname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Contains (Test_Contexts.Output (Context), " "),
+         "uname -a writes multiple system fields");
+
+      Context.Initialize ("sleep", One_Arg ("0"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep zero status");
+
+      Context.Initialize ("id", One_Arg ("-u"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+         "id -u writes identity");
+
+      Context.Initialize ("id", One_Arg ("-G"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+         "id -G writes group list");
+
+      Context.Initialize ("whoami", No_Args);
+      Posix_Tools.Commands.Whoami.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+         "whoami writes name");
+
+      Context.Initialize ("logname", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LOGNAME", "test-login");
+      Posix_Tools.Commands.Logname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-login" & EOL,
+         "logname writes context login name");
+
+      Context.Initialize ("kill", One_Arg ("-l"));
+      Posix_Tools.Commands.Kill.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 0,
+         "kill -l lists signals");
 
       Context.Initialize ("mv", Three_Args ("-ff", Linked, Moved));
       Posix_Tools.Commands.Mv.Run (Context, Result);

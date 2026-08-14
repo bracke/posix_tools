@@ -1,0 +1,36 @@
+.TH realpath 1
+.SH NAME
+realpath - write resolved pathnames.
+.SH SYNOPSIS
+realpath [--] file...
+.SH DESCRIPTION
+Writes the resolved absolute pathname for each operand.
+.SH OPERANDS
+file: path to resolve.
+.SH OPTIONS
+-- ends option recognition. Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+One resolved pathname per operand.
+.SH STANDARD ERROR
+Diagnostics for invalid usage and resolution failures.
+.SH EXIT STATUS
+0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Path resolution is delegated to hostkit so platform-specific canonicalization remains outside command code.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; path data is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Each operand must resolve successfully to produce a result line.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+realpath .
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by REALPATH-POSIX-001.
+.SH KNOWN LIMITATIONS
+Resolution behavior for inaccessible parent directories is host dependent.
+.SH SEE ALSO
+docs/commands/realpath.md
+

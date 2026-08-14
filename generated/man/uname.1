@@ -1,0 +1,39 @@
+.TH uname 1
+.SH NAME
+uname - write system information.
+.SH SYNOPSIS
+uname [-amnrsv]
+.SH DESCRIPTION
+Writes selected system identification fields.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+-a writes all V1 fields. -s writes system name. -n writes node name. -r writes release. -v writes version.
+-m writes machine name. Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Selected fields separated by one space and followed by a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid usage.
+.SH EXIT STATUS
+0 success, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+System, node, release, version, and machine fields come from hostkit. Missing fields are written as unknown.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; system fields are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Linux and macOS use the host uname data exposed through hostkit. Windows reports the fields that the hostkit
+Windows adapter exposes and writes unknown for unavailable fields.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+uname -a
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by UNAME-POSIX-001.
+.SH KNOWN LIMITATIONS
+Some Windows release and version fields remain unavailable until hostkit defines a stable Windows version-reporting
+policy.
+.SH SEE ALSO
+docs/commands/uname.md
+

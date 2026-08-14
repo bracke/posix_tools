@@ -1,0 +1,36 @@
+.TH sleep 1
+.SH NAME
+sleep - suspend execution for an interval.
+.SH SYNOPSIS
+sleep time...
+.SH DESCRIPTION
+Suspends execution for the sum of the supplied non-negative decimal time operands.
+.SH OPERANDS
+time: non-negative decimal number of seconds.
+.SH OPTIONS
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No data output on success.
+.SH STANDARD ERROR
+Diagnostics for invalid usage.
+.SH EXIT STATUS
+0 success, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Fractional seconds are accepted. Excessively large durations are rejected.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized; duration syntax is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Durations are parsed with . as the decimal separator.
+.SH EXTENSIONS
+Fractional operands, multiple operands, --help, --version, --posix-tools-identify.
+.SH EXAMPLES
+sleep 0.5
+.SH CONFORMANCE STATUS
+Conforming with extensions tracked by SLEEP-POSIX-001.
+.SH KNOWN LIMITATIONS
+No suffix units are implemented in V1.
+.SH SEE ALSO
+docs/commands/sleep.md
+

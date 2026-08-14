@@ -57,6 +57,7 @@ package Posix_Tools.Host_Adapters.File_System is
    function Full_Name (Path : String) return String;
    function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural;
    function Group_Name_For_Id (Id : Natural) return String;
+   function Group_Name_For_Current_User return String;
    function Is_Link (Path : String) return Boolean;
    function Join (Left : String; Right : String) return String;
    function Kind (Path : String) return File_Kind;
@@ -77,6 +78,7 @@ package Posix_Tools.Host_Adapters.File_System is
 
    function Path_Names_Current_Directory (Path : String) return Boolean;
    function Read_Link_Target (Path : String; Target : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
+   function Real_Path (Path : String) return String;
    procedure Rename (Old_Path : String; New_Path : String);
    function Same_File (Left : String; Right : String) return Boolean;
    function Set_Modification_Time (Path : String; Time : File_Time) return Boolean;
