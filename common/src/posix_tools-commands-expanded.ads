@@ -28,6 +28,7 @@ package Posix_Tools.Commands.Expanded is
       Ls_Command,
       Mkdir_Command,
       Mv_Command,
+      Nl_Command,
       Od_Command,
       Paste_Command,
       Pathchk_Command,

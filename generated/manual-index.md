@@ -33,6 +33,7 @@ Version: 0.1.0
 - `ls`: docs/commands/ls.md
 - `mkdir`: docs/commands/mkdir.md
 - `mv`: docs/commands/mv.md
+- `nl`: docs/commands/nl.md
 - `od`: docs/commands/od.md
 - `paste`: docs/commands/paste.md
 - `pathchk`: docs/commands/pathchk.md

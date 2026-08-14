@@ -35,6 +35,7 @@ V1 inventory:
 - `ls`
 - `mkdir`
 - `mv`
+- `nl`
 - `od`
 - `paste`
 - `pathchk`

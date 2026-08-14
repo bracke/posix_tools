@@ -345,6 +345,11 @@ tools/mv/alire.toml
 tools/mv/posix_tools_mv.gpr
 tools/mv/src/mv.adb
 docs/commands/mv.md
+generated/man/nl.1
+tools/nl/alire.toml
+tools/nl/posix_tools_nl.gpr
+tools/nl/src/nl.adb
+docs/commands/nl.md
 generated/man/od.1
 tools/od/alire.toml
 tools/od/posix_tools_od.gpr

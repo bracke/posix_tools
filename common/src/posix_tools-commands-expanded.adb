@@ -5178,6 +5178,274 @@ package body Posix_Tools.Commands.Expanded is
          else Posix_Tools.Exit_Status.Operational_Failure);
    end Run_Unexpand;
 
+   procedure Run_Nl
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      type Number_Mode is (All_Lines, Nonempty_Lines, No_Lines);
+
+      Mode       : Number_Mode := Nonempty_Lines;
+      Increment  : Long_Long_Integer := 1;
+      Separator  : Unbounded_String := To_Unbounded_String ("" & HT);
+      Value      : Long_Long_Integer := 1;
+      Width      : Natural := 6;
+      First_File : Positive := 1;
+      All_Ok     : Boolean := True;
+
+      function Parse_Positive_Long (Text : String; Parsed : out Long_Long_Integer) return Boolean is
+         Acc : Long_Long_Integer := 0;
+      begin
+         if Text = "" then
+            Parsed := 0;
+            return False;
+         end if;
+
+         for Ch of Text loop
+            if Ch not in '0' .. '9' then
+               Parsed := 0;
+               return False;
+            end if;
+            if Acc > (Long_Long_Integer'Last - Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'))) / 10 then
+               Parsed := 0;
+               return False;
+            end if;
+            Acc := Acc * 10 + Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'));
+         end loop;
+
+         Parsed := Acc;
+         return Acc > 0;
+      end Parse_Positive_Long;
+
+      function Parse_Integer_Text (Text : String; Parsed : out Long_Long_Integer) return Boolean is
+         Negative : Boolean := False;
+         Start    : Natural := Text'First;
+         Acc      : Long_Long_Integer := 0;
+         Digit    : Long_Long_Integer;
+      begin
+         if Text = "" then
+            Parsed := 0;
+            return False;
+         end if;
+
+         if Text (Text'First) = '-' or else Text (Text'First) = '+' then
+            Negative := Text (Text'First) = '-';
+            Start := Text'First + 1;
+         end if;
+
+         if Start > Text'Last then
+            Parsed := 0;
+            return False;
+         end if;
+
+         for I in Start .. Text'Last loop
+            if Text (I) not in '0' .. '9' then
+               Parsed := 0;
+               return False;
+            end if;
+            Digit := Long_Long_Integer (Character'Pos (Text (I)) - Character'Pos ('0'));
+            if Acc > (Long_Long_Integer'Last - Digit) / 10 then
+               Parsed := 0;
+               return False;
+            end if;
+            Acc := Acc * 10 + Digit;
+         end loop;
+
+         Parsed := (if Negative then -Acc else Acc);
+         return True;
+      end Parse_Integer_Text;
+
+      function Digits_Only_Image (Item : Long_Long_Integer) return String is
+         Raw : constant String := Long_Long_Integer'Image (Item);
+      begin
+         if Raw (Raw'First) = ' ' then
+            return Raw (Raw'First + 1 .. Raw'Last);
+         else
+            return Raw;
+         end if;
+      end Digits_Only_Image;
+
+      function Is_Empty_Line (Line : String) return Boolean is
+      begin
+         return Line = "" or else Line = "" & LF;
+      end Is_Empty_Line;
+
+      procedure Emit_Prefix (Numbered : Boolean) is
+         Text : constant String := (if Numbered then Digits_Only_Image (Value) else "");
+      begin
+         if Text'Length < Width then
+            for I in 1 .. Width - Text'Length loop
+               Context.Put (" ");
+               exit when Context.Output_Failed;
+            end loop;
+         end if;
+
+         if not Context.Output_Failed and then Numbered then
+            Context.Put (Text);
+         end if;
+
+         if not Context.Output_Failed then
+            Context.Put (To_String (Separator));
+         end if;
+      end Emit_Prefix;
+
+      procedure Number_Line (Line : String) is
+         Numbered : constant Boolean :=
+           Mode = All_Lines or else (Mode = Nonempty_Lines and then not Is_Empty_Line (Line));
+      begin
+         Emit_Prefix (Numbered);
+         if not Context.Output_Failed then
+            Context.Put (Line);
+         end if;
+         if Numbered then
+            Value := Value + Increment;
+         end if;
+      end Number_Line;
+
+      procedure Number_Text (Text : String; Ok : out Boolean) is
+         Current : Unbounded_String;
+      begin
+         Ok := True;
+         for Ch of Text loop
+            Append (Current, Ch);
+            if Ch = LF then
+               Number_Line (To_String (Current));
+               Current := Null_Unbounded_String;
+               if Context.Output_Failed then
+                  Ok := False;
+                  return;
+               end if;
+            end if;
+         end loop;
+
+         if Length (Current) > 0 then
+            Number_Line (To_String (Current));
+         end if;
+
+         Ok := not Context.Output_Failed;
+      end Number_Text;
+
+      procedure Number_File (Name : String; Ok : out Boolean) is
+         Data : Unbounded_String;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if Ok then
+            Number_Text (To_String (Data), Ok);
+         end if;
+      end Number_File;
+
+      procedure Invalid_Value (Text : String) is
+      begin
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+      end Invalid_Value;
+
+      function Option_Value (Arg : String; Name : Character; Value_Text : out Unbounded_String) return Boolean is
+      begin
+         if Arg'Length > 2 and then Arg (Arg'First) = '-' and then Arg (Arg'First + 1) = Name then
+            Value_Text := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+            return True;
+         end if;
+
+         return False;
+      end Option_Value;
+   begin
+      while First_File <= Context.Argument_Count loop
+         declare
+            Arg        : constant String := Context.Argument (First_File);
+            Parsed     : Long_Long_Integer;
+            Option_Arg : Unbounded_String;
+         begin
+            if Arg = "--" then
+               First_File := First_File + 1;
+               exit;
+            elsif Arg = "-ba" then
+               Mode := All_Lines;
+               First_File := First_File + 1;
+            elsif Arg = "-bt" then
+               Mode := Nonempty_Lines;
+               First_File := First_File + 1;
+            elsif Arg = "-bn" then
+               Mode := No_Lines;
+               First_File := First_File + 1;
+            elsif Arg = "-i" or else Arg = "-v" or else Arg = "-w" or else Arg = "-s" then
+               if First_File >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '" & Arg & "'");
+                  return;
+               end if;
+               Option_Arg := To_Unbounded_String (Context.Argument (First_File + 1));
+               if Arg = "-i" then
+                  if not Parse_Positive_Long (To_String (Option_Arg), Increment) then
+                     Invalid_Value (To_String (Option_Arg));
+                     return;
+                  end if;
+               elsif Arg = "-v" then
+                  if not Parse_Integer_Text (To_String (Option_Arg), Value) then
+                     Invalid_Value (To_String (Option_Arg));
+                     return;
+                  end if;
+               elsif Arg = "-w" then
+                  if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
+                    or else Parsed > Long_Long_Integer (Natural'Last)
+                  then
+                     Invalid_Value (To_String (Option_Arg));
+                     return;
+                  end if;
+                  Width := Natural (Parsed);
+               else
+                  Separator := Option_Arg;
+               end if;
+               First_File := First_File + 2;
+            elsif Option_Value (Arg, 'i', Option_Arg) then
+               if not Parse_Positive_Long (To_String (Option_Arg), Increment) then
+                  Invalid_Value (To_String (Option_Arg));
+                  return;
+               end if;
+               First_File := First_File + 1;
+            elsif Option_Value (Arg, 'v', Option_Arg) then
+               if not Parse_Integer_Text (To_String (Option_Arg), Value) then
+                  Invalid_Value (To_String (Option_Arg));
+                  return;
+               end if;
+               First_File := First_File + 1;
+            elsif Option_Value (Arg, 'w', Option_Arg) then
+               if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
+                 or else Parsed > Long_Long_Integer (Natural'Last)
+               then
+                  Invalid_Value (To_String (Option_Arg));
+                  return;
+               end if;
+               Width := Natural (Parsed);
+               First_File := First_File + 1;
+            elsif Option_Value (Arg, 's', Option_Arg) then
+               Separator := Option_Arg;
+               First_File := First_File + 1;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if Context.Argument_Count < First_File then
+         Number_File ("-", All_Ok);
+      else
+         for I in First_File .. Context.Argument_Count loop
+            declare
+               Ok : Boolean;
+            begin
+               Number_File (Context.Argument (I), Ok);
+               All_Ok := All_Ok and Ok;
+               exit when Context.Output_Failed;
+            end;
+         end loop;
+      end if;
+
+      Result.Status :=
+        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Nl;
+
    procedure Run_Fold
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -14479,6 +14747,7 @@ package body Posix_Tools.Commands.Expanded is
          when Ls_Command => Run_Ls (Context, Result);
          when Mkdir_Command => Run_Mkdir (Context, Result);
          when Mv_Command => Run_Mv (Context, Result);
+         when Nl_Command => Run_Nl (Context, Result);
          when Od_Command => Run_Od (Context, Result);
          when Paste_Command => Run_Paste (Context, Result);
          when Pathchk_Command => Run_Pathchk (Context, Result);

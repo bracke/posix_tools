@@ -89,6 +89,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ls", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkdir", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mv", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl smoke", Test_Nl'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:od", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:paste", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:pathchk", Test_Pathchk'Access));
@@ -253,6 +254,7 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:root output failure", Test_Root_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-ROOT-0002 root output failure", Test_Root_Output_Failure'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl", Test_Nl'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail byte mode edges", Test_Tail_Byte_Mode_Edges'Access));
       AUnit.Test_Suites.Add_Test

@@ -33,6 +33,7 @@ V1 command references:
 - [ls](ls.md)
 - [mkdir](mkdir.md)
 - [mv](mv.md)
+- [nl](nl.md)
 - [od](od.md)
 - [paste](paste.md)
 - [pathchk](pathchk.md)
