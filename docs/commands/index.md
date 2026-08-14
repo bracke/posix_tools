@@ -17,6 +17,7 @@ V1 command references:
 - [dirname](dirname.md)
 - [echo](echo.md)
 - [env](env.md)
+- [expr](expr.md)
 - [false](false.md)
 - [file](file.md)
 - [find](find.md)

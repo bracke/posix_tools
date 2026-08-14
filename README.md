@@ -19,6 +19,7 @@ V1 inventory:
 - `dirname`
 - `echo`
 - `env`
+- `expr`
 - `false`
 - `file`
 - `find`

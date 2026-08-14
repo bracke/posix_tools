@@ -17,6 +17,7 @@ Version: 0.1.0
 - `dirname`: docs/commands/dirname.md
 - `echo`: docs/commands/echo.md
 - `env`: docs/commands/env.md
+- `expr`: docs/commands/expr.md
 - `false`: docs/commands/false.md
 - `file`: docs/commands/file.md
 - `find`: docs/commands/find.md

@@ -1,0 +1,42 @@
+.TH expr 1
+.SH NAME
+expr - evaluate arguments as an expression.
+.SH SYNOPSIS
+expr expression
+.SH DESCRIPTION
+Evaluates the supplied argument vector as a single expression and writes the result.
+.SH OPERANDS
+expression: expression tokens supplied as separate command-line arguments.
+.SH OPTIONS
+Project extensions --help, --version, and --posix-tools-identify are recognized only by the common command wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The expression result followed by one newline.
+.SH STANDARD ERROR
+Diagnostics for invalid expressions, invalid arithmetic operands, division by zero, and invalid regular expressions.
+.SH EXIT STATUS
+0 expression result is neither null nor 0, 1 expression result is null or 0, 2 invalid expression,
+125 internal failure.
+.SH BEHAVIORAL DETAILS
+The V1 evaluator supports literals, parentheses, |, &, comparisons, +, -, *, /, %, : regular
+expression matching, and the length, index, substr, and match string operators. Arithmetic uses checked
+signed 64-bit integer operations. Comparisons are numeric when both operands are valid integers and lexical otherwise.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized. Expression syntax, arithmetic, regex patterns, and result data are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Regular expression matching is anchored at the beginning of the left operand and uses the GNAT runtime regular
+expression engine. When the pattern has a capturing group, the first captured text is returned; otherwise the matched
+length is returned.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+expr 1 + 2
+
+expr abc : 'a.*'
+.SH CONFORMANCE STATUS
+Conforming with implementation-defined behavior tracked by EXPR-POSIX-001.
+.SH KNOWN LIMITATIONS
+Regular expression syntax follows the GNAT runtime engine rather than a complete standalone POSIX BRE implementation.
+.SH SEE ALSO
+docs/commands/expr.md

@@ -265,6 +265,11 @@ tools/env/alire.toml
 tools/env/posix_tools_env.gpr
 tools/env/src/env.adb
 docs/commands/env.md
+generated/man/expr.1
+tools/expr/alire.toml
+tools/expr/posix_tools_expr.gpr
+tools/expr/src/expr.adb
+docs/commands/expr.md
 generated/man/false.1
 tools/false/alire.toml
 tools/false/posix_tools_false.gpr

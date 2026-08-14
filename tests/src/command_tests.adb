@@ -25,6 +25,7 @@ with Posix_Tools.Commands.Dd;
 with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Echo;
 with Posix_Tools.Commands.Env;
+with Posix_Tools.Commands.Expr;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Find;
@@ -204,6 +205,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Echo.Run (Context, Result);
       elsif Name = "env" then
          Posix_Tools.Commands.Env.Run (Context, Result);
+      elsif Name = "expr" then
+         Posix_Tools.Commands.Expr.Run (Context, Result);
       elsif Name = "false" then
          Posix_Tools.Commands.False_Command.Run (Context, Result);
       elsif Name = "file" then
@@ -5430,6 +5433,57 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "pathchk rejects missing operands");
    end Test_Pathchk;
+
+   procedure Test_Expr (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+
+      procedure Run_Case
+        (Arguments       : Posix_Tools.Arguments.Vector;
+         Expected_Output : String;
+         Expected_Status : Posix_Tools.Exit_Status.Code;
+         Label           : String) is
+      begin
+         Context.Initialize ("expr", Arguments);
+         Posix_Tools.Commands.Expr.Run (Context, Result);
+         AUnit.Assertions.Assert (Result.Status = Expected_Status, Label & " status");
+         AUnit.Assertions.Assert (Test_Contexts.Output (Context) = Expected_Output, Label & " output");
+      end Run_Case;
+   begin
+      Run_Case (One_Arg ("value"), "value" & LF, Posix_Tools.Exit_Status.Success, "expr literal");
+      Run_Case (Five_Args ("1", "+", "2", "*", "3"), "7" & LF, Posix_Tools.Exit_Status.Success,
+                "expr arithmetic precedence");
+      Run_Case (Three_Args ("4", "<", "3"), "0" & LF, Posix_Tools.Exit_Status.Operational_Failure,
+                "expr false comparison");
+      Run_Case (Three_Args ("0", "|", "fallback"), "fallback" & LF, Posix_Tools.Exit_Status.Success,
+                "expr boolean or");
+      Run_Case (Three_Args ("yes", "&", "ok"), "yes" & LF, Posix_Tools.Exit_Status.Success,
+                "expr boolean and");
+      Run_Case (Three_Args ("abcdef", ":", "abc.*"), "6" & LF, Posix_Tools.Exit_Status.Success,
+                "expr regex length");
+      Run_Case (Three_Args ("abc", ":", "a(b.)"), "bc" & LF, Posix_Tools.Exit_Status.Success,
+                "expr regex capture");
+      Run_Case (Two_Args ("length", "abc"), "3" & LF, Posix_Tools.Exit_Status.Success,
+                "expr length");
+      Run_Case (Three_Args ("index", "abc", "cb"), "2" & LF, Posix_Tools.Exit_Status.Success,
+                "expr index");
+      Run_Case (Four_Args ("substr", "abcde", "2", "3"), "bcd" & LF, Posix_Tools.Exit_Status.Success,
+                "expr substr");
+
+      Context.Initialize ("expr", No_Args);
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expr rejects missing expression");
+
+      Context.Initialize ("expr", Three_Args ("1", "+", "x"));
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expr rejects non-numeric arithmetic operand");
+   end Test_Expr;
 
    procedure Test_File (T : in out Fixture) is
       pragma Unreferenced (T);
