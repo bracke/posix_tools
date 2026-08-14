@@ -174,6 +174,11 @@ package body Command_Tests is
       end if;
    end Fixture_Path;
 
+   function Work_Path (Name : String) return String is
+   begin
+      return Hostkit.Fs.Join (Hostkit.Fs.Join ("generated", "test-work"), Name);
+   end Work_Path;
+
    function Contains (Text, Pattern : String) return Boolean is
    begin
       if Pattern = "" then
@@ -5966,11 +5971,12 @@ package body Command_Tests is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
-      Small_Path   : constant String := Fixture_Path ("du-small.bin");
-      Large_Path   : constant String := Fixture_Path ("du-large.bin");
-      Dir_Path     : constant String := Fixture_Path ("du-dir");
-      Child_Path   : constant String := Fixture_Path ("du-dir/child.bin");
-      Missing_Path : constant String := Fixture_Path ("du-missing.bin");
+      Work_Root    : constant String := Work_Path ("du");
+      Small_Path   : constant String := Hostkit.Fs.Join (Work_Root, "du-small.bin");
+      Large_Path   : constant String := Hostkit.Fs.Join (Work_Root, "du-large.bin");
+      Dir_Path     : constant String := Hostkit.Fs.Join (Work_Root, "du-dir");
+      Child_Path   : constant String := Hostkit.Fs.Join (Dir_Path, "child.bin");
+      Missing_Path : constant String := Hostkit.Fs.Join (Work_Root, "du-missing.bin");
       LF           : constant Character := Character'Val (10);
       HT           : constant Character := Character'Val (9);
 
@@ -5985,9 +5991,8 @@ package body Command_Tests is
          end if;
       end Delete_If_Exists;
    begin
-      Delete_If_Exists (Small_Path);
-      Delete_If_Exists (Large_Path);
-      Delete_If_Exists (Dir_Path);
+      Delete_If_Exists (Work_Root);
+      Ada.Directories.Create_Path (Work_Root);
 
       Write_File (Small_Path, "x");
       Write_File (Large_Path, String'(1 .. 1025 => 'x'));
@@ -6035,9 +6040,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "du rejects unknown options");
 
-      Delete_If_Exists (Small_Path);
-      Delete_If_Exists (Large_Path);
-      Delete_If_Exists (Dir_Path);
+      Delete_If_Exists (Work_Root);
    end Test_Du;
 
    procedure Test_Fold (T : in out Fixture) is
