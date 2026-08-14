@@ -54,5 +54,5 @@ Multiple source operands require the target to be an existing directory.
 Conforming with extensions tracked by `MV-POSIX-001`.
 
 ## Known Limitations
-The copy-and-remove fallback preserves source mode bits where supported by the host metadata adapter. Other metadata is
-best effort.
+The copy-and-remove fallback preserves source mode bits, ownership, access time, and modification time where supported
+by the host metadata adapter and permitted by host permissions. Other metadata is best effort.

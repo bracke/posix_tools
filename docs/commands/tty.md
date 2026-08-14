@@ -41,7 +41,9 @@ Diagnostics are written to standard error.
 
 ## Behavioral Details
 
-V1 reports `/dev/tty` for terminal standard input through the portable host adapter.
+V1 asks hostkit for the terminal name of standard input. POSIX hosts use a ttyname-style pathname when the host returns
+one. Windows console handles report the stable conventional name `CON`. If the host confirms that standard input is a
+terminal but cannot provide a name, the adapter falls back to `/dev/tty`.
 
 ## Locale Behavior
 
@@ -49,7 +51,7 @@ Help and diagnostics are locale-dependent through `messages`. Command data outpu
 
 ## Implementation-Defined Choices
 
-The terminal pathname is the V1 portable adapter name `/dev/tty`.
+Terminal naming follows the hostkit descriptor adapter for the selected platform.
 
 ## Extensions
 
@@ -65,5 +67,4 @@ Conforming with extensions for the implemented POSIX.1-2024 surface.
 
 ## Known Limitations
 
-V1 does not query a platform-specific controlling terminal device pathname beyond the portable `/dev/tty`
-adapter name.
+No known V1 limitation for the documented terminal-name surface beyond host capability reporting.

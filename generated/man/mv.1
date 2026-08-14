@@ -38,7 +38,7 @@ mv old new
 .SH CONFORMANCE STATUS
 Conforming with extensions tracked by MV-POSIX-001.
 .SH KNOWN LIMITATIONS
-The copy-and-remove fallback preserves source mode bits where supported by the host metadata adapter. Other metadata is
-best effort.
+The copy-and-remove fallback preserves source mode bits, ownership, access time, and modification time where supported
+by the host metadata adapter and permitted by host permissions. Other metadata is best effort.
 .SH SEE ALSO
 docs/commands/mv.md

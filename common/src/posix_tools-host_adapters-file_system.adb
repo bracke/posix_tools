@@ -95,6 +95,22 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end Copy_Modification_Time;
 
+   function Copy_File_Times (Source : String; Target : String) return Boolean is
+      Access_Time       : File_Time;
+      Modification_Time : File_Time;
+   begin
+      if not File_Access_Time_From_File (Source, Access_Time)
+        or else not File_Time_From_File (Source, Modification_Time)
+      then
+         return False;
+      end if;
+
+      return Set_File_Times (Target, Access_Time, Modification_Time);
+   exception
+      when others =>
+         return False;
+   end Copy_File_Times;
+
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status) is
       use Hostkit.Descriptors;
 
@@ -105,12 +121,26 @@ package body Posix_Tools.Host_Adapters.File_System is
       First   : Ada.Streams.Stream_Element_Offset;
       Written : Ada.Streams.Stream_Element_Offset;
       Outcome : Transfer_Outcome;
+      Source_Access_Time       : File_Time;
+      Source_Modification_Time : File_Time;
+      Source_Times_Available   : constant Boolean :=
+        File_Access_Time_From_File (Source, Source_Access_Time)
+        and then File_Time_From_File (Source, Source_Modification_Time);
 
       procedure Close_All is
       begin
          Close (Input);
          Close (Output);
       end Close_All;
+
+      procedure Restore_Source_Times is
+      begin
+         if Source_Times_Available then
+            if not Set_File_Times (Source, Source_Access_Time, Source_Modification_Time) then
+               null;
+            end if;
+         end if;
+      end Restore_Source_Times;
    begin
       if not Open_File (Source, Open_Read, Input) then
          Status := Source_Open_Failed;
@@ -157,11 +187,13 @@ package body Posix_Tools.Host_Adapters.File_System is
 
             when Transfer_End_Of_File =>
                Close_All;
+               Restore_Source_Times;
                Status := Copy_Ok;
                return;
 
             when others =>
                Close_All;
+               Restore_Source_Times;
                Status := Source_Read_Failed;
                return;
          end case;

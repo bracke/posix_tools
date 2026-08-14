@@ -1795,6 +1795,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Is_Terminal");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Terminal_Name");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Standard_Output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-terminals.adb", "Hostkit.Descriptors.Standard_Error");

@@ -29,6 +29,7 @@ package Posix_Tools.Host_Adapters.File_System is
 
    function Can_Open_For_Read (Path : String) return Boolean;
    function Containing_Directory (Path : String) return String;
+   function Copy_File_Times (Source : String; Target : String) return Boolean;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
    function Create_Device

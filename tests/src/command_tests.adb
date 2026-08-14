@@ -660,9 +660,14 @@ package body Command_Tests is
       end if;
 
       if Hostkit.Metadata.Permissions_Supported then
-         GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp
-           (Source,
-            GNAT.OS_Lib.GM_Time_Of (2022, 3, 4, 5, 6, 7));
+         declare
+            Access_Epoch       : constant Long_Long_Integer := 1_612_325_106;
+            Modification_Epoch : constant Long_Long_Integer := 1_646_370_367;
+         begin
+            AUnit.Assertions.Assert
+              (Hostkit.Metadata.Set_File_Times (Source, Access_Epoch, Modification_Epoch),
+               "test source time setup");
+         end;
          AUnit.Assertions.Assert
            (Hostkit.Metadata.Set_Permissions (Source, 8#640#),
             "test source mode setup");
@@ -674,6 +679,20 @@ package body Command_Tests is
          AUnit.Assertions.Assert
            (Time_Near (Ada.Directories.Modification_Time (Target), Ada.Directories.Modification_Time (Source)),
             "cp -p preserves source modification time");
+         declare
+            Source_Access_Available : Boolean;
+            Target_Access_Available : Boolean;
+            Source_Access   : constant Ada.Calendar.Time :=
+              Hostkit.Metadata.File_Access_Time (Source, Source_Access_Available);
+            Target_Access : constant Ada.Calendar.Time :=
+              Hostkit.Metadata.File_Access_Time (Target, Target_Access_Available);
+         begin
+            if Source_Access_Available and then Target_Access_Available then
+               AUnit.Assertions.Assert
+                 (Time_Near (Target_Access, Source_Access),
+                  "cp -p preserves source access time");
+            end if;
+         end;
          declare
             Source_User      : Natural;
             Source_Group     : Natural;
@@ -5559,6 +5578,8 @@ package body Command_Tests is
                 "expr BRE negated named class");
       Run_Case (Three_Args ("a", ":", "[[=a=]]"), "1" & LF, Posix_Tools.Exit_Status.Success,
                 "expr BRE equivalence class");
+      Run_Case (Three_Args ("chord", ":", "[[.ch.]]"), "2" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE multi-character collating element");
       Run_Case (Three_Args ("abc", ":", "a\(b.\)"), "bc" & LF, Posix_Tools.Exit_Status.Success,
                 "expr BRE escaped capture");
       Run_Case (Two_Args ("length", "abc"), "3" & LF, Posix_Tools.Exit_Status.Success,

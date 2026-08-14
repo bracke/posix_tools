@@ -10,8 +10,11 @@ package body Posix_Tools.Host_Adapters.Terminals is
    end Standard_Input_Is_Terminal;
 
    function Standard_Input_Terminal_Name return String is
+      Name : constant String := Hostkit.Descriptors.Terminal_Name (Hostkit.Descriptors.Standard_Input);
    begin
-      if Standard_Input_Is_Terminal then
+      if Name /= "" then
+         return Name;
+      elsif Standard_Input_Is_Terminal then
          return "/dev/tty";
       else
          return "";

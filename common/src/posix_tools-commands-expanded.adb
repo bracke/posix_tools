@@ -295,6 +295,22 @@ package body Posix_Tools.Commands.Expanded is
          end if;
       end Is_Same_Or_Descendant;
 
+      Source_Access_Time       : FS.File_Time;
+      Source_Modification_Time : FS.File_Time;
+      Source_Times_Available   : Boolean := False;
+
+      procedure Capture_Source_Times is
+      begin
+         if Preserve_Mode then
+            Source_Times_Available :=
+              FS.File_Access_Time_From_File (Source, Source_Access_Time)
+              and then FS.File_Time_From_File (Source, Source_Modification_Time);
+         end if;
+      exception
+         when others =>
+            Source_Times_Available := False;
+      end Capture_Source_Times;
+
       procedure Apply_Source_Metadata is
          Available : Boolean;
          Mode      : constant Natural := FS.File_Permission_Bits (Source, Available);
@@ -337,7 +353,13 @@ package body Posix_Tools.Commands.Expanded is
          end if;
 
          if Preserve_Mode then
-            if not FS.Copy_Modification_Time (Source, Target) then
+            if Source_Times_Available then
+               if not FS.Set_File_Times (Target, Source_Access_Time, Source_Modification_Time) then
+                  Ok := False;
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+               end if;
+            elsif not FS.Copy_File_Times (Source, Target) then
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
                  (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
@@ -351,6 +373,7 @@ package body Posix_Tools.Commands.Expanded is
       end Apply_Source_Metadata;
    begin
       Ok := True;
+      Capture_Source_Times;
       if Preserve_Links and then FS.Is_Link (Source) then
          declare
             Target_Text : Unbounded_String;
@@ -4739,11 +4762,19 @@ package body Posix_Tools.Commands.Expanded is
             return 0;
          end Class_Close;
 
-         function Class_Matches (Index : Natural; Ch : Character) return Boolean is
+         function Class_Matches (Index, Text_Index : Natural; Next_Text : out Natural) return Boolean is
             Close   : constant Natural := Class_Close (Index);
             Start   : Natural := Index + 1;
             Negated : Boolean := False;
             Matched : Boolean := False;
+            Ch      : Character;
+
+            function Starts_With (Text : String) return Boolean is
+            begin
+               return Text /= ""
+                 and then Text_Index + Text'Length - 1 <= Left'Last
+                 and then Left (Text_Index .. Text_Index + Text'Length - 1) = Text;
+            end Starts_With;
 
             function Named_Class_Matches (Name : String) return Boolean is
             begin
@@ -4782,7 +4813,10 @@ package body Posix_Tools.Commands.Expanded is
 
             function Equivalence_Matches (Name : String) return Boolean is
             begin
-               if Name'Length = 1 then
+               if Starts_With (Name) then
+                  Next_Text := Text_Index + Name'Length;
+                  return True;
+               elsif Name'Length = 1 then
                   return Ch = Name (Name'First);
                else
                   return False;
@@ -4802,7 +4836,12 @@ package body Posix_Tools.Commands.Expanded is
             if Close = 0 then
                Mark_Invalid;
                return False;
+            elsif Text_Index not in Left'Range then
+               return False;
             end if;
+
+            Ch := Left (Text_Index);
+            Next_Text := Text_Index + 1;
 
             if Start < Close and then Pattern (Start) in '^' | '!' then
                Negated := True;
@@ -4843,7 +4882,12 @@ package body Posix_Tools.Commands.Expanded is
                end if;
             end loop;
 
-            return (if Negated then not Matched else Matched);
+            if Negated then
+               Next_Text := Text_Index + 1;
+               return not Matched;
+            else
+               return Matched;
+            end if;
          end Class_Matches;
 
          function Atom_Next (Index : Natural) return Natural is
@@ -4883,12 +4927,7 @@ package body Posix_Tools.Commands.Expanded is
                Next_Text := Text_Index + 1;
                return True;
             elsif Pattern (Index) = '[' then
-               if Class_Matches (Index, Left (Text_Index)) then
-                  Next_Text := Text_Index + 1;
-                  return True;
-               else
-                  return False;
-               end if;
+               return Class_Matches (Index, Text_Index, Next_Text);
             elsif Pattern (Index) = '\' then
                if Index = Pattern'Last then
                   Mark_Invalid;
