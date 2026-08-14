@@ -14,6 +14,7 @@ package Test_Contexts is
       Arguments    : Posix_Tools.Arguments.Vector);
 
    overriding procedure Put (Self : in out Capturing_Context; Text : String);
+   overriding procedure Put_Error (Self : in out Capturing_Context; Text : String);
    overriding procedure Put_Line (Self : in out Capturing_Context; Text : String);
    overriding procedure Put_Error_Line (Self : in out Capturing_Context; Text : String);
    overriding procedure Read_Standard_Input
@@ -35,6 +36,7 @@ package Test_Contexts is
       Last : out Natural) return Boolean;
    overriding function Path_Names_Current_Directory (Self : Capturing_Context; Path : String) return Boolean;
    overriding function Standard_Input_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Standard_Input_Terminal_Name (Self : Capturing_Context) return String;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural;
@@ -55,6 +57,13 @@ package Test_Contexts is
       Arguments   : Posix_Tools.Arguments.Vector;
       Environment : Posix_Tools.Arguments.Vector;
       Exit_Status : out Integer) return Boolean;
+   overriding function Execute_Utility_With_Timeout
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Timeout_Ms  : Natural;
+      Exit_Status : out Integer;
+      Timed_Out   : out Boolean) return Boolean;
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String);
    procedure Set_Locale (Self : in out Capturing_Context; Value : String);
@@ -100,6 +109,7 @@ private
       Input_Failure_Enabled : Boolean := False;
       Input_Failure_Limit : Natural := 0;
       Input_Is_Terminal : Boolean := False;
+      Input_Terminal_Name : Ada.Strings.Unbounded.Unbounded_String;
       Output_Is_Terminal : Boolean := False;
       Error_Is_Terminal : Boolean := False;
       Logical_Pwd_Matches : Boolean := True;

@@ -4,6 +4,7 @@ with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
+with Ada.Strings.Unbounded;
 
 package body Posix_Tools.Commands.Contexts is
    use type Posix_Tools.Numbers.Count;
@@ -143,11 +144,37 @@ package body Posix_Tools.Commands.Contexts is
         (Utility, Arguments, Environment, Exit_Status);
    end Execute_Utility_With_Environment;
 
+   function Execute_Utility_With_Timeout
+     (Self        : in out Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Timeout_Ms  : Natural;
+      Exit_Status : out Integer;
+      Timed_Out   : out Boolean) return Boolean
+   is
+      use Ada.Strings.Unbounded;
+      Output : Unbounded_String;
+      Error  : Unbounded_String;
+      Started : constant Boolean :=
+        Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
+          (Utility, Arguments, Timeout_Ms, Exit_Status, Timed_Out, Output, Error);
+   begin
+      Self.Put (To_String (Output));
+      Self.Put_Error (To_String (Error));
+      return Started;
+   end Execute_Utility_With_Timeout;
+
    function Standard_Input_Is_Terminal (Self : Context) return Boolean is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.Terminals.Standard_Input_Is_Terminal;
    end Standard_Input_Is_Terminal;
+
+   function Standard_Input_Terminal_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Terminals.Standard_Input_Terminal_Name;
+   end Standard_Input_Terminal_Name;
 
    function Standard_Output_Is_Terminal (Self : Context) return Boolean is
       pragma Unreferenced (Self);
@@ -187,6 +214,13 @@ package body Posix_Tools.Commands.Contexts is
          Self.Out_Failed := True;
       end if;
    end Put;
+
+   procedure Put_Error (Self : in out Context; Text : String) is
+   begin
+      if not Posix_Tools.Host_Adapters.Streams.Write_Standard_Error (Text) then
+         Self.Out_Failed := True;
+      end if;
+   end Put_Error;
 
    procedure Put_Line (Self : in out Context; Text : String) is
       Ok : Boolean;

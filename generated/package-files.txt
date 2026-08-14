@@ -390,6 +390,11 @@ tools/test/alire.toml
 tools/test/posix_tools_test.gpr
 tools/test/src/test.adb
 docs/commands/test.md
+generated/man/timeout.1
+tools/timeout/alire.toml
+tools/timeout/posix_tools_timeout.gpr
+tools/timeout/src/timeout.adb
+docs/commands/timeout.md
 generated/man/touch.1
 tools/touch/alire.toml
 tools/touch/posix_tools_touch.gpr
@@ -405,6 +410,11 @@ tools/true/alire.toml
 tools/true/posix_tools_true.gpr
 tools/true/src/true.adb
 docs/commands/true.md
+generated/man/tty.1
+tools/tty/alire.toml
+tools/tty/posix_tools_tty.gpr
+tools/tty/src/tty.adb
+docs/commands/tty.md
 generated/man/uname.1
 tools/uname/alire.toml
 tools/uname/posix_tools_uname.gpr

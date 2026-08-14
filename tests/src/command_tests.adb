@@ -52,9 +52,11 @@ with Posix_Tools.Commands.Sort;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
 with Posix_Tools.Commands.Test_Command;
+with Posix_Tools.Commands.Timeout;
 with Posix_Tools.Commands.Touch;
 with Posix_Tools.Commands.Tr;
 with Posix_Tools.Commands.True_Command;
+with Posix_Tools.Commands.Tty;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
@@ -250,12 +252,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Tee.Run (Context, Result);
       elsif Name = "test" then
          Posix_Tools.Commands.Test_Command.Run (Context, Result);
+      elsif Name = "timeout" then
+         Posix_Tools.Commands.Timeout.Run (Context, Result);
       elsif Name = "touch" then
          Posix_Tools.Commands.Touch.Run (Context, Result);
       elsif Name = "tr" then
          Posix_Tools.Commands.Tr.Run (Context, Result);
       elsif Name = "true" then
          Posix_Tools.Commands.True_Command.Run (Context, Result);
+      elsif Name = "tty" then
+         Posix_Tools.Commands.Tty.Run (Context, Result);
       elsif Name = "uname" then
          Posix_Tools.Commands.Uname.Run (Context, Result);
       elsif Name = "uniq" then
@@ -5371,6 +5377,53 @@ package body Command_Tests is
          "xargs maps missing utility to 127");
    end Test_Xargs_Status_Bands;
 
+   procedure Test_Timeout_Statuses (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Args    : Posix_Tools.Arguments.Vector;
+   begin
+      Context.Initialize ("timeout", Two_Args ("1s", "timeout-ok"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "done" & Character'Val (10),
+         "timeout propagates successful utility output and status");
+
+      Context.Initialize ("timeout", Two_Args ("1", "timeout-status-7"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (7),
+         "timeout propagates ordinary utility status");
+
+      Context.Initialize ("timeout", Two_Args ("1", "timeout-slow"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (124),
+         "timeout maps elapsed timeout to 124");
+
+      Args.Append ("--preserve-status");
+      Args.Append ("1");
+      Args.Append ("timeout-slow");
+      Context.Initialize ("timeout", Args);
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (124),
+         "timeout preserve-status keeps adapter timeout status when supplied");
+
+      Context.Initialize ("timeout", One_Arg ("1"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "timeout rejects missing utility operand");
+
+      Context.Initialize ("timeout", Two_Args ("bad", "timeout-ok"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "timeout rejects invalid duration");
+   end Test_Timeout_Statuses;
+
    procedure Test_Env_Utility_Status (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
@@ -8378,6 +8431,42 @@ package body Command_Tests is
          end;
       end loop;
    end Test_True_False_Operand_Property;
+
+   procedure Test_Tty (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Context.Initialize ("tty", No_Args);
+      Test_Contexts.Set_Standard_Input_Is_Terminal (Context, True);
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "/dev/test-tty" & Character'Val (10),
+         "tty prints the terminal name");
+
+      Context.Initialize ("tty", No_Args);
+      Test_Contexts.Set_Standard_Input_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "not a tty" & Character'Val (10),
+         "tty reports non-terminal standard input");
+
+      Context.Initialize ("tty", One_Arg ("-s"));
+      Test_Contexts.Set_Standard_Input_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "",
+         "tty -s suppresses output");
+
+      Context.Initialize ("tty", One_Arg ("-x"));
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "tty rejects unknown options");
+   end Test_Tty;
 
    procedure Test_Wc_Text_Counts (T : in out Fixture) is
       pragma Unreferenced (T);

@@ -129,6 +129,11 @@ package body Posix_Tools.Host_Adapters.Streams is
       return Write_Text (Hostkit.Descriptors.Standard_Output, Text);
    end Write_Standard_Output;
 
+   function Write_Standard_Error (Text : String) return Boolean is
+   begin
+      return Write_Text (Hostkit.Descriptors.Standard_Error, Text);
+   end Write_Standard_Error;
+
    procedure Write_Standard_Output_Line (Text : String; Ok : out Boolean) is
    begin
       Ok := Write_Text (Hostkit.Descriptors.Standard_Output, Text & Character'Val (10));

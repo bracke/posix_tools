@@ -88,8 +88,10 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sort", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tee", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:test", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:timeout", Test_Timeout_Statuses'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:touch", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tr", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tty", Test_Tty'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test

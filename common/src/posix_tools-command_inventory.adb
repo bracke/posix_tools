@@ -46,9 +46,11 @@ package body Posix_Tools.Command_Inventory is
    Tail_Exe     : aliased constant String := "tail";
    Tee_Exe      : aliased constant String := "tee";
    Test_Exe     : aliased constant String := "test";
+   Timeout_Exe  : aliased constant String := "timeout";
    Touch_Exe    : aliased constant String := "touch";
    Tr_Exe       : aliased constant String := "tr";
    True_Exe     : aliased constant String := "true";
+   Tty_Exe      : aliased constant String := "tty";
    Uname_Exe    : aliased constant String := "uname";
    Uniq_Exe     : aliased constant String := "uniq";
    Wc_Exe       : aliased constant String := "wc";
@@ -95,9 +97,11 @@ package body Posix_Tools.Command_Inventory is
    Tail_Crate     : aliased constant String := "posix_tools_tail";
    Tee_Crate      : aliased constant String := "posix_tools_tee";
    Test_Crate     : aliased constant String := "posix_tools_test";
+   Timeout_Crate  : aliased constant String := "posix_tools_timeout";
    Touch_Crate    : aliased constant String := "posix_tools_touch";
    Tr_Crate       : aliased constant String := "posix_tools_tr";
    True_Crate     : aliased constant String := "posix_tools_true";
+   Tty_Crate      : aliased constant String := "posix_tools_tty";
    Uname_Crate    : aliased constant String := "posix_tools_uname";
    Uniq_Crate     : aliased constant String := "posix_tools_uniq";
    Wc_Crate       : aliased constant String := "posix_tools_wc";
@@ -144,9 +148,11 @@ package body Posix_Tools.Command_Inventory is
    Tail_Pkg     : aliased constant String := "Posix_Tools.Commands.Tail";
    Tee_Pkg      : aliased constant String := "Posix_Tools.Commands.Tee";
    Test_Pkg     : aliased constant String := "Posix_Tools.Commands.Test_Command";
+   Timeout_Pkg  : aliased constant String := "Posix_Tools.Commands.Timeout";
    Touch_Pkg    : aliased constant String := "Posix_Tools.Commands.Touch";
    Tr_Pkg       : aliased constant String := "Posix_Tools.Commands.Tr";
    True_Pkg     : aliased constant String := "Posix_Tools.Commands.True_Command";
+   Tty_Pkg      : aliased constant String := "Posix_Tools.Commands.Tty";
    Uname_Pkg    : aliased constant String := "Posix_Tools.Commands.Uname";
    Uniq_Pkg     : aliased constant String := "Posix_Tools.Commands.Uniq";
    Wc_Pkg       : aliased constant String := "Posix_Tools.Commands.Wc";
@@ -197,14 +203,16 @@ package body Posix_Tools.Command_Inventory is
       38 => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Conforming_With_Extensions'Access),
       39 => (Tee_Exe'Access, Tee_Crate'Access, Tee_Pkg'Access, Conforming_With_Extensions'Access),
       40 => (Test_Exe'Access, Test_Crate'Access, Test_Pkg'Access, Conforming_With_Extensions'Access),
-      41 => (Touch_Exe'Access, Touch_Crate'Access, Touch_Pkg'Access, Conforming_With_Extensions'Access),
-      42 => (Tr_Exe'Access, Tr_Crate'Access, Tr_Pkg'Access, Conforming_With_Extensions'Access),
-      43 => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Conforming_With_Extensions'Access),
-      44 => (Uname_Exe'Access, Uname_Crate'Access, Uname_Pkg'Access, Conforming_With_Extensions'Access),
-      45 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
-      46 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
-      47 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
-      48 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
+      41 => (Timeout_Exe'Access, Timeout_Crate'Access, Timeout_Pkg'Access, Conforming_With_Extensions'Access),
+      42 => (Touch_Exe'Access, Touch_Crate'Access, Touch_Pkg'Access, Conforming_With_Extensions'Access),
+      43 => (Tr_Exe'Access, Tr_Crate'Access, Tr_Pkg'Access, Conforming_With_Extensions'Access),
+      44 => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Conforming_With_Extensions'Access),
+      45 => (Tty_Exe'Access, Tty_Crate'Access, Tty_Pkg'Access, Conforming_With_Extensions'Access),
+      46 => (Uname_Exe'Access, Uname_Crate'Access, Uname_Pkg'Access, Conforming_With_Extensions'Access),
+      47 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
+      48 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
+      49 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
+      50 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
 
    function Executable (Index : Positive) return String is
    begin

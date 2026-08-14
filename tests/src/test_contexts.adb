@@ -22,6 +22,7 @@ package body Test_Contexts is
       Self.Input_Failure_Enabled := False;
       Self.Input_Failure_Limit := 0;
       Self.Input_Is_Terminal := False;
+      Self.Input_Terminal_Name := Ada.Strings.Unbounded.To_Unbounded_String ("/dev/test-tty");
       Self.Output_Is_Terminal := False;
       Self.Error_Is_Terminal := False;
       Self.Logical_Pwd_Matches := True;
@@ -64,6 +65,31 @@ package body Test_Contexts is
 
       Ada.Strings.Unbounded.Append (Self.Out_Text, Text);
    end Put;
+
+   overriding procedure Put_Error (Self : in out Capturing_Context; Text : String) is
+      Current_Length : constant Natural := Ada.Strings.Unbounded.Length (Self.Err_Text);
+      Remaining      : Natural;
+   begin
+      if Self.Output_Failure_Enabled then
+         if Current_Length >= Self.Output_Failure_Limit then
+            Posix_Tools.Commands.Contexts.Mark_Output_Failure
+              (Posix_Tools.Commands.Contexts.Context (Self));
+            return;
+         end if;
+
+         Remaining := Self.Output_Failure_Limit - Current_Length;
+         if Text'Length > Remaining then
+            if Remaining > 0 then
+               Ada.Strings.Unbounded.Append (Self.Err_Text, Text (Text'First .. Text'First + Remaining - 1));
+            end if;
+            Posix_Tools.Commands.Contexts.Mark_Output_Failure
+              (Posix_Tools.Commands.Contexts.Context (Self));
+            return;
+         end if;
+      end if;
+
+      Ada.Strings.Unbounded.Append (Self.Err_Text, Text);
+   end Put_Error;
 
    overriding procedure Put_Line (Self : in out Capturing_Context; Text : String) is
    begin
@@ -222,6 +248,15 @@ package body Test_Contexts is
       return Self.Input_Is_Terminal;
    end Standard_Input_Is_Terminal;
 
+   overriding function Standard_Input_Terminal_Name (Self : Capturing_Context) return String is
+   begin
+      if Self.Input_Is_Terminal then
+         return Ada.Strings.Unbounded.To_String (Self.Input_Terminal_Name);
+      else
+         return "";
+      end if;
+   end Standard_Input_Terminal_Name;
+
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean is
    begin
       return Self.Output_Is_Terminal;
@@ -358,6 +393,37 @@ package body Test_Contexts is
          return Execute_Utility (Self, Utility, Arguments, Exit_Status);
       end if;
    end Execute_Utility_With_Environment;
+
+   overriding function Execute_Utility_With_Timeout
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Timeout_Ms  : Natural;
+      Exit_Status : out Integer;
+      Timed_Out   : out Boolean) return Boolean
+   is
+      pragma Unreferenced (Arguments);
+   begin
+      Timed_Out := False;
+      if Utility = "timeout-ok" then
+         Put (Self, "done" & Character'Val (10));
+         Exit_Status := 0;
+         return True;
+      elsif Utility = "timeout-status-7" then
+         Exit_Status := 7;
+         return True;
+      elsif Utility = "timeout-slow" then
+         Timed_Out := Timeout_Ms > 0;
+         Exit_Status := 124;
+         return True;
+      elsif Utility = "timeout-cannot-invoke" then
+         Exit_Status := 126;
+         return False;
+      else
+         Exit_Status := 127;
+         return False;
+      end if;
+   end Execute_Utility_With_Timeout;
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
       Pair : constant String := Name & "=" & Value;

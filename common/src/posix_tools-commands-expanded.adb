@@ -5969,6 +5969,223 @@ package body Posix_Tools.Commands.Expanded is
       Set_Success (Context, Result);
    end Run_Sleep;
 
+   procedure Run_Timeout
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First           : Positive := 1;
+      Preserve_Status : Boolean := False;
+      Timeout_Ms      : Natural := 0;
+      Kill_After_Ms   : Natural := 0;
+      Signal_Name     : Unbounded_String := To_Unbounded_String ("TERM");
+      Timed_Out       : Boolean := False;
+      Exit_Code       : Integer := 0;
+      Arguments       : Posix_Tools.Arguments.Vector;
+
+      function Duration_To_Milliseconds (Text : String; Milliseconds : out Natural) return Boolean is
+         Whole      : Long_Long_Integer := 0;
+         Fraction   : Long_Long_Float := 0.0;
+         Scale      : Long_Long_Float := 1.0;
+         Multiplier : Long_Long_Float := 1000.0;
+         Seen_Digit : Boolean := False;
+         Seen_Dot   : Boolean := False;
+         Last_Index  : Natural := Text'Last;
+      begin
+         Milliseconds := 0;
+         if Text = "" or else Text (Text'First) = '-' then
+            return False;
+         end if;
+
+         if Text (Text'Last) = 's' then
+            Multiplier := 1000.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'm' then
+            Multiplier := 60_000.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'h' then
+            Multiplier := 3_600_000.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'd' then
+            Multiplier := 86_400_000.0;
+            Last_Index := Text'Last - 1;
+         end if;
+
+         if Last_Index < Text'First then
+            return False;
+         end if;
+
+         for I in Text'First .. Last_Index loop
+            declare
+               Ch : constant Character := Text (I);
+            begin
+               if Ch in '0' .. '9' then
+                  Seen_Digit := True;
+                  if Seen_Dot then
+                     Scale := Scale / 10.0;
+                     Fraction := Fraction + Long_Long_Float (Character'Pos (Ch) - Character'Pos ('0')) * Scale;
+                  else
+                     if Whole > Long_Long_Integer (Natural'Last / 10) then
+                        return False;
+                     end if;
+                     Whole := Whole * 10 + Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'));
+                  end if;
+               elsif Ch = '.' and then not Seen_Dot then
+                  Seen_Dot := True;
+               else
+                  return False;
+               end if;
+            end;
+         end loop;
+
+         if not Seen_Digit then
+            return False;
+         end if;
+
+         declare
+            Value : constant Long_Long_Float := (Long_Long_Float (Whole) + Fraction) * Multiplier;
+         begin
+            if Value < 0.0 or else Value > Long_Long_Float (Natural'Last) then
+               return False;
+            end if;
+            Milliseconds := Natural (Value);
+            return True;
+         end;
+      end Duration_To_Milliseconds;
+
+      procedure Require_Operand (Option : String) is
+      begin
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '" & Option & "'");
+      end Require_Operand;
+   begin
+      while First <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First);
+         begin
+            if Arg = "--" then
+               First := First + 1;
+               exit;
+            elsif Arg = "--preserve-status" then
+               Preserve_Status := True;
+               First := First + 1;
+            elsif Arg = "--foreground" then
+               First := First + 1;
+            elsif Arg = "-s" or else Arg = "--signal" then
+               if First = Context.Argument_Count then
+                  Require_Operand (Arg);
+                  return;
+               end if;
+               Signal_Name := To_Unbounded_String (Context.Argument (First + 1));
+               First := First + 2;
+            elsif Arg'Length > 10 and then Arg (Arg'First .. Arg'First + 9) = "--signal=" then
+               Signal_Name := To_Unbounded_String (Arg (Arg'First + 10 .. Arg'Last));
+               First := First + 1;
+            elsif Arg = "-k" or else Arg = "--kill-after" then
+               if First = Context.Argument_Count then
+                  Require_Operand (Arg);
+                  return;
+               elsif not Duration_To_Milliseconds (Context.Argument (First + 1), Kill_After_Ms) then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid duration '" & Context.Argument (First + 1) & "'");
+                  return;
+               end if;
+               First := First + 2;
+            elsif Arg'Length > 13 and then Arg (Arg'First .. Arg'First + 12) = "--kill-after=" then
+               if not Duration_To_Milliseconds (Arg (Arg'First + 13 .. Arg'Last), Kill_After_Ms) then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid duration '" & Arg (Arg'First + 13 .. Arg'Last) & "'");
+                  return;
+               end if;
+               First := First + 1;
+            elsif Arg'Length > 0 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '" & Arg & "'");
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if First > Context.Argument_Count then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif not Duration_To_Milliseconds (Context.Argument (First), Timeout_Ms) then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "invalid duration '" & Context.Argument (First) & "'");
+         return;
+      elsif First = Context.Argument_Count then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      if To_String (Signal_Name) = "" then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand ''");
+         return;
+      end if;
+
+      for I in First + 2 .. Context.Argument_Count loop
+         Arguments.Append (Context.Argument (I));
+      end loop;
+
+      if not Context.Execute_Utility_With_Timeout
+        (Context.Argument (First + 1), Arguments, Timeout_Ms + Kill_After_Ms, Exit_Code, Timed_Out)
+      then
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Context.Argument (First + 1), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         if Exit_Code in 126 .. 127 then
+            Result.Status := Posix_Tools.Exit_Status.Code (Exit_Code);
+         else
+            Result.Status := Posix_Tools.Exit_Status.Utility_Cannot_Invoke;
+         end if;
+      elsif Timed_Out and then not Preserve_Status then
+         Result.Status := Posix_Tools.Exit_Status.Code (124);
+      elsif Exit_Code in Integer (Posix_Tools.Exit_Status.Code'First)
+        .. Integer (Posix_Tools.Exit_Status.Code'Last)
+      then
+         Result.Status := Posix_Tools.Exit_Status.Code (Exit_Code);
+      else
+         Result.Status := Posix_Tools.Exit_Status.Internal_Failure;
+      end if;
+
+      if Context.Output_Failed then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Timeout;
+
+   procedure Run_Tty
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Silent : Boolean := False;
+   begin
+      if Context.Argument_Count > 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Context.Argument (2) & "'");
+         return;
+      elsif Context.Argument_Count = 1 then
+         if Context.Argument (1) = "-s" then
+            Silent := True;
+         else
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '" & Context.Argument (1) & "'");
+            return;
+         end if;
+      end if;
+
+      if Context.Standard_Input_Is_Terminal then
+         if not Silent then
+            Context.Put_Line (Context.Standard_Input_Terminal_Name);
+         end if;
+         Set_Success (Context, Result);
+      else
+         if not Silent then
+            Context.Put_Line ("not a tty");
+         end if;
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+
+      if Context.Output_Failed then
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end if;
+   end Run_Tty;
+
    procedure Run_Kill
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -13074,8 +13291,10 @@ package body Posix_Tools.Commands.Expanded is
          when Sort_Command => Run_Sort (Context, Result);
          when Tee_Command => Run_Tee (Context, Result);
          when Test_Command => Run_Test (Context, Result);
+         when Timeout_Command => Run_Timeout (Context, Result);
          when Touch_Command => Run_Touch (Context, Result);
          when Tr_Command => Run_Tr (Context, Result);
+         when Tty_Command => Run_Tty (Context, Result);
          when Uname_Command => Run_Uname (Context, Result);
          when Uniq_Command => Run_Uniq (Context, Result);
          when Whoami_Command => Run_Whoami (Context, Result);

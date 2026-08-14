@@ -9,6 +9,15 @@ package body Posix_Tools.Host_Adapters.Terminals is
          return False;
    end Standard_Input_Is_Terminal;
 
+   function Standard_Input_Terminal_Name return String is
+   begin
+      if Standard_Input_Is_Terminal then
+         return "/dev/tty";
+      else
+         return "";
+      end if;
+   end Standard_Input_Terminal_Name;
+
    function Standard_Output_Is_Terminal return Boolean is
    begin
       return Hostkit.Descriptors.Is_Terminal (Hostkit.Descriptors.Standard_Output);

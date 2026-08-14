@@ -18,6 +18,7 @@ package Posix_Tools.Commands.Contexts is
    function Environment_Pairs (Self : Context) return Posix_Tools.Arguments.Vector;
    function Environment_Value (Self : Context; Name : String) return String;
    function Standard_Input_Is_Terminal (Self : Context) return Boolean;
+   function Standard_Input_Terminal_Name (Self : Context) return String;
    function Standard_Output_Is_Terminal (Self : Context) return Boolean;
    function Standard_Error_Is_Terminal (Self : Context) return Boolean;
    function Physical_Current_Directory (Self : Context) return String;
@@ -42,6 +43,13 @@ package Posix_Tools.Commands.Contexts is
       Arguments   : Posix_Tools.Arguments.Vector;
       Environment : Posix_Tools.Arguments.Vector;
       Exit_Status : out Integer) return Boolean;
+   function Execute_Utility_With_Timeout
+     (Self        : in out Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Timeout_Ms  : Natural;
+      Exit_Status : out Integer;
+      Timed_Out   : out Boolean) return Boolean;
 
    procedure Read_Standard_Input
      (Self   : in out Context;
@@ -53,6 +61,7 @@ package Posix_Tools.Commands.Contexts is
       Last   : out Ada.Streams.Stream_Element_Offset) return Boolean;
 
    procedure Put (Self : in out Context; Text : String);
+   procedure Put_Error (Self : in out Context; Text : String);
    procedure Put_Line (Self : in out Context; Text : String);
    procedure Put_Error_Line (Self : in out Context; Text : String);
    function Output_Failed (Self : Context) return Boolean;

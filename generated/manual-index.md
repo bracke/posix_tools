@@ -42,9 +42,11 @@ Version: 0.1.0
 - `tail`: docs/commands/tail.md
 - `tee`: docs/commands/tee.md
 - `test`: docs/commands/test.md
+- `timeout`: docs/commands/timeout.md
 - `touch`: docs/commands/touch.md
 - `tr`: docs/commands/tr.md
 - `true`: docs/commands/true.md
+- `tty`: docs/commands/tty.md
 - `uname`: docs/commands/uname.md
 - `uniq`: docs/commands/uniq.md
 - `wc`: docs/commands/wc.md

@@ -44,9 +44,11 @@ V1 inventory:
 - `tail`
 - `tee`
 - `test`
+- `timeout`
 - `touch`
 - `tr`
 - `true`
+- `tty`
 - `uname`
 - `uniq`
 - `wc`

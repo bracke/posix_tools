@@ -10,6 +10,7 @@ package Posix_Tools.Host_Adapters.Streams is
       Last   : out Ada.Streams.Stream_Element_Offset) return Boolean;
 
    function Write_Standard_Output (Text : String) return Boolean;
+   function Write_Standard_Error (Text : String) return Boolean;
 
    procedure Write_Standard_Output_Line (Text : String; Ok : out Boolean);
 
