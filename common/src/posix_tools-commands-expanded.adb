@@ -8343,6 +8343,46 @@ package body Posix_Tools.Commands.Expanded is
       Format_Text : Unbounded_String;
       Has_Format  : Boolean := False;
 
+      function Numeric_Locale return String is
+         LC_All     : constant String := Context.Environment_Value ("LC_ALL");
+         LC_Numeric : constant String := Context.Environment_Value ("LC_NUMERIC");
+         Lang       : constant String := Context.Environment_Value ("LANG");
+      begin
+         if LC_All /= "" then
+            return LC_All;
+         elsif LC_Numeric /= "" then
+            return LC_Numeric;
+         elsif Lang /= "" then
+            return Lang;
+         else
+            return Context.Effective_Locale;
+         end if;
+      end Numeric_Locale;
+
+      function Localize_Decimal_Number (Text : String) return String is
+         Locale  : constant String := Numeric_Locale;
+         Radix   : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
+         Plus    : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
+         Minus   : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
+         Output  : Unbounded_String;
+      begin
+         for I in Text'Range loop
+            if Text (I) in '0' .. '9' then
+               Append (Output, I18N.CLDR_Data.Digit_Text (Locale, Text (I)));
+            elsif Text (I) = '.' then
+               Append (Output, Radix);
+            elsif Text (I) = '+' then
+               Append (Output, Plus);
+            elsif Text (I) = '-' then
+               Append (Output, Minus);
+            else
+               Append (Output, Text (I));
+            end if;
+         end loop;
+
+         return To_String (Output);
+      end Localize_Decimal_Number;
+
       function Power_10 (Count : Natural) return Long_Long_Integer is
          Result : Long_Long_Integer := 1;
       begin
@@ -8558,7 +8598,7 @@ package body Posix_Tools.Commands.Expanded is
 
       function Default_Image (Item : Long_Long_Integer; Width : Natural := 0) return String is
       begin
-         return Pad_Zero (Trimmed_Decimal (Item, Scale), Width);
+         return Localize_Decimal_Number (Pad_Zero (Trimmed_Decimal (Item, Scale), Width));
       end Default_Image;
 
       function Format_Image (Item : Long_Long_Integer) return String is
@@ -8613,7 +8653,7 @@ package body Posix_Tools.Commands.Expanded is
                Suffix : constant String := (if I < Format'Last then Format (I + 1 .. Format'Last) else "");
                Number : constant String :=
                  (if Dot = 0 and then Format (I) in 'g' | 'G' then Default_Image (Item, Width)
-                  else Pad_Zero (Fixed_Decimal (Item, Scale, Precision), Width));
+                  else Localize_Decimal_Number (Pad_Zero (Fixed_Decimal (Item, Scale, Precision), Width)));
             begin
                return Prefix & Number & Suffix;
             end;

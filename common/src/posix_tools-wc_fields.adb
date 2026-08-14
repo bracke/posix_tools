@@ -29,6 +29,9 @@ is
       if Selection.Characters then
          Result := Result + 1;
       end if;
+      if Selection.Max_Line_Length then
+         Result := Result + 1;
+      end if;
 
       return Result;
    end Selected_Field_Count;

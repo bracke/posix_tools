@@ -3,13 +3,14 @@ package Posix_Tools.Wc_Fields
 is
    subtype Nonnegative_Count is Long_Long_Integer range 0 .. Long_Long_Integer'Last;
    subtype Decimal_Width_Range is Positive range 1 .. 19;
-   subtype Field_Count is Natural range 0 .. 4;
+   subtype Field_Count is Natural range 0 .. 5;
 
    type Count_Selection is record
       Lines      : Boolean := False;
       Words      : Boolean := False;
       Bytes      : Boolean := False;
       Characters : Boolean := False;
+      Max_Line_Length : Boolean := False;
    end record;
 
    function Decimal_Width (Value : Nonnegative_Count) return Decimal_Width_Range;
@@ -17,5 +18,5 @@ is
    function Selected_Field_Count (Selection : Count_Selection) return Field_Count;
 
    function Needs_Text_Decoding (Selection : Count_Selection) return Boolean is
-     (Selection.Words or else Selection.Characters);
+     (Selection.Words or else Selection.Characters or else Selection.Max_Line_Length);
 end Posix_Tools.Wc_Fields;

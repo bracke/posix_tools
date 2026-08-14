@@ -7,8 +7,28 @@ package body Posix_Tools.Streams.Counting is
      (Self       : in out Counter;
       Code_Point : Long_Long_Integer)
    is
+      procedure Finish_Line is
+      begin
+         if Self.Current_Line_Length > Self.Current.Max_Line_Length then
+            Self.Current.Max_Line_Length := Self.Current_Line_Length;
+         end if;
+         Self.Current_Line_Length := 0;
+      end Finish_Line;
    begin
       Self.Current.Characters := Self.Current.Characters + 1;
+
+      case Code_Point is
+         when 10 =>
+            Finish_Line;
+         when 9 =>
+            Self.Current_Line_Length := ((Self.Current_Line_Length / 8) + 1) * 8;
+         when 8 =>
+            if Self.Current_Line_Length > 0 then
+               Self.Current_Line_Length := Self.Current_Line_Length - 1;
+            end if;
+         when others =>
+            Self.Current_Line_Length := Self.Current_Line_Length + 1;
+      end case;
 
       if Posix_Tools.Text.Classification.Is_Whitespace (Code_Point) then
          Self.In_Word := False;
@@ -58,6 +78,10 @@ package body Posix_Tools.Streams.Counting is
       Posix_Tools.Text.UTF_8.Finish (Self.Decoder, Status);
       if Status = Posix_Tools.Text.UTF_8.Invalid then
          Note_Invalid (Self);
+      end if;
+
+      if Self.Current_Line_Length > Self.Current.Max_Line_Length then
+         Self.Current.Max_Line_Length := Self.Current_Line_Length;
       end if;
    end Finish_Text;
 

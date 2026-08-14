@@ -422,11 +422,13 @@ package body Basic_Tests is
       pragma Unreferenced (T);
 
       Default_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
-        (Lines => True, Words => True, Bytes => True, Characters => False);
+        (Lines => True, Words => True, Bytes => True, Characters => False, Max_Line_Length => False);
       Text_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
-        (Lines => False, Words => True, Bytes => False, Characters => True);
+        (Lines => False, Words => True, Bytes => False, Characters => True, Max_Line_Length => False);
       Raw_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
-        (Lines => True, Words => False, Bytes => True, Characters => False);
+        (Lines => True, Words => False, Bytes => True, Characters => False, Max_Line_Length => False);
+      Line_Length_Selection : constant Posix_Tools.Wc_Fields.Count_Selection :=
+        (Lines => False, Words => False, Bytes => False, Characters => False, Max_Line_Length => True);
    begin
       AUnit.Assertions.Assert (Posix_Tools.Wc_Fields.Decimal_Width (0) = 1, "zero width");
       AUnit.Assertions.Assert (Posix_Tools.Wc_Fields.Decimal_Width (9) = 1, "single digit width");
@@ -438,8 +440,14 @@ package body Basic_Tests is
         (Posix_Tools.Wc_Fields.Selected_Field_Count (Default_Selection) = 3,
          "default field count");
       AUnit.Assertions.Assert
+        (Posix_Tools.Wc_Fields.Selected_Field_Count (Line_Length_Selection) = 1,
+         "maximum-line-length field count");
+      AUnit.Assertions.Assert
         (Posix_Tools.Wc_Fields.Needs_Text_Decoding (Text_Selection),
          "text fields require decoding");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Wc_Fields.Needs_Text_Decoding (Line_Length_Selection),
+         "maximum-line-length field requires decoding");
       AUnit.Assertions.Assert
         (not Posix_Tools.Wc_Fields.Needs_Text_Decoding (Raw_Selection),
          "raw fields do not require decoding");

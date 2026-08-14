@@ -2,7 +2,7 @@
 .SH NAME
 wc - count lines, words, bytes, and characters.
 .SH SYNOPSIS
-wc [-c] [-l] [-m] [-w] [file...]
+wc [-c] [-l] [-m] [-w] [-L] [file...]
 .SH DESCRIPTION
 Counts selected domains for each input. With no count options, V1 prints line,
 word, and byte counts.
@@ -13,6 +13,7 @@ file: input file path or - for standard input.
 - -l: LF bytes.
 - -m: UTF-8 characters.
 - -w: words under the project Unicode whitespace policy.
+- -L: maximum display line length as a project extension.
 .SH STANDARD INPUT
 Used when no files are present or when an operand is -.
 .SH STANDARD OUTPUT
@@ -25,6 +26,11 @@ Diagnostics for unreadable files and invalid UTF-8 in text-counting modes.
 Byte and line counting never decode text. -m and -w use incremental UTF-8
 decoding from Posix_Tools.Text.UTF_8 and reject malformed or incomplete
 sequences for the affected input.
+
+-L also uses the incremental UTF-8 path. It counts display columns
+deterministically: LF ends a line, tab advances to the next 8-column stop,
+backspace reduces the current column by one when possible, and other decoded
+characters have width one.
 .SH LOCALE BEHAVIOR
 Count output is not localized. Text classification is deterministic UTF-8 and
 is not full arbitrary POSIX locale behavior.
@@ -33,13 +39,14 @@ Unicode whitespace is isolated in Posix_Tools.Text.Classification and backed
 by generated Posix_Tools.Text.Whitespace_Data property ranges recording
 Unicode version 15.1.0, the UCD source, and the Unicode license reference.
 .SH EXTENSIONS
---help, --version, --posix-tools-identify.
+-L, --help, --version, --posix-tools-identify.
 .SH EXAMPLES
 wc -l -w -c file
+
+wc -L file
 .SH CONFORMANCE STATUS
 Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
 .SH KNOWN LIMITATIONS
-GNU -L maximum-line-length mode is not a POSIX.1-2024 wc option and is not
-implemented in V1.
+No known V1 limitation for the documented option set.
 .SH SEE ALSO
 docs/commands/wc.md

@@ -46,11 +46,11 @@ Inherited by the invoked utility where the host adapter supports it.
 
 ## Standard Output
 
-The invoked utility's standard output is replayed to standard output.
+The invoked utility inherits standard output while it runs.
 
 ## Standard Error
 
-Diagnostics are written to standard error. The invoked utility's standard error is replayed to standard error.
+Diagnostics are written to standard error. The invoked utility inherits standard error while it runs.
 
 ## Exit Status
 
@@ -66,8 +66,8 @@ Diagnostics are written to standard error. The invoked utility's standard error 
 
 ## Behavioral Details
 
-The implementation invokes utilities without a shell. Output replay is bounded by the shared process adapter
-capture limit.
+The implementation invokes utilities without a shell. The invoked utility uses inherited standard input,
+standard output, and standard error handles unless the host refuses the launch.
 
 ## Locale Behavior
 
@@ -92,5 +92,4 @@ Conforming with extensions for the implemented POSIX.1-2024 Issue 8 surface.
 
 ## Known Limitations
 
-V1 captures and replays child output through bounded temporary files rather than streaming inherited output
-directly while the child runs.
+Signal-name selection is accepted syntactically, but hostkit applies its portable timeout stop policy.

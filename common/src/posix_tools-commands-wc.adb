@@ -88,7 +88,8 @@ package body Posix_Tools.Commands.Wc is
       Show_C  : Boolean;
       Show_L  : Boolean;
       Show_M  : Boolean;
-      Show_W  : Boolean)
+      Show_W  : Boolean;
+      Show_Max_Line_Length : Boolean)
    is
       Text : Unbounded_String;
    begin
@@ -103,6 +104,9 @@ package body Posix_Tools.Commands.Wc is
       end if;
       if Show_M then
          Append (Text, " " & Image (C.Characters));
+      end if;
+      if Show_Max_Line_Length then
+         Append (Text, " " & Image (C.Max_Line_Length));
       end if;
       if Name /= "" then
          Append (Text, " " & Name);
@@ -127,6 +131,7 @@ package body Posix_Tools.Commands.Wc is
       Show_L     : Boolean := False;
       Show_M     : Boolean := False;
       Show_W     : Boolean := False;
+      Show_Max_Line_Length : Boolean := False;
       First_File : Positive := 1;
       C          : Counts;
       Total      : Counts := (others => 0);
@@ -140,7 +145,8 @@ package body Posix_Tools.Commands.Wc is
            (Lines      => Show_L,
             Words      => Show_W,
             Bytes      => Show_C,
-            Characters => Show_M);
+            Characters => Show_M,
+            Max_Line_Length => Show_Max_Line_Length);
       end Selection;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -163,6 +169,7 @@ package body Posix_Tools.Commands.Wc is
                when 'l' => Show_L := True;
                when 'm' => Show_M := True;
                when 'w' => Show_W := True;
+               when 'L' => Show_Max_Line_Length := True;
                when others =>
                   Posix_Tools.Commands.Helpers.Usage_Error
                     (Context, Result, "unknown option '-" & Ch & "'");
@@ -172,7 +179,7 @@ package body Posix_Tools.Commands.Wc is
          First_File := First_File + 1;
       end loop;
 
-      if not (Show_C or Show_L or Show_M or Show_W) then
+      if not (Show_C or Show_L or Show_M or Show_W or Show_Max_Line_Length) then
          Show_L := True;
          Show_W := True;
          Show_C := True;
@@ -183,7 +190,7 @@ package body Posix_Tools.Commands.Wc is
       if First_File > Context.Argument_Count then
          Count_File (Context, "-", Posix_Tools.Wc_Fields.Needs_Text_Decoding (Selection), C, Ok);
          if Ok then
-            Print_Counts (Context, C, "", Show_C, Show_L, Show_M, Show_W);
+            Print_Counts (Context, C, "", Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
             Ok := not Context.Output_Failed;
          end if;
          All_Ok := Ok;
@@ -196,7 +203,8 @@ package body Posix_Tools.Commands.Wc is
                C,
                Ok);
             if Ok then
-               Print_Counts (Context, C, Context.Argument (I), Show_C, Show_L, Show_M, Show_W);
+               Print_Counts
+                 (Context, C, Context.Argument (I), Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
                if Context.Output_Failed then
                   Ok := False;
                else
@@ -205,6 +213,9 @@ package body Posix_Tools.Commands.Wc is
                   Total.Words := Total.Words + C.Words;
                   Total.Bytes := Total.Bytes + C.Bytes;
                   Total.Characters := Total.Characters + C.Characters;
+                  if C.Max_Line_Length > Total.Max_Line_Length then
+                     Total.Max_Line_Length := C.Max_Line_Length;
+                  end if;
                end if;
             end if;
             All_Ok := All_Ok and Ok;
@@ -215,7 +226,7 @@ package body Posix_Tools.Commands.Wc is
            and then Context.Argument_Count - First_File + 1 > 1
            and then Successful > 0
          then
-            Print_Counts (Context, Total, "total", Show_C, Show_L, Show_M, Show_W);
+            Print_Counts (Context, Total, "total", Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
             if Context.Output_Failed then
                All_Ok := False;
             end if;

@@ -27,7 +27,7 @@ REG-WC-0003,wc,reject overlong bad-continuation surrogate and out-of-range UTF-8
 REG-WC-0004,wc,reject surrogate and out-of-range UTF-8 code point encodings in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
 REG-WC-0005,wc,return operational failure when stdout fails while suppressing totals after incomplete output,command:wc output failure
 REG-WC-0006,wc,continue after a failed file and print a total for successful operands while returning aggregate failure,command:wc multiple files
-REG-WC-0007,wc,reject -L consistently while it remains a documented V1 limitation,command:wc default and mixed text
+REG-WC-0007,wc,implement -L maximum-line-length output consistently as a documented project extension,command:wc default and mixed text
 REG-ROOT-0001,posix-tools,verify accepts rebuilt project command executables by identity and synchronized version,posix-tools verify smoke
 REG-ROOT-0002,posix-tools,return operational failure when root help output cannot be written,command:root output failure
 REG-ENV-0001,env,preserve env utility exit-status propagation and 126 or 127 execution-failure classification without invoking a shell,command:env utility status

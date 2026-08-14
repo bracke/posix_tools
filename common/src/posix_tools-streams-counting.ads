@@ -6,6 +6,7 @@ package Posix_Tools.Streams.Counting is
       Words : Long_Long_Integer := 0;
       Bytes : Long_Long_Integer := 0;
       Characters : Long_Long_Integer := 0;
+      Max_Line_Length : Long_Long_Integer := 0;
    end record;
 
    type Counter is private;
@@ -19,6 +20,7 @@ package Posix_Tools.Streams.Counting is
 private
    type Counter is record
       Current : Counts;
+      Current_Line_Length : Long_Long_Integer := 0;
       In_Word : Boolean := False;
       Decoder : Posix_Tools.Text.UTF_8.Decoder;
       Invalid_Text : Boolean := False;

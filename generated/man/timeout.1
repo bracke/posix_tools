@@ -32,9 +32,9 @@ hostkit.
 .SH STANDARD INPUT
 Inherited by the invoked utility where the host adapter supports it.
 .SH STANDARD OUTPUT
-The invoked utility's standard output is replayed to standard output.
+The invoked utility inherits standard output while it runs.
 .SH STANDARD ERROR
-Diagnostics are written to standard error. The invoked utility's standard error is replayed to standard error.
+Diagnostics are written to standard error. The invoked utility inherits standard error while it runs.
 .SH EXIT STATUS
 0 through 123 are propagated from the invoked utility when it exits normally.
 
@@ -46,8 +46,8 @@ Diagnostics are written to standard error. The invoked utility's standard error 
 
 125 indicates an internal failure.
 .SH BEHAVIORAL DETAILS
-The implementation invokes utilities without a shell. Output replay is bounded by the shared process adapter
-capture limit.
+The implementation invokes utilities without a shell. The invoked utility uses inherited standard input,
+standard output, and standard error handles unless the host refuses the launch.
 .SH LOCALE BEHAVIOR
 Help and diagnostics are locale-dependent through messages. Utility data output is not localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
@@ -60,7 +60,6 @@ timeout 2s utility argument
 .SH CONFORMANCE STATUS
 Conforming with extensions for the implemented POSIX.1-2024 Issue 8 surface.
 .SH KNOWN LIMITATIONS
-V1 captures and replays child output through bounded temporary files rather than streaming inherited output
-directly while the child runs.
+Signal-name selection is accepted syntactically, but hostkit applies its portable timeout stop policy.
 .SH SEE ALSO
 docs/commands/timeout.md

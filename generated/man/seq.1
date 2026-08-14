@@ -30,7 +30,7 @@ Project extensions --help, --version, and --posix-tools-identify are recognized.
 .SH STANDARD INPUT
 Not read.
 .SH STANDARD OUTPUT
-Generated values are written as ASCII decimal data. A final LF is always written after the sequence.
+Generated values are written as locale-dependent decimal data. A final LF is always written after the sequence.
 .SH STANDARD ERROR
 Diagnostics are written for invalid operand counts, invalid numbers, zero increment, invalid options, and output failures.
 .SH EXIT STATUS
@@ -41,9 +41,11 @@ less than last. Decimal operands are represented with fixed-scale integer arithm
 operands, so simple decimal sequences such as 0.1 0.1 0.3 and 1e-1 1e-1 3e-1 are deterministic. Arithmetic is
 checked and overflow stops after the last representable value.
 .SH LOCALE BEHAVIOR
-Help and diagnostics are localized. Generated numeric data is not localized.
+Help and diagnostics are localized. Generated numeric data uses the numeric locale selected by LC_ALL, LC_NUMERIC,
+LANG, and then the command context locale.
 .SH IMPLEMENTATION-DEFINED CHOICES
 Supported decimal precision is bounded by the project wide integer range after exponent normalization and scaling.
+The parser accepts ASCII decimal operands; localization is applied only to generated output.
 .SH EXTENSIONS
 The entire command is a project extension. --help, --version, and --posix-tools-identify are also extensions.
 .SH EXAMPLES
@@ -63,6 +65,6 @@ seq -f 'n=%04.1f' 1 1 3
 .SH CONFORMANCE STATUS
 Non-POSIX extension tracked by SEQ-EXT-001.
 .SH KNOWN LIMITATIONS
-Arbitrary locale-dependent numeric formatting is not implemented.
+No known V1 limitation for the documented option set.
 .SH SEE ALSO
 docs/commands/seq.md

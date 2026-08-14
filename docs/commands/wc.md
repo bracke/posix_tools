@@ -4,7 +4,7 @@
 `wc` - count lines, words, bytes, and characters.
 
 ## Synopsis
-`wc [-c] [-l] [-m] [-w] [file...]`
+`wc [-c] [-l] [-m] [-w] [-L] [file...]`
 
 ## Description
 Counts selected domains for each input. With no count options, V1 prints line,
@@ -18,6 +18,7 @@ word, and byte counts.
 - `-l`: LF bytes.
 - `-m`: UTF-8 characters.
 - `-w`: words under the project Unicode whitespace policy.
+- `-L`: maximum display line length as a project extension.
 
 ## Standard Input
 Used when no files are present or when an operand is `-`.
@@ -36,6 +37,11 @@ Byte and line counting never decode text. `-m` and `-w` use incremental UTF-8
 decoding from `Posix_Tools.Text.UTF_8` and reject malformed or incomplete
 sequences for the affected input.
 
+`-L` also uses the incremental UTF-8 path. It counts display columns
+deterministically: LF ends a line, tab advances to the next 8-column stop,
+backspace reduces the current column by one when possible, and other decoded
+characters have width one.
+
 ## Locale Behavior
 Count output is not localized. Text classification is deterministic UTF-8 and
 is not full arbitrary POSIX locale behavior.
@@ -46,14 +52,15 @@ by generated `Posix_Tools.Text.Whitespace_Data` property ranges recording
 Unicode version 15.1.0, the UCD source, and the Unicode license reference.
 
 ## Extensions
-`--help`, `--version`, `--posix-tools-identify`.
+`-L`, `--help`, `--version`, `--posix-tools-identify`.
 
 ## Examples
 `wc -l -w -c file`
+
+`wc -L file`
 
 ## Conformance Status
 Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
-GNU `-L` maximum-line-length mode is not a POSIX.1-2024 `wc` option and is not
-implemented in V1.
+No known V1 limitation for the documented option set.

@@ -44,7 +44,7 @@ Not read.
 
 ## Standard Output
 
-Generated values are written as ASCII decimal data. A final LF is always written after the sequence.
+Generated values are written as locale-dependent decimal data. A final LF is always written after the sequence.
 
 ## Standard Error
 
@@ -63,11 +63,13 @@ checked and overflow stops after the last representable value.
 
 ## Locale Behavior
 
-Help and diagnostics are localized. Generated numeric data is not localized.
+Help and diagnostics are localized. Generated numeric data uses the numeric locale selected by `LC_ALL`, `LC_NUMERIC`,
+`LANG`, and then the command context locale.
 
 ## Implementation-Defined Choices
 
 Supported decimal precision is bounded by the project wide integer range after exponent normalization and scaling.
+The parser accepts ASCII decimal operands; localization is applied only to generated output.
 
 ## Extensions
 
@@ -95,4 +97,4 @@ Non-POSIX extension tracked by SEQ-EXT-001.
 
 ## Known Limitations
 
-Arbitrary locale-dependent numeric formatting is not implemented.
+No known V1 limitation for the documented option set.

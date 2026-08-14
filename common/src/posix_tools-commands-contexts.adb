@@ -4,7 +4,6 @@ with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
-with Ada.Strings.Unbounded;
 
 package body Posix_Tools.Commands.Contexts is
    use type Posix_Tools.Numbers.Count;
@@ -152,16 +151,10 @@ package body Posix_Tools.Commands.Contexts is
       Exit_Status : out Integer;
       Timed_Out   : out Boolean) return Boolean
    is
-      use Ada.Strings.Unbounded;
-      Output : Unbounded_String;
-      Error  : Unbounded_String;
-      Started : constant Boolean :=
-        Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
-          (Utility, Arguments, Timeout_Ms, Exit_Status, Timed_Out, Output, Error);
+      pragma Unreferenced (Self);
    begin
-      Self.Put (To_String (Output));
-      Self.Put_Error (To_String (Error));
-      return Started;
+      return Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
+        (Utility, Arguments, Timeout_Ms, Exit_Status, Timed_Out);
    end Execute_Utility_With_Timeout;
 
    function Standard_Input_Is_Terminal (Self : Context) return Boolean is

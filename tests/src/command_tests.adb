@@ -8558,6 +8558,23 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "0.1" & LF & "0.2" & LF & "0.3" & LF,
          "seq supports negative exponent notation");
 
+      Context.Initialize ("seq", Three_Args ("0.1", "0.1", "0.3"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0,1" & LF & "0,2" & LF & "0,3" & LF,
+         "seq uses locale decimal separator");
+
+      Context.Initialize ("seq", Three_Args ("0.1", "0.1", "0.3"));
+      Test_Contexts.Set_Locale (Context, "en");
+      Test_Contexts.Set_Environment_Value (Context, "LC_NUMERIC", "da");
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0,1" & LF & "0,2" & LF & "0,3" & LF,
+         "seq LC_NUMERIC overrides context locale");
+
       Context.Initialize ("seq", Four_Args ("-s", ",", "1", "3"));
       Posix_Tools.Commands.Seq.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -8578,6 +8595,14 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "n=01.0" & LF & "n=02.0" & LF & "n=03.0" & LF,
          "seq supports printf-style decimal formatting");
+
+      Context.Initialize ("seq", Five_Args ("-f", "n=%04.1f", "1", "1", "3"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "n=01,0" & LF & "n=02,0" & LF & "n=03,0" & LF,
+         "seq formats numbers through locale data");
 
       Context.Initialize ("seq", Three_Args ("1", "0", "3"));
       Posix_Tools.Commands.Seq.Run (Context, Result);
@@ -9521,15 +9546,22 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "wc mixed invalid status");
 
-      Context.Initialize ("wc", One_Arg ("-L"));
+      Write_File (Path, "ab" & LF & Character'Val (9) & "c" & LF & "abcd");
+      Context.Initialize ("wc", Two_Args ("-L", Path));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc -L unsupported output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: unknown option '-L'" & LF,
-         "wc -L unsupported diagnostic");
+        (Test_Contexts.Output (Context) = "9 " & Path & LF,
+         "wc -L maximum line length output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "wc -L status");
+
+      Context.Initialize ("wc", Two_Args ("-lL", Path));
+      Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "wc -L unsupported status");
+        (Test_Contexts.Output (Context) = "2 9 " & Path & LF,
+         "wc -lL output ordering");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "wc -lL status");
    end Test_Wc_Default_And_Mixed_Text;
 
    procedure Test_Wc_Text_Invalid_UTF_8 (T : in out Fixture) is

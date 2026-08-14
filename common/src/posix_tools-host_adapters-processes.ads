@@ -1,4 +1,3 @@
-with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 
 package Posix_Tools.Host_Adapters.Processes is
@@ -18,7 +17,5 @@ package Posix_Tools.Host_Adapters.Processes is
       Arguments   : Posix_Tools.Arguments.Vector;
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
-      Timed_Out   : out Boolean;
-      Output      : out Ada.Strings.Unbounded.Unbounded_String;
-      Error       : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
+      Timed_Out   : out Boolean) return Boolean;
 end Posix_Tools.Host_Adapters.Processes;
