@@ -34,6 +34,7 @@ package body Posix_Tools.Command_Inventory is
    Mv_Exe       : aliased constant String := "mv";
    Od_Exe       : aliased constant String := "od";
    Paste_Exe    : aliased constant String := "paste";
+   Pathchk_Exe  : aliased constant String := "pathchk";
    Printf_Exe   : aliased constant String := "printf";
    Pwd_Exe      : aliased constant String := "pwd";
    Readlink_Exe : aliased constant String := "readlink";
@@ -85,6 +86,7 @@ package body Posix_Tools.Command_Inventory is
    Mv_Crate       : aliased constant String := "posix_tools_mv";
    Od_Crate       : aliased constant String := "posix_tools_od";
    Paste_Crate    : aliased constant String := "posix_tools_paste";
+   Pathchk_Crate  : aliased constant String := "posix_tools_pathchk";
    Printf_Crate   : aliased constant String := "posix_tools_printf";
    Pwd_Crate      : aliased constant String := "posix_tools_pwd";
    Readlink_Crate : aliased constant String := "posix_tools_readlink";
@@ -136,6 +138,7 @@ package body Posix_Tools.Command_Inventory is
    Mv_Pkg       : aliased constant String := "Posix_Tools.Commands.Mv";
    Od_Pkg       : aliased constant String := "Posix_Tools.Commands.Od";
    Paste_Pkg    : aliased constant String := "Posix_Tools.Commands.Paste";
+   Pathchk_Pkg  : aliased constant String := "Posix_Tools.Commands.Pathchk";
    Printf_Pkg   : aliased constant String := "Posix_Tools.Commands.Printf";
    Pwd_Pkg      : aliased constant String := "Posix_Tools.Commands.Pwd";
    Readlink_Pkg : aliased constant String := "Posix_Tools.Commands.Readlink";
@@ -191,28 +194,29 @@ package body Posix_Tools.Command_Inventory is
       26 => (Mv_Exe'Access, Mv_Crate'Access, Mv_Pkg'Access, Conforming_With_Extensions'Access),
       27 => (Od_Exe'Access, Od_Crate'Access, Od_Pkg'Access, Conforming_With_Extensions'Access),
       28 => (Paste_Exe'Access, Paste_Crate'Access, Paste_Pkg'Access, Conforming_With_Extensions'Access),
-      29 => (Printf_Exe'Access, Printf_Crate'Access, Printf_Pkg'Access, Conforming_With_Extensions'Access),
-      30 => (Pwd_Exe'Access, Pwd_Crate'Access, Pwd_Pkg'Access, Conforming_With_Extensions'Access),
-      31 => (Readlink_Exe'Access, Readlink_Crate'Access, Readlink_Pkg'Access, Conforming_With_Extensions'Access),
-      32 => (Realpath_Exe'Access, Realpath_Crate'Access, Realpath_Pkg'Access, Conforming_With_Extensions'Access),
-      33 => (Rm_Exe'Access, Rm_Crate'Access, Rm_Pkg'Access, Conforming_With_Extensions'Access),
-      34 => (Rmdir_Exe'Access, Rmdir_Crate'Access, Rmdir_Pkg'Access, Conforming_With_Extensions'Access),
-      35 => (Sleep_Exe'Access, Sleep_Crate'Access, Sleep_Pkg'Access, Conforming_With_Extensions'Access),
-      36 => (Split_Exe'Access, Split_Crate'Access, Split_Pkg'Access, Conforming_With_Extensions'Access),
-      37 => (Sort_Exe'Access, Sort_Crate'Access, Sort_Pkg'Access, Conforming_With_Extensions'Access),
-      38 => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Conforming_With_Extensions'Access),
-      39 => (Tee_Exe'Access, Tee_Crate'Access, Tee_Pkg'Access, Conforming_With_Extensions'Access),
-      40 => (Test_Exe'Access, Test_Crate'Access, Test_Pkg'Access, Conforming_With_Extensions'Access),
-      41 => (Timeout_Exe'Access, Timeout_Crate'Access, Timeout_Pkg'Access, Conforming_With_Extensions'Access),
-      42 => (Touch_Exe'Access, Touch_Crate'Access, Touch_Pkg'Access, Conforming_With_Extensions'Access),
-      43 => (Tr_Exe'Access, Tr_Crate'Access, Tr_Pkg'Access, Conforming_With_Extensions'Access),
-      44 => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Conforming_With_Extensions'Access),
-      45 => (Tty_Exe'Access, Tty_Crate'Access, Tty_Pkg'Access, Conforming_With_Extensions'Access),
-      46 => (Uname_Exe'Access, Uname_Crate'Access, Uname_Pkg'Access, Conforming_With_Extensions'Access),
-      47 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
-      48 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
-      49 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
-      50 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
+      29 => (Pathchk_Exe'Access, Pathchk_Crate'Access, Pathchk_Pkg'Access, Conforming_With_Extensions'Access),
+      30 => (Printf_Exe'Access, Printf_Crate'Access, Printf_Pkg'Access, Conforming_With_Extensions'Access),
+      31 => (Pwd_Exe'Access, Pwd_Crate'Access, Pwd_Pkg'Access, Conforming_With_Extensions'Access),
+      32 => (Readlink_Exe'Access, Readlink_Crate'Access, Readlink_Pkg'Access, Conforming_With_Extensions'Access),
+      33 => (Realpath_Exe'Access, Realpath_Crate'Access, Realpath_Pkg'Access, Conforming_With_Extensions'Access),
+      34 => (Rm_Exe'Access, Rm_Crate'Access, Rm_Pkg'Access, Conforming_With_Extensions'Access),
+      35 => (Rmdir_Exe'Access, Rmdir_Crate'Access, Rmdir_Pkg'Access, Conforming_With_Extensions'Access),
+      36 => (Sleep_Exe'Access, Sleep_Crate'Access, Sleep_Pkg'Access, Conforming_With_Extensions'Access),
+      37 => (Split_Exe'Access, Split_Crate'Access, Split_Pkg'Access, Conforming_With_Extensions'Access),
+      38 => (Sort_Exe'Access, Sort_Crate'Access, Sort_Pkg'Access, Conforming_With_Extensions'Access),
+      39 => (Tail_Exe'Access, Tail_Crate'Access, Tail_Pkg'Access, Conforming_With_Extensions'Access),
+      40 => (Tee_Exe'Access, Tee_Crate'Access, Tee_Pkg'Access, Conforming_With_Extensions'Access),
+      41 => (Test_Exe'Access, Test_Crate'Access, Test_Pkg'Access, Conforming_With_Extensions'Access),
+      42 => (Timeout_Exe'Access, Timeout_Crate'Access, Timeout_Pkg'Access, Conforming_With_Extensions'Access),
+      43 => (Touch_Exe'Access, Touch_Crate'Access, Touch_Pkg'Access, Conforming_With_Extensions'Access),
+      44 => (Tr_Exe'Access, Tr_Crate'Access, Tr_Pkg'Access, Conforming_With_Extensions'Access),
+      45 => (True_Exe'Access, True_Crate'Access, True_Pkg'Access, Conforming_With_Extensions'Access),
+      46 => (Tty_Exe'Access, Tty_Crate'Access, Tty_Pkg'Access, Conforming_With_Extensions'Access),
+      47 => (Uname_Exe'Access, Uname_Crate'Access, Uname_Pkg'Access, Conforming_With_Extensions'Access),
+      48 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
+      49 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
+      50 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
+      51 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
 
    function Executable (Index : Positive) return String is
    begin

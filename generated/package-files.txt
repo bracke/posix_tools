@@ -330,6 +330,11 @@ tools/paste/alire.toml
 tools/paste/posix_tools_paste.gpr
 tools/paste/src/paste.adb
 docs/commands/paste.md
+generated/man/pathchk.1
+tools/pathchk/alire.toml
+tools/pathchk/posix_tools_pathchk.gpr
+tools/pathchk/src/pathchk.adb
+docs/commands/pathchk.md
 generated/man/printf.1
 tools/printf/alire.toml
 tools/printf/posix_tools_printf.gpr

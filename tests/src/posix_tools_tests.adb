@@ -163,7 +163,6 @@ procedure Posix_Tools_Tests is
       Append_Section ("KNOWN LIMITATIONS", "Known Limitations");
       Append (Page, ".SH SEE ALSO" & Character'Val (10));
       Append (Page, Posix_Tools.Command_Inventory.Documentation_Path (Index) & Character'Val (10));
-      Append (Page, Character'Val (10));
 
       return To_String (Page);
    end Command_Manpage;

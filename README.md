@@ -32,6 +32,7 @@ V1 inventory:
 - `mv`
 - `od`
 - `paste`
+- `pathchk`
 - `printf`
 - `pwd`
 - `readlink`

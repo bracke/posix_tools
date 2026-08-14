@@ -30,6 +30,7 @@ Version: 0.1.0
 - `mv`: docs/commands/mv.md
 - `od`: docs/commands/od.md
 - `paste`: docs/commands/paste.md
+- `pathchk`: docs/commands/pathchk.md
 - `printf`: docs/commands/printf.md
 - `pwd`: docs/commands/pwd.md
 - `readlink`: docs/commands/readlink.md

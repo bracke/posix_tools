@@ -30,6 +30,7 @@ V1 command references:
 - [mv](mv.md)
 - [od](od.md)
 - [paste](paste.md)
+- [pathchk](pathchk.md)
 - [posix-tools](posix-tools.md)
 - [printf](printf.md)
 - [pwd](pwd.md)

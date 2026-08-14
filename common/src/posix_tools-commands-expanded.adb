@@ -12019,6 +12019,114 @@ package body Posix_Tools.Commands.Expanded is
          else Posix_Tools.Exit_Status.Success);
    end Run_Paste;
 
+   procedure Run_Pathchk
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Portable_Mode : Boolean := False;
+      First         : Positive := 1;
+      All_Ok        : Boolean := True;
+
+      function Path_Limit return Natural is
+        (if Portable_Mode then 256 else 4_096);
+
+      function Component_Limit return Natural is
+        (if Portable_Mode then 14 else 255);
+
+      function Is_Portable_Character (Ch : Character) return Boolean is
+      begin
+         return Ch in 'A' .. 'Z'
+           or else Ch in 'a' .. 'z'
+           or else Ch in '0' .. '9'
+           or else Ch = '.'
+           or else Ch = '_'
+           or else Ch = '-';
+      end Is_Portable_Character;
+
+      procedure Reject (Path, Reason : String) is
+      begin
+         All_Ok := False;
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Path, "posix_tools.pathchk.invalid_path", Reason);
+      end Reject;
+
+      procedure Check_Component (Path, Component : String) is
+      begin
+         if Component'Length > Component_Limit then
+            Reject (Path, "component too long");
+         elsif Portable_Mode then
+            for Ch of Component loop
+               if not Is_Portable_Character (Ch) then
+                  Reject (Path, "non-portable character");
+                  return;
+               end if;
+            end loop;
+         end if;
+      end Check_Component;
+
+      procedure Check_Path (Path : String) is
+         Start : Natural := Path'First;
+      begin
+         if Path = "" then
+            Reject (Path, "empty pathname");
+            return;
+         elsif Path'Length > Path_Limit then
+            Reject (Path, "pathname too long");
+            return;
+         end if;
+
+         while Start <= Path'Last loop
+            while Start <= Path'Last and then Path (Start) = '/' loop
+               Start := Start + 1;
+            end loop;
+
+            exit when Start > Path'Last;
+
+            declare
+               Stop : Natural := Start;
+            begin
+               while Stop <= Path'Last and then Path (Stop) /= '/' loop
+                  Stop := Stop + 1;
+               end loop;
+
+               Check_Component (Path, Path (Start .. Stop - 1));
+               Start := Stop + 1;
+            end;
+         end loop;
+      end Check_Path;
+   begin
+      while First <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First);
+         begin
+            if Arg = "--" then
+               First := First + 1;
+               exit;
+            elsif Arg = "-p" then
+               Portable_Mode := True;
+               First := First + 1;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if First > Context.Argument_Count then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      for Index in First .. Context.Argument_Count loop
+         Check_Path (Context.Argument (Index));
+      end loop;
+
+      Result.Status :=
+        (if All_Ok then Posix_Tools.Exit_Status.Success else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Pathchk;
+
    procedure Run_Cut
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -13281,6 +13389,7 @@ package body Posix_Tools.Commands.Expanded is
          when Mv_Command => Run_Mv (Context, Result);
          when Od_Command => Run_Od (Context, Result);
          when Paste_Command => Run_Paste (Context, Result);
+         when Pathchk_Command => Run_Pathchk (Context, Result);
          when Printf_Command => Run_Printf (Context, Result);
          when Readlink_Command => Run_Readlink (Context, Result);
          when Realpath_Command => Run_Realpath (Context, Result);

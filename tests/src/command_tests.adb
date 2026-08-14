@@ -38,6 +38,7 @@ with Posix_Tools.Commands.Mkdir;
 with Posix_Tools.Commands.Mv;
 with Posix_Tools.Commands.Od;
 with Posix_Tools.Commands.Paste;
+with Posix_Tools.Commands.Pathchk;
 with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
 with Posix_Tools.Commands.Readlink;
@@ -228,6 +229,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Od.Run (Context, Result);
       elsif Name = "paste" then
          Posix_Tools.Commands.Paste.Run (Context, Result);
+      elsif Name = "pathchk" then
+         Posix_Tools.Commands.Pathchk.Run (Context, Result);
       elsif Name = "printf" then
          Posix_Tools.Commands.Printf.Run (Context, Result);
       elsif Name = "pwd" then
@@ -5376,6 +5379,54 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Utility_Not_Found,
          "xargs maps missing utility to 127");
    end Test_Xargs_Status_Bands;
+
+   procedure Test_Pathchk (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+      Long_Component : constant String (1 .. 260) := (others => 'a');
+   begin
+      Context.Initialize ("pathchk", One_Arg ("portable/name_1.2"));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "pathchk accepts ordinary path");
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "pathchk success output");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "pathchk success diagnostics");
+
+      Context.Initialize ("pathchk", Two_Args ("-p", "portable_1.2"));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "pathchk -p accepts portable name");
+
+      Context.Initialize ("pathchk", Two_Args ("-p", "bad@name"));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "pathchk -p rejects non-portable characters");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "pathchk: 'bad@name': non-portable character" & LF,
+         "pathchk non-portable diagnostic");
+
+      Context.Initialize ("pathchk", One_Arg (""));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "pathchk rejects empty pathname");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "pathchk: '': empty pathname" & LF,
+         "pathchk empty diagnostic");
+
+      Context.Initialize ("pathchk", One_Arg (Long_Component));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "pathchk rejects long component");
+
+      Context.Initialize ("pathchk", No_Args);
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "pathchk rejects missing operands");
+   end Test_Pathchk;
 
    procedure Test_Timeout_Statuses (T : in out Fixture) is
       pragma Unreferenced (T);

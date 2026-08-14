@@ -27,6 +27,7 @@ mkdir,posix_tools_mkdir,Posix_Tools.Commands.Mkdir,tools/mkdir/alire.toml,tools/
 mv,posix_tools_mv,Posix_Tools.Commands.Mv,tools/mv/alire.toml,tools/mv/posix_tools_mv.gpr,docs/commands/mv.md,true,conforming_with_extensions,true,true,true
 od,posix_tools_od,Posix_Tools.Commands.Od,tools/od/alire.toml,tools/od/posix_tools_od.gpr,docs/commands/od.md,true,conforming_with_extensions,true,true,true
 paste,posix_tools_paste,Posix_Tools.Commands.Paste,tools/paste/alire.toml,tools/paste/posix_tools_paste.gpr,docs/commands/paste.md,true,conforming_with_extensions,true,true,true
+pathchk,posix_tools_pathchk,Posix_Tools.Commands.Pathchk,tools/pathchk/alire.toml,tools/pathchk/posix_tools_pathchk.gpr,docs/commands/pathchk.md,true,conforming_with_extensions,true,true,true
 printf,posix_tools_printf,Posix_Tools.Commands.Printf,tools/printf/alire.toml,tools/printf/posix_tools_printf.gpr,docs/commands/printf.md,true,conforming_with_extensions,true,true,true
 pwd,posix_tools_pwd,Posix_Tools.Commands.Pwd,tools/pwd/alire.toml,tools/pwd/posix_tools_pwd.gpr,docs/commands/pwd.md,true,conforming_with_extensions,true,true,true
 readlink,posix_tools_readlink,Posix_Tools.Commands.Readlink,tools/readlink/alire.toml,tools/readlink/posix_tools_readlink.gpr,docs/commands/readlink.md,true,conforming_with_extensions,true,true,true

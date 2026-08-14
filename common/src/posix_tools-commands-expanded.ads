@@ -25,6 +25,7 @@ package Posix_Tools.Commands.Expanded is
       Mv_Command,
       Od_Command,
       Paste_Command,
+      Pathchk_Command,
       Printf_Command,
       Readlink_Command,
       Realpath_Command,
