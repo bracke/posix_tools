@@ -57,6 +57,37 @@ package body Posix_Tools.Host_Adapters.Host is
          return False;
    end Current_Supplementary_Group_Ids;
 
+   function User_Group_Ids
+     (User_Name : String;
+      Groups    : out Group_Id_List;
+      Last      : out Natural)
+      return Boolean
+   is
+      Host_Groups : Hostkit.Process.Group_Id_List (1 .. Groups'Length);
+      Host_Last   : Natural := 0;
+      Ok          : constant Boolean := Hostkit.Process.User_Group_Ids (User_Name, Host_Groups, Host_Last);
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+
+      Last := Natural'Min (Host_Last, Groups'Length);
+      if Last > 0 then
+         for Offset in 0 .. Last - 1 loop
+            Groups (Groups'First + Offset) := Host_Groups (Host_Groups'First + Offset);
+         end loop;
+      end if;
+
+      return Ok;
+   exception
+      when others =>
+         for Index in Groups'Range loop
+            Groups (Index) := 0;
+         end loop;
+         Last := 0;
+         return False;
+   end User_Group_Ids;
+
    function Native_Locale return String is
    begin
       return Hostkit.Host.Native_Locale;
@@ -81,6 +112,11 @@ package body Posix_Tools.Host_Adapters.Host is
    begin
       return Hostkit.Host.Node_Name;
    end Node_Name;
+
+   function Set_Node_Name (Name : String) return Boolean is
+   begin
+      return Hostkit.Host.Set_Node_Name (Name);
+   end Set_Node_Name;
 
    function Release_Name return String is
    begin

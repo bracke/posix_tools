@@ -21,7 +21,9 @@ Each operand is a file path to inspect.
 ## Options
 
 `-c format` writes one formatted line per operand. Supported format fields are `%%`, `%n` pathname, `%s` size, `%F`
-file type, `%a` octal mode, `%u` user id, and `%g` group id. The escapes `\n`, `\t`, and `\\` are recognized.
+file type, `%a` octal mode, `%u` user id, `%g` group id, `%x` access time, `%X` access time as epoch seconds, `%y`
+modification time, `%Y` modification time as epoch seconds, `%w` creation time, and `%W` creation time as epoch
+seconds. The escapes `\n`, `\t`, and `\\` are recognized.
 `--` may be used to end option recognition. Common project options such as `--help`, `--version`, and the internal
 identity option are recognized by the process wrapper.
 
@@ -55,8 +57,8 @@ are locale-invariant in V1.
 
 ## Implementation-Defined Choices
 
-File type, size, permissions, ownership, and special-file classification follow hostkit metadata behavior on the
-active platform.
+File type, size, permissions, ownership, timestamps, and special-file classification follow hostkit metadata behavior
+on the active platform. Human-readable timestamps are rendered in UTC with a `+0000` offset.
 
 ## Extensions
 
@@ -66,7 +68,7 @@ active platform.
 
 `stat README.md`
 
-`stat -c '%n %s %F' README.md`
+`stat -c '%n %s %F %Y' README.md`
 
 ## Conformance Status
 
@@ -74,4 +76,4 @@ Project extension.
 
 ## Known Limitations
 
-Timestamp format fields are not implemented in V1.
+No known V1 limitation for the documented metadata and format-field surface.

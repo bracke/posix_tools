@@ -1340,13 +1340,24 @@ package body Command_Tests is
       Context.Initialize ("groups", No_Args);
       Posix_Tools.Commands.Groups.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status in Posix_Tools.Exit_Status.Success | Posix_Tools.Exit_Status.Operational_Failure,
-         "groups status reflects host group support");
-      if Result.Status = Posix_Tools.Exit_Status.Success then
-         AUnit.Assertions.Assert (Test_Contexts.Output (Context) /= "", "groups writes group list");
-      else
-         AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) /= "", "groups unsupported diagnostic");
-      end if;
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "60000 60001" & EOL,
+         "groups writes current group list");
+
+      Context.Initialize ("groups", One_Arg ("named-user"));
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "named-user : 60002 60000" & EOL,
+         "groups writes named user group list");
+
+      Context.Initialize ("groups", One_Arg ("missing-user"));
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) /= "",
+         "groups reports missing user group list");
 
       Context.Initialize ("locale", No_Args);
       Test_Contexts.Set_Environment_Value (Context, "LANG", "en_US.UTF-8");
@@ -1367,8 +1378,26 @@ package body Command_Tests is
       Posix_Tools.Commands.Hostname.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) /= "",
+         and then Test_Contexts.Output (Context) = "test-node" & EOL,
          "hostname reports node name");
+
+      Context.Initialize ("hostname", One_Arg ("new-node"));
+      Test_Contexts.Set_Node_Name_Allowed (Context, True);
+      Posix_Tools.Commands.Hostname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Node_Name_Set_Called (Context)
+         and then Test_Contexts.Captured_Node_Name (Context) = "new-node",
+         "hostname sets node name through context");
+
+      Context.Initialize ("hostname", One_Arg ("denied-node"));
+      Posix_Tools.Commands.Hostname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) /= "",
+         "hostname reports failed node-name set");
 
       Context.Initialize ("mkfifo", Three_Args ("-m", "600", Mkfifo_Target));
       Posix_Tools.Commands.Mkfifo.Run (Context, Result);
@@ -1394,6 +1423,17 @@ package body Command_Tests is
       Context.Initialize ("nohup", One_Arg ("true"));
       Posix_Tools.Commands.Nohup.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "nohup propagates true status");
+
+      Context.Initialize ("nohup", One_Arg ("true"));
+      Test_Contexts.Set_Standard_Output_Is_Terminal (Context, True);
+      Test_Contexts.Set_Standard_Error_Is_Terminal (Context, True);
+      Posix_Tools.Commands.Nohup.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Redirected_Output_Path (Context) = "nohup.out"
+         and then Test_Contexts.Redirected_Output_Enabled (Context)
+         and then Test_Contexts.Redirected_Error_Enabled (Context),
+         "nohup redirects terminal output to nohup.out");
 
       Context.Initialize ("printenv", One_Arg ("POSIX_TOOLS_TEST_PRINTENV"));
       Test_Contexts.Set_Environment_Value (Context, "POSIX_TOOLS_TEST_PRINTENV", "printed-value");
@@ -1433,6 +1473,18 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Source & " 9 regular file" & EOL,
          "stat supports custom format fields");
+
+      Context.Initialize ("stat", Three_Args ("-c", "%x|%X|%y|%Y|%w|%W", Source));
+      Posix_Tools.Commands.Stat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then not Contains (Test_Contexts.Output (Context), "%x")
+         and then not Contains (Test_Contexts.Output (Context), "%X")
+         and then not Contains (Test_Contexts.Output (Context), "%y")
+         and then not Contains (Test_Contexts.Output (Context), "%Y")
+         and then not Contains (Test_Contexts.Output (Context), "%w")
+         and then not Contains (Test_Contexts.Output (Context), "%W"),
+         "stat supports timestamp format fields");
 
       Ada.Directories.Create_Directory (Multi);
       Write_File (Other, "other-data");

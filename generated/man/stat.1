@@ -11,7 +11,9 @@ stat writes a compact metadata block for each file operand using the posix_tools
 Each operand is a file path to inspect.
 .SH OPTIONS
 -c format writes one formatted line per operand. Supported format fields are %%, %n pathname, %s size, %F
-file type, %a octal mode, %u user id, and %g group id. The escapes \n, \t, and \\ are recognized.
+file type, %a octal mode, %u user id, %g group id, %x access time, %X access time as epoch seconds, %y
+modification time, %Y modification time as epoch seconds, %w creation time, and %W creation time as epoch
+seconds. The escapes \n, \t, and \\ are recognized.
 -- may be used to end option recognition. Common project options such as --help, --version, and the internal
 identity option are recognized by the process wrapper.
 .SH STANDARD INPUT
@@ -31,17 +33,17 @@ ownership metadata is reported as unknown. The -c format language is a focused p
 Metadata labels and diagnostics are locale-dependent in future catalog-backed help. Pathname data and numeric output
 are locale-invariant in V1.
 .SH IMPLEMENTATION-DEFINED CHOICES
-File type, size, permissions, ownership, and special-file classification follow hostkit metadata behavior on the
-active platform.
+File type, size, permissions, ownership, timestamps, and special-file classification follow hostkit metadata behavior
+on the active platform. Human-readable timestamps are rendered in UTC with a +0000 offset.
 .SH EXTENSIONS
 stat is a project extension command. The command supports project-wide help, version, and identity operations.
 .SH EXAMPLES
 stat README.md
 
-stat -c '%n %s %F' README.md
+stat -c '%n %s %F %Y' README.md
 .SH CONFORMANCE STATUS
 Project extension.
 .SH KNOWN LIMITATIONS
-Timestamp format fields are not implemented in V1.
+No known V1 limitation for the documented metadata and format-field surface.
 .SH SEE ALSO
 docs/commands/stat.md

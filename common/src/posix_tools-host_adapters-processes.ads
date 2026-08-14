@@ -18,4 +18,12 @@ package Posix_Tools.Host_Adapters.Processes is
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
       Timed_Out   : out Boolean) return Boolean;
+
+   function Run_With_Redirected_Output
+     (Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean;
 end Posix_Tools.Host_Adapters.Processes;

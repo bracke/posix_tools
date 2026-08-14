@@ -25,6 +25,12 @@ package body Test_Contexts is
       Self.Input_Terminal_Name := Ada.Strings.Unbounded.To_Unbounded_String ("/dev/test-tty");
       Self.Output_Is_Terminal := False;
       Self.Error_Is_Terminal := False;
+      Self.Node_Name_Text := Ada.Strings.Unbounded.To_Unbounded_String ("test-node");
+      Self.Node_Name_Set_Allowed := False;
+      Self.Node_Name_Set_Done := False;
+      Self.Redirect_Path := Ada.Strings.Unbounded.Null_Unbounded_String;
+      Self.Redirect_Output := False;
+      Self.Redirect_Error := False;
       Self.Logical_Pwd_Matches := True;
       Self.Output_Failure_Enabled := False;
       Self.Output_Failure_Limit := 0;
@@ -267,6 +273,61 @@ package body Test_Contexts is
       return Self.Error_Is_Terminal;
    end Standard_Error_Is_Terminal;
 
+   overriding function Current_Node_Name (Self : Capturing_Context) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Self.Node_Name_Text);
+   end Current_Node_Name;
+
+   overriding function Set_Node_Name (Self : in out Capturing_Context; Name : String) return Boolean is
+   begin
+      if Self.Node_Name_Set_Allowed and then Name /= "" then
+         Self.Node_Name_Text := Ada.Strings.Unbounded.To_Unbounded_String (Name);
+         Self.Node_Name_Set_Done := True;
+         return True;
+      end if;
+
+      return False;
+   end Set_Node_Name;
+
+   overriding function Current_Group_Ids
+     (Self   : Capturing_Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+      Groups (Groups'First) := 60000;
+      Groups (Groups'First + 1) := 60001;
+      Last := 2;
+      return True;
+   end Current_Group_Ids;
+
+   overriding function User_Group_Ids
+     (Self      : Capturing_Context;
+      User_Name : String;
+      Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last      : out Natural) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+
+      if User_Name = "named-user" then
+         Groups (Groups'First) := 60002;
+         Groups (Groups'First + 1) := 60000;
+         Last := 2;
+         return True;
+      end if;
+
+      Last := 0;
+      return False;
+   end User_Group_Ids;
+
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural is
    begin
       return Self.Tail_Follow_Limit;
@@ -425,6 +486,22 @@ package body Test_Contexts is
       end if;
    end Execute_Utility_With_Timeout;
 
+   overriding function Execute_Utility_With_Redirected_Output
+     (Self            : in out Capturing_Context;
+      Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean
+   is
+   begin
+      Self.Redirect_Path := Ada.Strings.Unbounded.To_Unbounded_String (Output_Path);
+      Self.Redirect_Output := Redirect_Output;
+      Self.Redirect_Error := Redirect_Error;
+      return Execute_Utility (Self, Utility, Arguments, Exit_Status);
+   end Execute_Utility_With_Redirected_Output;
+
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String) is
       Pair : constant String := Name & "=" & Value;
    begin
@@ -495,6 +572,36 @@ package body Test_Contexts is
    begin
       Self.Error_Is_Terminal := Value;
    end Set_Standard_Error_Is_Terminal;
+
+   procedure Set_Node_Name_Allowed (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.Node_Name_Set_Allowed := Value;
+   end Set_Node_Name_Allowed;
+
+   function Node_Name_Set_Called (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Node_Name_Set_Done;
+   end Node_Name_Set_Called;
+
+   function Captured_Node_Name (Self : Capturing_Context) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Self.Node_Name_Text);
+   end Captured_Node_Name;
+
+   function Redirected_Output_Path (Self : Capturing_Context) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (Self.Redirect_Path);
+   end Redirected_Output_Path;
+
+   function Redirected_Output_Enabled (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Redirect_Output;
+   end Redirected_Output_Enabled;
+
+   function Redirected_Error_Enabled (Self : Capturing_Context) return Boolean is
+   begin
+      return Self.Redirect_Error;
+   end Redirected_Error_Enabled;
 
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural) is
    begin

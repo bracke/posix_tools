@@ -2,19 +2,23 @@
 
 ## Name
 
-hostname - write the current host node name
+hostname - write or set the current host node name
 
 ## Synopsis
 
 `hostname`
 
+`hostname name`
+
 ## Description
 
-`hostname` writes the host node name reported by the posix_tools host adapter.
+`hostname` writes the host node name reported by the posix_tools host adapter. With one operand it attempts to set
+the host node name through the same adapter.
 
 ## Operands
 
-No operands are accepted.
+`name` is the new host node name. Setting the node name is a privileged host operation and may be rejected by the
+platform or by host policy.
 
 ## Options
 
@@ -27,7 +31,7 @@ Not used.
 
 ## Standard Output
 
-The node name followed by a newline.
+Without operands, the node name followed by a newline. With a `name` operand, no output is written on success.
 
 ## Standard Error
 
@@ -35,12 +39,13 @@ Diagnostics are localized through messages.
 
 ## Exit Status
 
-`0` on success, `1` when the platform cannot provide a node name, `2` for invalid operands, and `125` for unexpected
-internal failures at the command boundary.
+`0` on success, `1` when the platform cannot provide or set a node name, `2` for invalid operands, and `125` for
+unexpected internal failures at the command boundary.
 
 ## Behavioral Details
 
-The command does not change the host name. It only reports the current name.
+The no-operand form reports the current name. The one-operand form attempts to change the node name and reports failure
+when the host operation is unsupported, invalid for the host, or refused.
 
 ## Locale Behavior
 
@@ -48,7 +53,7 @@ Command data output is locale-invariant. Help and diagnostics are locale-depende
 
 ## Implementation-Defined Choices
 
-The value is the hostkit node-name result for the active platform.
+The reported value and setting operation are the hostkit node-name operations for the active platform.
 
 ## Extensions
 
@@ -58,10 +63,12 @@ The command supports project-wide help, version, and identity operations.
 
 `hostname`
 
+`hostname build-node-01`
+
 ## Conformance Status
 
 Project extension.
 
 ## Known Limitations
 
-Setting host names is intentionally not implemented.
+No known V1 limitation for the documented host-name surface beyond host permission and platform capability limits.

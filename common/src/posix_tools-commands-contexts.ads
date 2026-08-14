@@ -2,6 +2,7 @@ with Ada.Calendar;
 with Ada.Streams;
 with Posix_Tools.Arguments;
 with Posix_Tools.Host_Adapters.File_Watches;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Numbers;
 
 package Posix_Tools.Commands.Contexts is
@@ -22,6 +23,17 @@ package Posix_Tools.Commands.Contexts is
    function Standard_Input_Terminal_Name (Self : Context) return String;
    function Standard_Output_Is_Terminal (Self : Context) return Boolean;
    function Standard_Error_Is_Terminal (Self : Context) return Boolean;
+   function Current_Node_Name (Self : Context) return String;
+   function Set_Node_Name (Self : in out Context; Name : String) return Boolean;
+   function Current_Group_Ids
+     (Self   : Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean;
+   function User_Group_Ids
+     (Self      : Context;
+      User_Name : String;
+      Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last      : out Natural) return Boolean;
    function Physical_Current_Directory (Self : Context) return String;
    function Try_Physical_Current_Directory
      (Self : Context;
@@ -55,6 +67,14 @@ package Posix_Tools.Commands.Contexts is
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
       Timed_Out   : out Boolean) return Boolean;
+   function Execute_Utility_With_Redirected_Output
+     (Self            : in out Context;
+      Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean;
 
    procedure Read_Standard_Input
      (Self   : in out Context;

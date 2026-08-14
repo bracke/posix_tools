@@ -510,6 +510,28 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end File_Access_Time_From_File;
 
+   function Access_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
+      Available : Boolean := False;
+   begin
+      Time := Hostkit.Metadata.File_Access_Time (Path, Available);
+      return Available;
+   exception
+      when others =>
+         Time := Ada.Calendar.Time_Of (1901, 1, 1);
+         return False;
+   end Access_Time;
+
+   function Creation_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
+      Available : Boolean := False;
+   begin
+      Time := Hostkit.Metadata.File_Creation_Time (Path, Available);
+      return Available;
+   exception
+      when others =>
+         Time := Ada.Calendar.Time_Of (1901, 1, 1);
+         return False;
+   end Creation_Time;
+
    function File_Time_Of
      (Year   : Natural;
       Month  : Natural;

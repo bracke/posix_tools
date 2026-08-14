@@ -73,6 +73,8 @@ package Posix_Tools.Host_Adapters.File_System is
    function Current_File_Time return File_Time;
    function File_Time_From_File (Path : String; Time : out File_Time) return Boolean;
    function File_Access_Time_From_File (Path : String; Time : out File_Time) return Boolean;
+   function Access_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean;
+   function Creation_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean;
    function File_Time_Of
      (Year   : Natural;
       Month  : Natural;

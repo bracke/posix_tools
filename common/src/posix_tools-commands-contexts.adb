@@ -1,6 +1,7 @@
 with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
@@ -177,6 +178,21 @@ package body Posix_Tools.Commands.Contexts is
         (Utility, Arguments, Timeout_Ms, Exit_Status, Timed_Out);
    end Execute_Utility_With_Timeout;
 
+   function Execute_Utility_With_Redirected_Output
+     (Self            : in out Context;
+      Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Processes.Run_With_Redirected_Output
+        (Utility, Arguments, Output_Path, Redirect_Output, Redirect_Error, Exit_Status);
+   end Execute_Utility_With_Redirected_Output;
+
    function Standard_Input_Is_Terminal (Self : Context) return Boolean is
       pragma Unreferenced (Self);
    begin
@@ -200,6 +216,74 @@ package body Posix_Tools.Commands.Contexts is
    begin
       return Posix_Tools.Host_Adapters.Terminals.Standard_Error_Is_Terminal;
    end Standard_Error_Is_Terminal;
+
+   function Current_Node_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Node_Name;
+   end Current_Node_Name;
+
+   function Set_Node_Name (Self : in out Context; Name : String) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Set_Node_Name (Name);
+   end Set_Node_Name;
+
+   function Current_Group_Ids
+     (Self   : Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean
+   is
+      pragma Unreferenced (Self);
+      Primary : Natural := 0;
+
+      procedure Append_Group (Id : Natural) is
+      begin
+         for Index in 1 .. Last loop
+            if Groups (Groups'First + Index - 1) = Id then
+               return;
+            end if;
+         end loop;
+
+         if Last < Groups'Length then
+            Last := Last + 1;
+            Groups (Groups'First + Last - 1) := Id;
+         end if;
+      end Append_Group;
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+      Last := 0;
+
+      if Posix_Tools.Host_Adapters.Host.Current_Group_Id (Primary) then
+         Append_Group (Primary);
+      end if;
+
+      declare
+         Raw_Groups : Posix_Tools.Host_Adapters.Host.Group_Id_List (1 .. Groups'Length);
+         Raw_Last   : Natural := 0;
+      begin
+         if Posix_Tools.Host_Adapters.Host.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
+            for Index in 1 .. Raw_Last loop
+               Append_Group (Raw_Groups (Index));
+            end loop;
+         end if;
+      end;
+
+      return Last > 0;
+   end Current_Group_Ids;
+
+   function User_Group_Ids
+     (Self      : Context;
+      User_Name : String;
+      Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last      : out Natural) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.User_Group_Ids (User_Name, Groups, Last);
+   end User_Group_Ids;
 
    procedure Read_Standard_Input
      (Self   : in out Context;

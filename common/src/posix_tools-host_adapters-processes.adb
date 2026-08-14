@@ -1,7 +1,9 @@
 with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with Hostkit;
+with Hostkit.Descriptors;
 with Hostkit.Process;
+with Hostkit.Spawn;
 with Posix_Tools.Host_Adapters.Environment;
 
 package body Posix_Tools.Host_Adapters.Processes is
@@ -132,4 +134,82 @@ package body Posix_Tools.Host_Adapters.Processes is
          Exit_Status := 125;
          return False;
    end Run_With_Timeout;
+
+   function Run_With_Redirected_Output
+     (Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean
+   is
+      package Descriptors renames Hostkit.Descriptors;
+      package Spawn renames Hostkit.Spawn;
+
+      Program        : constant String := Hostkit.Process.Locate (Utility);
+      Host_Arguments : constant Hostkit.String_Vectors.Vector := To_Host_Arguments (Arguments);
+      Output_File    : Descriptors.Descriptor := Descriptors.Invalid;
+      Options        : Spawn.Options;
+      Child          : Spawn.Process_Handle;
+      Started        : Spawn.Spawn_Outcome;
+      Status         : Spawn.Status;
+   begin
+      if Program = "" then
+         Exit_Status := 127;
+         return False;
+      end if;
+
+      if Redirect_Output then
+         if Output_Path = ""
+           or else not Descriptors.Open_File (Output_Path, Descriptors.Open_Write_Append, Output_File)
+         then
+            Exit_Status := 126;
+            return False;
+         end if;
+      end if;
+
+      if Redirect_Output then
+         Options.Output := Output_File;
+      end if;
+
+      if Redirect_Error then
+         Options.Error_Output := (if Redirect_Output then Output_File else Descriptors.Standard_Output);
+      end if;
+
+      Options.Reset_Signals := False;
+      Started := Spawn.Start (Program, Host_Arguments, Options, Child);
+      Descriptors.Close (Output_File);
+
+      case Started is
+         when Spawn.Spawn_Ok =>
+            null;
+         when Spawn.Spawn_Not_Found =>
+            Exit_Status := 127;
+            return False;
+         when others =>
+            Exit_Status := 126;
+            return False;
+      end case;
+
+      if not Spawn.Wait (Child, Spawn.Wait_Block, Status) then
+         Exit_Status := 125;
+         return False;
+      end if;
+
+      case Status.State is
+         when Spawn.Wait_Exited =>
+            Exit_Status := Status.Exit_Code;
+         when Spawn.Wait_Signalled =>
+            Exit_Status := 128 + Status.Raw_Signal_Number;
+         when others =>
+            Exit_Status := 125;
+      end case;
+
+      return True;
+   exception
+      when others =>
+         Hostkit.Descriptors.Close (Output_File);
+         Exit_Status := 125;
+         return False;
+   end Run_With_Redirected_Output;
 end Posix_Tools.Host_Adapters.Processes;

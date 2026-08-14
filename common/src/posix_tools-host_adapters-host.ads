@@ -9,11 +9,17 @@ package Posix_Tools.Host_Adapters.Host is
      (Groups : out Group_Id_List;
       Last   : out Natural)
       return Boolean;
+   function User_Group_Ids
+     (User_Name : String;
+      Groups    : out Group_Id_List;
+      Last      : out Natural)
+      return Boolean;
    function Native_Locale return String;
    function Login_Name return String;
    function Own_Process_Id return Integer;
    function System_Name return String;
    function Node_Name return String;
+   function Set_Node_Name (Name : String) return Boolean;
    function Release_Name return String;
    function Version_Name return String;
    function Machine_Name return String;

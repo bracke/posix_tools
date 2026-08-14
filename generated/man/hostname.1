@@ -1,37 +1,44 @@
 .TH hostname 1
 .SH NAME
-hostname - write the current host node name
+hostname - write or set the current host node name
 .SH SYNOPSIS
 hostname
+
+hostname name
 .SH DESCRIPTION
-hostname writes the host node name reported by the posix_tools host adapter.
+hostname writes the host node name reported by the posix_tools host adapter. With one operand it attempts to set
+the host node name through the same adapter.
 .SH OPERANDS
-No operands are accepted.
+name is the new host node name. Setting the node name is a privileged host operation and may be rejected by the
+platform or by host policy.
 .SH OPTIONS
 Only common project options such as --help, --version, and the internal identity option are recognized by the
 process wrapper.
 .SH STANDARD INPUT
 Not used.
 .SH STANDARD OUTPUT
-The node name followed by a newline.
+Without operands, the node name followed by a newline. With a name operand, no output is written on success.
 .SH STANDARD ERROR
 Diagnostics are localized through messages.
 .SH EXIT STATUS
-0 on success, 1 when the platform cannot provide a node name, 2 for invalid operands, and 125 for unexpected
-internal failures at the command boundary.
+0 on success, 1 when the platform cannot provide or set a node name, 2 for invalid operands, and 125 for
+unexpected internal failures at the command boundary.
 .SH BEHAVIORAL DETAILS
-The command does not change the host name. It only reports the current name.
+The no-operand form reports the current name. The one-operand form attempts to change the node name and reports failure
+when the host operation is unsupported, invalid for the host, or refused.
 .SH LOCALE BEHAVIOR
 Command data output is locale-invariant. Help and diagnostics are locale-dependent.
 .SH IMPLEMENTATION-DEFINED CHOICES
-The value is the hostkit node-name result for the active platform.
+The reported value and setting operation are the hostkit node-name operations for the active platform.
 .SH EXTENSIONS
 The command supports project-wide help, version, and identity operations.
 .SH EXAMPLES
 hostname
+
+hostname build-node-01
 .SH CONFORMANCE STATUS
 Project extension.
 .SH KNOWN LIMITATIONS
-Setting host names is intentionally not implemented.
+No known V1 limitation for the documented host-name surface beyond host permission and platform capability limits.
 .SH SEE ALSO
 docs/commands/hostname.md

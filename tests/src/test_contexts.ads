@@ -3,6 +3,7 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Contexts;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Numbers;
 
 package Test_Contexts is
@@ -39,6 +40,17 @@ package Test_Contexts is
    overriding function Standard_Input_Terminal_Name (Self : Capturing_Context) return String;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Current_Node_Name (Self : Capturing_Context) return String;
+   overriding function Set_Node_Name (Self : in out Capturing_Context; Name : String) return Boolean;
+   overriding function Current_Group_Ids
+     (Self   : Capturing_Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean;
+   overriding function User_Group_Ids
+     (Self      : Capturing_Context;
+      User_Name : String;
+      Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last      : out Natural) return Boolean;
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural;
    overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context);
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
@@ -64,6 +76,14 @@ package Test_Contexts is
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
       Timed_Out   : out Boolean) return Boolean;
+   overriding function Execute_Utility_With_Redirected_Output
+     (Self            : in out Capturing_Context;
+      Utility         : String;
+      Arguments       : Posix_Tools.Arguments.Vector;
+      Output_Path     : String;
+      Redirect_Output : Boolean;
+      Redirect_Error  : Boolean;
+      Exit_Status     : out Integer) return Boolean;
 
    procedure Set_Environment_Value (Self : in out Capturing_Context; Name, Value : String);
    procedure Set_Locale (Self : in out Capturing_Context; Value : String);
@@ -74,6 +94,12 @@ package Test_Contexts is
    procedure Set_Standard_Input_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
+   procedure Set_Node_Name_Allowed (Self : in out Capturing_Context; Value : Boolean);
+   function Node_Name_Set_Called (Self : Capturing_Context) return Boolean;
+   function Captured_Node_Name (Self : Capturing_Context) return String;
+   function Redirected_Output_Path (Self : Capturing_Context) return String;
+   function Redirected_Output_Enabled (Self : Capturing_Context) return Boolean;
+   function Redirected_Error_Enabled (Self : Capturing_Context) return Boolean;
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
    procedure Set_Tail_Follow_Append
      (Self       : in out Capturing_Context;
@@ -112,6 +138,12 @@ private
       Input_Terminal_Name : Ada.Strings.Unbounded.Unbounded_String;
       Output_Is_Terminal : Boolean := False;
       Error_Is_Terminal : Boolean := False;
+      Node_Name_Text : Ada.Strings.Unbounded.Unbounded_String;
+      Node_Name_Set_Allowed : Boolean := False;
+      Node_Name_Set_Done : Boolean := False;
+      Redirect_Path : Ada.Strings.Unbounded.Unbounded_String;
+      Redirect_Output : Boolean := False;
+      Redirect_Error : Boolean := False;
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;

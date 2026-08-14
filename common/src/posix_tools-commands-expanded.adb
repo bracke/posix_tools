@@ -8334,21 +8334,31 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      Name : constant String := Host.Node_Name;
    begin
-      if Context.Argument_Count > 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (1) & "'");
-         return;
-      end if;
-
-      if Name = "" then
-         Posix_Tools.Commands.Helpers.Operational_Error
-           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      if Context.Argument_Count = 0 then
+         declare
+            Name : constant String := Context.Current_Node_Name;
+         begin
+            if Name = "" then
+               Posix_Tools.Commands.Helpers.Operational_Error
+                 (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+               Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+            else
+               Context.Put_Line (Name);
+               Set_Success (Context, Result);
+            end if;
+         end;
+      elsif Context.Argument_Count = 1 then
+         if Context.Set_Node_Name (Context.Argument (1)) then
+            Set_Success (Context, Result);
+         else
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         end if;
       else
-         Context.Put_Line (Name);
-         Set_Success (Context, Result);
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (2) & "'");
       end if;
    end Run_Hostname;
 
@@ -8619,55 +8629,54 @@ package body Posix_Tools.Commands.Expanded is
       Groups     : Host.Group_Id_List (1 .. 256);
       Group_Last : Natural := 0;
 
-      procedure Append_Group (Id : Natural) is
-      begin
-         for Index in 1 .. Group_Last loop
-            if Groups (Index) = Id then
-               return;
-            end if;
-         end loop;
-
-         if Group_Last < Groups'Length then
-            Group_Last := Group_Last + 1;
-            Groups (Group_Last) := Id;
-         end if;
-      end Append_Group;
-
       function Group_Name_Or_Id (Id : Natural) return String is
          Name : constant String := FS.Group_Name_For_Id (Id);
       begin
          return (if Name = "" then Trimmed_Image (Id) else Name);
       end Group_Name_Or_Id;
    begin
-      if Context.Argument_Count > 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (1) & "'");
-         return;
-      end if;
-
-      declare
-         Primary_Group : Natural := 0;
-      begin
-         if Host.Current_Group_Id (Primary_Group) then
-            Append_Group (Primary_Group);
+      if Context.Argument_Count = 0 then
+         if not Context.Current_Group_Ids (Groups, Group_Last) then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+            return;
          end if;
-      end;
+      else
+         declare
+            First : Positive := 1;
+         begin
+            if Context.Argument (1) = "--" then
+               First := 2;
+               if Context.Argument_Count = 1 then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+                  return;
+               end if;
+            end if;
 
-      declare
-         Raw_Groups : Host.Group_Id_List (1 .. 256);
-         Raw_Last   : Natural := 0;
-      begin
-         if Host.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
-            for Index in 1 .. Raw_Last loop
-               Append_Group (Raw_Groups (Index));
+            for Operand in First .. Context.Argument_Count loop
+               declare
+                  User_Groups : Host.Group_Id_List (1 .. 256);
+                  User_Last   : Natural := 0;
+                  Output      : Unbounded_String;
+               begin
+                  if not Context.User_Group_Ids (Context.Argument (Operand), User_Groups, User_Last) then
+                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                       (Context, Context.Argument (Operand), "posix_tools.diagnostic.unsupported",
+                        "unsupported platform capability");
+                     Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                     return;
+                  end if;
+
+                  Append (Output, Context.Argument (Operand) & " :");
+                  for Index in 1 .. User_Last loop
+                     Append (Output, " " & Group_Name_Or_Id (User_Groups (Index)));
+                  end loop;
+                  Context.Put_Line (To_String (Output));
+               end;
             end loop;
-         end if;
-      end;
-
-      if Group_Last = 0 then
-         Posix_Tools.Commands.Helpers.Operational_Error
-           (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         end;
+         Set_Success (Context, Result);
          return;
       end if;
 
@@ -9343,6 +9352,8 @@ package body Posix_Tools.Commands.Expanded is
       Previous     : Signals.Disposition := Signals.Default_Disposition;
       Have_Previous : Boolean := False;
       Ignored      : Boolean := False;
+      Redirect_Out : constant Boolean := Context.Standard_Output_Is_Terminal;
+      Redirect_Err : constant Boolean := Context.Standard_Error_Is_Terminal;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -9366,7 +9377,9 @@ package body Posix_Tools.Commands.Expanded is
          Ignored := Signals.Set_Disposition (Signals.Hangup, Signals.Ignore_Disposition);
       end if;
 
-      if not Context.Execute_Utility (Context.Argument (First), Arguments, Exit_Code) then
+      if not Context.Execute_Utility_With_Redirected_Output
+        (Context.Argument (First), Arguments, "nohup.out", Redirect_Out, Redirect_Err, Exit_Code)
+      then
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");
       end if;
@@ -15235,6 +15248,33 @@ package body Posix_Tools.Commands.Expanded is
          return Result;
       end Mode_Image;
 
+      function Time_Image (Value : Ada.Calendar.Time) return String is
+         Year       : Ada.Calendar.Year_Number;
+         Month      : Ada.Calendar.Month_Number;
+         Day        : Ada.Calendar.Day_Number;
+         Hour       : Ada.Calendar.Formatting.Hour_Number;
+         Minute     : Ada.Calendar.Formatting.Minute_Number;
+         Second     : Ada.Calendar.Formatting.Second_Number;
+         Sub_Second : Ada.Calendar.Formatting.Second_Duration;
+      begin
+         Ada.Calendar.Formatting.Split (Value, Year, Month, Day, Hour, Minute, Second, Sub_Second, Time_Zone => 0);
+         return Four_Digits (Natural (Year)) & "-"
+           & Two_Digits (Natural (Month)) & "-"
+           & Two_Digits (Natural (Day)) & " "
+           & Two_Digits (Natural (Hour)) & ":"
+           & Two_Digits (Natural (Minute)) & ":"
+           & Two_Digits (Natural (Second)) & " +0000";
+      end Time_Image;
+
+      function Epoch_Image (Value : Ada.Calendar.Time) return String is
+         Epoch : constant Ada.Calendar.Time := Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
+      begin
+         return Long_Image (Long_Long_Integer (Value - Epoch));
+      exception
+         when others =>
+            return "unknown";
+      end Epoch_Image;
+
       function Kind_Name (Path : String) return String is
       begin
          case FS.Kind (Path) is
@@ -15273,6 +15313,12 @@ package body Posix_Tools.Commands.Expanded is
          User_Id         : Natural;
          Group_Id        : Natural) return String
       is
+         Access_Available   : Boolean := False;
+         Creation_Available : Boolean := False;
+         Modify_Available   : Boolean := False;
+         Access_Time        : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
+         Creation_Time      : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
+         Modify_Time        : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
       begin
          case Code is
             when '%' =>
@@ -15287,6 +15333,24 @@ package body Posix_Tools.Commands.Expanded is
                return Path;
             when 's' =>
                return Long_Image (FS.Size (Path));
+            when 'w' =>
+               Creation_Available := FS.Creation_Time (Path, Creation_Time);
+               return (if Creation_Available then Time_Image (Creation_Time) else "unknown");
+            when 'W' =>
+               Creation_Available := FS.Creation_Time (Path, Creation_Time);
+               return (if Creation_Available then Epoch_Image (Creation_Time) else "0");
+            when 'x' =>
+               Access_Available := FS.Access_Time (Path, Access_Time);
+               return (if Access_Available then Time_Image (Access_Time) else "unknown");
+            when 'X' =>
+               Access_Available := FS.Access_Time (Path, Access_Time);
+               return (if Access_Available then Epoch_Image (Access_Time) else "0");
+            when 'y' =>
+               Modify_Available := FS.Modification_Time (Path, Modify_Time);
+               return (if Modify_Available then Time_Image (Modify_Time) else "unknown");
+            when 'Y' =>
+               Modify_Available := FS.Modification_Time (Path, Modify_Time);
+               return (if Modify_Available then Epoch_Image (Modify_Time) else "0");
             when 'u' =>
                return (if Owner_Available then Natural_Image (User_Id) else "unknown");
             when others =>
