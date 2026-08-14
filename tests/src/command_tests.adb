@@ -4716,6 +4716,21 @@ package body Command_Tests is
       Posix_Tools.Commands.Test_Command.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "test string less-than status");
 
+      Context.Initialize ("test", Three_Args ("z", "<", Character'Val (16#C3#) & Character'Val (16#A6#)));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Test_Command.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "test string less-than uses locale collation");
+
+      Context.Initialize ("test", Three_Args ("z", "<", Character'Val (16#C3#) & Character'Val (16#A6#)));
+      Test_Contexts.Set_Locale (Context, "en");
+      Test_Contexts.Set_Environment_Value (Context, "LC_COLLATE", "da");
+      Posix_Tools.Commands.Test_Command.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "test LC_COLLATE overrides context locale");
+
       Context.Initialize ("test", Three_Args ("beta", ">", "alpha"));
       Posix_Tools.Commands.Test_Command.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "test string greater-than status");

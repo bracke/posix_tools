@@ -12430,6 +12430,63 @@ package body Posix_Tools.Commands.Expanded is
             else False);
       end Numeric_Comparison;
 
+      function Collation_Locale return String is
+         LC_All      : constant String := Context.Environment_Value ("LC_ALL");
+         LC_Collate  : constant String := Context.Environment_Value ("LC_COLLATE");
+         Lang        : constant String := Context.Environment_Value ("LANG");
+      begin
+         if LC_All /= "" then
+            return LC_All;
+         elsif LC_Collate /= "" then
+            return LC_Collate;
+         elsif Lang /= "" then
+            return Lang;
+         else
+            return Context.Effective_Locale;
+         end if;
+      end Collation_Locale;
+
+      function String_Comparison (Left, Op, Right : String) return Boolean is
+         Locale : constant String := Collation_Locale;
+         Family : constant String := Locale_Family (Locale);
+         Compared : Integer;
+      begin
+         if Family = ""
+           or else Family = "c"
+           or else Family = "C"
+           or else Family = "posix"
+           or else Family = "POSIX"
+         then
+            Compared :=
+              (if Left < Right then -1
+               elsif Left > Right then 1
+               else 0);
+         elsif I18N.Collation.Available then
+            Compared := I18N.Collation.Compare (Left, Right, Locale, I18N.Collation.Tertiary);
+         else
+            declare
+               Left_Key  : constant String := Locale_Sort_Text (Locale, Left);
+               Right_Key : constant String := Locale_Sort_Text (Locale, Right);
+            begin
+               Compared :=
+                 (if Left_Key < Right_Key then -1
+                  elsif Left_Key > Right_Key then 1
+                  else 0);
+            end;
+         end if;
+
+         return
+           (if Op = "<" then Compared < 0
+            elsif Op = ">" then Compared > 0
+            else False);
+      exception
+         when Constraint_Error =>
+            return
+              (if Op = "<" then Left < Right
+               elsif Op = ">" then Left > Right
+               else False);
+      end String_Comparison;
+
       function Evaluate_One (Operand : String) return Boolean is
       begin
          return Operand /= "";
@@ -12440,8 +12497,7 @@ package body Posix_Tools.Commands.Expanded is
          return
            (if Op = "=" then Left = Right
             elsif Op = "!=" then Left /= Right
-            elsif Op = "<" then Left < Right
-            elsif Op = ">" then Left > Right
+            elsif Op = "<" or else Op = ">" then String_Comparison (Left, Op, Right)
             elsif Op = "-ef" then FS.Same_File (Left, Right)
             elsif Op in "-eq" | "-ne" | "-gt" | "-ge" | "-lt" | "-le" then
                Numeric_Comparison (Left, Op, Right)

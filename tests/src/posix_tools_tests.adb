@@ -2969,6 +2969,8 @@ procedure Posix_Tools_Tests is
       Add_Entry ("common/src/posix_tools-host_adapters-environment.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-executables.adb");
       Add_Entry ("common/src/posix_tools-host_adapters-executables.ads");
+      Add_Entry ("common/src/posix_tools-host_adapters-file_watches.adb");
+      Add_Entry ("common/src/posix_tools-host_adapters-file_watches.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-file_system.adb");
       Add_Entry ("common/src/posix_tools-host_adapters-file_system.ads");
       Add_Entry ("common/src/posix_tools-host_adapters-run_command.adb");

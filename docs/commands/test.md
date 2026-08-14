@@ -35,11 +35,13 @@ Supported forms include nonempty string, `! expression`, parenthesized expressio
 comparisons `a -eq b`, `a -ne b`, `a -gt b`, `a -ge b`, `a -lt b`, and `a -le b`. `-a` binds tighter than `-o`.
 
 ## Locale Behavior
-Expression results are not localized. Help and diagnostics are localized.
+Expression results are not localized. String ordering uses the collation locale selected by `LC_ALL`,
+`LC_COLLATE`, `LANG`, then the command context locale.
 
 ## Implementation-Defined Choices
-String ordering uses Ada lexical ordering over the command argument representation. `-ef` uses hostkit file identity
-metadata. `-t` answers for standard input, output, and error descriptors 0, 1, and 2 through the command context
+String ordering uses the project i18n collation data and falls back to bytewise ordering for the `C` and `POSIX`
+locales or when no collation data is available. `-ef` uses hostkit file identity metadata. `-t` answers for
+standard input, output, and error descriptors 0, 1, and 2 through the command context
 terminal service; other descriptor operands are false in this increment. `-g`, `-k`, `-u`, `-w`, and `-x` use
 hostkit permission-bit metadata where available. `-b`, `-c`, `-p`, and `-S` use hostkit special-file subtype metadata
 for block devices, character devices, FIFOs, and sockets where available. Malformed expressions with unbalanced parentheses, dangling boolean
@@ -55,4 +57,4 @@ operators, or unknown unary or binary operators are invalid usage.
 Conforming with extensions; see `POSIX-TEST-001`.
 
 ## Known Limitations
-String collation is deterministic Ada lexical ordering rather than full host-locale collation.
+No known V1 limitation for the documented expression surface.

@@ -1,6 +1,7 @@
 with Ada.Calendar;
 with Ada.Streams;
 with Posix_Tools.Arguments;
+with Posix_Tools.Host_Adapters.File_Watches;
 with Posix_Tools.Numbers;
 
 package Posix_Tools.Commands.Contexts is
@@ -29,6 +30,10 @@ package Posix_Tools.Commands.Contexts is
    function Path_Names_Current_Directory (Self : Context; Path : String) return Boolean;
    function Tail_Follow_Poll_Limit (Self : Context) return Natural;
    procedure Tail_Follow_Wait (Self : in out Context);
+   procedure Tail_Follow_Watch_Path (Self : in out Context; Path : String);
+   function Tail_Follow_Watch_Active (Self : Context) return Boolean;
+   function Tail_Follow_Watch_Changed (Self : in out Context) return Boolean;
+   procedure Tail_Follow_Release_Watch (Self : in out Context);
    function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count;
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
    function Set_System_Date_Time (Self : in out Context; Time : Ada.Calendar.Time) return Boolean;
@@ -72,5 +77,6 @@ private
       Name : Posix_Tools.Arguments.Vectors.Vector;
       Args : Posix_Tools.Arguments.Vector;
       Out_Failed : Boolean := False;
+      Tail_Watch : Posix_Tools.Host_Adapters.File_Watches.Watch;
    end record;
 end Posix_Tools.Commands.Contexts;

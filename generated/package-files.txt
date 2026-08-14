@@ -107,6 +107,8 @@ common/src/posix_tools-host_adapters-environment.adb
 common/src/posix_tools-host_adapters-environment.ads
 common/src/posix_tools-host_adapters-executables.adb
 common/src/posix_tools-host_adapters-executables.ads
+common/src/posix_tools-host_adapters-file_watches.adb
+common/src/posix_tools-host_adapters-file_watches.ads
 common/src/posix_tools-host_adapters-file_system.adb
 common/src/posix_tools-host_adapters-file_system.ads
 common/src/posix_tools-host_adapters-run_command.adb

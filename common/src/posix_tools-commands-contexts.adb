@@ -107,6 +107,26 @@ package body Posix_Tools.Commands.Contexts is
       delay 0.1;
    end Tail_Follow_Wait;
 
+   procedure Tail_Follow_Watch_Path (Self : in out Context; Path : String) is
+   begin
+      Posix_Tools.Host_Adapters.File_Watches.Watch_Path (Self.Tail_Watch, Path);
+   end Tail_Follow_Watch_Path;
+
+   function Tail_Follow_Watch_Active (Self : Context) return Boolean is
+   begin
+      return Posix_Tools.Host_Adapters.File_Watches.Is_Active (Self.Tail_Watch);
+   end Tail_Follow_Watch_Active;
+
+   function Tail_Follow_Watch_Changed (Self : in out Context) return Boolean is
+   begin
+      return Posix_Tools.Host_Adapters.File_Watches.Changed (Self.Tail_Watch);
+   end Tail_Follow_Watch_Changed;
+
+   procedure Tail_Follow_Release_Watch (Self : in out Context) is
+   begin
+      Posix_Tools.Host_Adapters.File_Watches.Release (Self.Tail_Watch);
+   end Tail_Follow_Release_Watch;
+
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count is
       pragma Unreferenced (Self);
    begin

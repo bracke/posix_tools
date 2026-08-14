@@ -336,6 +336,8 @@ package body Posix_Tools.Commands.Tail is
       Polls   : Natural := 0;
       Limit   : constant Natural := Context.Tail_Follow_Poll_Limit;
       Ok      : Boolean;
+      Use_Watch : constant Boolean :=
+        Sources = 1 and then First_File = Last_File and then Context.Argument (First_File) /= "-";
 
       procedure Emit_Header (File_Index : Positive) is
       begin
@@ -347,6 +349,10 @@ package body Posix_Tools.Commands.Tail is
          end if;
       end Emit_Header;
    begin
+      if Use_Watch then
+         Context.Tail_Follow_Watch_Path (Context.Argument (First_File));
+      end if;
+
       for I in First_File .. Last_File loop
          if Context.Argument (I) = "-" then
             Offsets (I) := 0;
@@ -362,6 +368,13 @@ package body Posix_Tools.Commands.Tail is
          exit when Limit /= 0 and then Polls >= Limit;
          Context.Tail_Follow_Wait;
          Polls := Polls + 1;
+
+         if Use_Watch
+           and then Context.Tail_Follow_Watch_Active
+           and then not Context.Tail_Follow_Watch_Changed
+         then
+            goto Continue_Follow;
+         end if;
 
          for I in First_File .. Last_File loop
             exit when Context.Output_Failed;
@@ -407,11 +420,23 @@ package body Posix_Tools.Commands.Tail is
          end loop;
 
          exit when Context.Output_Failed;
+         <<Continue_Follow>>
+         null;
       end loop;
+
+      if Use_Watch then
+         Context.Tail_Follow_Release_Watch;
+      end if;
 
       if Context.Output_Failed then
          All_Ok := False;
       end if;
+   exception
+      when others =>
+         if Use_Watch then
+            Context.Tail_Follow_Release_Watch;
+         end if;
+         raise;
    end Follow_File_Operands;
 
    procedure Run
