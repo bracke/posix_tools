@@ -76,6 +76,7 @@ package Command_Tests is
    procedure Test_Tail_Standard_Input_Byte_Property (T : in out Fixture);
    procedure Test_Tail_Line_Suffix_Property (T : in out Fixture);
    procedure Test_Unexpand (T : in out Fixture);
+   procedure Test_Unlink (T : in out Fixture);
    procedure Test_Usage_Errors (T : in out Fixture);
    procedure Test_Timeout_Statuses (T : in out Fixture);
    procedure Test_True (T : in out Fixture);

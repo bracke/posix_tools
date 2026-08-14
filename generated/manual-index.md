@@ -57,6 +57,7 @@ Version: 0.1.0
 - `tty`: docs/commands/tty.md
 - `unexpand`: docs/commands/unexpand.md
 - `uname`: docs/commands/uname.md
+- `unlink`: docs/commands/unlink.md
 - `uniq`: docs/commands/uniq.md
 - `wc`: docs/commands/wc.md
 - `whoami`: docs/commands/whoami.md

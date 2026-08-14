@@ -58,6 +58,7 @@ V1 command references:
 - [tty](tty.md)
 - [unexpand](unexpand.md)
 - [uname](uname.md)
+- [unlink](unlink.md)
 - [uniq](uniq.md)
 - [wc](wc.md)
 - [whoami](whoami.md)

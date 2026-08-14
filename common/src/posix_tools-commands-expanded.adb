@@ -10395,6 +10395,36 @@ package body Posix_Tools.Commands.Expanded is
         (if Ok then Posix_Tools.Exit_Status.Success else Posix_Tools.Exit_Status.Operational_Failure);
    end Run_Rmdir;
 
+   procedure Run_Unlink
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First : Positive := 1;
+   begin
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      elsif Context.Argument_Count > First then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, "extra operand '" & Context.Argument (First + 1) & "'");
+         return;
+      end if;
+
+      begin
+         FS.Delete_File (Context.Argument (First));
+         Set_Success (Context, Result);
+      exception
+         when others =>
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+      end;
+   end Run_Unlink;
+
    procedure Run_Sort
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -14886,6 +14916,7 @@ package body Posix_Tools.Commands.Expanded is
          when Tr_Command => Run_Tr (Context, Result);
          when Tty_Command => Run_Tty (Context, Result);
          when Unexpand_Command => Run_Unexpand (Context, Result);
+         when Unlink_Command => Run_Unlink (Context, Result);
          when Uname_Command => Run_Uname (Context, Result);
          when Uniq_Command => Run_Uniq (Context, Result);
          when Whoami_Command => Run_Whoami (Context, Result);

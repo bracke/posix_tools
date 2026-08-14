@@ -106,6 +106,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tr", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tty", Test_Tty'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unexpand smoke", Test_Unexpand'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink smoke", Test_Unlink'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test
@@ -257,6 +258,7 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("regression:REG-ROOT-0002 root output failure", Test_Root_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl", Test_Nl'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:seq", Test_Seq'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink", Test_Unlink'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail byte mode edges", Test_Tail_Byte_Mode_Edges'Access));
       AUnit.Test_Suites.Add_Test

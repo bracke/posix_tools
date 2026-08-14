@@ -60,6 +60,7 @@ package body Posix_Tools.Command_Inventory is
    True_Exe     : aliased constant String := "true";
    Tty_Exe      : aliased constant String := "tty";
    Unexpand_Exe : aliased constant String := "unexpand";
+   Unlink_Exe   : aliased constant String := "unlink";
    Uname_Exe    : aliased constant String := "uname";
    Uniq_Exe     : aliased constant String := "uniq";
    Wc_Exe       : aliased constant String := "wc";
@@ -120,6 +121,7 @@ package body Posix_Tools.Command_Inventory is
    True_Crate     : aliased constant String := "posix_tools_true";
    Tty_Crate      : aliased constant String := "posix_tools_tty";
    Unexpand_Crate : aliased constant String := "posix_tools_unexpand";
+   Unlink_Crate   : aliased constant String := "posix_tools_unlink";
    Uname_Crate    : aliased constant String := "posix_tools_uname";
    Uniq_Crate     : aliased constant String := "posix_tools_uniq";
    Wc_Crate       : aliased constant String := "posix_tools_wc";
@@ -180,6 +182,7 @@ package body Posix_Tools.Command_Inventory is
    True_Pkg     : aliased constant String := "Posix_Tools.Commands.True_Command";
    Tty_Pkg      : aliased constant String := "Posix_Tools.Commands.Tty";
    Unexpand_Pkg : aliased constant String := "Posix_Tools.Commands.Unexpand";
+   Unlink_Pkg   : aliased constant String := "Posix_Tools.Commands.Unlink";
    Uname_Pkg    : aliased constant String := "Posix_Tools.Commands.Uname";
    Uniq_Pkg     : aliased constant String := "Posix_Tools.Commands.Uniq";
    Wc_Pkg       : aliased constant String := "Posix_Tools.Commands.Wc";
@@ -245,10 +248,11 @@ package body Posix_Tools.Command_Inventory is
       53 => (Tty_Exe'Access, Tty_Crate'Access, Tty_Pkg'Access, Conforming_With_Extensions'Access),
       54 => (Unexpand_Exe'Access, Unexpand_Crate'Access, Unexpand_Pkg'Access, Conforming_With_Extensions'Access),
       55 => (Uname_Exe'Access, Uname_Crate'Access, Uname_Pkg'Access, Conforming_With_Extensions'Access),
-      56 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
-      57 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
-      58 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
-      59 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
+      56 => (Unlink_Exe'Access, Unlink_Crate'Access, Unlink_Pkg'Access, Conforming_With_Extensions'Access),
+      57 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
+      58 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
+      59 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
+      60 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
 
    function Executable (Index : Positive) return String is
    begin

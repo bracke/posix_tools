@@ -54,6 +54,7 @@ true,posix_tools_true,Posix_Tools.Commands.True_Command,tools/true/alire.toml,to
 tty,posix_tools_tty,Posix_Tools.Commands.Tty,tools/tty/alire.toml,tools/tty/posix_tools_tty.gpr,docs/commands/tty.md,true,conforming_with_extensions,true,true,true
 unexpand,posix_tools_unexpand,Posix_Tools.Commands.Unexpand,tools/unexpand/alire.toml,tools/unexpand/posix_tools_unexpand.gpr,docs/commands/unexpand.md,true,conforming_with_extensions,true,true,true
 uname,posix_tools_uname,Posix_Tools.Commands.Uname,tools/uname/alire.toml,tools/uname/posix_tools_uname.gpr,docs/commands/uname.md,true,conforming_with_extensions,true,true,true
+unlink,posix_tools_unlink,Posix_Tools.Commands.Unlink,tools/unlink/alire.toml,tools/unlink/posix_tools_unlink.gpr,docs/commands/unlink.md,true,conforming_with_extensions,true,true,true
 uniq,posix_tools_uniq,Posix_Tools.Commands.Uniq,tools/uniq/alire.toml,tools/uniq/posix_tools_uniq.gpr,docs/commands/uniq.md,true,conforming_with_extensions,true,true,true
 wc,posix_tools_wc,Posix_Tools.Commands.Wc,tools/wc/alire.toml,tools/wc/posix_tools_wc.gpr,docs/commands/wc.md,true,conforming_with_extensions,true,true,true
 whoami,posix_tools_whoami,Posix_Tools.Commands.Whoami,tools/whoami/alire.toml,tools/whoami/posix_tools_whoami.gpr,docs/commands/whoami.md,true,conforming_with_extensions,true,true,true

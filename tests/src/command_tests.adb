@@ -66,6 +66,7 @@ with Posix_Tools.Commands.Tr;
 with Posix_Tools.Commands.True_Command;
 with Posix_Tools.Commands.Tty;
 with Posix_Tools.Commands.Unexpand;
+with Posix_Tools.Commands.Unlink;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
@@ -289,6 +290,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Tty.Run (Context, Result);
       elsif Name = "unexpand" then
          Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      elsif Name = "unlink" then
+         Posix_Tools.Commands.Unlink.Run (Context, Result);
       elsif Name = "uname" then
          Posix_Tools.Commands.Uname.Run (Context, Result);
       elsif Name = "uniq" then
@@ -8263,6 +8266,59 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "seq reports output failure");
    end Test_Seq;
+
+   procedure Test_Unlink (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("unlink-target.txt");
+      Dash_Path : constant String := Fixture_Path ("-");
+
+      procedure Delete_If_Exists (Name : String) is
+      begin
+         if Ada.Directories.Exists (Name) then
+            Ada.Directories.Delete_File (Name);
+         end if;
+      end Delete_If_Exists;
+   begin
+      Delete_If_Exists (Path);
+      Delete_If_Exists (Dash_Path);
+      Write_File (Path, "x");
+
+      Context.Initialize ("unlink", One_Arg (Path));
+      Posix_Tools.Commands.Unlink.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then not Ada.Directories.Exists (Path)
+         and then Test_Contexts.Output (Context) = "",
+         "unlink removes one file without output");
+
+      Write_File (Dash_Path, "x");
+      Context.Initialize ("unlink", Two_Args ("--", Dash_Path));
+      Posix_Tools.Commands.Unlink.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then not Ada.Directories.Exists (Dash_Path),
+         "unlink accepts end-of-options before operand");
+
+      Context.Initialize ("unlink", No_Args);
+      Posix_Tools.Commands.Unlink.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "unlink rejects missing operand");
+
+      Context.Initialize ("unlink", Two_Args ("a", "b"));
+      Posix_Tools.Commands.Unlink.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "unlink rejects extra operands");
+
+      Context.Initialize ("unlink", One_Arg (Path));
+      Posix_Tools.Commands.Unlink.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "unlink reports missing path");
+   end Test_Unlink;
 
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture) is
       pragma Unreferenced (T);

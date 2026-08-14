@@ -465,6 +465,11 @@ tools/uname/alire.toml
 tools/uname/posix_tools_uname.gpr
 tools/uname/src/uname.adb
 docs/commands/uname.md
+generated/man/unlink.1
+tools/unlink/alire.toml
+tools/unlink/posix_tools_unlink.gpr
+tools/unlink/src/unlink.adb
+docs/commands/unlink.md
 generated/man/uniq.1
 tools/uniq/alire.toml
 tools/uniq/posix_tools_uniq.gpr

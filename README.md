@@ -59,6 +59,7 @@ V1 inventory:
 - `tty`
 - `unexpand`
 - `uname`
+- `unlink`
 - `uniq`
 - `wc`
 - `whoami`

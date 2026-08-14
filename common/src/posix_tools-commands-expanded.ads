@@ -48,6 +48,7 @@ package Posix_Tools.Commands.Expanded is
       Tr_Command,
       Tty_Command,
       Unexpand_Command,
+      Unlink_Command,
       Uniq_Command,
       Uname_Command,
       Whoami_Command,

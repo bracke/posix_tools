@@ -1,0 +1,38 @@
+.TH unlink 1
+.SH NAME
+unlink - call the unlink function on a pathname.
+.SH SYNOPSIS
+unlink file
+.SH DESCRIPTION
+unlink removes the directory entry named by file. It does not accept options in V1.
+.SH OPERANDS
+file: pathname to unlink.
+.SH OPTIONS
+The project extensions --help, --version, and --posix-tools-identify are handled by the common process wrapper.
+The -- end-of-options marker is accepted before the operand.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No output is written on success.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 on success.
+1 for operational failure.
+2 for invalid usage.
+.SH BEHAVIORAL DETAILS
+Exactly one operand is required after an optional -- marker. Missing and extra operands are usage errors.
+.SH LOCALE BEHAVIOR
+Diagnostics and help are locale-dependent. Command data output is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Host filesystem error details are normalized through the project adapter.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify, and -- are project extensions.
+.SH EXAMPLES
+unlink path
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Directory unlinking behavior follows the host filesystem adapter.
+.SH SEE ALSO
+docs/commands/unlink.md
