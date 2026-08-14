@@ -63,3 +63,4 @@ V1 command references:
 - [wc](wc.md)
 - [whoami](whoami.md)
 - [xargs](xargs.md)
+- [yes](yes.md)

@@ -59,3 +59,4 @@ uniq,posix_tools_uniq,Posix_Tools.Commands.Uniq,tools/uniq/alire.toml,tools/uniq
 wc,posix_tools_wc,Posix_Tools.Commands.Wc,tools/wc/alire.toml,tools/wc/posix_tools_wc.gpr,docs/commands/wc.md,true,conforming_with_extensions,true,true,true
 whoami,posix_tools_whoami,Posix_Tools.Commands.Whoami,tools/whoami/alire.toml,tools/whoami/posix_tools_whoami.gpr,docs/commands/whoami.md,true,conforming_with_extensions,true,true,true
 xargs,posix_tools_xargs,Posix_Tools.Commands.Xargs,tools/xargs/alire.toml,tools/xargs/posix_tools_xargs.gpr,docs/commands/xargs.md,true,conforming_with_extensions,true,true,true
+yes,posix_tools_yes,Posix_Tools.Commands.Yes,tools/yes/alire.toml,tools/yes/posix_tools_yes.gpr,docs/commands/yes.md,true,conforming_with_extensions,true,true,true

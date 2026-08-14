@@ -66,6 +66,7 @@ package body Posix_Tools.Command_Inventory is
    Wc_Exe       : aliased constant String := "wc";
    Whoami_Exe   : aliased constant String := "whoami";
    Xargs_Exe    : aliased constant String := "xargs";
+   Yes_Exe      : aliased constant String := "yes";
 
    Basename_Crate : aliased constant String := "posix_tools_basename";
    Cat_Crate      : aliased constant String := "posix_tools_cat";
@@ -127,6 +128,7 @@ package body Posix_Tools.Command_Inventory is
    Wc_Crate       : aliased constant String := "posix_tools_wc";
    Whoami_Crate   : aliased constant String := "posix_tools_whoami";
    Xargs_Crate    : aliased constant String := "posix_tools_xargs";
+   Yes_Crate      : aliased constant String := "posix_tools_yes";
 
    Basename_Pkg : aliased constant String := "Posix_Tools.Commands.Basename";
    Cat_Pkg      : aliased constant String := "Posix_Tools.Commands.Cat";
@@ -188,6 +190,7 @@ package body Posix_Tools.Command_Inventory is
    Wc_Pkg       : aliased constant String := "Posix_Tools.Commands.Wc";
    Whoami_Pkg   : aliased constant String := "Posix_Tools.Commands.Whoami";
    Xargs_Pkg    : aliased constant String := "Posix_Tools.Commands.Xargs";
+   Yes_Pkg      : aliased constant String := "Posix_Tools.Commands.Yes";
 
    Conforming_With_Extensions : aliased constant String := "conforming_with_extensions";
    Known_Deviation            : aliased constant String := "known_deviation";
@@ -252,7 +255,8 @@ package body Posix_Tools.Command_Inventory is
       57 => (Uniq_Exe'Access, Uniq_Crate'Access, Uniq_Pkg'Access, Conforming_With_Extensions'Access),
       58 => (Wc_Exe'Access, Wc_Crate'Access, Wc_Pkg'Access, Conforming_With_Extensions'Access),
       59 => (Whoami_Exe'Access, Whoami_Crate'Access, Whoami_Pkg'Access, Conforming_With_Extensions'Access),
-      60 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access)];
+      60 => (Xargs_Exe'Access, Xargs_Crate'Access, Xargs_Pkg'Access, Conforming_With_Extensions'Access),
+      61 => (Yes_Exe'Access, Yes_Crate'Access, Yes_Pkg'Access, Conforming_With_Extensions'Access)];
 
    function Executable (Index : Positive) return String is
    begin

@@ -62,4 +62,5 @@ Version: 0.1.0
 - `wc`: docs/commands/wc.md
 - `whoami`: docs/commands/whoami.md
 - `xargs`: docs/commands/xargs.md
+- `yes`: docs/commands/yes.md
 

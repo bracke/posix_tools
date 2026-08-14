@@ -490,4 +490,9 @@ tools/xargs/alire.toml
 tools/xargs/posix_tools_xargs.gpr
 tools/xargs/src/xargs.adb
 docs/commands/xargs.md
+generated/man/yes.1
+tools/yes/alire.toml
+tools/yes/posix_tools_yes.gpr
+tools/yes/src/yes.adb
+docs/commands/yes.md
 generated/package-files.txt

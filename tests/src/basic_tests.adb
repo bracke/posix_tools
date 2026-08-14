@@ -60,10 +60,10 @@ package body Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 60), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 61), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "basename", "first command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (56) = "unlink", "unlink command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (60) = "xargs", "last command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (61) = "yes", "last command");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Manifest_Path (1) = "tools/basename/alire.toml",
          "manifest path");

@@ -52,7 +52,8 @@ package Posix_Tools.Commands.Expanded is
       Uniq_Command,
       Uname_Command,
       Whoami_Command,
-      Xargs_Command);
+      Xargs_Command,
+      Yes_Command);
 
    procedure Run
      (Command : Expanded_Command;

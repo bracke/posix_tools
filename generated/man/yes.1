@@ -1,0 +1,42 @@
+.TH yes 1
+.SH NAME
+yes - repeatedly write a string.
+.SH SYNOPSIS
+yes [string...]
+.SH DESCRIPTION
+yes repeatedly writes one line to standard output until output fails. With no operands, the line is y.
+With operands, the line is the operands joined by one space.
+
+yes is a project extension and is not part of the POSIX.1-2024 conformance claim.
+.SH OPERANDS
+string: text to repeat.
+.SH OPTIONS
+The project extensions --help, --version, and --posix-tools-identify are handled by the common process wrapper.
+Other option-like arguments are ordinary operands.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Repeated lines are written until the output stream reports failure.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+1 when output fails.
+2 for invalid usage handled by the common wrapper.
+.SH BEHAVIORAL DETAILS
+Command data is not localized. A routine pipe close is represented as output failure by the command context.
+.SH LOCALE BEHAVIOR
+Diagnostics and help are locale-dependent. Repeated command data is locale-invariant.
+.SH IMPLEMENTATION-DEFINED CHOICES
+V1 reports output termination as operational failure.
+.SH EXTENSIONS
+The complete command is a project extension.
+.SH EXAMPLES
+yes
+
+yes ok
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+No rate limiting is applied.
+.SH SEE ALSO
+docs/commands/yes.md

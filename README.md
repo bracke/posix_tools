@@ -64,6 +64,7 @@ V1 inventory:
 - `wc`
 - `whoami`
 - `xargs`
+- `yes`
 - `posix-tools`
 
 `awk`, `grep`, and `sed` are not implemented in this repository; they are

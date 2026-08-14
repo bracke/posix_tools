@@ -109,6 +109,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink smoke", Test_Unlink'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:yes smoke", Test_Yes'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:xargs status bands", Test_Xargs_Status_Bands'Access));
       AUnit.Test_Suites.Add_Test
@@ -333,6 +334,7 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:wc output failure", Test_Wc_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-WC-0005 wc output failure", Test_Wc_Output_Failure'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:yes", Test_Yes'Access));
       return Result;
    end Test_Suite;
 end Command_Tests.Suite;

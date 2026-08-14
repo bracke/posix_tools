@@ -95,4 +95,5 @@ package Command_Tests is
    procedure Test_Wc_Standard_Input_Line_Property (T : in out Fixture);
    procedure Test_Wc_Output_Failure (T : in out Fixture);
    procedure Test_Xargs_Status_Bands (T : in out Fixture);
+   procedure Test_Yes (T : in out Fixture);
 end Command_Tests;
