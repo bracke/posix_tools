@@ -37,6 +37,7 @@ package Posix_Tools.Commands.Expanded is
       Realpath_Command,
       Rm_Command,
       Rmdir_Command,
+      Seq_Command,
       Sleep_Command,
       Split_Command,
       Sort_Command,

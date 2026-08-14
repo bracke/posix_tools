@@ -40,6 +40,7 @@ readlink,posix_tools_readlink,Posix_Tools.Commands.Readlink,tools/readlink/alire
 realpath,posix_tools_realpath,Posix_Tools.Commands.Realpath,tools/realpath/alire.toml,tools/realpath/posix_tools_realpath.gpr,docs/commands/realpath.md,true,conforming_with_extensions,true,true,true
 rm,posix_tools_rm,Posix_Tools.Commands.Rm,tools/rm/alire.toml,tools/rm/posix_tools_rm.gpr,docs/commands/rm.md,true,conforming_with_extensions,true,true,true
 rmdir,posix_tools_rmdir,Posix_Tools.Commands.Rmdir,tools/rmdir/alire.toml,tools/rmdir/posix_tools_rmdir.gpr,docs/commands/rmdir.md,true,conforming_with_extensions,true,true,true
+seq,posix_tools_seq,Posix_Tools.Commands.Seq,tools/seq/alire.toml,tools/seq/posix_tools_seq.gpr,docs/commands/seq.md,true,conforming_with_extensions,true,true,true
 sleep,posix_tools_sleep,Posix_Tools.Commands.Sleep,tools/sleep/alire.toml,tools/sleep/posix_tools_sleep.gpr,docs/commands/sleep.md,true,conforming_with_extensions,true,true,true
 split,posix_tools_split,Posix_Tools.Commands.Split,tools/split/alire.toml,tools/split/posix_tools_split.gpr,docs/commands/split.md,true,conforming_with_extensions,true,true,true
 sort,posix_tools_sort,Posix_Tools.Commands.Sort,tools/sort/alire.toml,tools/sort/posix_tools_sort.gpr,docs/commands/sort.md,true,conforming_with_extensions,true,true,true

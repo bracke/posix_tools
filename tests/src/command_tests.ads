@@ -62,6 +62,7 @@ package Command_Tests is
    procedure Test_Root_Output_Failure (T : in out Fixture);
    procedure Test_Nl (T : in out Fixture);
    procedure Test_Pathchk (T : in out Fixture);
+   procedure Test_Seq (T : in out Fixture);
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture);
    procedure Test_Tail_Compact_Counts (T : in out Fixture);
    procedure Test_Tail_Follow_Live (T : in out Fixture);

@@ -7261,6 +7261,125 @@ package body Posix_Tools.Commands.Expanded is
       Set_Success (Context, Result);
    end Run_Id;
 
+   procedure Run_Seq
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First     : Long_Long_Integer := 1;
+      Increment : Long_Long_Integer := 1;
+      Last      : Long_Long_Integer := 0;
+
+      function Parse_Integer_Text (Text : String; Parsed : out Long_Long_Integer) return Boolean is
+         Negative : Boolean := False;
+         Start    : Natural := Text'First;
+         Acc      : Long_Long_Integer := 0;
+         Digit    : Long_Long_Integer;
+      begin
+         if Text = "" then
+            Parsed := 0;
+            return False;
+         end if;
+
+         if Text (Text'First) = '-' or else Text (Text'First) = '+' then
+            Negative := Text (Text'First) = '-';
+            Start := Text'First + 1;
+         end if;
+
+         if Start > Text'Last then
+            Parsed := 0;
+            return False;
+         end if;
+
+         for I in Start .. Text'Last loop
+            if Text (I) not in '0' .. '9' then
+               Parsed := 0;
+               return False;
+            end if;
+            Digit := Long_Long_Integer (Character'Pos (Text (I)) - Character'Pos ('0'));
+            if Acc > (Long_Long_Integer'Last - Digit) / 10 then
+               Parsed := 0;
+               return False;
+            end if;
+            Acc := Acc * 10 + Digit;
+         end loop;
+
+         Parsed := (if Negative then -Acc else Acc);
+         return True;
+      end Parse_Integer_Text;
+
+      function Integer_Image (Item : Long_Long_Integer) return String is
+         Raw : constant String := Long_Long_Integer'Image (Item);
+      begin
+         if Raw (Raw'First) = ' ' then
+            return Raw (Raw'First + 1 .. Raw'Last);
+         else
+            return Raw;
+         end if;
+      end Integer_Image;
+
+      procedure Invalid (Text : String) is
+      begin
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+      end Invalid;
+
+      function Addition_Overflows (Left, Right : Long_Long_Integer) return Boolean is
+      begin
+         return (Right > 0 and then Left > Long_Long_Integer'Last - Right)
+           or else (Right < 0 and then Left < Long_Long_Integer'First - Right);
+      end Addition_Overflows;
+   begin
+      if Context.Argument_Count not in 1 .. 3 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand count");
+         return;
+      end if;
+
+      if Context.Argument_Count = 1 then
+         if not Parse_Integer_Text (Context.Argument (1), Last) then
+            Invalid (Context.Argument (1));
+            return;
+         end if;
+      elsif Context.Argument_Count = 2 then
+         if not Parse_Integer_Text (Context.Argument (1), First) then
+            Invalid (Context.Argument (1));
+            return;
+         elsif not Parse_Integer_Text (Context.Argument (2), Last) then
+            Invalid (Context.Argument (2));
+            return;
+         end if;
+      else
+         if not Parse_Integer_Text (Context.Argument (1), First) then
+            Invalid (Context.Argument (1));
+            return;
+         elsif not Parse_Integer_Text (Context.Argument (2), Increment) then
+            Invalid (Context.Argument (2));
+            return;
+         elsif not Parse_Integer_Text (Context.Argument (3), Last) then
+            Invalid (Context.Argument (3));
+            return;
+         end if;
+      end if;
+
+      if Increment = 0 then
+         Invalid (Context.Argument ((if Context.Argument_Count = 3 then 2 else 1)));
+         return;
+      end if;
+
+      declare
+         Current : Long_Long_Integer := First;
+      begin
+         while (Increment > 0 and then Current <= Last) or else (Increment < 0 and then Current >= Last) loop
+            Context.Put_Line (Integer_Image (Current));
+            exit when Context.Output_Failed;
+            if Addition_Overflows (Current, Increment) then
+               exit;
+            end if;
+            Current := Current + Increment;
+         end loop;
+      end;
+
+      Set_Success (Context, Result);
+   end Run_Seq;
+
    procedure Run_Sleep
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -14756,6 +14875,7 @@ package body Posix_Tools.Commands.Expanded is
          when Realpath_Command => Run_Realpath (Context, Result);
          when Rm_Command => Run_Rm (Context, Result);
          when Rmdir_Command => Run_Rmdir (Context, Result);
+         when Seq_Command => Run_Seq (Context, Result);
          when Sleep_Command => Run_Sleep (Context, Result);
          when Split_Command => Run_Split (Context, Result);
          when Sort_Command => Run_Sort (Context, Result);

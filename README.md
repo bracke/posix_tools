@@ -45,6 +45,7 @@ V1 inventory:
 - `realpath`
 - `rm`
 - `rmdir`
+- `seq`
 - `sleep`
 - `split`
 - `sort`

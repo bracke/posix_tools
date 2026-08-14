@@ -44,6 +44,7 @@ V1 command references:
 - [realpath](realpath.md)
 - [rm](rm.md)
 - [rmdir](rmdir.md)
+- [seq](seq.md)
 - [sleep](sleep.md)
 - [split](split.md)
 - [sort](sort.md)

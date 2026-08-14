@@ -53,6 +53,7 @@ with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Root;
+with Posix_Tools.Commands.Seq;
 with Posix_Tools.Commands.Sleep;
 with Posix_Tools.Commands.Split;
 with Posix_Tools.Commands.Sort;
@@ -262,6 +263,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Rm.Run (Context, Result);
       elsif Name = "rmdir" then
          Posix_Tools.Commands.Rmdir.Run (Context, Result);
+      elsif Name = "seq" then
+         Posix_Tools.Commands.Seq.Run (Context, Result);
       elsif Name = "sleep" then
          Posix_Tools.Commands.Sleep.Run (Context, Result);
       elsif Name = "split" then
@@ -8207,6 +8210,59 @@ package body Command_Tests is
 
       Delete_If_Exists (Path);
    end Test_Nl;
+
+   procedure Test_Seq (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+   begin
+      Context.Initialize ("seq", One_Arg ("3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1" & LF & "2" & LF & "3" & LF,
+         "seq one operand starts at one");
+
+      Context.Initialize ("seq", Two_Args ("3", "5"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "3" & LF & "4" & LF & "5" & LF,
+         "seq two operands uses unit increment");
+
+      Context.Initialize ("seq", Three_Args ("5", "-2", "1"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "5" & LF & "3" & LF & "1" & LF,
+         "seq supports negative increments");
+
+      Context.Initialize ("seq", Three_Args ("1", "0", "3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "seq rejects zero increment");
+
+      Context.Initialize ("seq", One_Arg ("abc"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "seq rejects invalid integers");
+
+      Context.Initialize ("seq", Four_Args ("1", "2", "3", "4"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "seq rejects extra operands");
+
+      Context.Initialize ("seq", One_Arg ("3"));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "seq reports output failure");
+   end Test_Seq;
 
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture) is
       pragma Unreferenced (T);

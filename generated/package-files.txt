@@ -395,6 +395,11 @@ tools/rmdir/alire.toml
 tools/rmdir/posix_tools_rmdir.gpr
 tools/rmdir/src/rmdir.adb
 docs/commands/rmdir.md
+generated/man/seq.1
+tools/seq/alire.toml
+tools/seq/posix_tools_seq.gpr
+tools/seq/src/seq.adb
+docs/commands/seq.md
 generated/man/sleep.1
 tools/sleep/alire.toml
 tools/sleep/posix_tools_sleep.gpr

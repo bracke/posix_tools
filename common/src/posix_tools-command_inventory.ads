@@ -1,5 +1,5 @@
 package Posix_Tools.Command_Inventory is
-   Command_Count : constant Positive := 58;
+   Command_Count : constant Positive := 59;
 
    function Executable (Index : Positive) return String
      with Pre => Index <= Command_Count;

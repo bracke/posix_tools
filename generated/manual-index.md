@@ -43,6 +43,7 @@ Version: 0.1.0
 - `realpath`: docs/commands/realpath.md
 - `rm`: docs/commands/rm.md
 - `rmdir`: docs/commands/rmdir.md
+- `seq`: docs/commands/seq.md
 - `sleep`: docs/commands/sleep.md
 - `split`: docs/commands/split.md
 - `sort`: docs/commands/sort.md
