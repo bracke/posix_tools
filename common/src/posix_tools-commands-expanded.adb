@@ -9,7 +9,6 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Unchecked_Conversion;
-with GNAT.Regpat;
 with Interfaces;
 with I18N.Collation;
 with I18N.CLDR_Data;
@@ -4685,23 +4684,244 @@ package body Posix_Tools.Commands.Expanded is
       end Eval_Primary;
 
       function Regex_Match (Left, Pattern : String) return Expr_Value is
-         Expression : constant String := "^(?:" & Pattern & ")";
-         Matcher    : constant GNAT.Regpat.Pattern_Matcher :=
-           GNAT.Regpat.Compile (Expression, GNAT.Regpat.Single_Line);
-         Matches    : GNAT.Regpat.Match_Array (0 .. 1);
+         type Match_State is record
+            Seen_Capture  : Boolean := False;
+            Capture_Start : Natural := 0;
+            Capture_End   : Natural := 0;
+         end record;
+
+         Invalid_Expression : Boolean := False;
+
+         procedure Mark_Invalid is
+         begin
+            Invalid_Expression := True;
+         end Mark_Invalid;
+
+         function Is_Group_Start (Index : Natural) return Boolean is
+           (Index in Pattern'Range
+            and then
+              (Pattern (Index) = '('
+               or else
+                 (Pattern (Index) = '\'
+                  and then Index < Pattern'Last
+                  and then Pattern (Index + 1) = '(')));
+
+         function Is_Group_End (Index : Natural) return Boolean is
+           (Index in Pattern'Range
+            and then
+              (Pattern (Index) = ')'
+               or else
+                 (Pattern (Index) = '\'
+                  and then Index < Pattern'Last
+                  and then Pattern (Index + 1) = ')')));
+
+         function Marker_Next (Index : Natural) return Natural is
+           (if Pattern (Index) = '\' then Index + 2 else Index + 1);
+
+         function Class_Close (Index : Natural) return Natural is
+         begin
+            if Index not in Pattern'Range or else Pattern (Index) /= '[' then
+               return 0;
+            end if;
+
+            for I in Index + 1 .. Pattern'Last loop
+               if Pattern (I) = ']' and then I > Index + 1 then
+                  return I;
+               end if;
+            end loop;
+
+            return 0;
+         end Class_Close;
+
+         function Class_Matches (Index : Natural; Ch : Character) return Boolean is
+            Close   : constant Natural := Class_Close (Index);
+            Start   : Natural := Index + 1;
+            Negated : Boolean := False;
+            Matched : Boolean := False;
+         begin
+            if Close = 0 then
+               Mark_Invalid;
+               return False;
+            end if;
+
+            if Start < Close and then Pattern (Start) in '^' | '!' then
+               Negated := True;
+               Start := Start + 1;
+            end if;
+
+            while Start < Close loop
+               if Start + 2 < Close and then Pattern (Start + 1) = '-' then
+                  if Ch >= Pattern (Start) and then Ch <= Pattern (Start + 2) then
+                     Matched := True;
+                  end if;
+                  Start := Start + 3;
+               else
+                  if Ch = Pattern (Start) then
+                     Matched := True;
+                  end if;
+                  Start := Start + 1;
+               end if;
+            end loop;
+
+            return (if Negated then not Matched else Matched);
+         end Class_Matches;
+
+         function Atom_Next (Index : Natural) return Natural is
+            Close : Natural;
+         begin
+            if Index not in Pattern'Range then
+               Mark_Invalid;
+               return Index;
+            elsif Pattern (Index) = '[' then
+               Close := Class_Close (Index);
+               if Close = 0 then
+                  Mark_Invalid;
+                  return Index;
+               end if;
+               return Close + 1;
+            elsif Pattern (Index) = '\' then
+               if Index = Pattern'Last then
+                  Mark_Invalid;
+                  return Index;
+               else
+                  return Index + 2;
+               end if;
+            else
+               return Index + 1;
+            end if;
+         end Atom_Next;
+
+         function Atom_Matches (Index, Text_Index : Natural; Next_Text : out Natural) return Boolean is
+         begin
+            Next_Text := Text_Index;
+            if Text_Index not in Left'Range then
+               return False;
+            elsif Index not in Pattern'Range then
+               Mark_Invalid;
+               return False;
+            elsif Pattern (Index) = '.' then
+               Next_Text := Text_Index + 1;
+               return True;
+            elsif Pattern (Index) = '[' then
+               if Class_Matches (Index, Left (Text_Index)) then
+                  Next_Text := Text_Index + 1;
+                  return True;
+               else
+                  return False;
+               end if;
+            elsif Pattern (Index) = '\' then
+               if Index = Pattern'Last then
+                  Mark_Invalid;
+                  return False;
+               elsif Left (Text_Index) = Pattern (Index + 1) then
+                  Next_Text := Text_Index + 1;
+                  return True;
+               else
+                  return False;
+               end if;
+            elsif Left (Text_Index) = Pattern (Index) then
+               Next_Text := Text_Index + 1;
+               return True;
+            else
+               return False;
+            end if;
+         end Atom_Matches;
+
+         function Match_From
+           (Pattern_Index : Natural;
+            Text_Index    : Natural;
+            State         : Match_State;
+            Final_State   : out Match_State;
+            End_Position  : out Natural) return Boolean;
+
+         function Match_Star
+           (Atom_Index   : Natural;
+            Rest_Index   : Natural;
+            Text_Index   : Natural;
+            State        : Match_State;
+            Final_State  : out Match_State;
+            End_Position : out Natural) return Boolean
+         is
+            Next_Text : Natural;
+         begin
+            if Atom_Matches (Atom_Index, Text_Index, Next_Text) and then Next_Text > Text_Index then
+               if Match_Star (Atom_Index, Rest_Index, Next_Text, State, Final_State, End_Position) then
+                  return True;
+               end if;
+            end if;
+
+            return Match_From (Rest_Index, Text_Index, State, Final_State, End_Position);
+         end Match_Star;
+
+         function Match_From
+           (Pattern_Index : Natural;
+            Text_Index    : Natural;
+            State         : Match_State;
+            Final_State   : out Match_State;
+            End_Position  : out Natural) return Boolean
+         is
+            Next_State : Match_State := State;
+            Next_Index : Natural;
+         begin
+            if Pattern_Index > Pattern'Last then
+               Final_State := State;
+               End_Position := Text_Index - 1;
+               return True;
+            elsif Is_Group_Start (Pattern_Index) then
+               if not Next_State.Seen_Capture then
+                  Next_State.Seen_Capture := True;
+                  Next_State.Capture_Start := Text_Index;
+               end if;
+               return Match_From (Marker_Next (Pattern_Index), Text_Index, Next_State, Final_State, End_Position);
+            elsif Is_Group_End (Pattern_Index) and then Next_State.Seen_Capture then
+               if Next_State.Capture_End = 0 then
+                  Next_State.Capture_End := Text_Index - 1;
+               end if;
+               return Match_From (Marker_Next (Pattern_Index), Text_Index, Next_State, Final_State, End_Position);
+            else
+               Next_Index := Atom_Next (Pattern_Index);
+               if Invalid_Expression then
+                  Final_State := State;
+                  End_Position := 0;
+                  return False;
+               elsif Next_Index <= Pattern'Last and then Pattern (Next_Index) = '*' then
+                  return Match_Star (Pattern_Index, Next_Index + 1, Text_Index, State, Final_State, End_Position);
+               elsif Atom_Matches (Pattern_Index, Text_Index, Next_Index) then
+                  return Match_From (Atom_Next (Pattern_Index), Next_Index, State, Final_State, End_Position);
+               else
+                  Final_State := State;
+                  End_Position := 0;
+                  return False;
+               end if;
+            end if;
+         end Match_From;
+
+         State        : Match_State;
+         End_Position : Natural := 0;
       begin
-         GNAT.Regpat.Match (Matcher, Left, Matches);
-         if Matches (0).First = 0 then
+         if not Match_From (Pattern'First, Left'First, (others => <>), State, End_Position) then
+            if Invalid_Expression then
+               Fail ("invalid regular expression '" & Pattern & "'");
+               return Make ("");
+            end if;
             return Make ("0");
-         elsif GNAT.Regpat.Paren_Count (Matcher) > 0 and then Matches (1).First /= 0 then
-            return Make (Left (Matches (1).First .. Matches (1).Last));
-         else
-            return Make (Image (Long_Long_Integer (Matches (0).Last - Matches (0).First + 1)));
-         end if;
-      exception
-         when GNAT.Regpat.Expression_Error =>
+         elsif Invalid_Expression
+           or else (State.Seen_Capture and then State.Capture_Start > 0 and then State.Capture_End = 0)
+         then
             Fail ("invalid regular expression '" & Pattern & "'");
             return Make ("");
+         elsif State.Seen_Capture then
+            if State.Capture_End < State.Capture_Start then
+               return Make ("");
+            else
+               return Make (Left (State.Capture_Start .. State.Capture_End));
+            end if;
+         else
+            return Make
+              (Image
+                 (if End_Position < Left'First then 0
+                  else Long_Long_Integer (End_Position - Left'First + 1)));
+         end if;
       end Regex_Match;
 
       function Eval_Match return Expr_Value is
@@ -8368,14 +8588,39 @@ package body Posix_Tools.Commands.Expanded is
          Whole      : Long_Long_Integer := 0;
          Fraction   : Duration := 0.0;
          Scale      : Duration := 1.0;
+         Multiplier : Duration := 1.0;
          Seen_Digit : Boolean := False;
          Seen_Dot   : Boolean := False;
+         Last_Index  : Natural := Text'Last;
       begin
          if Text = "" or else Text (Text'First) = '-' then
             Value := 0.0;
             return False;
          end if;
-         for Ch of Text loop
+
+         if Text (Text'Last) = 's' then
+            Multiplier := 1.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'm' then
+            Multiplier := 60.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'h' then
+            Multiplier := 3_600.0;
+            Last_Index := Text'Last - 1;
+         elsif Text (Text'Last) = 'd' then
+            Multiplier := 86_400.0;
+            Last_Index := Text'Last - 1;
+         end if;
+
+         if Last_Index < Text'First then
+            Value := 0.0;
+            return False;
+         end if;
+
+         for I in Text'First .. Last_Index loop
+            declare
+               Ch : constant Character := Text (I);
+            begin
             if Ch in '0' .. '9' then
                Seen_Digit := True;
                if Seen_Dot then
@@ -8394,8 +8639,9 @@ package body Posix_Tools.Commands.Expanded is
                Value := 0.0;
                return False;
             end if;
+            end;
          end loop;
-         Value := Duration (Whole) + Fraction;
+         Value := (Duration (Whole) + Fraction) * Multiplier;
          return Seen_Digit;
       end Parse_Duration;
    begin
@@ -14531,10 +14777,30 @@ package body Posix_Tools.Commands.Expanded is
       All_Ok        : Boolean := True;
 
       function Path_Limit return Natural is
-        (if Portable_Mode then 256 else 4_096);
+         Available : Boolean := False;
+         Limit     : constant Natural := FS.Path_Name_Limit (".", Available);
+      begin
+         if Portable_Mode then
+            return 256;
+         elsif Available and then Limit > 0 then
+            return Limit;
+         else
+            return 4_096;
+         end if;
+      end Path_Limit;
 
-      function Component_Limit return Natural is
-        (if Portable_Mode then 14 else 255);
+      function Component_Limit (Parent_Path : String) return Natural is
+         Available : Boolean := False;
+         Limit     : constant Natural := FS.File_Name_Limit (Parent_Path, Available);
+      begin
+         if Portable_Mode then
+            return 14;
+         elsif Available and then Limit > 0 then
+            return Limit;
+         else
+            return 255;
+         end if;
+      end Component_Limit;
 
       function Is_Portable_Character (Ch : Character) return Boolean is
       begin
@@ -14553,9 +14819,9 @@ package body Posix_Tools.Commands.Expanded is
            (Context, Path, "posix_tools.pathchk.invalid_path", Reason);
       end Reject;
 
-      procedure Check_Component (Path, Component : String) is
+      procedure Check_Component (Path, Parent_Path, Component : String) is
       begin
-         if Component'Length > Component_Limit then
+         if Component'Length > Component_Limit (Parent_Path) then
             Reject (Path, "component too long");
          elsif Portable_Mode then
             for Ch of Component loop
@@ -14568,7 +14834,9 @@ package body Posix_Tools.Commands.Expanded is
       end Check_Component;
 
       procedure Check_Path (Path : String) is
-         Start : Natural := Path'First;
+         Start  : Natural := Path'First;
+         Parent : Unbounded_String :=
+           To_Unbounded_String (if Path'Length > 0 and then Path (Path'First) = '/' then "/" else ".");
       begin
          if Path = "" then
             Reject (Path, "empty pathname");
@@ -14592,7 +14860,18 @@ package body Posix_Tools.Commands.Expanded is
                   Stop := Stop + 1;
                end loop;
 
-               Check_Component (Path, Path (Start .. Stop - 1));
+               declare
+                  Component : constant String := Path (Start .. Stop - 1);
+               begin
+                  Check_Component (Path, To_String (Parent), Component);
+                  if To_String (Parent) = "/" then
+                     Parent := To_Unbounded_String ("/" & Component);
+                  elsif To_String (Parent) = "." then
+                     Parent := To_Unbounded_String (Component);
+                  else
+                     Append (Parent, "/" & Component);
+                  end if;
+               end;
                Start := Stop + 1;
             end;
          end loop;

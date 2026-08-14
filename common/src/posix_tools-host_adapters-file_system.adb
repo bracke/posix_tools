@@ -72,6 +72,20 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Ada.Directories.Containing_Directory (Path);
    end Containing_Directory;
 
+   function File_Name_Limit (Path : String; Available : out Boolean) return Natural is
+      Capacity : constant Hostkit.Metadata.Volume_Capacity := Hostkit.Metadata.Volume_Capacity_Of (Path);
+   begin
+      Available := Capacity.Available and then Capacity.Name_Max_Known;
+      return (if Available then Capacity.Name_Max else 0);
+   end File_Name_Limit;
+
+   function Path_Name_Limit (Path : String; Available : out Boolean) return Natural is
+      pragma Unreferenced (Path);
+   begin
+      Available := False;
+      return 0;
+   end Path_Name_Limit;
+
    function Copy_Modification_Time (Source : String; Target : String) return Boolean is
    begin
       GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Target, GNAT.OS_Lib.File_Time_Stamp (Source));

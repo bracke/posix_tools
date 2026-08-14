@@ -54,6 +54,8 @@ package Posix_Tools.Host_Adapters.File_System is
       Group     : out Natural;
       Available : out Boolean);
    function File_Permission_Bits (Path : String; Available : out Boolean) return Natural;
+   function File_Name_Limit (Path : String; Available : out Boolean) return Natural;
+   function Path_Name_Limit (Path : String; Available : out Boolean) return Natural;
    function Full_Name (Path : String) return String;
    function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural;
    function Group_Name_For_Id (Id : Natural) return String;

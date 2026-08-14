@@ -988,6 +988,28 @@ package body Command_Tests is
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep zero status");
 
+      Context.Initialize ("sleep", One_Arg ("0s"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep seconds suffix status");
+
+      Context.Initialize ("sleep", One_Arg ("0m"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep minutes suffix status");
+
+      Context.Initialize ("sleep", One_Arg ("0h"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep hours suffix status");
+
+      Context.Initialize ("sleep", One_Arg ("0d"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep days suffix status");
+
+      Context.Initialize ("sleep", One_Arg ("0x"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "sleep rejects unknown suffix");
+
       Context.Initialize ("id", One_Arg ("-u"));
       Posix_Tools.Commands.Id.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -5471,6 +5493,22 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "pathchk rejects long component");
 
+      declare
+         Capacity : constant Hostkit.Metadata.Volume_Capacity := Hostkit.Metadata.Volume_Capacity_Of (".");
+      begin
+         if Capacity.Available and then Capacity.Name_Max_Known and then Capacity.Name_Max < 1024 then
+            declare
+               Too_Long : constant String (1 .. Capacity.Name_Max + 1) := (others => 'b');
+            begin
+               Context.Initialize ("pathchk", One_Arg (Too_Long));
+               Posix_Tools.Commands.Pathchk.Run (Context, Result);
+               AUnit.Assertions.Assert
+                 (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+                  "pathchk rejects host-reported name_max overflow");
+            end;
+         end if;
+      end;
+
       Context.Initialize ("pathchk", No_Args);
       Posix_Tools.Commands.Pathchk.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -5509,6 +5547,14 @@ package body Command_Tests is
                 "expr regex length");
       Run_Case (Three_Args ("abc", ":", "a(b.)"), "bc" & LF, Posix_Tools.Exit_Status.Success,
                 "expr regex capture");
+      Run_Case (Three_Args ("abc", ":", "a.c"), "3" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE dot");
+      Run_Case (Three_Args ("aaab", ":", "a*b"), "4" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE star");
+      Run_Case (Three_Args ("b", ":", "[a-c]"), "1" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE bracket range");
+      Run_Case (Three_Args ("abc", ":", "a\(b.\)"), "bc" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE escaped capture");
       Run_Case (Two_Args ("length", "abc"), "3" & LF, Posix_Tools.Exit_Status.Success,
                 "expr length");
       Run_Case (Three_Args ("index", "abc", "cb"), "2" & LF, Posix_Tools.Exit_Status.Success,

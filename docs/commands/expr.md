@@ -37,8 +37,10 @@ signed 64-bit integer operations. Comparisons are numeric when both operands are
 Help and diagnostics are localized. Expression syntax, arithmetic, regex patterns, and result data are not localized.
 
 ## Implementation-Defined Choices
-Regular expression matching is anchored at the beginning of the left operand and uses the GNAT runtime regular
-expression engine. When the pattern has a capturing group, the first captured text is returned; otherwise the matched
+Regular expression matching is anchored at the beginning of the left operand and uses the project-owned BRE matcher.
+The V1 matcher supports literals, `.`, `*`, bracket ranges and negation, escaped literals, and first subexpression
+capture. POSIX escaped grouping `\(` and `\)` is supported; bare grouping is also accepted for compatibility with
+earlier V1 tests. When the pattern has a capturing group, the first captured text is returned; otherwise the matched
 length is returned.
 
 ## Extensions
@@ -53,4 +55,4 @@ length is returned.
 Conforming with implementation-defined behavior tracked by `EXPR-POSIX-001`.
 
 ## Known Limitations
-Regular expression syntax follows the GNAT runtime engine rather than a complete standalone POSIX BRE implementation.
+Advanced locale-dependent bracket classes and collating elements are not implemented in V1.
