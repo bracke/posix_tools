@@ -1,0 +1,47 @@
+.TH fold 1
+.SH NAME
+fold - fold long input lines.
+.SH SYNOPSIS
+fold [-bs] [-w width] [file...]
+.SH DESCRIPTION
+Writes each input file to standard output with long lines folded to the selected width. With no file operands, or with
+an operand exactly equal to -, fold reads standard input.
+.SH OPERANDS
+file: input file to fold, or - for standard input.
+.SH OPTIONS
+-b: count bytes. This is the V1 counting policy and is accepted explicitly for POSIX compatibility.
+
+-s: prefer folding at the last blank byte before the selected width.
+
+-w width: set the maximum output line width. The width must be a positive decimal integer.
+
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Read when no file operands are supplied, or when a file operand is exactly -.
+.SH STANDARD OUTPUT
+Folded input bytes are written to standard output. Existing newline bytes are preserved, and inserted folds use LF.
+.SH STANDARD ERROR
+Diagnostics are written for invalid options, invalid widths, and operands that cannot be read.
+.SH EXIT STATUS
+0 success, 1 one or more operands could not be read or output failed, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+The default width is 80. A final input line without a newline remains without a final newline unless folding inserts one.
+When -s is active, the blank byte chosen as the fold point is preserved before the inserted newline.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized. Input data, inserted LF bytes, widths, and pathnames are command data and are not
+localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+V1 uses deterministic byte-column counting for all modes. It does not calculate display columns for tabs, backspaces,
+wide characters, or combining characters.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+fold -w 72 README.md
+
+fold -s -w 40 notes.txt
+.SH CONFORMANCE STATUS
+Conforming with implementation-defined behavior tracked by FOLD-POSIX-001.
+.SH KNOWN LIMITATIONS
+Display-column measurement is intentionally byte-oriented in V1.
+.SH SEE ALSO
+docs/commands/fold.md

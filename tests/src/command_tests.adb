@@ -30,6 +30,7 @@ with Posix_Tools.Commands.Expr;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Find;
+with Posix_Tools.Commands.Fold;
 with Posix_Tools.Commands.Head;
 with Posix_Tools.Commands.Id;
 with Posix_Tools.Commands.Kill;
@@ -216,6 +217,8 @@ package body Command_Tests is
          Posix_Tools.Commands.File.Run (Context, Result);
       elsif Name = "find" then
          Posix_Tools.Commands.Find.Run (Context, Result);
+      elsif Name = "fold" then
+         Posix_Tools.Commands.Fold.Run (Context, Result);
       elsif Name = "head" then
          Posix_Tools.Commands.Head.Run (Context, Result);
       elsif Name = "id" then
@@ -5635,6 +5638,77 @@ package body Command_Tests is
       Delete_If_Exists (Large_Path);
       Delete_If_Exists (Dir_Path);
    end Test_Du;
+
+   procedure Test_Fold (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("fold-input.txt");
+      Missing : constant String := Fixture_Path ("fold-missing.txt");
+      LF      : constant Character := Character'Val (10);
+
+      procedure Delete_If_Exists (Name : String) is
+      begin
+         if Ada.Directories.Exists (Name) then
+            Ada.Directories.Delete_File (Name);
+         end if;
+      end Delete_If_Exists;
+   begin
+      Context.Initialize ("fold", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "abcdefghijklmnopqrstuvwxyz");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abcdefghijklmnopqrstuvwxyz",
+         "fold leaves short standard input unchanged");
+
+      Context.Initialize ("fold", Two_Args ("-w", "5"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdefghijkl");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abcde" & LF & "fghij" & LF & "kl",
+         "fold -w wraps standard input");
+
+      Context.Initialize ("fold", Two_Args ("-w4", Path));
+      Delete_If_Exists (Path);
+      Write_File (Path, "abcd" & LF & "efghi" & LF);
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abcd" & LF & "efgh" & LF & "i" & LF,
+         "fold reads and wraps file operands");
+
+      Context.Initialize ("fold", Three_Args ("-s", "-w", "8"));
+      Test_Contexts.Set_Standard_Input (Context, "alpha beta gamma");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "alpha " & LF & "beta " & LF & "gamma",
+         "fold -s breaks at blanks");
+
+      Context.Initialize ("fold", Two_Args ("-w", "0"));
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "fold rejects zero width");
+
+      Context.Initialize ("fold", One_Arg (Missing));
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "fold reports missing file");
+
+      Context.Initialize ("fold", Two_Args ("-w", "4"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "fold returns operational failure after output failure");
+
+      Delete_If_Exists (Path);
+   end Test_Fold;
 
    procedure Test_Timeout_Statuses (T : in out Fixture) is
       pragma Unreferenced (T);

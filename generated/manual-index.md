@@ -22,6 +22,7 @@ Version: 0.1.0
 - `false`: docs/commands/false.md
 - `file`: docs/commands/file.md
 - `find`: docs/commands/find.md
+- `fold`: docs/commands/fold.md
 - `head`: docs/commands/head.md
 - `id`: docs/commands/id.md
 - `kill`: docs/commands/kill.md

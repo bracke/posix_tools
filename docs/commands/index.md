@@ -22,6 +22,7 @@ V1 command references:
 - [false](false.md)
 - [file](file.md)
 - [find](find.md)
+- [fold](fold.md)
 - [head](head.md)
 - [id](id.md)
 - [kill](kill.md)

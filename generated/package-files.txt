@@ -290,6 +290,11 @@ tools/find/alire.toml
 tools/find/posix_tools_find.gpr
 tools/find/src/find.adb
 docs/commands/find.md
+generated/man/fold.1
+tools/fold/alire.toml
+tools/fold/posix_tools_fold.gpr
+tools/fold/src/fold.adb
+docs/commands/fold.md
 generated/man/head.1
 tools/head/alire.toml
 tools/head/posix_tools_head.gpr

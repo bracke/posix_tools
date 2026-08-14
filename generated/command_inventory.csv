@@ -19,6 +19,7 @@ expr,posix_tools_expr,Posix_Tools.Commands.Expr,tools/expr/alire.toml,tools/expr
 false,posix_tools_false,Posix_Tools.Commands.False_Command,tools/false/alire.toml,tools/false/posix_tools_false.gpr,docs/commands/false.md,true,conforming_with_extensions,true,true,true
 file,posix_tools_file,Posix_Tools.Commands.File,tools/file/alire.toml,tools/file/posix_tools_file.gpr,docs/commands/file.md,true,conforming_with_extensions,true,true,true
 find,posix_tools_find,Posix_Tools.Commands.Find,tools/find/alire.toml,tools/find/posix_tools_find.gpr,docs/commands/find.md,true,conforming_with_extensions,true,true,true
+fold,posix_tools_fold,Posix_Tools.Commands.Fold,tools/fold/alire.toml,tools/fold/posix_tools_fold.gpr,docs/commands/fold.md,true,conforming_with_extensions,true,true,true
 head,posix_tools_head,Posix_Tools.Commands.Head,tools/head/alire.toml,tools/head/posix_tools_head.gpr,docs/commands/head.md,true,conforming_with_extensions,true,true,true
 id,posix_tools_id,Posix_Tools.Commands.Id,tools/id/alire.toml,tools/id/posix_tools_id.gpr,docs/commands/id.md,true,conforming_with_extensions,true,true,true
 kill,posix_tools_kill,Posix_Tools.Commands.Kill,tools/kill/alire.toml,tools/kill/posix_tools_kill.gpr,docs/commands/kill.md,true,conforming_with_extensions,true,true,true

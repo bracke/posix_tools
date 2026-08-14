@@ -24,6 +24,7 @@ V1 inventory:
 - `false`
 - `file`
 - `find`
+- `fold`
 - `head`
 - `id`
 - `kill`

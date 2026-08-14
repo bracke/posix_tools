@@ -14,6 +14,7 @@ package Command_Tests is
    procedure Test_Dirname (T : in out Fixture);
    procedure Test_Dirname_Edge_Cases (T : in out Fixture);
    procedure Test_Du (T : in out Fixture);
+   procedure Test_Fold (T : in out Fixture);
    procedure Test_Simple_Output_Failures (T : in out Fixture);
    procedure Test_Echo (T : in out Fixture);
    procedure Test_Echo_Data_Edge_Cases (T : in out Fixture);

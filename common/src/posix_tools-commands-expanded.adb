@@ -4897,6 +4897,181 @@ package body Posix_Tools.Commands.Expanded is
          else Posix_Tools.Exit_Status.Success);
    end Run_File;
 
+   procedure Read_All
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Data      : out Unbounded_String;
+      Ok        : out Boolean);
+
+   procedure Run_Fold
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Width      : Natural := 80;
+      Space_Mode : Boolean := False;
+      First_File : Positive := 1;
+      All_Ok     : Boolean := True;
+
+      procedure Reject_Width (Text : String) is
+      begin
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+      end Reject_Width;
+
+      function Valid_Width (Text : String; Value : out Natural) return Boolean is
+      begin
+         return Parse_Natural_Text (Text, Value) and then Value > 0;
+      end Valid_Width;
+
+      procedure Put_LF is
+      begin
+         Context.Put ("" & LF);
+      end Put_LF;
+
+      procedure Emit_Folded_Line (Line : String; Had_Newline : Boolean) is
+         Start : Natural := Line'First;
+         Stop  : Natural;
+         Break : Natural;
+      begin
+         if Line = "" then
+            if Had_Newline then
+               Put_LF;
+            end if;
+            return;
+         end if;
+
+         while Start <= Line'Last loop
+            exit when Line'Last - Start + 1 <= Width;
+
+            Stop := Start + Width - 1;
+            Break := 0;
+            if Space_Mode then
+               for I in Start .. Stop loop
+                  if Line (I) = ' ' or else Line (I) = HT then
+                     Break := I;
+                  end if;
+               end loop;
+            end if;
+
+            if Break >= Start then
+               Context.Put (Line (Start .. Break));
+               Put_LF;
+               Start := Break + 1;
+            else
+               Context.Put (Line (Start .. Stop));
+               Put_LF;
+               Start := Stop + 1;
+            end if;
+
+            exit when Context.Output_Failed;
+         end loop;
+
+         if not Context.Output_Failed then
+            if Start <= Line'Last then
+               Context.Put (Line (Start .. Line'Last));
+            end if;
+            if Had_Newline then
+               Put_LF;
+            end if;
+         end if;
+      end Emit_Folded_Line;
+
+      procedure Fold_Text (Text : String; Ok : out Boolean) is
+         Start : Natural := Text'First;
+      begin
+         Ok := True;
+         if Text = "" then
+            return;
+         end if;
+
+         for I in Text'Range loop
+            if Text (I) = LF then
+               if Start <= I - 1 then
+                  Emit_Folded_Line (Text (Start .. I - 1), True);
+               else
+                  Emit_Folded_Line ("", True);
+               end if;
+               if Context.Output_Failed then
+                  Ok := False;
+                  return;
+               end if;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Start <= Text'Last then
+            Emit_Folded_Line (Text (Start .. Text'Last), False);
+         end if;
+         Ok := not Context.Output_Failed;
+      end Fold_Text;
+
+      procedure Fold_File (Name : String; Ok : out Boolean) is
+         Data : Unbounded_String;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if Ok then
+            Fold_Text (To_String (Data), Ok);
+         end if;
+      end Fold_File;
+   begin
+      while First_File <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First_File);
+         begin
+            if Arg = "--" then
+               First_File := First_File + 1;
+               exit;
+            elsif Arg = "-b" then
+               First_File := First_File + 1;
+            elsif Arg = "-s" then
+               Space_Mode := True;
+               First_File := First_File + 1;
+            elsif Arg = "-w" then
+               if First_File >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "missing option argument '-w'");
+                  return;
+               elsif not Valid_Width (Context.Argument (First_File + 1), Width) then
+                  Reject_Width (Context.Argument (First_File + 1));
+                  return;
+               end if;
+               First_File := First_File + 2;
+            elsif Arg'Length > 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) = 'w'
+            then
+               if not Valid_Width (Arg (Arg'First + 2 .. Arg'Last), Width) then
+                  Reject_Width (Arg (Arg'First + 2 .. Arg'Last));
+                  return;
+               end if;
+               First_File := First_File + 1;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if Context.Argument_Count < First_File then
+         Fold_File ("-", All_Ok);
+      else
+         for I in First_File .. Context.Argument_Count loop
+            declare
+               Ok : Boolean;
+            begin
+               Fold_File (Context.Argument (I), Ok);
+               All_Ok := All_Ok and Ok;
+               exit when Context.Output_Failed;
+            end;
+         end loop;
+      end if;
+
+      Result.Status :=
+        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Fold;
+
    procedure Run_Find
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -14019,6 +14194,7 @@ package body Posix_Tools.Commands.Expanded is
          when Expr_Command => Run_Expr (Context, Result);
          when File_Command => Run_File (Context, Result);
          when Find_Command => Run_Find (Context, Result);
+         when Fold_Command => Run_Fold (Context, Result);
          when Id_Command => Run_Id (Context, Result);
          when Kill_Command => Run_Kill (Context, Result);
          when Link_Command => Run_Link (Context, Result);

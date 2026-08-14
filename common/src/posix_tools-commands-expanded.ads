@@ -18,6 +18,7 @@ package Posix_Tools.Commands.Expanded is
       Expr_Command,
       File_Command,
       Find_Command,
+      Fold_Command,
       Id_Command,
       Kill_Command,
       Link_Command,
