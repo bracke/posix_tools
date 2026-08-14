@@ -6,13 +6,13 @@ nl - write files with selected lines numbered.
 
 ## Synopsis
 
-`nl [-ba|-bt|-bn] [-i increment] [-s separator] [-v start] [-w width] [file...]`
+`nl [-ba|-bt|-bn] [-fa|-ft|-fn] [-ha|-ht|-hn] [-d delim] [-i increment] [-p] [-s separator] [-v start] [-w width] [file...]`
 
 ## Description
 
-`nl` writes each input file to standard output, prefixing selected logical body
-lines with a line number. With no file operands, or with a file operand exactly
-equal to `-`, standard input is read.
+`nl` writes each input file to standard output, prefixing selected logical lines
+with a line number. With no file operands, or with a file operand exactly equal
+to `-`, standard input is read.
 
 ## Operands
 
@@ -26,7 +26,15 @@ equal to `-`, standard input is read.
 
 `-bn`: do not number body lines.
 
+`-fa`, `-ft`, `-fn`: select numbering for footer lines.
+
+`-ha`, `-ht`, `-hn`: select numbering for header lines.
+
+`-d delim`: use the two-character logical page delimiter `delim`. The default is `\:`.
+
 `-i increment`: set the line-number increment. The value must be a positive decimal integer.
+
+`-p`: do not restart numbering at logical page delimiters.
 
 `-s separator`: write `separator` after each emitted number. The default is a tab byte.
 
@@ -54,8 +62,10 @@ Diagnostics are written for invalid options, invalid numeric operands, and input
 
 ## Behavioral Details
 
-V1 treats all input as body text. Logical page delimiter processing is not implemented. A non-numbered line is prefixed
-with blanks matching the configured number width followed by the configured separator.
+Logical page delimiters select header, body, and footer sections. With the default delimiter `\:`, `\:\:\:` starts a
+header section, `\:\:` starts a body section, and `\:` starts a footer section. Delimiter lines are not copied to output.
+Unless `-p` is supplied, numbering restarts at the configured initial value when a new logical page starts. A non-numbered
+line is prefixed with blanks matching the configured number width followed by the configured separator.
 
 ## Locale Behavior
 
@@ -64,8 +74,8 @@ localized.
 
 ## Implementation-Defined Choices
 
-Line-number fields are right-aligned ASCII decimal. V1 uses byte-preserving LF line scanning and does not interpret
-logical page delimiters.
+Line-number fields are right-aligned ASCII decimal. V1 uses byte-preserving LF line scanning. Logical page delimiters are
+recognized lexically using the configured two-character delimiter and LF line endings.
 
 ## Extensions
 
@@ -79,8 +89,8 @@ logical page delimiters.
 
 ## Conformance Status
 
-Known deviation tracked by NL-POSIX-001.
+Conforming with extensions.
 
 ## Known Limitations
 
-Logical page delimiter processing and header/footer/body section selection are not implemented in V1.
+No known V1 limitations for the documented option set.

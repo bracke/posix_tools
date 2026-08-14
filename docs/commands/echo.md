@@ -29,13 +29,15 @@ Only unexpected boundary diagnostics.
 `0` success, `1` output failure, `125` internal failure.
 
 ## Behavioral Details
-No backslash escape interpretation is implemented.
+Backslashes and `-n` are ordinary operand data. This deterministic behavior is the project policy for the POSIX.1-2024
+implementation-defined echo cases.
 
 ## Locale Behavior
 Command data output is not localized.
 
 ## Implementation-Defined Choices
-V1 deliberately chooses deterministic no-escape behavior.
+The project deliberately chooses deterministic no-escape behavior instead of selecting GNU, BSD, shell-builtin, or XSI
+compatibility modes.
 
 ## Extensions
 Sole-argument `--help`, `--version`, `--posix-tools-identify`.
@@ -47,4 +49,5 @@ Sole-argument `--help`, `--version`, `--posix-tools-identify`.
 Conforming with extensions for V1 behavior tracked in `generated/requirements.csv`.
 
 ## Known Limitations
-GNU, BSD, shell-builtin, and XSI escape variants are not implemented.
+No separate GNU, BSD, shell-builtin, or XSI compatibility mode is provided; those implementation-defined cases use the
+deterministic project behavior described above.

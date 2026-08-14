@@ -193,8 +193,6 @@ package body Posix_Tools.Command_Inventory is
    Yes_Pkg      : aliased constant String := "Posix_Tools.Commands.Yes";
 
    Conforming_With_Extensions : aliased constant String := "conforming_with_extensions";
-   Known_Deviation            : aliased constant String := "known_deviation";
-
    Inventory : constant array (Positive range 1 .. Command_Count) of Command_Descriptor :=
      [1  => (Basename_Exe'Access, Basename_Crate'Access, Basename_Pkg'Access, Conforming_With_Extensions'Access),
       2  => (Cat_Exe'Access, Cat_Crate'Access, Cat_Pkg'Access, Conforming_With_Extensions'Access),
@@ -227,7 +225,7 @@ package body Posix_Tools.Command_Inventory is
       29 => (Ls_Exe'Access, Ls_Crate'Access, Ls_Pkg'Access, Conforming_With_Extensions'Access),
       30 => (Mkdir_Exe'Access, Mkdir_Crate'Access, Mkdir_Pkg'Access, Conforming_With_Extensions'Access),
       31 => (Mv_Exe'Access, Mv_Crate'Access, Mv_Pkg'Access, Conforming_With_Extensions'Access),
-      32 => (Nl_Exe'Access, Nl_Crate'Access, Nl_Pkg'Access, Known_Deviation'Access),
+      32 => (Nl_Exe'Access, Nl_Crate'Access, Nl_Pkg'Access, Conforming_With_Extensions'Access),
       33 => (Od_Exe'Access, Od_Crate'Access, Od_Pkg'Access, Conforming_With_Extensions'Access),
       34 => (Paste_Exe'Access, Paste_Crate'Access, Paste_Pkg'Access, Conforming_With_Extensions'Access),
       35 => (Pathchk_Exe'Access, Pathchk_Crate'Access, Pathchk_Pkg'Access, Conforming_With_Extensions'Access),

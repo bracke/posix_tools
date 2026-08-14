@@ -5183,14 +5183,21 @@ package body Posix_Tools.Commands.Expanded is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       type Number_Mode is (All_Lines, Nonempty_Lines, No_Lines);
+      type Logical_Section is (Header_Section, Body_Section, Footer_Section);
 
-      Mode       : Number_Mode := Nonempty_Lines;
+      Header_Mode : Number_Mode := No_Lines;
+      Body_Mode   : Number_Mode := Nonempty_Lines;
+      Footer_Mode : Number_Mode := No_Lines;
+      Section     : Logical_Section := Body_Section;
       Increment  : Long_Long_Integer := 1;
       Separator  : Unbounded_String := To_Unbounded_String ("" & HT);
       Value      : Long_Long_Integer := 1;
+      Initial_Value : Long_Long_Integer := 1;
       Width      : Natural := 6;
       First_File : Positive := 1;
       All_Ok     : Boolean := True;
+      Delimiter  : String (1 .. 2) := (1 => Character'Val (16#5C#), 2 => ':');
+      No_Restart : Boolean := False;
 
       function Parse_Positive_Long (Text : String; Parsed : out Long_Long_Integer) return Boolean is
          Acc : Long_Long_Integer := 0;
@@ -5269,6 +5276,24 @@ package body Posix_Tools.Commands.Expanded is
          return Line = "" or else Line = "" & LF;
       end Is_Empty_Line;
 
+      function Line_Body (Line : String) return String is
+      begin
+         if Line'Length > 0 and then Line (Line'Last) = LF then
+            return Line (Line'First .. Line'Last - 1);
+         else
+            return Line;
+         end if;
+      end Line_Body;
+
+      function Active_Mode return Number_Mode is
+      begin
+         case Section is
+            when Header_Section => return Header_Mode;
+            when Body_Section => return Body_Mode;
+            when Footer_Section => return Footer_Mode;
+         end case;
+      end Active_Mode;
+
       procedure Emit_Prefix (Numbered : Boolean) is
          Text : constant String := (if Numbered then Digits_Only_Image (Value) else "");
       begin
@@ -5290,7 +5315,7 @@ package body Posix_Tools.Commands.Expanded is
 
       procedure Number_Line (Line : String) is
          Numbered : constant Boolean :=
-           Mode = All_Lines or else (Mode = Nonempty_Lines and then not Is_Empty_Line (Line));
+           Active_Mode = All_Lines or else (Active_Mode = Nonempty_Lines and then not Is_Empty_Line (Line));
       begin
          Emit_Prefix (Numbered);
          if not Context.Output_Failed then
@@ -5301,6 +5326,50 @@ package body Posix_Tools.Commands.Expanded is
          end if;
       end Number_Line;
 
+      function Repeated_Delimiter (Count : Positive) return String is
+         Result : String (1 .. Count * 2);
+         Target : Positive := Result'First;
+      begin
+         for I in 1 .. Count loop
+            pragma Unreferenced (I);
+            Result (Target) := Delimiter (1);
+            Result (Target + 1) := Delimiter (2);
+            Target := Target + 2;
+         end loop;
+         return Result;
+      end Repeated_Delimiter;
+
+      function Is_Logical_Delimiter (Line : String; New_Section : out Logical_Section) return Boolean is
+         Content : constant String := Line_Body (Line);
+      begin
+         if Content = Repeated_Delimiter (3) then
+            New_Section := Header_Section;
+            return True;
+         elsif Content = Repeated_Delimiter (2) then
+            New_Section := Body_Section;
+            return True;
+         elsif Content = Repeated_Delimiter (1) then
+            New_Section := Footer_Section;
+            return True;
+         else
+            New_Section := Section;
+            return False;
+         end if;
+      end Is_Logical_Delimiter;
+
+      procedure Process_Line (Line : String) is
+         New_Section : Logical_Section;
+      begin
+         if Is_Logical_Delimiter (Line, New_Section) then
+            Section := New_Section;
+            if New_Section = Header_Section and then not No_Restart then
+               Value := Initial_Value;
+            end if;
+         else
+            Number_Line (Line);
+         end if;
+      end Process_Line;
+
       procedure Number_Text (Text : String; Ok : out Boolean) is
          Current : Unbounded_String;
       begin
@@ -5308,7 +5377,7 @@ package body Posix_Tools.Commands.Expanded is
          for Ch of Text loop
             Append (Current, Ch);
             if Ch = LF then
-               Number_Line (To_String (Current));
+               Process_Line (To_String (Current));
                Current := Null_Unbounded_String;
                if Context.Output_Failed then
                   Ok := False;
@@ -5318,7 +5387,7 @@ package body Posix_Tools.Commands.Expanded is
          end loop;
 
          if Length (Current) > 0 then
-            Number_Line (To_String (Current));
+            Process_Line (To_String (Current));
          end if;
 
          Ok := not Context.Output_Failed;
@@ -5347,26 +5416,76 @@ package body Posix_Tools.Commands.Expanded is
 
          return False;
       end Option_Value;
+
+      function Parse_Mode (Text : String; Mode : out Number_Mode) return Boolean is
+      begin
+         if Text = "a" then
+            Mode := All_Lines;
+            return True;
+         elsif Text = "t" then
+            Mode := Nonempty_Lines;
+            return True;
+         elsif Text = "n" then
+            Mode := No_Lines;
+            return True;
+         else
+            Mode := No_Lines;
+            return False;
+         end if;
+      end Parse_Mode;
+
+      procedure Set_Mode_Option (Option, Text : String; Ok : out Boolean) is
+         Parsed_Mode : Number_Mode;
+      begin
+         Ok := Parse_Mode (Text, Parsed_Mode);
+         if not Ok then
+            Invalid_Value (Text);
+            return;
+         end if;
+
+         if Option = "-b" then
+            Body_Mode := Parsed_Mode;
+         elsif Option = "-h" then
+            Header_Mode := Parsed_Mode;
+         else
+            Footer_Mode := Parsed_Mode;
+         end if;
+      end Set_Mode_Option;
    begin
       while First_File <= Context.Argument_Count loop
          declare
             Arg        : constant String := Context.Argument (First_File);
             Parsed     : Long_Long_Integer;
             Option_Arg : Unbounded_String;
+            Mode_Ok    : Boolean;
          begin
             if Arg = "--" then
                First_File := First_File + 1;
                exit;
-            elsif Arg = "-ba" then
-               Mode := All_Lines;
+            elsif Arg = "-p" then
+               No_Restart := True;
                First_File := First_File + 1;
-            elsif Arg = "-bt" then
-               Mode := Nonempty_Lines;
+            elsif Arg = "-b" or else Arg = "-h" or else Arg = "-f" then
+               if First_File >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '" & Arg & "'");
+                  return;
+               end if;
+               Set_Mode_Option (Arg, Context.Argument (First_File + 1), Mode_Ok);
+               if not Mode_Ok then
+                  return;
+               end if;
+               First_File := First_File + 2;
+            elsif Arg'Length = 3
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) in 'b' | 'h' | 'f'
+            then
+               Set_Mode_Option
+                 (Arg (Arg'First .. Arg'First + 1), Arg (Arg'Last .. Arg'Last), Mode_Ok);
+               if not Mode_Ok then
+                  return;
+               end if;
                First_File := First_File + 1;
-            elsif Arg = "-bn" then
-               Mode := No_Lines;
-               First_File := First_File + 1;
-            elsif Arg = "-i" or else Arg = "-v" or else Arg = "-w" or else Arg = "-s" then
+            elsif Arg = "-i" or else Arg = "-v" or else Arg = "-w" or else Arg = "-s" or else Arg = "-d" then
                if First_File >= Context.Argument_Count then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '" & Arg & "'");
                   return;
@@ -5382,6 +5501,7 @@ package body Posix_Tools.Commands.Expanded is
                      Invalid_Value (To_String (Option_Arg));
                      return;
                   end if;
+                  Initial_Value := Value;
                elsif Arg = "-w" then
                   if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
                     or else Parsed > Long_Long_Integer (Natural'Last)
@@ -5390,6 +5510,16 @@ package body Posix_Tools.Commands.Expanded is
                      return;
                   end if;
                   Width := Natural (Parsed);
+               elsif Arg = "-d" then
+                  if Length (Option_Arg) /= 2 then
+                     Invalid_Value (To_String (Option_Arg));
+                     return;
+                  end if;
+                  declare
+                     Text : constant String := To_String (Option_Arg);
+                  begin
+                     Delimiter := (1 => Text (Text'First), 2 => Text (Text'First + 1));
+                  end;
                else
                   Separator := Option_Arg;
                end if;
@@ -5405,6 +5535,7 @@ package body Posix_Tools.Commands.Expanded is
                   Invalid_Value (To_String (Option_Arg));
                   return;
                end if;
+               Initial_Value := Value;
                First_File := First_File + 1;
             elsif Option_Value (Arg, 'w', Option_Arg) then
                if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
@@ -5417,6 +5548,17 @@ package body Posix_Tools.Commands.Expanded is
                First_File := First_File + 1;
             elsif Option_Value (Arg, 's', Option_Arg) then
                Separator := Option_Arg;
+               First_File := First_File + 1;
+            elsif Option_Value (Arg, 'd', Option_Arg) then
+               if Length (Option_Arg) /= 2 then
+                  Invalid_Value (To_String (Option_Arg));
+                  return;
+               end if;
+               declare
+                  Text : constant String := To_String (Option_Arg);
+               begin
+                  Delimiter := (1 => Text (Text'First), 2 => Text (Text'First + 1));
+               end;
                First_File := First_File + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
                Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
@@ -7265,47 +7407,84 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      type Parsed_Number is record
+         Mantissa : Long_Long_Integer := 0;
+         Scale    : Natural := 0;
+      end record;
+
+      Operands  : String_Vectors.Vector;
       First     : Long_Long_Integer := 1;
       Increment : Long_Long_Integer := 1;
       Last      : Long_Long_Integer := 0;
+      Scale     : Natural := 0;
+      Separator : Unbounded_String := To_Unbounded_String ("" & LF);
+      Equal_Width : Boolean := False;
+      Format_Text : Unbounded_String;
+      Has_Format  : Boolean := False;
 
-      function Parse_Integer_Text (Text : String; Parsed : out Long_Long_Integer) return Boolean is
-         Negative : Boolean := False;
-         Start    : Natural := Text'First;
-         Acc      : Long_Long_Integer := 0;
-         Digit    : Long_Long_Integer;
+      function Power_10 (Count : Natural) return Long_Long_Integer is
+         Result : Long_Long_Integer := 1;
+      begin
+         for I in 1 .. Count loop
+            pragma Unreferenced (I);
+            if Result > Long_Long_Integer'Last / 10 then
+               return 0;
+            end if;
+            Result := Result * 10;
+         end loop;
+         return Result;
+      end Power_10;
+
+      function Parse_Decimal_Text (Text : String; Parsed : out Parsed_Number) return Boolean is
+         Negative    : Boolean := False;
+         Seen_Digit  : Boolean := False;
+         Seen_Dot    : Boolean := False;
+         Acc         : Long_Long_Integer := 0;
+         Digit       : Long_Long_Integer;
       begin
          if Text = "" then
-            Parsed := 0;
+            Parsed := (0, 0);
             return False;
          end if;
 
-         if Text (Text'First) = '-' or else Text (Text'First) = '+' then
-            Negative := Text (Text'First) = '-';
-            Start := Text'First + 1;
-         end if;
-
-         if Start > Text'Last then
-            Parsed := 0;
-            return False;
-         end if;
-
-         for I in Start .. Text'Last loop
-            if Text (I) not in '0' .. '9' then
-               Parsed := 0;
+         for I in Text'Range loop
+            if I = Text'First and then (Text (I) = '-' or else Text (I) = '+') then
+               Negative := Text (I) = '-';
+            elsif Text (I) = '.' then
+               if Seen_Dot then
+                  Parsed := (0, 0);
+                  return False;
+               end if;
+               Seen_Dot := True;
+            elsif Text (I) in '0' .. '9' then
+               Seen_Digit := True;
+               Digit := Long_Long_Integer (Character'Pos (Text (I)) - Character'Pos ('0'));
+               if Acc > (Long_Long_Integer'Last - Digit) / 10 then
+                  Parsed := (0, 0);
+                  return False;
+               end if;
+               Acc := Acc * 10 + Digit;
+               if Seen_Dot then
+                  if Parsed.Scale = Natural'Last then
+                     Parsed := (0, 0);
+                     return False;
+                  end if;
+                  Parsed.Scale := Parsed.Scale + 1;
+               end if;
+            else
+               Parsed := (0, 0);
                return False;
             end if;
-            Digit := Long_Long_Integer (Character'Pos (Text (I)) - Character'Pos ('0'));
-            if Acc > (Long_Long_Integer'Last - Digit) / 10 then
-               Parsed := 0;
-               return False;
-            end if;
-            Acc := Acc * 10 + Digit;
          end loop;
 
-         Parsed := (if Negative then -Acc else Acc);
+         if not Seen_Digit then
+            Parsed := (0, 0);
+            return False;
+         end if;
+
+         Parsed.Mantissa := (if Negative then -Acc else Acc);
          return True;
-      end Parse_Integer_Text;
+      end Parse_Decimal_Text;
 
       function Integer_Image (Item : Long_Long_Integer) return String is
          Raw : constant String := Long_Long_Integer'Image (Item);
@@ -7316,6 +7495,159 @@ package body Posix_Tools.Commands.Expanded is
             return Raw;
          end if;
       end Integer_Image;
+
+      function Adjust_Scale (Item : Parsed_Number; Target_Scale : Natural; Value : out Long_Long_Integer) return Boolean
+      is
+         Factor : constant Long_Long_Integer := Power_10 (Target_Scale - Item.Scale);
+      begin
+         if Factor = 0 or else abs Item.Mantissa > Long_Long_Integer'Last / Factor then
+            Value := 0;
+            return False;
+         end if;
+         Value := Item.Mantissa * Factor;
+         return True;
+      end Adjust_Scale;
+
+      function Trimmed_Decimal (Item : Long_Long_Integer; Decimal_Scale : Natural) return String is
+         Factor : constant Long_Long_Integer := Power_10 (Decimal_Scale);
+         Abs_Item : constant Long_Long_Integer := abs Item;
+         Whole : constant String := Integer_Image (Abs_Item / Factor);
+         Fraction_Value : Long_Long_Integer := Abs_Item mod Factor;
+         Fraction : String (1 .. Decimal_Scale);
+         Last : Natural := Fraction'Last;
+      begin
+         if Decimal_Scale = 0 then
+            return Integer_Image (Item);
+         end if;
+
+         for I in reverse Fraction'Range loop
+            Fraction (I) := Character'Val (Character'Pos ('0') + Natural (Fraction_Value mod 10));
+            Fraction_Value := Fraction_Value / 10;
+         end loop;
+
+         while Last > Fraction'First and then Fraction (Last) = '0' loop
+            Last := Last - 1;
+         end loop;
+
+         if Item < 0 then
+            return "-" & Whole & "." & Fraction (Fraction'First .. Last);
+         else
+            return Whole & "." & Fraction (Fraction'First .. Last);
+         end if;
+      end Trimmed_Decimal;
+
+      function Fixed_Decimal (Item : Long_Long_Integer; Decimal_Scale, Precision : Natural) return String is
+         Factor : constant Long_Long_Integer := Power_10 (Decimal_Scale);
+         Abs_Item : constant Long_Long_Integer := abs Item;
+         Whole : constant String := Integer_Image (Abs_Item / Factor);
+         Fraction_Value : Long_Long_Integer := Abs_Item mod Factor;
+      begin
+         if Precision = 0 then
+            return (if Item < 0 then "-" & Whole else Whole);
+         end if;
+
+         declare
+            Fraction_Text : String (1 .. Natural'Max (Decimal_Scale, Precision));
+         begin
+            for I in reverse 1 .. Decimal_Scale loop
+               Fraction_Text (I) := Character'Val (Character'Pos ('0') + Natural (Fraction_Value mod 10));
+               Fraction_Value := Fraction_Value / 10;
+            end loop;
+            if Precision > Decimal_Scale then
+               for I in Decimal_Scale + 1 .. Precision loop
+                  Fraction_Text (I) := '0';
+               end loop;
+            end if;
+
+            if Item < 0 then
+               return "-" & Whole & "." & Fraction_Text (1 .. Precision);
+            else
+               return Whole & "." & Fraction_Text (1 .. Precision);
+            end if;
+         end;
+      end Fixed_Decimal;
+
+      function Looks_Like_Negative_Number (Text : String) return Boolean is
+      begin
+         return Text'Length > 1
+           and then Text (Text'First) = '-'
+           and then (Text (Text'First + 1) in '0' .. '9' or else Text (Text'First + 1) = '.');
+      end Looks_Like_Negative_Number;
+
+      function Pad_Zero (Text : String; Width : Natural) return String is
+      begin
+         if Text'Length >= Width then
+            return Text;
+         elsif Text'Length > 0 and then Text (Text'First) = '-' then
+            return "-" & (1 .. Width - Text'Length => '0') & Text (Text'First + 1 .. Text'Last);
+         else
+            return (1 .. Width - Text'Length => '0') & Text;
+         end if;
+      end Pad_Zero;
+
+      function Default_Image (Item : Long_Long_Integer; Width : Natural := 0) return String is
+      begin
+         return Pad_Zero (Trimmed_Decimal (Item, Scale), Width);
+      end Default_Image;
+
+      function Format_Image (Item : Long_Long_Integer) return String is
+         Format : constant String := To_String (Format_Text);
+         Conv   : Natural := 0;
+         Dot    : Natural := 0;
+         Width  : Natural := 0;
+         Precision : Natural := Scale;
+      begin
+         for I in Format'Range loop
+            if Format (I) = '%' then
+               if I < Format'Last and then Format (I + 1) = '%' then
+                  null;
+               elsif Conv = 0 then
+                  Conv := I;
+               else
+                  return Default_Image (Item);
+               end if;
+            end if;
+         end loop;
+
+         if Conv = 0 or else Conv = Format'Last then
+            return Default_Image (Item);
+         end if;
+
+         declare
+            I : Natural := Conv + 1;
+         begin
+            if Format (I) = '0' then
+               I := I + 1;
+            end if;
+            while I <= Format'Last and then Format (I) in '0' .. '9' loop
+               Width := Width * 10 + Natural (Character'Pos (Format (I)) - Character'Pos ('0'));
+               I := I + 1;
+            end loop;
+            if I <= Format'Last and then Format (I) = '.' then
+               Dot := I;
+               Precision := 0;
+               I := I + 1;
+               while I <= Format'Last and then Format (I) in '0' .. '9' loop
+                  Precision := Precision * 10 + Natural (Character'Pos (Format (I)) - Character'Pos ('0'));
+                  I := I + 1;
+               end loop;
+            end if;
+
+            if I > Format'Last or else Format (I) not in 'f' | 'F' | 'g' | 'G' then
+               return Default_Image (Item);
+            end if;
+
+            declare
+               Prefix : constant String := Format (Format'First .. Conv - 1);
+               Suffix : constant String := (if I < Format'Last then Format (I + 1 .. Format'Last) else "");
+               Number : constant String :=
+                 (if Dot = 0 and then Format (I) in 'g' | 'G' then Default_Image (Item, Width)
+                  else Pad_Zero (Fixed_Decimal (Item, Scale, Precision), Width));
+            begin
+               return Prefix & Number & Suffix;
+            end;
+         end;
+      end Format_Image;
 
       procedure Invalid (Text : String) is
       begin
@@ -7328,53 +7660,117 @@ package body Posix_Tools.Commands.Expanded is
            or else (Right < 0 and then Left < Long_Long_Integer'First - Right);
       end Addition_Overflows;
    begin
-      if Context.Argument_Count not in 1 .. 3 then
+      declare
+         I : Positive := 1;
+      begin
+         while I <= Context.Argument_Count loop
+            declare
+               Arg : constant String := Context.Argument (I);
+            begin
+               if Arg = "--" then
+                  I := I + 1;
+                  while I <= Context.Argument_Count loop
+                     Operands.Append (Context.Argument (I));
+                     I := I + 1;
+                  end loop;
+               elsif Arg = "-w" then
+                  Equal_Width := True;
+                  I := I + 1;
+               elsif Arg = "-s" or else Arg = "-f" then
+                  if I >= Context.Argument_Count then
+                     Posix_Tools.Commands.Helpers.Usage_Error
+                       (Context, Result, "missing option argument '" & Arg & "'");
+                     return;
+                  end if;
+                  if Arg = "-s" then
+                     Separator := To_Unbounded_String (Context.Argument (I + 1));
+                  else
+                     Format_Text := To_Unbounded_String (Context.Argument (I + 1));
+                     Has_Format := True;
+                  end if;
+                  I := I + 2;
+               elsif Arg'Length > 2 and then Arg (Arg'First .. Arg'First + 1) = "-s" then
+                  Separator := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+                  I := I + 1;
+               elsif Arg'Length > 2 and then Arg (Arg'First .. Arg'First + 1) = "-f" then
+                  Format_Text := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+                  Has_Format := True;
+                  I := I + 1;
+               elsif Arg'Length > 1 and then Arg (Arg'First) = '-' and then not Looks_Like_Negative_Number (Arg) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+                  return;
+               else
+                  Operands.Append (Arg);
+                  I := I + 1;
+               end if;
+            end;
+         end loop;
+      end;
+
+      if Operands.Length not in 1 .. 3 then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand count");
          return;
       end if;
 
-      if Context.Argument_Count = 1 then
-         if not Parse_Integer_Text (Context.Argument (1), Last) then
-            Invalid (Context.Argument (1));
+      declare
+         Parsed : array (1 .. 3) of Parsed_Number;
+      begin
+         for I in 1 .. Natural (Operands.Length) loop
+            if not Parse_Decimal_Text (Operands.Element (I), Parsed (I)) then
+               Invalid (Operands.Element (I));
+               return;
+            end if;
+            Scale := Natural'Max (Scale, Parsed (I).Scale);
+         end loop;
+
+         if Operands.Length = 1 then
+            Parsed (3) := Parsed (1);
+            Parsed (2) := (1, 0);
+            Parsed (1) := (1, 0);
+         elsif Operands.Length = 2 then
+            Parsed (3) := Parsed (2);
+            Parsed (2) := (1, 0);
+         end if;
+
+         if not Adjust_Scale (Parsed (1), Scale, First)
+           or else not Adjust_Scale (Parsed (2), Scale, Increment)
+           or else not Adjust_Scale (Parsed (3), Scale, Last)
+         then
+            Invalid (Operands.Element (1));
             return;
          end if;
-      elsif Context.Argument_Count = 2 then
-         if not Parse_Integer_Text (Context.Argument (1), First) then
-            Invalid (Context.Argument (1));
-            return;
-         elsif not Parse_Integer_Text (Context.Argument (2), Last) then
-            Invalid (Context.Argument (2));
-            return;
-         end if;
-      else
-         if not Parse_Integer_Text (Context.Argument (1), First) then
-            Invalid (Context.Argument (1));
-            return;
-         elsif not Parse_Integer_Text (Context.Argument (2), Increment) then
-            Invalid (Context.Argument (2));
-            return;
-         elsif not Parse_Integer_Text (Context.Argument (3), Last) then
-            Invalid (Context.Argument (3));
-            return;
-         end if;
-      end if;
+      end;
 
       if Increment = 0 then
-         Invalid (Context.Argument ((if Context.Argument_Count = 3 then 2 else 1)));
+         Invalid (Operands.Element ((if Operands.Length = 3 then 2 else 1)));
          return;
       end if;
 
       declare
          Current : Long_Long_Integer := First;
+         First_Output : Boolean := True;
+         Width : Natural := 0;
       begin
+         if Equal_Width and then not Has_Format then
+            Width := Natural'Max (Default_Image (First)'Length, Default_Image (Last)'Length);
+         end if;
+
          while (Increment > 0 and then Current <= Last) or else (Increment < 0 and then Current >= Last) loop
-            Context.Put_Line (Integer_Image (Current));
+            if not First_Output then
+               Context.Put (To_String (Separator));
+               exit when Context.Output_Failed;
+            end if;
+            Context.Put ((if Has_Format then Format_Image (Current) else Default_Image (Current, Width)));
             exit when Context.Output_Failed;
             if Addition_Overflows (Current, Increment) then
                exit;
             end if;
             Current := Current + Increment;
+            First_Output := False;
          end loop;
+         if not Context.Output_Failed then
+            Context.Put ("" & LF);
+         end if;
       end;
 
       Set_Success (Context, Result);

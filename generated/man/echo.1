@@ -19,11 +19,13 @@ Only unexpected boundary diagnostics.
 .SH EXIT STATUS
 0 success, 1 output failure, 125 internal failure.
 .SH BEHAVIORAL DETAILS
-No backslash escape interpretation is implemented.
+Backslashes and -n are ordinary operand data. This deterministic behavior is the project policy for the POSIX.1-2024
+implementation-defined echo cases.
 .SH LOCALE BEHAVIOR
 Command data output is not localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
-V1 deliberately chooses deterministic no-escape behavior.
+The project deliberately chooses deterministic no-escape behavior instead of selecting GNU, BSD, shell-builtin, or XSI
+compatibility modes.
 .SH EXTENSIONS
 Sole-argument --help, --version, --posix-tools-identify.
 .SH EXAMPLES
@@ -31,6 +33,7 @@ echo hello world
 .SH CONFORMANCE STATUS
 Conforming with extensions for V1 behavior tracked in generated/requirements.csv.
 .SH KNOWN LIMITATIONS
-GNU, BSD, shell-builtin, and XSI escape variants are not implemented.
+No separate GNU, BSD, shell-builtin, or XSI compatibility mode is provided; those implementation-defined cases use the
+deterministic project behavior described above.
 .SH SEE ALSO
 docs/commands/echo.md

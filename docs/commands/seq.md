@@ -2,7 +2,7 @@
 
 ## Name
 
-seq - write a finite integer sequence.
+seq - write a finite numeric sequence.
 
 ## Synopsis
 
@@ -12,10 +12,12 @@ seq - write a finite integer sequence.
 
 `seq first increment last`
 
+`seq [-w] [-s separator] [-f format] last`
+
 ## Description
 
-`seq` writes a finite sequence of signed decimal integers, one per line. It is a project extension and is not part of the
-POSIX.1-2024 utility baseline.
+`seq` writes a finite sequence of signed decimal numbers. It is a project extension and is not part of the POSIX.1-2024
+utility baseline.
 
 ## Operands
 
@@ -27,8 +29,14 @@ POSIX.1-2024 utility baseline.
 
 ## Options
 
-No command-specific options are supported. Project extensions `--help`, `--version`, and `--posix-tools-identify` are
-recognized.
+`-f format`: format each generated value using a bounded printf-style decimal conversion. Supported conversions are
+`%f`, `%F`, `%g`, and `%G` with optional zero-padded field width and precision.
+
+`-s separator`: write `separator` between generated values. The default separator is LF.
+
+`-w`: equalize generated value width with leading zeroes when no explicit format is supplied.
+
+Project extensions `--help`, `--version`, and `--posix-tools-identify` are recognized.
 
 ## Standard Input
 
@@ -36,11 +44,11 @@ Not read.
 
 ## Standard Output
 
-Each generated integer is written as ASCII decimal followed by LF.
+Generated values are written as ASCII decimal data. A final LF is always written after the sequence.
 
 ## Standard Error
 
-Diagnostics are written for invalid operand counts, invalid integers, zero increment, and output failures.
+Diagnostics are written for invalid operand counts, invalid numbers, zero increment, invalid options, and output failures.
 
 ## Exit Status
 
@@ -49,7 +57,9 @@ Diagnostics are written for invalid operand counts, invalid integers, zero incre
 ## Behavioral Details
 
 Positive increments stop after the next value would exceed `last`. Negative increments stop after the next value would be
-less than `last`. Arithmetic is checked and overflow stops after the last representable value.
+less than `last`. Decimal operands are represented with fixed-scale integer arithmetic derived from the supplied
+operands, so simple decimal sequences such as `0.1 0.1 0.3` are deterministic. Arithmetic is checked and overflow stops
+after the last representable value.
 
 ## Locale Behavior
 
@@ -57,7 +67,7 @@ Help and diagnostics are localized. Generated numeric data is not localized.
 
 ## Implementation-Defined Choices
 
-Only signed integer sequences are implemented in V1.
+Supported decimal precision is bounded by the project wide integer range after scaling. Exponent notation is rejected.
 
 ## Extensions
 
@@ -69,10 +79,18 @@ The entire command is a project extension. `--help`, `--version`, and `--posix-t
 
 `seq 5 -2 1`
 
+`seq 0.1 0.1 0.3`
+
+`seq -s , 1 3`
+
+`seq -w 8 10`
+
+`seq -f 'n=%04.1f' 1 1 3`
+
 ## Conformance Status
 
 Non-POSIX extension tracked by SEQ-EXT-001.
 
 ## Known Limitations
 
-Floating-point operands, custom separators, equal-width output, and printf-style formatting are not implemented in V1.
+Exponent notation and arbitrary locale-dependent numeric formatting are not implemented.

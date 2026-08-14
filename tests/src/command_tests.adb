@@ -8194,6 +8194,39 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "     1: z" & LF,
          "nl honors custom separators");
 
+      Context.Initialize ("nl", Four_Args ("-ha", "-fa", "-ba", "-v3"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         "\:\:\:" & LF
+         & "head" & LF
+         & "\:\:" & LF
+         & "body" & LF
+         & "\:" & LF
+         & "foot" & LF);
+      Posix_Tools.Commands.Nl.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "     3" & HT & "head" & LF
+           & "     4" & HT & "body" & LF
+           & "     5" & HT & "foot" & LF,
+         "nl processes default logical page delimiters");
+
+      Context.Initialize ("nl", Five_Args ("-p", "-ha", "-d", "%%", "-v7"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         "%%%%%%" & LF
+         & "first" & LF
+         & "%%%%%%" & LF
+         & "second" & LF);
+      Posix_Tools.Commands.Nl.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "     7" & HT & "first" & LF
+           & "     8" & HT & "second" & LF,
+         "nl honors custom delimiters and no-restart");
+
       Context.Initialize ("nl", Two_Args ("-i", "0"));
       Posix_Tools.Commands.Nl.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -8243,6 +8276,34 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "5" & LF & "3" & LF & "1" & LF,
          "seq supports negative increments");
+
+      Context.Initialize ("seq", Three_Args ("0.1", "0.1", "0.3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0.1" & LF & "0.2" & LF & "0.3" & LF,
+         "seq supports deterministic decimal increments");
+
+      Context.Initialize ("seq", Four_Args ("-s", ",", "1", "3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1,2,3" & LF,
+         "seq supports custom separators");
+
+      Context.Initialize ("seq", Three_Args ("-w", "8", "10"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "08" & LF & "09" & LF & "10" & LF,
+         "seq supports equal-width output");
+
+      Context.Initialize ("seq", Five_Args ("-f", "n=%04.1f", "1", "1", "3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "n=01.0" & LF & "n=02.0" & LF & "n=03.0" & LF,
+         "seq supports printf-style decimal formatting");
 
       Context.Initialize ("seq", Three_Args ("1", "0", "3"));
       Posix_Tools.Commands.Seq.Run (Context, Result);

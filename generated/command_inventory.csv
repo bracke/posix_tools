@@ -30,7 +30,7 @@ logname,posix_tools_logname,Posix_Tools.Commands.Logname,tools/logname/alire.tom
 ls,posix_tools_ls,Posix_Tools.Commands.Ls,tools/ls/alire.toml,tools/ls/posix_tools_ls.gpr,docs/commands/ls.md,true,conforming_with_extensions,true,true,true
 mkdir,posix_tools_mkdir,Posix_Tools.Commands.Mkdir,tools/mkdir/alire.toml,tools/mkdir/posix_tools_mkdir.gpr,docs/commands/mkdir.md,true,conforming_with_extensions,true,true,true
 mv,posix_tools_mv,Posix_Tools.Commands.Mv,tools/mv/alire.toml,tools/mv/posix_tools_mv.gpr,docs/commands/mv.md,true,conforming_with_extensions,true,true,true
-nl,posix_tools_nl,Posix_Tools.Commands.Nl,tools/nl/alire.toml,tools/nl/posix_tools_nl.gpr,docs/commands/nl.md,true,known_deviation,true,true,true
+nl,posix_tools_nl,Posix_Tools.Commands.Nl,tools/nl/alire.toml,tools/nl/posix_tools_nl.gpr,docs/commands/nl.md,true,conforming_with_extensions,true,true,true
 od,posix_tools_od,Posix_Tools.Commands.Od,tools/od/alire.toml,tools/od/posix_tools_od.gpr,docs/commands/od.md,true,conforming_with_extensions,true,true,true
 paste,posix_tools_paste,Posix_Tools.Commands.Paste,tools/paste/alire.toml,tools/paste/posix_tools_paste.gpr,docs/commands/paste.md,true,conforming_with_extensions,true,true,true
 pathchk,posix_tools_pathchk,Posix_Tools.Commands.Pathchk,tools/pathchk/alire.toml,tools/pathchk/posix_tools_pathchk.gpr,docs/commands/pathchk.md,true,conforming_with_extensions,true,true,true
