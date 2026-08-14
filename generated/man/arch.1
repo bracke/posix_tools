@@ -1,0 +1,36 @@
+.TH arch 1
+.SH NAME
+arch - write the machine hardware name
+.SH SYNOPSIS
+arch
+.SH DESCRIPTION
+arch writes the host machine class reported by the posix_tools host adapter.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+Only common project options such as --help, --version, and the internal identity option are recognized by the
+process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The machine class followed by a newline.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 on success, 2 for invalid operands, and 125 for unexpected internal failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+The value is obtained from hostkit through the posix_tools host adapter. It is not localized.
+.SH LOCALE BEHAVIOR
+Command data output is locale-invariant. Help and diagnostics are locale-dependent.
+.SH IMPLEMENTATION-DEFINED CHOICES
+This is a project extension command and follows the hostkit machine-name mapping for each supported platform.
+.SH EXTENSIONS
+The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+arch
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+The exact machine class spelling is hostkit-defined.
+.SH SEE ALSO
+docs/commands/arch.md

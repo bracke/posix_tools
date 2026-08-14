@@ -1,0 +1,37 @@
+.TH hostname 1
+.SH NAME
+hostname - write the current host node name
+.SH SYNOPSIS
+hostname
+.SH DESCRIPTION
+hostname writes the host node name reported by the posix_tools host adapter.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+Only common project options such as --help, --version, and the internal identity option are recognized by the
+process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The node name followed by a newline.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 on success, 1 when the platform cannot provide a node name, 2 for invalid operands, and 125 for unexpected
+internal failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+The command does not change the host name. It only reports the current name.
+.SH LOCALE BEHAVIOR
+Command data output is locale-invariant. Help and diagnostics are locale-dependent.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The value is the hostkit node-name result for the active platform.
+.SH EXTENSIONS
+The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+hostname
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+Setting host names is intentionally not implemented.
+.SH SEE ALSO
+docs/commands/hostname.md

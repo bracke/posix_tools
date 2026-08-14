@@ -1,0 +1,37 @@
+.TH which 1
+.SH NAME
+which - locate executable operands
+.SH SYNOPSIS
+which command...
+.SH DESCRIPTION
+which writes the executable path located for each operand through the posix_tools executable-search adapter.
+.SH OPERANDS
+Each operand is a command name to locate.
+.SH OPTIONS
+-- may be used to end option recognition. Common project options such as --help, --version, and the internal
+identity option are recognized by the process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Located executable paths, one per line.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 when every requested command is located and output succeeds, 1 when any requested command is missing or output
+fails, 2 for invalid usage, and 125 for unexpected internal failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+Search behavior follows hostkit executable discovery. The command does not invoke located programs.
+.SH LOCALE BEHAVIOR
+Located path output is locale-invariant. Help and diagnostics are locale-dependent.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Path search and executable-suffix handling are hostkit-defined for the active platform.
+.SH EXTENSIONS
+which is a project extension command. The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+which posix-tools
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+Shell functions, aliases, and shell built-ins are outside this command's search model.
+.SH SEE ALSO
+docs/commands/which.md

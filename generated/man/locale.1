@@ -1,0 +1,37 @@
+.TH locale 1
+.SH NAME
+locale - write locale information
+.SH SYNOPSIS
+locale
+locale -a
+locale -m
+.SH DESCRIPTION
+locale writes the effective locale category values, available locale names, or available charmaps.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+-a writes available locale names. -m writes available charmaps. --help and --version are project extensions.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Locale category assignments, locale names, or charmap names.
+.SH STANDARD ERROR
+Localized diagnostics are written for invalid usage.
+.SH EXIT STATUS
+0 on success, 2 for invalid usage, and 125 for internal failure.
+.SH BEHAVIORAL DETAILS
+Unset categories fall back to LANG, then to C.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Locale names and category names are not translated.
+.SH IMPLEMENTATION-DEFINED CHOICES
+V1 reports the portable C and POSIX locale names and UTF-8 charmap.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+locale
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+The available-locale list is intentionally portable and not a host catalog dump.
+.SH SEE ALSO
+docs/commands/locale.md

@@ -4,6 +4,7 @@
 
 V1 inventory:
 
+- `arch`
 - `basename`
 - `cat`
 - `chgrp`
@@ -16,6 +17,7 @@ V1 inventory:
 - `cut`
 - `date`
 - `dd`
+- `df`
 - `dirname`
 - `du`
 - `echo`
@@ -26,19 +28,27 @@ V1 inventory:
 - `file`
 - `find`
 - `fold`
+- `getconf`
+- `groups`
 - `head`
+- `hostname`
 - `id`
 - `kill`
 - `link`
 - `ln`
+- `locale`
 - `logname`
 - `ls`
 - `mkdir`
+- `mkfifo`
 - `mv`
+- `nice`
 - `nl`
+- `nohup`
 - `od`
 - `paste`
 - `pathchk`
+- `printenv`
 - `printf`
 - `pwd`
 - `readlink`
@@ -46,8 +56,10 @@ V1 inventory:
 - `rm`
 - `rmdir`
 - `seq`
+- `sha256sum`
 - `sleep`
 - `split`
+- `stat`
 - `sort`
 - `tail`
 - `tee`
@@ -62,6 +74,7 @@ V1 inventory:
 - `unlink`
 - `uniq`
 - `wc`
+- `which`
 - `whoami`
 - `xargs`
 - `yes`

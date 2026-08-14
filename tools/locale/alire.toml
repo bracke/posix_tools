@@ -1,0 +1,18 @@
+name = "posix_tools_locale"
+description = "locale command for posix_tools"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["locale"]
+project-files = ["posix_tools_locale.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[pins]]
+posix_tools_common = { path = "../../common" }
+
+[build-profiles]
+"*" = "development"

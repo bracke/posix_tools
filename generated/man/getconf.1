@@ -1,0 +1,35 @@
+.TH getconf 1
+.SH NAME
+getconf - write configuration values
+.SH SYNOPSIS
+getconf variable [pathname]
+.SH DESCRIPTION
+getconf writes selected POSIX configuration values known to the project and host adapter.
+.SH OPERANDS
+variable names the requested configuration value. pathname is accepted for path-dependent variables.
+.SH OPTIONS
+--help and --version are project extensions.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+The requested value followed by a newline.
+.SH STANDARD ERROR
+Localized diagnostics are written for unknown variables and invalid operands.
+.SH EXIT STATUS
+0 on success, 1 for operational failure, 2 for invalid usage, and 125 for internal failure.
+.SH BEHAVIORAL DETAILS
+V1 supports POSIX_VERSION, POSIX2_VERSION, PATH, NAME_MAX, and PATH_MAX.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Configuration values are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Unavailable path limits are reported as undefined.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+getconf POSIX_VERSION
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Only a focused V1 configuration set is implemented.
+.SH SEE ALSO
+docs/commands/getconf.md

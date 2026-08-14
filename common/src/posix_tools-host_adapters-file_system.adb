@@ -79,6 +79,18 @@ package body Posix_Tools.Host_Adapters.File_System is
       return (if Available then Capacity.Name_Max else 0);
    end File_Name_Limit;
 
+   function File_System_Capacity (Path : String) return Volume_Capacity is
+      Capacity : constant Hostkit.Metadata.Volume_Capacity := Hostkit.Metadata.Volume_Capacity_Of (Path);
+   begin
+      return
+        (Available      => Capacity.Available,
+         Capacity_Bytes => Capacity.Capacity_Bytes,
+         Free_Bytes     => Capacity.Free_Bytes);
+   exception
+      when others =>
+         return (Available => False, Capacity_Bytes => 0, Free_Bytes => 0);
+   end File_System_Capacity;
+
    function Path_Name_Limit (Path : String; Available : out Boolean) return Natural is
       pragma Unreferenced (Path);
    begin

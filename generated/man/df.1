@@ -1,0 +1,36 @@
+.TH df 1
+.SH NAME
+df - report filesystem space
+.SH SYNOPSIS
+df [file...]
+.SH DESCRIPTION
+df writes one line of filesystem capacity information for each operand, or for the current directory when no
+operand is supplied. Counts are reported in 512-byte units.
+.SH OPERANDS
+file names a path located on the filesystem to inspect.
+.SH OPTIONS
+--help and --version are project extensions.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+A header followed by filesystem, total, used, and available block counts.
+.SH STANDARD ERROR
+Localized diagnostics are written for paths whose filesystem capacity cannot be determined.
+.SH EXIT STATUS
+0 on success, 1 for operational failure, 2 for invalid usage, and 125 for internal failure.
+.SH BEHAVIORAL DETAILS
+The implementation asks the host adapter for capacity of the filesystem containing each operand.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Capacity data is not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The V1 output uses a compact project format with 512-byte blocks.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+df .
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Capacity precision depends on the host adapter and underlying platform APIs.
+.SH SEE ALSO
+docs/commands/df.md

@@ -1,0 +1,35 @@
+.TH mkfifo 1
+.SH NAME
+mkfifo - make FIFO special files
+.SH SYNOPSIS
+mkfifo [-m mode] file...
+.SH DESCRIPTION
+mkfifo creates one FIFO special file for each operand.
+.SH OPERANDS
+file names the FIFO to create.
+.SH OPTIONS
+-m mode sets octal permission bits for the created FIFO. --help and --version are project extensions.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+No output is written for successful creation.
+.SH STANDARD ERROR
+Localized diagnostics are written for invalid usage and creation failures.
+.SH EXIT STATUS
+0 on success, 1 for operational failure, 2 for invalid usage, and 125 for internal failure.
+.SH BEHAVIORAL DETAILS
+Creation is delegated to the host filesystem adapter.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Pathnames are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Only octal modes are accepted in V1.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+mkfifo queue
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+FIFO creation depends on host platform support.
+.SH SEE ALSO
+docs/commands/mkfifo.md

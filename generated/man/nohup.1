@@ -1,0 +1,36 @@
+.TH nohup 1
+.SH NAME
+nohup - invoke a utility immune to hangups where supported
+.SH SYNOPSIS
+nohup utility [argument...]
+.SH DESCRIPTION
+nohup invokes a utility after requesting that hangup signals be ignored where the host supports that operation.
+.SH OPERANDS
+utility names the program to execute. Remaining operands are passed as arguments.
+.SH OPTIONS
+--help and --version are project extensions.
+.SH STANDARD INPUT
+Inherited by the invoked utility.
+.SH STANDARD OUTPUT
+Inherited by the invoked utility in V1.
+.SH STANDARD ERROR
+Localized diagnostics are written when the utility cannot be invoked.
+.SH EXIT STATUS
+The invoked utility status is returned when available. 126 means the utility could not be invoked, 127 means it was
+not found, 2 means invalid usage, and 125 means internal failure.
+.SH BEHAVIORAL DETAILS
+Signal disposition handling is delegated to the host signal adapter.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Utility output is not localized by nohup.
+.SH IMPLEMENTATION-DEFINED CHOICES
+V1 does not create nohup.out; output redirection remains the caller's responsibility.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+nohup true
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Full POSIX nohup.out redirection is not implemented in V1.
+.SH SEE ALSO
+docs/commands/nohup.md

@@ -10,6 +10,7 @@ with Hostkit.Fs;
 with Hostkit.Metadata;
 with Posix_Tools.Arguments;
 with Posix_Tools.Command_Inventory;
+with Posix_Tools.Commands.Arch;
 with Posix_Tools.Commands.Basename;
 with Posix_Tools.Commands.Cat;
 with Posix_Tools.Commands.Chgrp;
@@ -22,6 +23,7 @@ with Posix_Tools.Commands.Cp;
 with Posix_Tools.Commands.Cut;
 with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Dd;
+with Posix_Tools.Commands.Df;
 with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Du;
 with Posix_Tools.Commands.Echo;
@@ -32,19 +34,27 @@ with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Fold;
+with Posix_Tools.Commands.Getconf;
+with Posix_Tools.Commands.Groups;
 with Posix_Tools.Commands.Head;
+with Posix_Tools.Commands.Hostname;
 with Posix_Tools.Commands.Id;
 with Posix_Tools.Commands.Kill;
 with Posix_Tools.Commands.Link;
 with Posix_Tools.Commands.Ln;
+with Posix_Tools.Commands.Locale;
 with Posix_Tools.Commands.Logname;
 with Posix_Tools.Commands.Ls;
 with Posix_Tools.Commands.Mkdir;
+with Posix_Tools.Commands.Mkfifo;
 with Posix_Tools.Commands.Mv;
+with Posix_Tools.Commands.Nice;
 with Posix_Tools.Commands.Nl;
+with Posix_Tools.Commands.Nohup;
 with Posix_Tools.Commands.Od;
 with Posix_Tools.Commands.Paste;
 with Posix_Tools.Commands.Pathchk;
+with Posix_Tools.Commands.Printenv;
 with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
 with Posix_Tools.Commands.Readlink;
@@ -54,9 +64,11 @@ with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Root;
 with Posix_Tools.Commands.Seq;
+with Posix_Tools.Commands.Sha256sum;
 with Posix_Tools.Commands.Sleep;
 with Posix_Tools.Commands.Split;
 with Posix_Tools.Commands.Sort;
+with Posix_Tools.Commands.Stat;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
 with Posix_Tools.Commands.Test_Command;
@@ -70,6 +82,7 @@ with Posix_Tools.Commands.Unlink;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
+with Posix_Tools.Commands.Which;
 with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Commands.Yes;
@@ -203,7 +216,9 @@ package body Command_Tests is
       Context : in out Test_Contexts.Capturing_Context;
       Result  : out Posix_Tools.Commands.Results.Result) is
    begin
-      if Name = "basename" then
+      if Name = "arch" then
+         Posix_Tools.Commands.Arch.Run (Context, Result);
+      elsif Name = "basename" then
          Posix_Tools.Commands.Basename.Run (Context, Result);
       elsif Name = "cat" then
          Posix_Tools.Commands.Cat.Run (Context, Result);
@@ -227,6 +242,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Date.Run (Context, Result);
       elsif Name = "dd" then
          Posix_Tools.Commands.Dd.Run (Context, Result);
+      elsif Name = "df" then
+         Posix_Tools.Commands.Df.Run (Context, Result);
       elsif Name = "dirname" then
          Posix_Tools.Commands.Dirname.Run (Context, Result);
       elsif Name = "du" then
@@ -247,8 +264,14 @@ package body Command_Tests is
          Posix_Tools.Commands.Find.Run (Context, Result);
       elsif Name = "fold" then
          Posix_Tools.Commands.Fold.Run (Context, Result);
+      elsif Name = "getconf" then
+         Posix_Tools.Commands.Getconf.Run (Context, Result);
+      elsif Name = "groups" then
+         Posix_Tools.Commands.Groups.Run (Context, Result);
       elsif Name = "head" then
          Posix_Tools.Commands.Head.Run (Context, Result);
+      elsif Name = "hostname" then
+         Posix_Tools.Commands.Hostname.Run (Context, Result);
       elsif Name = "id" then
          Posix_Tools.Commands.Id.Run (Context, Result);
       elsif Name = "kill" then
@@ -257,22 +280,32 @@ package body Command_Tests is
          Posix_Tools.Commands.Link.Run (Context, Result);
       elsif Name = "ln" then
          Posix_Tools.Commands.Ln.Run (Context, Result);
+      elsif Name = "locale" then
+         Posix_Tools.Commands.Locale.Run (Context, Result);
       elsif Name = "logname" then
          Posix_Tools.Commands.Logname.Run (Context, Result);
       elsif Name = "ls" then
          Posix_Tools.Commands.Ls.Run (Context, Result);
       elsif Name = "mkdir" then
          Posix_Tools.Commands.Mkdir.Run (Context, Result);
+      elsif Name = "mkfifo" then
+         Posix_Tools.Commands.Mkfifo.Run (Context, Result);
       elsif Name = "mv" then
          Posix_Tools.Commands.Mv.Run (Context, Result);
+      elsif Name = "nice" then
+         Posix_Tools.Commands.Nice.Run (Context, Result);
       elsif Name = "nl" then
          Posix_Tools.Commands.Nl.Run (Context, Result);
+      elsif Name = "nohup" then
+         Posix_Tools.Commands.Nohup.Run (Context, Result);
       elsif Name = "od" then
          Posix_Tools.Commands.Od.Run (Context, Result);
       elsif Name = "paste" then
          Posix_Tools.Commands.Paste.Run (Context, Result);
       elsif Name = "pathchk" then
          Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      elsif Name = "printenv" then
+         Posix_Tools.Commands.Printenv.Run (Context, Result);
       elsif Name = "printf" then
          Posix_Tools.Commands.Printf.Run (Context, Result);
       elsif Name = "pwd" then
@@ -287,12 +320,16 @@ package body Command_Tests is
          Posix_Tools.Commands.Rmdir.Run (Context, Result);
       elsif Name = "seq" then
          Posix_Tools.Commands.Seq.Run (Context, Result);
+      elsif Name = "sha256sum" then
+         Posix_Tools.Commands.Sha256sum.Run (Context, Result);
       elsif Name = "sleep" then
          Posix_Tools.Commands.Sleep.Run (Context, Result);
       elsif Name = "split" then
          Posix_Tools.Commands.Split.Run (Context, Result);
       elsif Name = "sort" then
          Posix_Tools.Commands.Sort.Run (Context, Result);
+      elsif Name = "stat" then
+         Posix_Tools.Commands.Stat.Run (Context, Result);
       elsif Name = "tail" then
          Posix_Tools.Commands.Tail.Run (Context, Result);
       elsif Name = "tee" then
@@ -319,6 +356,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Uniq.Run (Context, Result);
       elsif Name = "wc" then
          Posix_Tools.Commands.Wc.Run (Context, Result);
+      elsif Name = "which" then
+         Posix_Tools.Commands.Which.Run (Context, Result);
       elsif Name = "whoami" then
          Posix_Tools.Commands.Whoami.Run (Context, Result);
       elsif Name = "xargs" then
@@ -414,6 +453,7 @@ package body Command_Tests is
       Link_Dir : constant String := Fixture_Path ("expanded-ln-dir");
       Moved   : constant String := Fixture_Path ("expanded-moved.txt");
       Made    : constant String := Fixture_Path ("expanded-dir");
+      Mkfifo_Target : constant String := Fixture_Path ("expanded-fifo");
       Symbolic_Mode_Dir : constant String := Fixture_Path ("expanded-symbolic-mode-dir");
       Relative_Mode_Dir : constant String := Fixture_Path ("expanded-relative-mode-dir");
       Remove_Dir : constant String := Fixture_Path ("expanded-rm-dir");
@@ -450,6 +490,7 @@ package body Command_Tests is
       Split_Input : constant String := Fixture_Path ("expanded-split.txt");
       Split_Prefix : constant String := Fixture_Path ("expanded-split-out-");
       Split_Long_Prefix : constant String := Fixture_Path ("expanded-split-long-");
+      Large_Hash_Input : constant String (1 .. 20_000) := [others => 'x'];
       EOL     : constant Character := Character'Val (10);
 
       procedure Remove_Any (Path : String) is
@@ -526,6 +567,7 @@ package body Command_Tests is
       Remove_Any (Link_Dir);
       Remove_Any (Moved);
       Remove_Any (Made);
+      Remove_Any (Mkfifo_Target);
       Remove_Any (Symbolic_Mode_Dir);
       Remove_Any (Relative_Mode_Dir);
       Remove_Any (Remove_Dir);
@@ -1262,6 +1304,123 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "mkdir rejects unknown option");
+
+      Context.Initialize ("arch", No_Args);
+      Posix_Tools.Commands.Arch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) /= "",
+         "arch reports machine class");
+
+      Context.Initialize ("df", No_Args);
+      Posix_Tools.Commands.Df.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "Filesystem 512-blocks Used Available"),
+         "df reports current filesystem capacity");
+
+      Context.Initialize ("getconf", One_Arg ("POSIX_VERSION"));
+      Posix_Tools.Commands.Getconf.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "202405" & EOL,
+         "getconf POSIX_VERSION");
+
+      Context.Initialize ("getconf", One_Arg ("NO_SUCH_VARIABLE"));
+      Posix_Tools.Commands.Getconf.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "getconf rejects unknown variable");
+
+      Context.Initialize ("groups", No_Args);
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status in Posix_Tools.Exit_Status.Success | Posix_Tools.Exit_Status.Operational_Failure,
+         "groups status reflects host group support");
+      if Result.Status = Posix_Tools.Exit_Status.Success then
+         AUnit.Assertions.Assert (Test_Contexts.Output (Context) /= "", "groups writes group list");
+      else
+         AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) /= "", "groups unsupported diagnostic");
+      end if;
+
+      Context.Initialize ("locale", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LANG", "en_US.UTF-8");
+      Posix_Tools.Commands.Locale.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "LANG=""en_US.UTF-8"""),
+         "locale reports effective LANG");
+
+      Context.Initialize ("locale", One_Arg ("-a"));
+      Posix_Tools.Commands.Locale.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "C" & EOL & "POSIX" & EOL,
+         "locale -a portable list");
+
+      Context.Initialize ("hostname", No_Args);
+      Posix_Tools.Commands.Hostname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) /= "",
+         "hostname reports node name");
+
+      Context.Initialize ("mkfifo", Three_Args ("-m", "600", Mkfifo_Target));
+      Posix_Tools.Commands.Mkfifo.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status in Posix_Tools.Exit_Status.Success | Posix_Tools.Exit_Status.Operational_Failure,
+         "mkfifo status reflects host support");
+      if Result.Status = Posix_Tools.Exit_Status.Success then
+         AUnit.Assertions.Assert (Ada.Directories.Exists (Mkfifo_Target), "mkfifo creates filesystem entry");
+      else
+         AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) /= "", "mkfifo unsupported diagnostic");
+      end if;
+
+      Context.Initialize ("nice", Two_Args ("-n5", "true"));
+      Posix_Tools.Commands.Nice.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "nice propagates true status");
+
+      Context.Initialize ("nice", One_Arg ("false"));
+      Posix_Tools.Commands.Nice.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "nice propagates false status");
+
+      Context.Initialize ("nohup", One_Arg ("true"));
+      Posix_Tools.Commands.Nohup.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "nohup propagates true status");
+
+      Context.Initialize ("printenv", One_Arg ("POSIX_TOOLS_TEST_PRINTENV"));
+      Test_Contexts.Set_Environment_Value (Context, "POSIX_TOOLS_TEST_PRINTENV", "printed-value");
+      Posix_Tools.Commands.Printenv.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "printed-value" & EOL,
+         "printenv selected variable");
+
+      Context.Initialize ("printenv", One_Arg ("POSIX_TOOLS_TEST_MISSING"));
+      Posix_Tools.Commands.Printenv.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "",
+         "printenv missing variable status");
+
+      Context.Initialize ("which", One_Arg ("POSIX_TOOLS_NO_SUCH_COMMAND"));
+      Posix_Tools.Commands.Which.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "",
+         "which reports missing command through status");
+
+      Context.Initialize ("stat", One_Arg (Source));
+      Posix_Tools.Commands.Stat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "File: " & Source & EOL)
+         and then Contains (Test_Contexts.Output (Context), "Size: 9" & EOL)
+         and then Contains (Test_Contexts.Output (Context), "Type: regular file" & EOL)
+         and then Contains (Test_Contexts.Output (Context), "Mode: "),
+         "stat reports regular file metadata");
 
       Ada.Directories.Create_Directory (Multi);
       Write_File (Other, "other-data");
@@ -4952,6 +5111,32 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "1219131554 3" & EOL,
          "cksum treats a sole -- as end-of-options before implicit standard input");
 
+      Context.Initialize ("sha256sum", One_Arg (Source));
+      Posix_Tools.Commands.Sha256sum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "31f096ed11381d8885e6bb572b98782840325a88e582dc576a039b6564ca9c77  " & Source & EOL,
+         "sha256sum prints known file digest and operand");
+
+      Context.Initialize ("sha256sum", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "abc");
+      Posix_Tools.Commands.Sha256sum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" & EOL,
+         "sha256sum reads implicit standard input");
+
+      Context.Initialize ("sha256sum", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, Large_Hash_Input);
+      Posix_Tools.Commands.Sha256sum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "42e8bc96b8eec8c4e5d503483ba0cb843ce95243c8ca8575ffc69cd25d12c61c" & EOL,
+         "sha256sum streams input larger than one chunk");
+
       Write_File (Cmp_First, "same" & EOL);
       Write_File (Cmp_Second, "same" & EOL);
       Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
@@ -5402,6 +5587,7 @@ package body Command_Tests is
       Remove_Any (Link_Dir);
       Remove_Any (Moved);
       Remove_Any (Made);
+      Remove_Any (Mkfifo_Target);
       Remove_Any (Symbolic_Mode_Dir);
       Remove_Any (Relative_Mode_Dir);
       Remove_Any (Remove_Dir);

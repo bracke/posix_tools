@@ -1,0 +1,39 @@
+.TH groups 1
+.SH NAME
+groups - write current process group names
+.SH SYNOPSIS
+groups
+.SH DESCRIPTION
+groups writes the primary and supplementary groups visible to the current process through the posix_tools host
+adapter.
+.SH OPERANDS
+No operands are accepted.
+.SH OPTIONS
+Only common project options such as --help, --version, and the internal identity option are recognized by the
+process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Group names or numeric group identifiers separated by spaces, followed by a newline.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 on success, 1 when group information is unavailable, 2 for invalid operands, and 125 for unexpected internal
+failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+The command reports the current process group set only. Duplicate group identifiers are suppressed while preserving
+the order reported by the host adapter.
+.SH LOCALE BEHAVIOR
+Command data output is locale-invariant. Help and diagnostics are locale-dependent.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Group-name lookup is hostkit-defined. Numeric identifiers are used when a group name is unavailable.
+.SH EXTENSIONS
+groups is a project extension command. The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+groups
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+User-name operands are not implemented.
+.SH SEE ALSO
+docs/commands/groups.md

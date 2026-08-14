@@ -19,6 +19,11 @@ package Posix_Tools.Host_Adapters.File_System is
       Device    : Interfaces.Unsigned_64 := 0;
       Mode      : Natural := 0;
    end record;
+   type Volume_Capacity is record
+      Available      : Boolean := False;
+      Capacity_Bytes : Long_Long_Integer := 0;
+      Free_Bytes     : Long_Long_Integer := 0;
+   end record;
    type Copy_File_Status is
      (Copy_Ok,
       Source_Open_Failed,
@@ -56,6 +61,7 @@ package Posix_Tools.Host_Adapters.File_System is
       Available : out Boolean);
    function File_Permission_Bits (Path : String; Available : out Boolean) return Natural;
    function File_Name_Limit (Path : String; Available : out Boolean) return Natural;
+   function File_System_Capacity (Path : String) return Volume_Capacity;
    function Path_Name_Limit (Path : String; Available : out Boolean) return Natural;
    function Full_Name (Path : String) return String;
    function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural;

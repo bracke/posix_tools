@@ -1,0 +1,36 @@
+.TH nice 1
+.SH NAME
+nice - invoke a utility with adjusted scheduling priority
+.SH SYNOPSIS
+nice [-n increment] utility [argument...]
+.SH DESCRIPTION
+nice invokes a utility and returns its exit status.
+.SH OPERANDS
+utility names the program to execute. Remaining operands are passed as arguments.
+.SH OPTIONS
+-n increment parses the requested priority adjustment. --help and --version are project extensions.
+.SH STANDARD INPUT
+Inherited by the invoked utility.
+.SH STANDARD OUTPUT
+Inherited output from the invoked utility.
+.SH STANDARD ERROR
+Localized diagnostics are written when the utility cannot be invoked.
+.SH EXIT STATUS
+The invoked utility status is returned when available. 126 means the utility could not be invoked, 127 means it was
+not found, 2 means invalid usage, and 125 means internal failure.
+.SH BEHAVIORAL DETAILS
+V1 validates the requested adjustment and delegates execution to the process adapter.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are locale-dependent. Utility output is not localized by nice.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Priority adjustment application is host-adapter dependent.
+.SH EXTENSIONS
+--help, --version, and --posix-tools-identify.
+.SH EXAMPLES
+nice -n 5 true
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Some platforms may execute the utility without changing scheduling priority.
+.SH SEE ALSO
+docs/commands/nice.md

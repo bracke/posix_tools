@@ -1,0 +1,38 @@
+.TH printenv 1
+.SH NAME
+printenv - write environment values
+.SH SYNOPSIS
+printenv [name...]
+.SH DESCRIPTION
+printenv writes the current command context environment. With no operands it writes all environment entries as
+name=value records. With operands it writes the value of each named variable that is present.
+.SH OPERANDS
+Each operand is an environment variable name.
+.SH OPTIONS
+-- may be used to end option recognition. Common project options such as --help, --version, and the internal
+identity option are recognized by the process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Environment entries or selected values, one per line.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 when all requested output succeeds and every requested variable is present, 1 when any requested variable is
+missing or output fails, 2 for invalid usage, and 125 for unexpected internal failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+The command observes only the command context environment and does not mutate it.
+.SH LOCALE BEHAVIOR
+Environment data output is locale-invariant. Help and diagnostics are locale-dependent.
+.SH IMPLEMENTATION-DEFINED CHOICES
+The order for full-environment output is the order provided by the command context.
+.SH EXTENSIONS
+printenv is a project extension command. The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+printenv PATH
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+No additional limitations are documented for the V1 project-extension behavior.
+.SH SEE ALSO
+docs/commands/printenv.md

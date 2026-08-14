@@ -2801,6 +2801,80 @@ procedure Posix_Tools_Tests is
       Base    : constant String := Root;
       Man_Dir : constant String := Project_Tools.Files.Join (Base, "generated/man");
 
+      function Boolean_Text (Value : Boolean) return String is
+      begin
+         if Value then
+            return "true";
+         else
+            return "false";
+         end if;
+      end Boolean_Text;
+
+      function Render_Command_Inventory return String is
+         Inventory_Content : Unbounded_String;
+      begin
+         Append
+           (Inventory_Content,
+            "executable,crate,package,manifest_path,project_file_path,documentation_path,"
+            & "release_included,posix_status,help,version,identity"
+            & Character'Val (10));
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            Append
+              (Inventory_Content,
+               Posix_Tools.Command_Inventory.Executable (I)
+               & "," & Posix_Tools.Command_Inventory.Crate (I)
+               & "," & Posix_Tools.Command_Inventory.Package_Name (I)
+               & "," & Posix_Tools.Command_Inventory.Manifest_Path (I)
+               & "," & Posix_Tools.Command_Inventory.Project_File_Path (I)
+               & "," & Posix_Tools.Command_Inventory.Documentation_Path (I)
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (I))
+               & "," & Posix_Tools.Command_Inventory.Posix_Status (I)
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (I))
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (I))
+               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (I))
+               & Character'Val (10));
+         end loop;
+
+         return To_String (Inventory_Content);
+      end Render_Command_Inventory;
+
+      function Render_Command_Reference_Index return String is
+         Index_Content : Unbounded_String;
+         Root_Inserted : Boolean := False;
+      begin
+         Append (Index_Content, "# Command References" & Character'Val (10) & Character'Val (10));
+         Append (Index_Content, "V1 command references:" & Character'Val (10) & Character'Val (10));
+
+         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+            if not Root_Inserted
+              and then "posix-tools" < Posix_Tools.Command_Inventory.Executable (I)
+            then
+               Append (Index_Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
+               Root_Inserted := True;
+            end if;
+
+            Append
+              (Index_Content,
+               "- [" & Posix_Tools.Command_Inventory.Executable (I) & "]("
+               & Posix_Tools.Command_Inventory.Executable (I) & ".md)"
+               & Character'Val (10));
+         end loop;
+
+         if not Root_Inserted then
+            Append (Index_Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
+         end if;
+
+         return To_String (Index_Content);
+      end Render_Command_Reference_Index;
+
+      procedure Generate_Command_Inventory is
+      begin
+         Project_Tools.Files.Write_Raw_File
+           (Project_Tools.Files.Join (Base, "generated/command_inventory.csv"),
+            Render_Command_Inventory);
+      end Generate_Command_Inventory;
+
       procedure Generate_Manpage (Index : Positive) is
          Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
       begin
@@ -2818,6 +2892,7 @@ procedure Posix_Tools_Tests is
          Ada.Directories.Create_Directory (Man_Dir);
       end if;
 
+      Generate_Command_Inventory;
       Generate_Root_Manpage;
       Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
       Append
@@ -2837,6 +2912,10 @@ procedure Posix_Tools_Tests is
 
       Project_Tools.Files.Write_Raw_File
         (Project_Tools.Files.Join (Base, "generated/manual-index.md"), To_String (Content));
+      Project_Tools.Files.Write_Raw_File
+        (Project_Tools.Files.Join (Base, "docs/commands/index.md"), Render_Command_Reference_Index);
+      Ada.Text_IO.Put_Line ("docs/commands/index.md");
+      Ada.Text_IO.Put_Line ("generated/command_inventory.csv");
       Ada.Text_IO.Put_Line ("generated/manual-index.md");
       Ada.Text_IO.Put_Line ("generated/man/*.1");
    end Generate_Docs;

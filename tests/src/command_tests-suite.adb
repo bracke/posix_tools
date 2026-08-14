@@ -71,6 +71,7 @@ package body Command_Tests.Suite is
          Caller.Create
            ("command:expanded verbose output failures",
             Test_Expanded_Verbose_Output_Failures'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:arch", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cp", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cksum", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cmp", Test_Expanded_Command_Smoke'Access));
@@ -78,6 +79,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cut", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:date", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dd", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:df", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du smoke", Test_Du'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:env", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expand smoke", Test_Expand'Access));
@@ -85,20 +87,30 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file smoke", Test_File'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:find", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:fold smoke", Test_Fold'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:getconf", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:groups", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:hostname", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ln", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:locale", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ls", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkdir", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkfifo", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mv", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nice", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl smoke", Test_Nl'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nohup", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:od", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:paste", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:pathchk", Test_Pathchk'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:printenv", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:printf", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rm", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rmdir", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:seq smoke", Test_Seq'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sha256sum", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:split", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sort", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:stat", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tee", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:test", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:timeout", Test_Timeout_Statuses'Access));
@@ -108,6 +120,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unexpand smoke", Test_Unexpand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink smoke", Test_Unlink'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:which", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:yes smoke", Test_Yes'Access));
       AUnit.Test_Suites.Add_Test

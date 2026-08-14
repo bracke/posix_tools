@@ -11,6 +11,9 @@ project-files = ["posix_tools_common.gpr"]
 hostkit = "*"
 
 [[depends-on]]
+cryptolib = "*"
+
+[[depends-on]]
 i18n = "*"
 
 [[depends-on]]
@@ -21,6 +24,9 @@ terminal_styles = "*"
 
 [[pins]]
 hostkit = { path = "../../hostkit" }
+
+[[pins]]
+cryptolib = { path = "../../cryptolib" }
 
 [[pins]]
 i18n = { path = "../../i18n" }

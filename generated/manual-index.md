@@ -2,6 +2,7 @@
 
 Version: 0.1.0
 
+- `arch`: docs/commands/arch.md
 - `basename`: docs/commands/basename.md
 - `cat`: docs/commands/cat.md
 - `chgrp`: docs/commands/chgrp.md
@@ -14,6 +15,7 @@ Version: 0.1.0
 - `cut`: docs/commands/cut.md
 - `date`: docs/commands/date.md
 - `dd`: docs/commands/dd.md
+- `df`: docs/commands/df.md
 - `dirname`: docs/commands/dirname.md
 - `du`: docs/commands/du.md
 - `echo`: docs/commands/echo.md
@@ -24,19 +26,27 @@ Version: 0.1.0
 - `file`: docs/commands/file.md
 - `find`: docs/commands/find.md
 - `fold`: docs/commands/fold.md
+- `getconf`: docs/commands/getconf.md
+- `groups`: docs/commands/groups.md
 - `head`: docs/commands/head.md
+- `hostname`: docs/commands/hostname.md
 - `id`: docs/commands/id.md
 - `kill`: docs/commands/kill.md
 - `link`: docs/commands/link.md
 - `ln`: docs/commands/ln.md
+- `locale`: docs/commands/locale.md
 - `logname`: docs/commands/logname.md
 - `ls`: docs/commands/ls.md
 - `mkdir`: docs/commands/mkdir.md
+- `mkfifo`: docs/commands/mkfifo.md
 - `mv`: docs/commands/mv.md
+- `nice`: docs/commands/nice.md
 - `nl`: docs/commands/nl.md
+- `nohup`: docs/commands/nohup.md
 - `od`: docs/commands/od.md
 - `paste`: docs/commands/paste.md
 - `pathchk`: docs/commands/pathchk.md
+- `printenv`: docs/commands/printenv.md
 - `printf`: docs/commands/printf.md
 - `pwd`: docs/commands/pwd.md
 - `readlink`: docs/commands/readlink.md
@@ -44,8 +54,10 @@ Version: 0.1.0
 - `rm`: docs/commands/rm.md
 - `rmdir`: docs/commands/rmdir.md
 - `seq`: docs/commands/seq.md
+- `sha256sum`: docs/commands/sha256sum.md
 - `sleep`: docs/commands/sleep.md
 - `split`: docs/commands/split.md
+- `stat`: docs/commands/stat.md
 - `sort`: docs/commands/sort.md
 - `tail`: docs/commands/tail.md
 - `tee`: docs/commands/tee.md
@@ -60,6 +72,7 @@ Version: 0.1.0
 - `unlink`: docs/commands/unlink.md
 - `uniq`: docs/commands/uniq.md
 - `wc`: docs/commands/wc.md
+- `which`: docs/commands/which.md
 - `whoami`: docs/commands/whoami.md
 - `xargs`: docs/commands/xargs.md
 - `yes`: docs/commands/yes.md

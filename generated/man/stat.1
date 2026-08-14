@@ -1,0 +1,41 @@
+.TH stat 1
+.SH NAME
+stat - write file metadata
+.SH SYNOPSIS
+stat file...
+.SH DESCRIPTION
+stat writes a compact metadata block for each file operand using the posix_tools filesystem adapter.
+.SH OPERANDS
+Each operand is a file path to inspect.
+.SH OPTIONS
+-- may be used to end option recognition. Common project options such as --help, --version, and the internal
+identity option are recognized by the process wrapper.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+For each existing operand, stat writes fields for file path, size, type, mode, user id, and group id. Multiple
+operands are separated by one blank line.
+.SH STANDARD ERROR
+Diagnostics are localized through messages.
+.SH EXIT STATUS
+0 when all operands are inspected and output succeeds, 1 when any operand cannot be inspected or output fails,
+2 for invalid usage, and 125 for unexpected internal failures at the command boundary.
+.SH BEHAVIORAL DETAILS
+The output format is stable for this project but is not GNU or BSD stat compatible. Missing permission or ownership
+metadata is reported as unknown.
+.SH LOCALE BEHAVIOR
+Metadata labels and diagnostics are locale-dependent in future catalog-backed help. Pathname data and numeric output
+are locale-invariant in V1.
+.SH IMPLEMENTATION-DEFINED CHOICES
+File type, size, permissions, ownership, and special-file classification follow hostkit metadata behavior on the
+active platform.
+.SH EXTENSIONS
+stat is a project extension command. The command supports project-wide help, version, and identity operations.
+.SH EXAMPLES
+stat README.md
+.SH CONFORMANCE STATUS
+Project extension.
+.SH KNOWN LIMITATIONS
+Custom format strings and timestamp fields are not implemented in V1.
+.SH SEE ALSO
+docs/commands/stat.md

@@ -1,0 +1,39 @@
+.TH sha256sum 1
+.SH NAME
+sha256sum - compute SHA-256 message digests
+.SH SYNOPSIS
+sha256sum [file...]
+.SH DESCRIPTION
+sha256sum reads each file operand and writes a lowercase hexadecimal SHA-256 digest. With no operands, or with an
+operand exactly equal to -, it reads standard input.
+.SH OPERANDS
+Each operand names an input file. - names standard input.
+.SH OPTIONS
+-- marks the end of options. --help and --version are provided by the common executable wrapper.
+.SH STANDARD INPUT
+Used when no operands are supplied or when an operand is -.
+.SH STANDARD OUTPUT
+For standard input, the command writes the digest followed by a newline. For file operands, it writes the digest, two
+spaces, the operand text, and a newline.
+.SH STANDARD ERROR
+Diagnostics are written for input failures and output failures.
+.SH EXIT STATUS
+Zero indicates all requested digests were written. One indicates an operational failure.
+.SH BEHAVIORAL DETAILS
+Input is processed as bytes in bounded chunks. File data is not decoded or localized. SHA-256 digest calculation is
+provided by the repository sibling cryptolib through CryptoLib.Hashes.
+.SH LOCALE BEHAVIOR
+Digest output is locale-invariant. Help and diagnostics are locale-dependent through messages.
+.SH IMPLEMENTATION-DEFINED CHOICES
+This is a project extension and follows the widely used sha256sum output shape for ordinary file and standard-input
+operation.
+.SH EXTENSIONS
+The entire command is a project extension, not a POSIX.1-2024 utility.
+.SH EXAMPLES
+sha256sum README.md
+.SH CONFORMANCE STATUS
+Conforming with extensions.
+.SH KNOWN LIMITATIONS
+Checksum verification modes such as -c are not implemented in this V1 extension.
+.SH SEE ALSO
+docs/commands/sha256sum.md
