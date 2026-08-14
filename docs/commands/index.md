@@ -15,6 +15,7 @@ V1 command references:
 - [date](date.md)
 - [dd](dd.md)
 - [dirname](dirname.md)
+- [du](du.md)
 - [echo](echo.md)
 - [env](env.md)
 - [expr](expr.md)

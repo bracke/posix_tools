@@ -13,6 +13,7 @@ package Posix_Tools.Commands.Expanded is
       Cut_Command,
       Date_Command,
       Dd_Command,
+      Du_Command,
       Env_Command,
       Expr_Command,
       File_Command,

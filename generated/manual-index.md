@@ -15,6 +15,7 @@ Version: 0.1.0
 - `date`: docs/commands/date.md
 - `dd`: docs/commands/dd.md
 - `dirname`: docs/commands/dirname.md
+- `du`: docs/commands/du.md
 - `echo`: docs/commands/echo.md
 - `env`: docs/commands/env.md
 - `expr`: docs/commands/expr.md

@@ -12,6 +12,7 @@ cut,posix_tools_cut,Posix_Tools.Commands.Cut,tools/cut/alire.toml,tools/cut/posi
 date,posix_tools_date,Posix_Tools.Commands.Date,tools/date/alire.toml,tools/date/posix_tools_date.gpr,docs/commands/date.md,true,conforming_with_extensions,true,true,true
 dd,posix_tools_dd,Posix_Tools.Commands.Dd,tools/dd/alire.toml,tools/dd/posix_tools_dd.gpr,docs/commands/dd.md,true,conforming_with_extensions,true,true,true
 dirname,posix_tools_dirname,Posix_Tools.Commands.Dirname,tools/dirname/alire.toml,tools/dirname/posix_tools_dirname.gpr,docs/commands/dirname.md,true,conforming_with_extensions,true,true,true
+du,posix_tools_du,Posix_Tools.Commands.Du,tools/du/alire.toml,tools/du/posix_tools_du.gpr,docs/commands/du.md,true,conforming_with_extensions,true,true,true
 echo,posix_tools_echo,Posix_Tools.Commands.Echo,tools/echo/alire.toml,tools/echo/posix_tools_echo.gpr,docs/commands/echo.md,true,conforming_with_extensions,true,true,true
 env,posix_tools_env,Posix_Tools.Commands.Env,tools/env/alire.toml,tools/env/posix_tools_env.gpr,docs/commands/env.md,true,conforming_with_extensions,true,true,true
 expr,posix_tools_expr,Posix_Tools.Commands.Expr,tools/expr/alire.toml,tools/expr/posix_tools_expr.gpr,docs/commands/expr.md,true,conforming_with_extensions,true,true,true

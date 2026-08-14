@@ -1,0 +1,45 @@
+.TH du 1
+.SH NAME
+du - estimate file space usage.
+.SH SYNOPSIS
+du [-a] [-s] [-k] [file...]
+.SH DESCRIPTION
+Writes rounded usage counts for files and directories. With no file operands, du reports the current directory.
+.SH OPERANDS
+file: file or directory path to measure.
+.SH OPTIONS
+-a: include non-directory entries encountered during traversal.
+
+-s: write only a summary line for each operand.
+
+-k: use 1024-byte units instead of the default 512-byte units.
+
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Not used.
+.SH STANDARD OUTPUT
+Each result line contains the rounded unit count, a tab, the pathname, and a newline.
+.SH STANDARD ERROR
+Diagnostics for invalid options and paths that cannot be inspected.
+.SH EXIT STATUS
+0 success, 1 one or more operands could not be inspected or output failed, 2 invalid usage,
+125 internal failure.
+.SH BEHAVIORAL DETAILS
+Directories are traversed recursively. The V1 implementation uses host-reported file byte sizes rounded to the selected
+unit size; it does not yet use a separate allocated-block count when a platform exposes one.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized. Numeric counts and pathnames are command data and are not localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+Default units are 512 bytes. -k selects 1024-byte units. Directory entry traversal order follows the host adapter.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+du -s .
+
+du -ak src
+.SH CONFORMANCE STATUS
+Conforming with implementation-defined behavior tracked by DU-POSIX-001.
+.SH KNOWN LIMITATIONS
+Allocated block accounting and filesystem-cycle detection are not yet implemented.
+.SH SEE ALSO
+docs/commands/du.md

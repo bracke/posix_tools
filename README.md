@@ -17,6 +17,7 @@ V1 inventory:
 - `date`
 - `dd`
 - `dirname`
+- `du`
 - `echo`
 - `env`
 - `expr`

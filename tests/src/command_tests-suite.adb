@@ -41,6 +41,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dirname", Test_Dirname'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:dirname edge cases", Test_Dirname_Edge_Cases'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du", Test_Du'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:simple output failures", Test_Simple_Output_Failures'Access));
       AUnit.Test_Suites.Add_Test
@@ -75,6 +76,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cut", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:date", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dd", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du smoke", Test_Du'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:env", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expr smoke", Test_Expr'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file smoke", Test_File'Access));

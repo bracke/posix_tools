@@ -255,6 +255,11 @@ tools/dirname/alire.toml
 tools/dirname/posix_tools_dirname.gpr
 tools/dirname/src/dirname.adb
 docs/commands/dirname.md
+generated/man/du.1
+tools/du/alire.toml
+tools/du/posix_tools_du.gpr
+tools/du/src/du.adb
+docs/commands/du.md
 generated/man/echo.1
 tools/echo/alire.toml
 tools/echo/posix_tools_echo.gpr
