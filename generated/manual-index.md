@@ -18,6 +18,7 @@ Version: 0.1.0
 - `du`: docs/commands/du.md
 - `echo`: docs/commands/echo.md
 - `env`: docs/commands/env.md
+- `expand`: docs/commands/expand.md
 - `expr`: docs/commands/expr.md
 - `false`: docs/commands/false.md
 - `file`: docs/commands/file.md

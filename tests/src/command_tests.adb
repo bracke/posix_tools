@@ -26,6 +26,7 @@ with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Du;
 with Posix_Tools.Commands.Echo;
 with Posix_Tools.Commands.Env;
+with Posix_Tools.Commands.Expand;
 with Posix_Tools.Commands.Expr;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
@@ -209,6 +210,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Echo.Run (Context, Result);
       elsif Name = "env" then
          Posix_Tools.Commands.Env.Run (Context, Result);
+      elsif Name = "expand" then
+         Posix_Tools.Commands.Expand.Run (Context, Result);
       elsif Name = "expr" then
          Posix_Tools.Commands.Expr.Run (Context, Result);
       elsif Name = "false" then
@@ -5709,6 +5712,70 @@ package body Command_Tests is
 
       Delete_If_Exists (Path);
    end Test_Fold;
+
+   procedure Test_Expand (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("expand-input.txt");
+      Missing : constant String := Fixture_Path ("expand-missing.txt");
+      LF      : constant Character := Character'Val (10);
+      HT      : constant Character := Character'Val (9);
+
+      procedure Delete_If_Exists (Name : String) is
+      begin
+         if Ada.Directories.Exists (Name) then
+            Ada.Directories.Delete_File (Name);
+         end if;
+      end Delete_If_Exists;
+   begin
+      Context.Initialize ("expand", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "a" & HT & "b");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a       b",
+         "expand uses default eight-column tab stops");
+
+      Context.Initialize ("expand", Two_Args ("-t", "4"));
+      Test_Contexts.Set_Standard_Input (Context, "ab" & HT & "c" & LF & HT & "d");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "ab  c" & LF & "    d",
+         "expand -t changes the tab width and resets after newline");
+
+      Delete_If_Exists (Path);
+      Write_File (Path, "x" & HT & "y");
+      Context.Initialize ("expand", Two_Args ("-t4", Path));
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "x   y",
+         "expand reads file operands");
+
+      Context.Initialize ("expand", Two_Args ("-t", "0"));
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expand rejects zero tab width");
+
+      Context.Initialize ("expand", One_Arg (Missing));
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "expand reports missing file");
+
+      Context.Initialize ("expand", One_Arg ("-t4"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & HT);
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "expand returns operational failure after output failure");
+
+      Delete_If_Exists (Path);
+   end Test_Expand;
 
    procedure Test_Timeout_Statuses (T : in out Fixture) is
       pragma Unreferenced (T);

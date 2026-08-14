@@ -20,6 +20,7 @@ V1 inventory:
 - `du`
 - `echo`
 - `env`
+- `expand`
 - `expr`
 - `false`
 - `file`

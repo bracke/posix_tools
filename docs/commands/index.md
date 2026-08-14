@@ -18,6 +18,7 @@ V1 command references:
 - [du](du.md)
 - [echo](echo.md)
 - [env](env.md)
+- [expand](expand.md)
 - [expr](expr.md)
 - [false](false.md)
 - [file](file.md)

@@ -15,6 +15,7 @@ package Posix_Tools.Commands.Expanded is
       Dd_Command,
       Du_Command,
       Env_Command,
+      Expand_Command,
       Expr_Command,
       File_Command,
       Find_Command,

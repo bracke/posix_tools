@@ -61,6 +61,7 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:end-of-options", Test_End_Of_Options'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:env utility status", Test_Env_Utility_Status'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expand", Test_Expand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expr", Test_Expr'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file", Test_File'Access));
       AUnit.Test_Suites.Add_Test
@@ -79,6 +80,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dd", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du smoke", Test_Du'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:env", Test_Expanded_Command_Smoke'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expand smoke", Test_Expand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expr smoke", Test_Expr'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file smoke", Test_File'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:find", Test_Expanded_Command_Smoke'Access));
