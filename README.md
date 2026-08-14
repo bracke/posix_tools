@@ -20,6 +20,7 @@ V1 inventory:
 - `echo`
 - `env`
 - `false`
+- `file`
 - `find`
 - `head`
 - `id`

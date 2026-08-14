@@ -20,6 +20,7 @@ package Command_Tests is
    procedure Test_Echo_Extensions_Are_Sole_Argument (T : in out Fixture);
    procedure Test_End_Of_Options (T : in out Fixture);
    procedure Test_Env_Utility_Status (T : in out Fixture);
+   procedure Test_File (T : in out Fixture);
    procedure Test_Expanded_Command_Smoke (T : in out Fixture);
    procedure Test_Expanded_Verbose_Output_Failures (T : in out Fixture);
    procedure Test_False (T : in out Fixture);

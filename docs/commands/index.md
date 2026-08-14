@@ -18,6 +18,7 @@ V1 command references:
 - [echo](echo.md)
 - [env](env.md)
 - [false](false.md)
+- [file](file.md)
 - [find](find.md)
 - [head](head.md)
 - [id](id.md)

@@ -26,6 +26,7 @@ with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Echo;
 with Posix_Tools.Commands.Env;
 with Posix_Tools.Commands.False_Command;
+with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Head;
 with Posix_Tools.Commands.Id;
@@ -205,6 +206,8 @@ package body Command_Tests is
          Posix_Tools.Commands.Env.Run (Context, Result);
       elsif Name = "false" then
          Posix_Tools.Commands.False_Command.Run (Context, Result);
+      elsif Name = "file" then
+         Posix_Tools.Commands.File.Run (Context, Result);
       elsif Name = "find" then
          Posix_Tools.Commands.Find.Run (Context, Result);
       elsif Name = "head" then
@@ -5427,6 +5430,83 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "pathchk rejects missing operands");
    end Test_Pathchk;
+
+   procedure Test_File (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Text_Path : constant String := Fixture_Path ("file-text.txt");
+      Data_Path : constant String := Fixture_Path ("file-data.bin");
+      Empty_Path : constant String := Fixture_Path ("file-empty.bin");
+      Dir_Path : constant String := Fixture_Path ("file-dir");
+      Missing_Path : constant String := Fixture_Path ("file-missing.txt");
+      LF : constant Character := Character'Val (10);
+
+      procedure Delete_If_Exists (Path : String) is
+      begin
+         if Ada.Directories.Exists (Path) then
+            if Ada.Directories.Kind (Path) = Ada.Directories.Directory then
+               Ada.Directories.Delete_Tree (Path);
+            else
+               Ada.Directories.Delete_File (Path);
+            end if;
+         end if;
+      end Delete_If_Exists;
+   begin
+      Delete_If_Exists (Text_Path);
+      Delete_If_Exists (Data_Path);
+      Delete_If_Exists (Empty_Path);
+      Delete_If_Exists (Dir_Path);
+
+      Write_File (Text_Path, "hello" & LF);
+      Write_File (Data_Path, "a" & Character'Val (0) & "b");
+      Write_File (Empty_Path, "");
+      if not Ada.Directories.Exists (Dir_Path) then
+         Ada.Directories.Create_Directory (Dir_Path);
+      end if;
+
+      Context.Initialize ("file", Four_Args (Text_Path, Data_Path, Empty_Path, Dir_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "file classifies readable operands successfully");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           Text_Path & ": text" & LF
+           & Data_Path & ": data" & LF
+           & Empty_Path & ": empty" & LF
+           & Dir_Path & ": directory" & LF,
+         "file classification output");
+
+      Context.Initialize ("file", One_Arg (Missing_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "file reports missing operand path as operational failure");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "",
+         "file missing path has no data output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "file: '" & Missing_Path & "': cannot open file" & LF,
+         "file missing diagnostic");
+
+      Context.Initialize ("file", No_Args);
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "file rejects missing operands");
+
+      Context.Initialize ("file", One_Arg ("-z"));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "file rejects unknown options");
+
+      Delete_If_Exists (Text_Path);
+      Delete_If_Exists (Data_Path);
+      Delete_If_Exists (Empty_Path);
+      Delete_If_Exists (Dir_Path);
+   end Test_File;
 
    procedure Test_Timeout_Statuses (T : in out Fixture) is
       pragma Unreferenced (T);

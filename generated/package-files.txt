@@ -270,6 +270,11 @@ tools/false/alire.toml
 tools/false/posix_tools_false.gpr
 tools/false/src/false.adb
 docs/commands/false.md
+generated/man/file.1
+tools/file/alire.toml
+tools/file/posix_tools_file.gpr
+tools/file/src/file.adb
+docs/commands/file.md
 generated/man/find.1
 tools/find/alire.toml
 tools/find/posix_tools_find.gpr

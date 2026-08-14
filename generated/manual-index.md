@@ -18,6 +18,7 @@ Version: 0.1.0
 - `echo`: docs/commands/echo.md
 - `env`: docs/commands/env.md
 - `false`: docs/commands/false.md
+- `file`: docs/commands/file.md
 - `find`: docs/commands/find.md
 - `head`: docs/commands/head.md
 - `id`: docs/commands/id.md

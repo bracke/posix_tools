@@ -55,6 +55,7 @@ package body Posix_Tools.Commands.Expanded is
    use type Ada.Containers.Count_Type;
    use type Ada.Calendar.Time;
    use type Ada.Calendar.Formatting.Day_Name;
+   use type Ada.Streams.Stream_Element;
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Exit_Status.Code;
    use type Posix_Tools.Numbers.Count;
@@ -4259,6 +4260,113 @@ package body Posix_Tools.Commands.Expanded is
 
       Set_Success (Context, Result);
    end Run_Env;
+
+   procedure Run_File
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      First  : Positive := 1;
+      All_Ok : Boolean := True;
+
+      function Is_Text_Byte (Byte : Ada.Streams.Stream_Element) return Boolean is
+         Ch : constant Character := Character'Val (Byte);
+      begin
+         return Ch = Character'Val (9)
+           or else Ch = Character'Val (10)
+           or else Ch = Character'Val (12)
+           or else Ch = Character'Val (13)
+           or else (Ch >= ' ' and then Ch <= '~');
+      end Is_Text_Byte;
+
+      function Description (Path : String) return String is
+         Saw_Byte : Boolean := False;
+         Saw_NUL  : Boolean := False;
+         Saw_Text : Boolean := True;
+         Read_Ok  : Boolean := True;
+
+         procedure Inspect
+           (Buffer : Ada.Streams.Stream_Element_Array;
+            Last   : Ada.Streams.Stream_Element_Offset;
+            Stop   : in out Boolean)
+         is
+            pragma Unreferenced (Stop);
+         begin
+            for Index in Buffer'First .. Last loop
+               Saw_Byte := True;
+               if Buffer (Index) = Ada.Streams.Stream_Element (0) then
+                  Saw_NUL := True;
+               elsif not Is_Text_Byte (Buffer (Index)) then
+                  Saw_Text := False;
+               end if;
+            end loop;
+         end Inspect;
+
+         procedure Read_File is new FS.For_Each_File_Chunk (Inspect);
+      begin
+         case FS.Kind (Path) is
+            when FS.Missing_File =>
+               All_Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+               return "";
+            when FS.Directory =>
+               return "directory";
+            when FS.Special_File =>
+               return "special file";
+            when FS.Ordinary_File =>
+               Read_File (Path, Read_Ok);
+               if not Read_Ok then
+                  All_Ok := False;
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                  return "";
+               elsif not Saw_Byte then
+                  return "empty";
+               elsif Saw_NUL or else not Saw_Text then
+                  return "data";
+               else
+                  return "text";
+               end if;
+         end case;
+      end Description;
+   begin
+      while First <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First);
+         begin
+            if Arg = "--" then
+               First := First + 1;
+               exit;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if First > Context.Argument_Count then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         return;
+      end if;
+
+      for Index in First .. Context.Argument_Count loop
+         declare
+            Path : constant String := Context.Argument (Index);
+            Text : constant String := Description (Path);
+         begin
+            if Text /= "" then
+               Context.Put_Line (Path & ": " & Text);
+            end if;
+         end;
+      end loop;
+
+      Result.Status :=
+        (if Context.Output_Failed or else not All_Ok
+         then Posix_Tools.Exit_Status.Operational_Failure
+         else Posix_Tools.Exit_Status.Success);
+   end Run_File;
 
    procedure Run_Find
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -13378,6 +13486,7 @@ package body Posix_Tools.Commands.Expanded is
          when Date_Command => Run_Date (Context, Result);
          when Dd_Command => Run_Dd (Context, Result);
          when Env_Command => Run_Env (Context, Result);
+         when File_Command => Run_File (Context, Result);
          when Find_Command => Run_Find (Context, Result);
          when Id_Command => Run_Id (Context, Result);
          when Kill_Command => Run_Kill (Context, Result);
