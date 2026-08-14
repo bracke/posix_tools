@@ -366,6 +366,78 @@ package body Posix_Tools.Commands.File_Helpers is
       end if;
    end Copy_Line_Prefix;
 
+   procedure Copy_Byte_Prefix
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Bytes     : Posix_Tools.Numbers.Count;
+      Ok        : out Boolean)
+   is
+      Remaining : Posix_Tools.Numbers.Count := Bytes;
+
+      procedure Copy_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean)
+      is
+         Available : constant Posix_Tools.Numbers.Count :=
+           Posix_Tools.Numbers.Count (Last - Buffer'First + 1);
+         To_Copy   : constant Posix_Tools.Numbers.Count :=
+           Posix_Tools.Numbers.Count'Min (Remaining, Available);
+         Copy_Last : Ada.Streams.Stream_Element_Offset;
+      begin
+         if Last < Buffer'First or else Remaining = 0 then
+            Stop := Remaining = 0;
+            return;
+         end if;
+
+         Copy_Last := Buffer'First + Ada.Streams.Stream_Element_Offset (To_Copy) - 1;
+         Context.Put (To_String (Buffer (Buffer'First .. Copy_Last), Copy_Last));
+         if Context.Output_Failed then
+            Ok := False;
+            Stop := True;
+         else
+            Remaining := Remaining - To_Copy;
+            Stop := Remaining = 0;
+         end if;
+      end Copy_Chunk;
+
+      procedure Copy_Standard_Input_Prefix is
+         Buffer : Byte_Buffer;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : Boolean := False;
+      begin
+         while Remaining > 0 loop
+            if not Context.Try_Read_Standard_Input (Buffer, Last) then
+               Ok := False;
+               return;
+            end if;
+            exit when Last < Buffer'First;
+            Copy_Chunk (Buffer, Last, Stop);
+            exit when Stop;
+         end loop;
+      end Copy_Standard_Input_Prefix;
+   begin
+      Ok := True;
+
+      if Bytes = 0 then
+         return;
+      elsif File_Name = "-" then
+         Copy_Standard_Input_Prefix;
+      else
+         declare
+            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+              (Action => Copy_Chunk);
+         begin
+            Iterate (File_Name, Ok);
+         end;
+      end if;
+
+      if not Ok and then not Context.Output_Failed then
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context, Subject_Name (File_Name), "posix_tools.diagnostic.file.read_failed", "cannot read file");
+      end if;
+   end Copy_Byte_Prefix;
+
    procedure Copy_Line_Suffix
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;

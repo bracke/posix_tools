@@ -36,6 +36,12 @@ package Posix_Tools.Commands.File_Helpers is
       Lines     : Posix_Tools.Numbers.Count;
       Ok        : out Boolean);
 
+   procedure Copy_Byte_Prefix
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Bytes     : Posix_Tools.Numbers.Count;
+      Ok        : out Boolean);
+
    procedure Copy_Line_Suffix
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;

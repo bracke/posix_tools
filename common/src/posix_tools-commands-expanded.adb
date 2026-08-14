@@ -4726,7 +4726,13 @@ package body Posix_Tools.Commands.Expanded is
 
             for I in Index + 1 .. Pattern'Last loop
                if Pattern (I) = ']' and then I > Index + 1 then
-                  return I;
+                  if Pattern (I - 1) not in ':' | '=' | '.' then
+                     return I;
+                  elsif I < Pattern'Last and then Pattern (I + 1) = ']' then
+                     null;
+                  else
+                     return I;
+                  end if;
                end if;
             end loop;
 
@@ -4738,6 +4744,60 @@ package body Posix_Tools.Commands.Expanded is
             Start   : Natural := Index + 1;
             Negated : Boolean := False;
             Matched : Boolean := False;
+
+            function Named_Class_Matches (Name : String) return Boolean is
+            begin
+               if Name = "alnum" then
+                  return Ch in '0' .. '9' or else Ch in 'A' .. 'Z' or else Ch in 'a' .. 'z';
+               elsif Name = "alpha" then
+                  return Ch in 'A' .. 'Z' or else Ch in 'a' .. 'z';
+               elsif Name = "blank" then
+                  return Ch = ' ' or else Ch = HT;
+               elsif Name = "cntrl" then
+                  return Character'Pos (Ch) < 32 or else Character'Pos (Ch) = 127;
+               elsif Name = "digit" then
+                  return Ch in '0' .. '9';
+               elsif Name = "graph" then
+                  return Character'Pos (Ch) in 33 .. 126;
+               elsif Name = "lower" then
+                  return Ch in 'a' .. 'z';
+               elsif Name = "print" then
+                  return Character'Pos (Ch) in 32 .. 126;
+               elsif Name = "punct" then
+                  return Character'Pos (Ch) in 33 .. 47
+                    or else Character'Pos (Ch) in 58 .. 64
+                    or else Character'Pos (Ch) in 91 .. 96
+                    or else Character'Pos (Ch) in 123 .. 126;
+               elsif Name = "space" then
+                  return Ch in ' ' | HT | LF | Character'Val (11) | FF | CR;
+               elsif Name = "upper" then
+                  return Ch in 'A' .. 'Z';
+               elsif Name = "xdigit" then
+                  return Ch in '0' .. '9' or else Ch in 'A' .. 'F' or else Ch in 'a' .. 'f';
+               else
+                  Mark_Invalid;
+                  return False;
+               end if;
+            end Named_Class_Matches;
+
+            function Equivalence_Matches (Name : String) return Boolean is
+            begin
+               if Name'Length = 1 then
+                  return Ch = Name (Name'First);
+               else
+                  return False;
+               end if;
+            end Equivalence_Matches;
+
+            function Find_Named_End (Open : Natural; Delimiter : Character) return Natural is
+            begin
+               for I in Open + 2 .. Close - 2 loop
+                  if Pattern (I) = Delimiter and then Pattern (I + 1) = ']' then
+                     return I;
+                  end if;
+               end loop;
+               return 0;
+            end Find_Named_End;
          begin
             if Close = 0 then
                Mark_Invalid;
@@ -4750,7 +4810,27 @@ package body Posix_Tools.Commands.Expanded is
             end if;
 
             while Start < Close loop
-               if Start + 2 < Close and then Pattern (Start + 1) = '-' then
+               if Start + 3 < Close
+                 and then Pattern (Start) = '['
+                 and then Pattern (Start + 1) in ':' | '=' | '.'
+               then
+                  declare
+                     Delimiter : constant Character := Pattern (Start + 1);
+                     Named_End : constant Natural := Find_Named_End (Start, Delimiter);
+                  begin
+                     if Named_End = 0 then
+                        Mark_Invalid;
+                        return False;
+                     elsif Delimiter = ':' then
+                        if Named_Class_Matches (Pattern (Start + 2 .. Named_End - 1)) then
+                           Matched := True;
+                        end if;
+                     elsif Equivalence_Matches (Pattern (Start + 2 .. Named_End - 1)) then
+                        Matched := True;
+                     end if;
+                     Start := Named_End + 2;
+                  end;
+               elsif Start + 2 < Close and then Pattern (Start + 1) = '-' then
                   if Ch >= Pattern (Start) and then Ch <= Pattern (Start + 2) then
                      Matched := True;
                   end if;
@@ -8239,9 +8319,14 @@ package body Posix_Tools.Commands.Expanded is
 
       function Parse_Decimal_Text (Text : String; Parsed : out Parsed_Number) return Boolean is
          Negative    : Boolean := False;
+         Exponent_Negative : Boolean := False;
+         In_Exponent : Boolean := False;
+         Seen_Exponent : Boolean := False;
          Seen_Digit  : Boolean := False;
+         Seen_Exponent_Digit : Boolean := False;
          Seen_Dot    : Boolean := False;
          Acc         : Long_Long_Integer := 0;
+         Exponent    : Natural := 0;
          Digit       : Long_Long_Integer;
       begin
          if Text = "" then
@@ -8252,26 +8337,47 @@ package body Posix_Tools.Commands.Expanded is
          for I in Text'Range loop
             if I = Text'First and then (Text (I) = '-' or else Text (I) = '+') then
                Negative := Text (I) = '-';
+            elsif In_Exponent and then I > Text'First
+              and then (Text (I - 1) = 'e' or else Text (I - 1) = 'E')
+              and then (Text (I) = '-' or else Text (I) = '+')
+            then
+               Exponent_Negative := Text (I) = '-';
+            elsif not In_Exponent and then (Text (I) = 'e' or else Text (I) = 'E') then
+               if Seen_Exponent or else not Seen_Digit then
+                  Parsed := (0, 0);
+                  return False;
+               end if;
+               Seen_Exponent := True;
+               In_Exponent := True;
             elsif Text (I) = '.' then
-               if Seen_Dot then
+               if Seen_Dot or else In_Exponent then
                   Parsed := (0, 0);
                   return False;
                end if;
                Seen_Dot := True;
             elsif Text (I) in '0' .. '9' then
-               Seen_Digit := True;
                Digit := Long_Long_Integer (Character'Pos (Text (I)) - Character'Pos ('0'));
-               if Acc > (Long_Long_Integer'Last - Digit) / 10 then
-                  Parsed := (0, 0);
-                  return False;
-               end if;
-               Acc := Acc * 10 + Digit;
-               if Seen_Dot then
-                  if Parsed.Scale = Natural'Last then
+               if In_Exponent then
+                  Seen_Exponent_Digit := True;
+                  if Exponent > 1_000_000 then
                      Parsed := (0, 0);
                      return False;
                   end if;
-                  Parsed.Scale := Parsed.Scale + 1;
+                  Exponent := Exponent * 10 + Natural (Digit);
+               else
+                  Seen_Digit := True;
+                  if Acc > (Long_Long_Integer'Last - Digit) / 10 then
+                     Parsed := (0, 0);
+                     return False;
+                  end if;
+                  Acc := Acc * 10 + Digit;
+                  if Seen_Dot then
+                     if Parsed.Scale = Natural'Last then
+                        Parsed := (0, 0);
+                        return False;
+                     end if;
+                     Parsed.Scale := Parsed.Scale + 1;
+                  end if;
                end if;
             else
                Parsed := (0, 0);
@@ -8282,6 +8388,30 @@ package body Posix_Tools.Commands.Expanded is
          if not Seen_Digit then
             Parsed := (0, 0);
             return False;
+         elsif Seen_Exponent and then not Seen_Exponent_Digit then
+            Parsed := (0, 0);
+            return False;
+         end if;
+
+         if Exponent_Negative then
+            if Exponent > Natural'Last - Parsed.Scale then
+               Parsed := (0, 0);
+               return False;
+            end if;
+            Parsed.Scale := Parsed.Scale + Exponent;
+         elsif Exponent >= Parsed.Scale then
+            declare
+               Factor : constant Long_Long_Integer := Power_10 (Exponent - Parsed.Scale);
+            begin
+               if Factor = 0 or else Acc > Long_Long_Integer'Last / Factor then
+                  Parsed := (0, 0);
+                  return False;
+               end if;
+               Acc := Acc * Factor;
+               Parsed.Scale := 0;
+            end;
+         else
+            Parsed.Scale := Parsed.Scale - Exponent;
          end if;
 
          Parsed.Mantissa := (if Negative then -Acc else Acc);

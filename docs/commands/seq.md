@@ -16,8 +16,8 @@ seq - write a finite numeric sequence.
 
 ## Description
 
-`seq` writes a finite sequence of signed decimal numbers. It is a project extension and is not part of the POSIX.1-2024
-utility baseline.
+`seq` writes a finite sequence of signed decimal numbers. Decimal operands may use exponent notation. It is a project
+extension and is not part of the POSIX.1-2024 utility baseline.
 
 ## Operands
 
@@ -58,8 +58,8 @@ Diagnostics are written for invalid operand counts, invalid numbers, zero increm
 
 Positive increments stop after the next value would exceed `last`. Negative increments stop after the next value would be
 less than `last`. Decimal operands are represented with fixed-scale integer arithmetic derived from the supplied
-operands, so simple decimal sequences such as `0.1 0.1 0.3` are deterministic. Arithmetic is checked and overflow stops
-after the last representable value.
+operands, so simple decimal sequences such as `0.1 0.1 0.3` and `1e-1 1e-1 3e-1` are deterministic. Arithmetic is
+checked and overflow stops after the last representable value.
 
 ## Locale Behavior
 
@@ -67,7 +67,7 @@ Help and diagnostics are localized. Generated numeric data is not localized.
 
 ## Implementation-Defined Choices
 
-Supported decimal precision is bounded by the project wide integer range after scaling. Exponent notation is rejected.
+Supported decimal precision is bounded by the project wide integer range after exponent normalization and scaling.
 
 ## Extensions
 
@@ -81,6 +81,8 @@ The entire command is a project extension. `--help`, `--version`, and `--posix-t
 
 `seq 0.1 0.1 0.3`
 
+`seq 1e1 5e0 2e1`
+
 `seq -s , 1 3`
 
 `seq -w 8 10`
@@ -93,4 +95,4 @@ Non-POSIX extension tracked by SEQ-EXT-001.
 
 ## Known Limitations
 
-Exponent notation and arbitrary locale-dependent numeric formatting are not implemented.
+Arbitrary locale-dependent numeric formatting is not implemented.

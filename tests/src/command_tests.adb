@@ -5553,6 +5553,12 @@ package body Command_Tests is
                 "expr BRE star");
       Run_Case (Three_Args ("b", ":", "[a-c]"), "1" & LF, Posix_Tools.Exit_Status.Success,
                 "expr BRE bracket range");
+      Run_Case (Three_Args ("7", ":", "[[:digit:]]"), "1" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE named class");
+      Run_Case (Three_Args ("g", ":", "[^[:digit:]]"), "1" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE negated named class");
+      Run_Case (Three_Args ("a", ":", "[[=a=]]"), "1" & LF, Posix_Tools.Exit_Status.Success,
+                "expr BRE equivalence class");
       Run_Case (Three_Args ("abc", ":", "a\(b.\)"), "bc" & LF, Posix_Tools.Exit_Status.Success,
                 "expr BRE escaped capture");
       Run_Case (Two_Args ("length", "abc"), "3" & LF, Posix_Tools.Exit_Status.Success,
@@ -7145,6 +7151,12 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "head leading plus count status");
 
+      Context.Initialize ("head", Two_Args ("-c", "abc"));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "head invalid byte count status");
+
       Context.Initialize ("head", Two_Args ("-n", "9223372036854775808"));
       Posix_Tools.Commands.Head.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -7159,6 +7171,12 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Error_Output (Context) = "head: missing option argument '-n'" & Character'Val (10),
          "head missing count diagnostic");
+
+      Context.Initialize ("head", One_Arg ("-c"));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "head missing byte count status");
    end Test_Head_Invalid_Count;
 
    procedure Test_Head_Multiple_File_Headers (T : in out Fixture) is
@@ -7196,6 +7214,24 @@ package body Command_Tests is
       Posix_Tools.Commands.Head.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "a" & LF & "b" & LF, "head stdin output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head stdin status");
+
+      Context.Initialize ("head", Three_Args ("-c", "3", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abc", "head stdin byte output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head stdin byte status");
+
+      Context.Initialize ("head", Two_Args ("-c0", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "head zero byte output");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head zero byte status");
+
+      Context.Initialize ("head", Five_Args ("-c", "2", "-n", "1", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "abc" & LF & "def" & LF);
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abc" & LF, "head last count option wins");
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head last count status");
 
       Context.Initialize ("head", Three_Args ("-n", "1", "-"));
       Test_Contexts.Set_Standard_Input (Context, "a" & LF & "b" & LF);
@@ -8486,6 +8522,20 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "0.1" & LF & "0.2" & LF & "0.3" & LF,
          "seq supports deterministic decimal increments");
+
+      Context.Initialize ("seq", Three_Args ("1e1", "5e0", "2e1"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "10" & LF & "15" & LF & "20" & LF,
+         "seq supports positive exponent notation");
+
+      Context.Initialize ("seq", Three_Args ("1e-1", "1e-1", "3e-1"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "0.1" & LF & "0.2" & LF & "0.3" & LF,
+         "seq supports negative exponent notation");
 
       Context.Initialize ("seq", Four_Args ("-s", ",", "1", "3"));
       Posix_Tools.Commands.Seq.Run (Context, Result);

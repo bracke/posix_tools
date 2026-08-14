@@ -38,10 +38,11 @@ Help and diagnostics are localized. Expression syntax, arithmetic, regex pattern
 
 ## Implementation-Defined Choices
 Regular expression matching is anchored at the beginning of the left operand and uses the project-owned BRE matcher.
-The V1 matcher supports literals, `.`, `*`, bracket ranges and negation, escaped literals, and first subexpression
-capture. POSIX escaped grouping `\(` and `\)` is supported; bare grouping is also accepted for compatibility with
-earlier V1 tests. When the pattern has a capturing group, the first captured text is returned; otherwise the matched
-length is returned.
+The V1 matcher supports literals, `.`, `*`, bracket ranges and negation, POSIX named character classes such as
+`[[:digit:]]`, single-character equivalence and collating bracket expressions, escaped literals, and first
+subexpression capture. POSIX escaped grouping `\(` and `\)` is supported; bare grouping is also accepted for
+compatibility with earlier V1 tests. When the pattern has a capturing group, the first captured text is returned;
+otherwise the matched length is returned.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -55,4 +56,4 @@ length is returned.
 Conforming with implementation-defined behavior tracked by `EXPR-POSIX-001`.
 
 ## Known Limitations
-Advanced locale-dependent bracket classes and collating elements are not implemented in V1.
+Multi-character collating elements are not implemented in V1 expression matching.
