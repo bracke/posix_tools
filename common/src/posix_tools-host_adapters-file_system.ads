@@ -87,6 +87,7 @@ package Posix_Tools.Host_Adapters.File_System is
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
    function Simple_Name (Path : String) return String;
+   function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer;
    function Size (Path : String) return Long_Long_Integer;
    function Special_File_Info_Of (Path : String) return Special_File_Info;
    function User_Id_For_Name (Name : String; Found : out Boolean) return Natural;

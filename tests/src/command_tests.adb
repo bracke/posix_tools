@@ -5541,6 +5541,8 @@ package body Command_Tests is
       Zip_Path : constant String := Fixture_Path ("file-archive.zip");
       Script_Path : constant String := Fixture_Path ("file-script.sh");
       Tar_Path : constant String := Fixture_Path ("file-archive.tar");
+      Magic_Path : constant String := Fixture_Path ("file.magic");
+      Magic_Data_Path : constant String := Fixture_Path ("file-magic-data.bin");
       Missing_Path : constant String := Fixture_Path ("file-missing.txt");
       LF : constant Character := Character'Val (10);
 
@@ -5563,6 +5565,8 @@ package body Command_Tests is
       Delete_If_Exists (Zip_Path);
       Delete_If_Exists (Script_Path);
       Delete_If_Exists (Tar_Path);
+      Delete_If_Exists (Magic_Path);
+      Delete_If_Exists (Magic_Data_Path);
 
       Write_File (Text_Path, "hello" & LF);
       Write_File (Data_Path, "a" & Character'Val (0) & "b");
@@ -5572,6 +5576,8 @@ package body Command_Tests is
       Write_File (Zip_Path, "PK" & Character'Val (3) & Character'Val (4) & "rest");
       Write_File (Script_Path, "#!/bin/sh" & LF & "echo ok" & LF);
       Write_File (Tar_Path, String'(1 .. 257 => Character'Val (0)) & "ustar");
+      Write_File (Magic_Path, "0:AB\x00:custom binary:application/x-custom" & LF);
+      Write_File (Magic_Data_Path, "AB" & Character'Val (0) & "tail");
       if not Ada.Directories.Exists (Dir_Path) then
          Ada.Directories.Create_Directory (Dir_Path);
       end if;
@@ -5615,6 +5621,20 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "-: PDF document" & LF,
          "file classifies standard input operand");
 
+      Context.Initialize ("file", Three_Args ("-m", Magic_Path, Magic_Data_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Magic_Data_Path & ": custom binary" & LF,
+         "file applies external magic-file descriptions");
+
+      Context.Initialize ("file", Four_Args ("-i", "-m", Magic_Path, Magic_Data_Path));
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Magic_Data_Path & ": application/x-custom" & LF,
+         "file applies external magic-file MIME descriptions");
+
       Context.Initialize ("file", One_Arg (Missing_Path));
       Posix_Tools.Commands.File.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -5647,6 +5667,8 @@ package body Command_Tests is
       Delete_If_Exists (Zip_Path);
       Delete_If_Exists (Script_Path);
       Delete_If_Exists (Tar_Path);
+      Delete_If_Exists (Magic_Path);
+      Delete_If_Exists (Magic_Data_Path);
    end Test_File;
 
    procedure Test_Du (T : in out Fixture) is
@@ -5734,6 +5756,7 @@ package body Command_Tests is
       Path    : constant String := Fixture_Path ("fold-input.txt");
       Missing : constant String := Fixture_Path ("fold-missing.txt");
       LF      : constant Character := Character'Val (10);
+      Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
 
       procedure Delete_If_Exists (Name : String) is
       begin
@@ -5757,6 +5780,14 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "abcde" & LF & "fghij" & LF & "kl",
          "fold -w wraps standard input");
+
+      Context.Initialize ("fold", Two_Args ("-w", "4"));
+      Test_Contexts.Set_Standard_Input (Context, Wide & Wide & "x");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Wide & Wide & LF & "x",
+         "fold wraps by display columns without splitting UTF-8 sequences");
 
       Context.Initialize ("fold", Two_Args ("-w4", Path));
       Delete_If_Exists (Path);
@@ -5806,6 +5837,9 @@ package body Command_Tests is
       Missing : constant String := Fixture_Path ("expand-missing.txt");
       LF      : constant Character := Character'Val (10);
       HT      : constant Character := Character'Val (9);
+      BS      : constant Character := Character'Val (8);
+      Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
+      Acute   : constant String := Character'Val (16#CC#) & Character'Val (16#81#);
 
       procedure Delete_If_Exists (Name : String) is
       begin
@@ -5837,6 +5871,22 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "a  b  c",
          "expand supports comma-separated tab stop lists");
+
+      Context.Initialize ("expand", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, Wide & HT & "x" & LF & "e" & Acute & HT & "x");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Wide & "      x" & LF & "e" & Acute & "       x",
+         "expand uses display columns for wide and combining UTF-8");
+
+      Context.Initialize ("expand", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "abc" & BS & HT & "x");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abc" & BS & "      x",
+         "expand treats backspace as moving one display column left");
 
       Delete_If_Exists (Path);
       Write_File (Path, "x" & HT & "y");
@@ -5884,6 +5934,7 @@ package body Command_Tests is
       Missing : constant String := Fixture_Path ("unexpand-missing.txt");
       LF      : constant Character := Character'Val (10);
       HT      : constant Character := Character'Val (9);
+      Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
 
       procedure Delete_If_Exists (Name : String) is
       begin
@@ -5915,6 +5966,14 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = HT & "x" & HT & "y",
          "unexpand supports comma-separated tab stop lists");
+
+      Context.Initialize ("unexpand", One_Arg ("-a"));
+      Test_Contexts.Set_Standard_Input (Context, Wide & "      x");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Wide & HT & "x",
+         "unexpand uses display columns for wide UTF-8");
 
       Delete_If_Exists (Path);
       Write_File (Path, "    x" & LF & "  y");

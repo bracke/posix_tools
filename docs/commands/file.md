@@ -4,7 +4,7 @@
 `file` - determine file type.
 
 ## Synopsis
-`file [-i] [--] file...`
+`file [-i] [-m magicfile] [--] file...`
 
 ## Description
 Classifies file operands using filesystem type information, built-in content signatures, and bounded content inspection.
@@ -14,6 +14,10 @@ Classifies file operands using filesystem type information, built-in content sig
 
 ## Options
 `-i`, `--mime`, `--mime-type`: write deterministic MIME-style classification names.
+
+`-m magicfile`: read additional project magic rules before the built-in signatures. Each non-comment rule has the form
+`offset:literal:description[:mime-type]`. The literal supports `\0`, `\n`, `\r`, `\t`, `\\`, `\:`, and `\xHH` byte
+escapes. Rules are tried in file order.
 
 `--` ends option processing.
 Project extensions `--help`, `--version`, and `--posix-tools-identify` are recognized before operands.
@@ -32,16 +36,16 @@ Diagnostics are written for invalid usage and operands that cannot be opened or 
 failure.
 
 ## Behavioral Details
-V1 recognizes built-in signatures for PDF, ELF, PNG, GIF, ZIP, gzip, tar, and shebang scripts before falling back to
-`directory`, `special file`, `empty`, `text`, or `data`. Text means all inspected bytes are printable ASCII or common
-ASCII whitespace. A NUL byte or another non-text byte makes the regular file `data`.
+V1 recognizes external project magic rules, then built-in signatures for PDF, ELF, PNG, GIF, ZIP, gzip, tar, and shebang
+scripts before falling back to `directory`, `special file`, `empty`, `text`, or `data`. Text means all inspected bytes
+are printable ASCII or common ASCII whitespace. A NUL byte or another non-text byte makes the regular file `data`.
 
 ## Locale Behavior
 Help and diagnostics are localized. Classification words and pathnames are command data and are not localized.
 
 ## Implementation-Defined Choices
-External magic databases and locale-sensitive text classification are not used in V1. Classification is intentionally
-deterministic and bounded.
+The `-m` format is a deterministic project rule format, not a clone of any host-specific magic database syntax.
+Locale-sensitive text classification is not used in V1.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -53,4 +57,4 @@ deterministic and bounded.
 Conforming with implementation-defined behavior tracked by `FILE-POSIX-001`.
 
 ## Known Limitations
-V1 uses built-in magic signatures only. External magic-file databases are not yet implemented.
+No known V1 limitation for the documented rule format.

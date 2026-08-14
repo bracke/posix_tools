@@ -36,7 +36,7 @@ Diagnostics for invalid options and paths that cannot be inspected.
 
 ## Behavioral Details
 Directories are traversed recursively. Directory identities are tracked during each top-level traversal to avoid
-filesystem cycles. The V1 implementation reports allocated usage when the host adapter exposes it and otherwise uses
+filesystem cycles. The V1 implementation asks the project filesystem adapter for allocated usage and otherwise uses
 host-reported byte sizes rounded to the selected unit size as the portable fallback.
 
 ## Locale Behavior
@@ -58,4 +58,5 @@ Platforms without an allocated-block query use rounded byte sizes.
 Conforming with implementation-defined behavior tracked by `DU-POSIX-001`.
 
 ## Known Limitations
-Allocated-block precision depends on the host adapter capability for the target platform.
+Allocated-block precision depends on the host adapter capability for the target platform; platforms that decline the
+query use rounded byte sizes.

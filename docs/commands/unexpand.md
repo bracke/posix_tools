@@ -43,8 +43,9 @@ Help and diagnostics are localized. Input data, inserted tabs, widths, and pathn
 localized.
 
 ## Implementation-Defined Choices
-V1 counts bytes for column movement. It does not perform display-column adjustment for backspaces, wide characters, or
-combining characters.
+V1 uses a deterministic UTF-8 display-column policy for tab placement: common combining marks have width zero, common
+East Asian and emoji ranges have width two, backspace moves one column left when possible, and invalid byte sequences
+advance by one column per byte.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.
@@ -58,4 +59,4 @@ combining characters.
 Conforming with implementation-defined behavior tracked by `UNEXPAND-POSIX-001`.
 
 ## Known Limitations
-Display-column adjustment for backspaces, wide characters, and combining characters is not yet implemented.
+No known limitation for the documented V1 display-column policy.

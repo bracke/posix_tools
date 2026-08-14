@@ -98,6 +98,75 @@ package body Posix_Tools.Commands.Expanded is
       return True;
    end Parse_Natural_Text;
 
+   function Is_Combining_Code_Point (Code_Point : Long_Long_Integer) return Boolean is
+   begin
+      return Code_Point in 16#0300# .. 16#036F#
+        or else Code_Point in 16#1AB0# .. 16#1AFF#
+        or else Code_Point in 16#1DC0# .. 16#1DFF#
+        or else Code_Point in 16#20D0# .. 16#20FF#
+        or else Code_Point in 16#FE00# .. 16#FE0F#
+        or else Code_Point in 16#FE20# .. 16#FE2F#
+        or else Code_Point = 16#200D#;
+   end Is_Combining_Code_Point;
+
+   function Is_Wide_Code_Point (Code_Point : Long_Long_Integer) return Boolean is
+   begin
+      return Code_Point in 16#1100# .. 16#115F#
+        or else Code_Point in 16#2329# .. 16#232A#
+        or else Code_Point in 16#2E80# .. 16#A4CF#
+        or else Code_Point in 16#AC00# .. 16#D7A3#
+        or else Code_Point in 16#F900# .. 16#FAFF#
+        or else Code_Point in 16#FE10# .. 16#FE19#
+        or else Code_Point in 16#FE30# .. 16#FE6F#
+        or else Code_Point in 16#FF00# .. 16#FF60#
+        or else Code_Point in 16#FFE0# .. 16#FFE6#
+        or else Code_Point in 16#1F300# .. 16#1FAFF#;
+   end Is_Wide_Code_Point;
+
+   function Display_Width (Code_Point : Long_Long_Integer) return Natural is
+   begin
+      if Is_Combining_Code_Point (Code_Point) then
+         return 0;
+      elsif Is_Wide_Code_Point (Code_Point) then
+         return 2;
+      else
+         return 1;
+      end if;
+   end Display_Width;
+
+   function Display_Next_Column
+     (Text     : String;
+      Index    : Positive;
+      Column   : Natural;
+      Consumed : out Natural) return Natural
+   is
+      Decoder    : Posix_Tools.Text.UTF_8.Decoder;
+      Status     : Posix_Tools.Text.UTF_8.Decode_Status;
+      Code_Point : Long_Long_Integer := 0;
+   begin
+      Consumed := 1;
+      if Text (Index) = BS then
+         return (if Column = 0 then 0 else Column - 1);
+      elsif Text (Index) = CR then
+         return 0;
+      elsif Character'Pos (Text (Index)) <= 16#7F# then
+         return Column + 1;
+      end if;
+
+      for I in Index .. Text'Last loop
+         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (I)), Status, Code_Point);
+         if Status = Posix_Tools.Text.UTF_8.Complete then
+            Consumed := I - Index + 1;
+            return Column + Display_Width (Code_Point);
+         elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+            Consumed := 1;
+            return Column + 1;
+         end if;
+      end loop;
+
+      return Column + 1;
+   end Display_Next_Column;
+
    procedure Set_Success
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -4155,10 +4224,10 @@ package body Posix_Tools.Commands.Expanded is
       end Rounded_Units;
 
       function Allocated_Units (Path : String) return Long_Long_Integer is
+         Available : Boolean := False;
+         Bytes     : constant Long_Long_Integer := FS.Allocated_Size (Path, Available);
       begin
-         --  Hostkit does not currently expose allocated-block counts through this adapter.
-         --  Use the byte size rounded to the selected reporting unit as the portable fallback.
-         return Rounded_Units (FS.Size (Path));
+         return Rounded_Units ((if Available then Bytes else FS.Size (Path)));
       end Allocated_Units;
 
       function Already_Seen_Directory (Path : String) return Boolean is
@@ -4828,6 +4897,8 @@ package body Posix_Tools.Commands.Expanded is
       First     : Positive := 1;
       All_Ok    : Boolean := True;
       Mime_Mode : Boolean := False;
+      Magic_Path : Unbounded_String;
+      Has_Magic  : Boolean := False;
 
       function Is_Text_Byte (Byte : Ada.Streams.Stream_Element) return Boolean is
          Ch : constant Character := Character'Val (Byte);
@@ -4854,11 +4925,187 @@ package body Posix_Tools.Commands.Expanded is
            and then Text (Start .. Start + Needle'Length - 1) = Needle;
       end Contains_At;
 
+      function Hex_Value (Ch : Character; Value : out Natural) return Boolean is
+      begin
+         if Ch in '0' .. '9' then
+            Value := Character'Pos (Ch) - Character'Pos ('0');
+         elsif Ch in 'a' .. 'f' then
+            Value := 10 + Character'Pos (Ch) - Character'Pos ('a');
+         elsif Ch in 'A' .. 'F' then
+            Value := 10 + Character'Pos (Ch) - Character'Pos ('A');
+         else
+            Value := 0;
+            return False;
+         end if;
+         return True;
+      end Hex_Value;
+
+      function Decoded_Literal (Text : String; Ok : out Boolean) return String is
+         Result : Unbounded_String;
+         I      : Positive := Text'First;
+         High   : Natural;
+         Low    : Natural;
+      begin
+         Ok := True;
+         if Text = "" then
+            return "";
+         end if;
+
+         while I <= Text'Last loop
+            if Text (I) /= '\' then
+               Append (Result, Text (I));
+               I := I + 1;
+            elsif I = Text'Last then
+               Ok := False;
+               return "";
+            else
+               case Text (I + 1) is
+                  when '0' =>
+                     Append (Result, NUL);
+                     I := I + 2;
+                  when 'n' =>
+                     Append (Result, LF);
+                     I := I + 2;
+                  when 'r' =>
+                     Append (Result, CR);
+                     I := I + 2;
+                  when 't' =>
+                     Append (Result, HT);
+                     I := I + 2;
+                  when '\' | ':' =>
+                     Append (Result, Text (I + 1));
+                     I := I + 2;
+                  when 'x' =>
+                     if I + 3 > Text'Last
+                       or else not Hex_Value (Text (I + 2), High)
+                       or else not Hex_Value (Text (I + 3), Low)
+                     then
+                        Ok := False;
+                        return "";
+                     end if;
+                     Append (Result, Character'Val (High * 16 + Low));
+                     I := I + 4;
+                  when others =>
+                     Ok := False;
+                     return "";
+               end case;
+            end if;
+         end loop;
+
+         return To_String (Result);
+      end Decoded_Literal;
+
+      function Magic_Description (Data : String; Found : out Boolean) return String is
+         Magic_Ok : Boolean := False;
+         Magic    : constant String := Read_File (To_String (Magic_Path), Magic_Ok);
+         Start    : Positive := Magic'First;
+
+         function Next_Field (Line : String; From : Positive; Last : out Natural) return Natural is
+            Escaped : Boolean := False;
+         begin
+            for I in From .. Line'Last loop
+               if Escaped then
+                  Escaped := False;
+               elsif Line (I) = '\' then
+                  Escaped := True;
+               elsif Line (I) = ':' then
+                  Last := I - 1;
+                  return I + 1;
+               end if;
+            end loop;
+            Last := Line'Last;
+            return Line'Last + 1;
+         end Next_Field;
+
+         function Match_Line (Line : String; Description : out Unbounded_String) return Boolean is
+            First_Last  : Natural;
+            Second_From : Natural;
+            Second_Last : Natural;
+            Third_From  : Natural;
+            Third_Last  : Natural;
+            Fourth_From : Natural;
+            Offset      : Natural;
+            Literal_Ok  : Boolean;
+         begin
+            Description := Null_Unbounded_String;
+            if Line = "" or else Line (Line'First) = '#' then
+               return False;
+            end if;
+
+            Second_From := Next_Field (Line, Line'First, First_Last);
+            if Second_From > Line'Last then
+               return False;
+            end if;
+            Third_From := Next_Field (Line, Second_From, Second_Last);
+            if Third_From > Line'Last then
+               return False;
+            end if;
+            Fourth_From := Next_Field (Line, Third_From, Third_Last);
+
+            if not Parse_Natural_Text (Line (Line'First .. First_Last), Offset) then
+               return False;
+            end if;
+
+            declare
+               Literal : constant String := Decoded_Literal (Line (Second_From .. Second_Last), Literal_Ok);
+            begin
+               if not Literal_Ok
+                 or else Literal = ""
+                 or else not Contains_At (Data, Offset, Literal)
+               then
+                  return False;
+               end if;
+            end;
+
+            if Mime_Mode and then Fourth_From <= Line'Last then
+               Description := To_Unbounded_String (Line (Fourth_From .. Line'Last));
+            else
+               Description := To_Unbounded_String (Line (Third_From .. Third_Last));
+            end if;
+            return To_String (Description) /= "";
+         end Match_Line;
+      begin
+         Found := False;
+         if not Magic_Ok then
+            return "";
+         end if;
+
+         while Start <= Magic'Last loop
+            declare
+               Stop : Natural := Start;
+               Text : Unbounded_String;
+            begin
+               while Stop <= Magic'Last and then Magic (Stop) /= LF loop
+                  Stop := Stop + 1;
+               end loop;
+
+               if Match_Line (Magic (Start .. Stop - 1), Text) then
+                  Found := True;
+                  return To_String (Text);
+               end if;
+               Start := Stop + 1;
+            end;
+         end loop;
+
+         return "";
+      end Magic_Description;
+
       function Content_Description (Data : String) return String is
          Saw_Byte : Boolean := False;
          Saw_NUL  : Boolean := False;
          Saw_Text : Boolean := True;
       begin
+         if Has_Magic then
+            declare
+               Found : Boolean;
+               Text  : constant String := Magic_Description (Data, Found);
+            begin
+               if Found then
+                  return Text;
+               end if;
+            end;
+         end if;
+
          if Data = "" then
             return (if Mime_Mode then "inode/x-empty" else "empty");
          elsif Starts_With (Data, "%PDF-") then
@@ -4951,6 +5198,21 @@ package body Posix_Tools.Commands.Expanded is
                exit;
             elsif Arg = "-i" or else Arg = "--mime" or else Arg = "--mime-type" then
                Mime_Mode := True;
+               First := First + 1;
+            elsif Arg = "-m" then
+               if First >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-m'");
+                  return;
+               end if;
+               Magic_Path := To_Unbounded_String (Context.Argument (First + 1));
+               Has_Magic := True;
+               First := First + 2;
+            elsif Arg'Length > 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) = 'm'
+            then
+               Magic_Path := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+               Has_Magic := True;
                First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
                Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
@@ -5079,22 +5341,43 @@ package body Posix_Tools.Commands.Expanded is
       procedure Expand_Text (Text : String; Ok : out Boolean) is
          Column : Natural := 0;
          Spaces : Natural;
+         Consumed : Natural;
+         I      : Positive := Text'First;
       begin
          Ok := True;
-         for Ch of Text loop
-            if Ch = HT then
+         if Text = "" then
+            return;
+         end if;
+
+         while I <= Text'Last loop
+            if Text (I) = HT then
                Spaces := Next_Tab_Column (Column) - Column;
                for Count in 1 .. Spaces loop
                   Context.Put (" ");
                   exit when Context.Output_Failed;
                end loop;
                Column := Column + Spaces;
+               I := I + 1;
             else
-               Context.Put ("" & Ch);
-               if Ch = LF then
+               Consumed := 1;
+               Context.Put (Text (I .. I));
+               if Text (I) = LF then
                   Column := 0;
+                  I := I + 1;
                else
-                  Column := Column + 1;
+                  if Character'Pos (Text (I)) > 16#7F# then
+                     declare
+                        Next_Column : constant Natural := Display_Next_Column (Text, I, Column, Consumed);
+                     begin
+                        if Consumed > 1 then
+                           Context.Put (Text (I + 1 .. I + Consumed - 1));
+                        end if;
+                        Column := Next_Column;
+                     end;
+                  else
+                     Column := Display_Next_Column (Text, I, Column, Consumed);
+                  end if;
+                  I := I + Consumed;
                end if;
             end if;
 
@@ -5297,11 +5580,18 @@ package body Posix_Tools.Commands.Expanded is
          Column  : Natural := 0;
          Leading : Boolean := True;
          Pending : Natural := 0;
+         Consumed : Natural;
+         I       : Positive := Text'First;
       begin
          Ok := True;
-         for Ch of Text loop
-            if Ch = ' ' then
+         if Text = "" then
+            return;
+         end if;
+
+         while I <= Text'Last loop
+            if Text (I) = ' ' then
                Pending := Pending + 1;
+               I := I + 1;
             else
                if Pending > 0 then
                   Emit_Blanks (Pending, Column, All_Blanks or else Leading);
@@ -5312,15 +5602,30 @@ package body Posix_Tools.Commands.Expanded is
                   end if;
                end if;
 
-               Put_Byte (Ch);
-               if Ch = LF then
+               Consumed := 1;
+               Put_Byte (Text (I));
+               if Text (I) = LF then
                   Column := 0;
                   Leading := True;
-               elsif Ch = HT then
+                  I := I + 1;
+               elsif Text (I) = HT then
                   Column := Column + Spaces_To_Next_Tab (Column);
+                  I := I + 1;
                else
-                  Column := Column + 1;
+                  if Character'Pos (Text (I)) > 16#7F# then
+                     declare
+                        Next_Column : constant Natural := Display_Next_Column (Text, I, Column, Consumed);
+                     begin
+                        if Consumed > 1 then
+                           Context.Put (Text (I + 1 .. I + Consumed - 1));
+                        end if;
+                        Column := Next_Column;
+                     end;
+                  else
+                     Column := Display_Next_Column (Text, I, Column, Consumed);
+                  end if;
                   Leading := False;
+                  I := I + Consumed;
                end if;
 
                if Context.Output_Failed then
@@ -5842,6 +6147,57 @@ package body Posix_Tools.Commands.Expanded is
          Start : Natural := Line'First;
          Stop  : Natural;
          Break : Natural;
+
+         function Next_Line_Column (Index : Positive; Column : Natural; Consumed : out Natural) return Natural is
+         begin
+            if Line (Index) = HT then
+               Consumed := 1;
+               return Column + (8 - (Column mod 8));
+            else
+               return Display_Next_Column (Line, Index, Column, Consumed);
+            end if;
+         end Next_Line_Column;
+
+         function Fits_Within_Width (From : Positive) return Boolean is
+            Column      : Natural := 0;
+            Consumed    : Natural;
+            Next_Column : Natural;
+            I           : Positive := From;
+         begin
+            while I <= Line'Last loop
+               Next_Column := Next_Line_Column (I, Column, Consumed);
+               if Next_Column > Width then
+                  return False;
+               end if;
+               Column := Next_Column;
+               I := I + Consumed;
+            end loop;
+            return True;
+         end Fits_Within_Width;
+
+         function Fold_Stop (From : Positive) return Natural is
+            Column      : Natural := 0;
+            Consumed    : Natural;
+            Next_Column : Natural;
+            I           : Positive := From;
+            Last_Fit    : Natural := From - 1;
+         begin
+            while I <= Line'Last loop
+               Next_Column := Next_Line_Column (I, Column, Consumed);
+               if Next_Column > Width and then Last_Fit >= From then
+                  return Last_Fit;
+               end if;
+
+               Last_Fit := I + Consumed - 1;
+               Column := Next_Column;
+               if Next_Column >= Width then
+                  return Last_Fit;
+               end if;
+               I := I + Consumed;
+            end loop;
+
+            return Line'Last;
+         end Fold_Stop;
       begin
          if Line = "" then
             if Had_Newline then
@@ -5851,9 +6207,9 @@ package body Posix_Tools.Commands.Expanded is
          end if;
 
          while Start <= Line'Last loop
-            exit when Line'Last - Start + 1 <= Width;
+            exit when Fits_Within_Width (Start);
 
-            Stop := Start + Width - 1;
+            Stop := Fold_Stop (Start);
             Break := 0;
             if Space_Mode then
                for I in Start .. Stop loop

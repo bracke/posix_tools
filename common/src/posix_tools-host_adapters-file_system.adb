@@ -647,6 +647,15 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Ada.Directories.Simple_Name (Path);
    end Simple_Name;
 
+   function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer is
+   begin
+      --  Hostkit's public metadata surface does not yet expose per-file allocated
+      --  block counts. Keep the capability explicit so command code can distinguish
+      --  real allocated usage from the portable byte-size fallback.
+      Available := False;
+      return Long_Long_Integer (Ada.Directories.Size (Path));
+   end Allocated_Size;
+
    function Size (Path : String) return Long_Long_Integer is
    begin
       return Long_Long_Integer (Ada.Directories.Size (Path));

@@ -58,4 +58,6 @@ wide characters, or combining characters.
 Conforming with implementation-defined behavior tracked by `FOLD-POSIX-001`.
 
 ## Known Limitations
-Display-column measurement is intentionally byte-oriented in V1.
+V1 uses a deterministic UTF-8 display-column policy: common combining marks have width zero, common East Asian and emoji
+ranges have width two, tab advances to the next eight-column stop, backspace moves one column left when possible, and
+invalid byte sequences advance by one column per byte.
