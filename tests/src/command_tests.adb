@@ -1422,6 +1422,13 @@ package body Command_Tests is
          and then Contains (Test_Contexts.Output (Context), "Mode: "),
          "stat reports regular file metadata");
 
+      Context.Initialize ("stat", Three_Args ("-c", "%n %s %F", Source));
+      Posix_Tools.Commands.Stat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Source & " 9 regular file" & EOL,
+         "stat supports custom format fields");
+
       Ada.Directories.Create_Directory (Multi);
       Write_File (Other, "other-data");
       Context.Initialize ("cp", Three_Args (Source, Other, Multi));
@@ -5118,6 +5125,16 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) =
            "31f096ed11381d8885e6bb572b98782840325a88e582dc576a039b6564ca9c77  " & Source & EOL,
          "sha256sum prints known file digest and operand");
+
+      Write_File
+        (Cksum_File,
+         "31f096ed11381d8885e6bb572b98782840325a88e582dc576a039b6564ca9c77  " & Source & EOL);
+      Context.Initialize ("sha256sum", Two_Args ("-c", Cksum_File));
+      Posix_Tools.Commands.Sha256sum.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Source & ": OK" & EOL,
+         "sha256sum verifies checksum files");
 
       Context.Initialize ("sha256sum", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "abc");

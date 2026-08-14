@@ -8,6 +8,8 @@ stat - write file metadata
 
 `stat file...`
 
+`stat -c format file...`
+
 ## Description
 
 `stat` writes a compact metadata block for each file operand using the posix_tools filesystem adapter.
@@ -18,6 +20,8 @@ Each operand is a file path to inspect.
 
 ## Options
 
+`-c format` writes one formatted line per operand. Supported format fields are `%%`, `%n` pathname, `%s` size, `%F`
+file type, `%a` octal mode, `%u` user id, and `%g` group id. The escapes `\n`, `\t`, and `\\` are recognized.
 `--` may be used to end option recognition. Common project options such as `--help`, `--version`, and the internal
 identity option are recognized by the process wrapper.
 
@@ -28,7 +32,7 @@ Not used.
 ## Standard Output
 
 For each existing operand, `stat` writes fields for file path, size, type, mode, user id, and group id. Multiple
-operands are separated by one blank line.
+operands are separated by one blank line. In `-c` mode, each operand writes one formatted output line.
 
 ## Standard Error
 
@@ -41,8 +45,8 @@ Diagnostics are localized through messages.
 
 ## Behavioral Details
 
-The output format is stable for this project but is not GNU or BSD `stat` compatible. Missing permission or ownership
-metadata is reported as `unknown`.
+The default output format is stable for this project but is not GNU or BSD `stat` compatible. Missing permission or
+ownership metadata is reported as `unknown`. The `-c` format language is a focused project-compatible subset.
 
 ## Locale Behavior
 
@@ -62,10 +66,12 @@ active platform.
 
 `stat README.md`
 
+`stat -c '%n %s %F' README.md`
+
 ## Conformance Status
 
 Project extension.
 
 ## Known Limitations
 
-Custom format strings and timestamp fields are not implemented in V1.
+Timestamp format fields are not implemented in V1.

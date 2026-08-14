@@ -15207,8 +15207,10 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First : Positive := 1;
-      Ok    : Boolean := True;
+      First      : Positive := 1;
+      Ok         : Boolean := True;
+      Has_Format : Boolean := False;
+      Format_Text : Unbounded_String;
 
       function Long_Image (Value : Long_Long_Integer) return String is
       begin
@@ -15262,6 +15264,81 @@ package body Posix_Tools.Commands.Expanded is
          end case;
       end Kind_Name;
 
+      function Format_Field
+        (Path            : String;
+         Code            : Character;
+         Mode_Available  : Boolean;
+         Mode            : Natural;
+         Owner_Available : Boolean;
+         User_Id         : Natural;
+         Group_Id        : Natural) return String
+      is
+      begin
+         case Code is
+            when '%' =>
+               return "%";
+            when 'a' =>
+               return (if Mode_Available then Mode_Image (Mode) else "unknown");
+            when 'F' =>
+               return Kind_Name (Path);
+            when 'g' =>
+               return (if Owner_Available then Natural_Image (Group_Id) else "unknown");
+            when 'n' =>
+               return Path;
+            when 's' =>
+               return Long_Image (FS.Size (Path));
+            when 'u' =>
+               return (if Owner_Available then Natural_Image (User_Id) else "unknown");
+            when others =>
+               return "%" & Code;
+         end case;
+      end Format_Field;
+
+      function Render_Format
+        (Path            : String;
+         Format          : String;
+         Mode_Available  : Boolean;
+         Mode            : Natural;
+         Owner_Available : Boolean;
+         User_Id         : Natural;
+         Group_Id        : Natural) return String
+      is
+         Output : Unbounded_String;
+         I      : Positive := Format'First;
+      begin
+         while I <= Format'Last loop
+            if Format (I) = '%' and then I < Format'Last then
+               Append
+                 (Output,
+                  Format_Field
+                    (Path,
+                     Format (I + 1),
+                     Mode_Available,
+                     Mode,
+                     Owner_Available,
+                     User_Id,
+                     Group_Id));
+               I := I + 2;
+            elsif Format (I) = '\' and then I < Format'Last then
+               case Format (I + 1) is
+                  when 'n' =>
+                     Append (Output, LF);
+                  when 't' =>
+                     Append (Output, Character'Val (9));
+                  when '\' =>
+                     Append (Output, '\');
+                  when others =>
+                     Append (Output, Format (I + 1));
+               end case;
+               I := I + 2;
+            else
+               Append (Output, Format (I));
+               I := I + 1;
+            end if;
+         end loop;
+         return To_String (Output);
+      end Render_Format;
+
       procedure Write_One (Path : String) is
          Mode_Available  : Boolean := False;
          Owner_Available : Boolean := False;
@@ -15278,16 +15355,22 @@ package body Posix_Tools.Commands.Expanded is
 
          FS.File_Ownership (Path, User_Id, Group_Id, Owner_Available);
 
-         Context.Put_Line ("File: " & Path);
-         Context.Put_Line ("Size: " & Long_Image (FS.Size (Path)));
-         Context.Put_Line ("Type: " & Kind_Name (Path));
-         Context.Put_Line ("Mode: " & (if Mode_Available then Mode_Image (Mode) else "unknown"));
-         if Owner_Available then
-            Context.Put_Line ("Uid: " & Natural_Image (User_Id));
-            Context.Put_Line ("Gid: " & Natural_Image (Group_Id));
+         if Has_Format then
+            Context.Put_Line
+              (Render_Format
+                 (Path, To_String (Format_Text), Mode_Available, Mode, Owner_Available, User_Id, Group_Id));
          else
-            Context.Put_Line ("Uid: unknown");
-            Context.Put_Line ("Gid: unknown");
+            Context.Put_Line ("File: " & Path);
+            Context.Put_Line ("Size: " & Long_Image (FS.Size (Path)));
+            Context.Put_Line ("Type: " & Kind_Name (Path));
+            Context.Put_Line ("Mode: " & (if Mode_Available then Mode_Image (Mode) else "unknown"));
+            if Owner_Available then
+               Context.Put_Line ("Uid: " & Natural_Image (User_Id));
+               Context.Put_Line ("Gid: " & Natural_Image (Group_Id));
+            else
+               Context.Put_Line ("Uid: unknown");
+               Context.Put_Line ("Gid: unknown");
+            end if;
          end if;
       exception
          when others =>
@@ -15296,9 +15379,31 @@ package body Posix_Tools.Commands.Expanded is
               (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
       end Write_One;
    begin
-      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
-         First := 2;
-      end if;
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "-c" then
+            if First = Context.Argument_Count then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-c'");
+               return;
+            end if;
+            Has_Format := True;
+            Format_Text := To_Unbounded_String (Context.Argument (First + 1));
+            First := First + 2;
+         elsif Context.Argument (First)'Length > 2
+           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1) =
+                    "-c"
+         then
+            Has_Format := True;
+            Format_Text :=
+              To_Unbounded_String
+                (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last));
+            First := First + 1;
+         elsif Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         else
+            exit;
+         end if;
+      end loop;
 
       if Context.Argument_Count < First then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
@@ -15306,7 +15411,7 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       for I in First .. Context.Argument_Count loop
-         if I > First then
+         if I > First and then not Has_Format then
             Context.Put_Line ("");
          end if;
          Write_One (Context.Argument (I));
@@ -15579,6 +15684,7 @@ package body Posix_Tools.Commands.Expanded is
    is
       All_Ok : Boolean := True;
       First  : Positive := 1;
+      Check_Mode : Boolean := False;
 
       function Digest_Image (Digest : CryptoLib.Hashes.SHA256_Digest) return String is
          Hex_Digit : constant String := "0123456789abcdef";
@@ -15598,9 +15704,34 @@ package body Posix_Tools.Commands.Expanded is
          return Result;
       end Digest_Image;
 
-      procedure Emit (Name : String) is
+      function Is_Hex_Digest (Text : String) return Boolean is
+      begin
+         if Text'Length /= 64 then
+            return False;
+         end if;
+
+         for Ch of Text loop
+            if Ch not in '0' .. '9' and then Ch not in 'a' .. 'f' and then Ch not in 'A' .. 'F' then
+               return False;
+            end if;
+         end loop;
+
+         return True;
+      end Is_Hex_Digest;
+
+      function Lower_Hex (Text : String) return String is
+         Result : String := Text;
+      begin
+         for Ch of Result loop
+            if Ch in 'A' .. 'F' then
+               Ch := Character'Val (Character'Pos (Ch) - Character'Pos ('A') + Character'Pos ('a'));
+            end if;
+         end loop;
+         return Result;
+      end Lower_Hex;
+
+      function SHA_256_Of (Name : String; Ok : out Boolean) return String is
          Hash_Context : CryptoLib.Hashes.SHA256_Context;
-         Ok           : Boolean;
 
          procedure Hash_Chunk
            (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -15620,16 +15751,116 @@ package body Posix_Tools.Commands.Expanded is
          CryptoLib.Hashes.Initialize_SHA256 (Hash_Context);
          Hash_Input (Context, Name, Ok);
          if Ok then
-            Context.Put_Line
-              (Digest_Image (CryptoLib.Hashes.Finalize (Hash_Context))
-               & (if Name = "-" then "" else "  " & Name));
+            return Digest_Image (CryptoLib.Hashes.Finalize (Hash_Context));
+         else
+            return "";
+         end if;
+      end SHA_256_Of;
+
+      procedure Emit (Name : String) is
+         Ok : Boolean;
+         Digest : constant String := SHA_256_Of (Name, Ok);
+      begin
+         if Ok then
+            Context.Put_Line (Digest & (if Name = "-" then "" else "  " & Name));
          else
             All_Ok := False;
          end if;
       end Emit;
+
+      procedure Check_File (Name : String) is
+         Data  : Unbounded_String;
+         Ok    : Boolean;
+         Lines : String_Vectors.Vector;
+
+         procedure Check_Line (Line : String) is
+            Expected : Unbounded_String;
+            File     : Unbounded_String;
+            Actual_Ok : Boolean;
+         begin
+            if Line = "" then
+               return;
+            end if;
+
+            if Line'Length < 67
+              or else not Is_Hex_Digest (Line (Line'First .. Line'First + 63))
+              or else Line (Line'First + 64) /= ' '
+            then
+               Context.Put_Line (Line & ": improperly formatted SHA256 checksum line");
+               All_Ok := False;
+               return;
+            end if;
+
+            Expected := To_Unbounded_String (Lower_Hex (Line (Line'First .. Line'First + 63)));
+            declare
+               Name_First : Natural := Line'First + 65;
+            begin
+               if Name_First <= Line'Last and then Line (Name_First) in ' ' | '*' then
+                  Name_First := Name_First + 1;
+               end if;
+
+               if Name_First > Line'Last then
+                  Context.Put_Line (Line & ": improperly formatted SHA256 checksum line");
+                  All_Ok := False;
+                  return;
+               end if;
+
+               File := To_Unbounded_String (Line (Name_First .. Line'Last));
+            end;
+
+            declare
+               Actual : constant String := SHA_256_Of (To_String (File), Actual_Ok);
+            begin
+               if not Actual_Ok then
+                  Context.Put_Line (To_String (File) & ": FAILED open or read");
+                  All_Ok := False;
+               elsif Actual = To_String (Expected) then
+                  Context.Put_Line (To_String (File) & ": OK");
+               else
+                  Context.Put_Line (To_String (File) & ": FAILED");
+                  All_Ok := False;
+               end if;
+            end;
+         end Check_Line;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if not Ok then
+            All_Ok := False;
+            return;
+         end if;
+
+         Split_Lines (To_String (Data), Lines);
+         for I in 1 .. Natural (Lines.Length) loop
+            Check_Line (Lines.Element (I));
+            exit when Context.Output_Failed;
+         end loop;
+      end Check_File;
    begin
-      if Context.Argument_Count >= 1 and then Context.Argument (1) = "--" then
-         First := 2;
+      while First <= Context.Argument_Count loop
+         if Context.Argument (First) = "-c" then
+            Check_Mode := True;
+            First := First + 1;
+         elsif Context.Argument (First) = "--" then
+            First := First + 1;
+            exit;
+         else
+            exit;
+         end if;
+      end loop;
+
+      if Check_Mode then
+         if Context.Argument_Count < First then
+            Check_File ("-");
+         else
+            for I in First .. Context.Argument_Count loop
+               Check_File (Context.Argument (I));
+               exit when Context.Output_Failed;
+            end loop;
+         end if;
+         Result.Status :=
+           (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+            else Posix_Tools.Exit_Status.Operational_Failure);
+         return;
       end if;
 
       if Context.Argument_Count < First then

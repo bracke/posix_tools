@@ -8,18 +8,23 @@ sha256sum - compute SHA-256 message digests
 
 `sha256sum [file...]`
 
+`sha256sum -c [file...]`
+
 ## Description
 
 `sha256sum` reads each file operand and writes a lowercase hexadecimal SHA-256 digest. With no operands, or with an
-operand exactly equal to `-`, it reads standard input.
+operand exactly equal to `-`, it reads standard input. With `-c`, it reads checksum files and verifies each listed
+digest.
 
 ## Operands
 
-Each operand names an input file. `-` names standard input.
+Each operand names an input file. `-` names standard input. In `-c` mode, each operand names a checksum file; a
+checksum-file operand of `-` names standard input.
 
 ## Options
 
-`--` marks the end of options. `--help` and `--version` are provided by the common executable wrapper.
+`-c` verifies checksum files. `--` marks the end of options. `--help` and `--version` are provided by the common
+executable wrapper.
 
 ## Standard Input
 
@@ -28,7 +33,7 @@ Used when no operands are supplied or when an operand is `-`.
 ## Standard Output
 
 For standard input, the command writes the digest followed by a newline. For file operands, it writes the digest, two
-spaces, the operand text, and a newline.
+spaces, the operand text, and a newline. In `-c` mode, each verified file reports `OK` or `FAILED`.
 
 ## Standard Error
 
@@ -60,10 +65,12 @@ The entire command is a project extension, not a POSIX.1-2024 utility.
 
 `sha256sum README.md`
 
+`sha256sum -c SHA256SUMS`
+
 ## Conformance Status
 
 Conforming with extensions.
 
 ## Known Limitations
 
-Checksum verification modes such as `-c` are not implemented in this V1 extension.
+No known V1 limitation for the documented digest and verification surface.
