@@ -16,7 +16,7 @@ Remote: `origin https://github.com/bracke/posix_tools.git`
 ## Current Implementation Scope
 
 - Expanded compiled command inventory includes:
-  `basename cat chmod cksum cmp comm cp cut date dd dirname echo env false find head id ln logname ls mkdir mv od paste printf pwd rm rmdir sort split tail tee test touch tr true uname uniq wc xargs`
+  `basename cat chgrp chmod chown cksum cmp comm cp cut date dd dirname echo env false find head id kill link ln logname ls mkdir mv od paste printf pwd readlink realpath rm rmdir sleep split sort tail tee test touch tr true uname uniq wc whoami xargs`
 - `awk`, `grep`, and `sed` remain intentionally excluded from this repository because they are sibling projects.
 - Added or completed shared implementations, command subcrates, documentation, generated manpages, conformance metadata, package manifests, checksums, and command tests for the expanded inventory.
 - `date` now uses sibling `../i18n` timezone support where available.
@@ -42,19 +42,16 @@ Remote: `origin https://github.com/bracke/posix_tools.git`
 - `uname` platform support was improved through hostkit release/version APIs.
 - Documentation and generated metadata were refreshed for `logname`, `uname`, and the expanded command inventory.
 
-## Known Deviation Surface
+## Remaining Gap Surface
 
-The release gate passes with documented known-deviation records for deliberately incomplete POSIX areas in expanded utilities:
-
-- `TAIL-FOLLOW-001`
-- `CP-V1-DEVIATION-001`
-- `DATE-V1-DEVIATION-001`
-- `DD-V1-DEVIATION-001`
-- `FIND-V1-DEVIATION-001`
-- `SORT-V1-DEVIATION-001`
-- `TEST-V1-DEVIATION-001`
-- `TOUCH-V1-DEVIATION-001`
-- `TR-V1-DEVIATION-001`
+- The generated requirements registry currently has no active `Known deviation`, `Partially conforming`, or
+  `Not yet assessed` rows.
+- All compiled command inventory rows are marked `conforming_with_extensions`.
+- The remaining conformance gap is depth: the expanded commands need more exhaustive black-box interoperability,
+  property, stress, and platform fixture coverage before their `conforming_with_extensions` labels should be
+  treated as final POSIX-grade claims.
+- `TAIL-FOLLOW-001` is implemented and tracked as `Conforming with extensions`: `-f` follows appended data after
+  the initial suffix, while `-F` and `--follow` are project extensions.
 
 ## GitHub/Auth Notes
 
