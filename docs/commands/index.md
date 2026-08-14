@@ -54,6 +54,7 @@ V1 command references:
 - [tr](tr.md)
 - [true](true.md)
 - [tty](tty.md)
+- [unexpand](unexpand.md)
 - [uname](uname.md)
 - [uniq](uniq.md)
 - [wc](wc.md)

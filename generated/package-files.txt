@@ -445,6 +445,11 @@ tools/tty/alire.toml
 tools/tty/posix_tools_tty.gpr
 tools/tty/src/tty.adb
 docs/commands/tty.md
+generated/man/unexpand.1
+tools/unexpand/alire.toml
+tools/unexpand/posix_tools_unexpand.gpr
+tools/unexpand/src/unexpand.adb
+docs/commands/unexpand.md
 generated/man/uname.1
 tools/uname/alire.toml
 tools/uname/posix_tools_uname.gpr

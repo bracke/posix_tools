@@ -60,14 +60,14 @@ package body Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 56), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 57), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "basename", "first command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (56) = "xargs", "last command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (57) = "xargs", "last command");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Manifest_Path (1) = "tools/basename/alire.toml",
          "manifest path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Project_File_Path (54) = "tools/wc/posix_tools_wc.gpr",
+        (Posix_Tools.Command_Inventory.Project_File_Path (55) = "tools/wc/posix_tools_wc.gpr",
          "project file path");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Documentation_Path (44) = "docs/commands/tail.md",
@@ -79,7 +79,7 @@ package body Basic_Tests is
         (Posix_Tools.Command_Inventory.Posix_Status (44) = "conforming_with_extensions",
          "tail status value");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (54) = "conforming_with_extensions",
+        (Posix_Tools.Command_Inventory.Posix_Status (55) = "conforming_with_extensions",
          "wc status value");
    end Test_Command_Inventory;
 

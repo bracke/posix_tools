@@ -53,6 +53,7 @@ Version: 0.1.0
 - `tr`: docs/commands/tr.md
 - `true`: docs/commands/true.md
 - `tty`: docs/commands/tty.md
+- `unexpand`: docs/commands/unexpand.md
 - `uname`: docs/commands/uname.md
 - `uniq`: docs/commands/uniq.md
 - `wc`: docs/commands/wc.md

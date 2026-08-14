@@ -45,6 +45,7 @@ package Posix_Tools.Commands.Expanded is
       Touch_Command,
       Tr_Command,
       Tty_Command,
+      Unexpand_Command,
       Uniq_Command,
       Uname_Command,
       Whoami_Command,

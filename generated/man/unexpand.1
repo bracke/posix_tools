@@ -1,0 +1,45 @@
+.TH unexpand 1
+.SH NAME
+unexpand - convert spaces to tabs.
+.SH SYNOPSIS
+unexpand [-a] [-t tabstop] [file...]
+.SH DESCRIPTION
+Writes each input file to standard output, replacing selected space-byte runs with tab bytes where doing so reaches the
+same tab stops. With no file operands, or with an operand exactly equal to -, unexpand reads standard input.
+.SH OPERANDS
+file: input file to unexpand, or - for standard input.
+.SH OPTIONS
+-a: convert space-byte runs beyond the leading blank portion of a line.
+
+-t tabstop: use the given positive decimal tab width instead of the default width of 8.
+
+Project extensions --help, --version, and --posix-tools-identify are recognized.
+.SH STANDARD INPUT
+Read when no file operands are supplied, or when a file operand is exactly -.
+.SH STANDARD OUTPUT
+Input bytes are written with selected spaces replaced by tab bytes. Newline bytes reset the current column.
+.SH STANDARD ERROR
+Diagnostics are written for invalid options, invalid tab widths, and operands that cannot be read.
+.SH EXIT STATUS
+0 success, 1 one or more operands could not be read or output failed, 2 invalid usage, 125 internal failure.
+.SH BEHAVIORAL DETAILS
+Without -a, only leading spaces on each line are considered for tab replacement. With -a, every run of spaces is
+considered. Other bytes are copied unchanged.
+.SH LOCALE BEHAVIOR
+Help and diagnostics are localized. Input data, inserted tabs, widths, and pathnames are command data and are not
+localized.
+.SH IMPLEMENTATION-DEFINED CHOICES
+V1 supports a single positive decimal tab width. It does not yet implement comma-separated tab stop lists or
+display-column adjustment for backspaces, wide characters, or combining characters.
+.SH EXTENSIONS
+--help, --version, --posix-tools-identify.
+.SH EXAMPLES
+unexpand source.adb
+
+unexpand -a -t 4 text.txt
+.SH CONFORMANCE STATUS
+Conforming with implementation-defined behavior tracked by UNEXPAND-POSIX-001.
+.SH KNOWN LIMITATIONS
+Tab stop lists are not yet implemented.
+.SH SEE ALSO
+docs/commands/unexpand.md

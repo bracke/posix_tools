@@ -55,6 +55,7 @@ V1 inventory:
 - `tr`
 - `true`
 - `tty`
+- `unexpand`
 - `uname`
 - `uniq`
 - `wc`

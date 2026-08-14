@@ -5010,6 +5010,174 @@ package body Posix_Tools.Commands.Expanded is
          else Posix_Tools.Exit_Status.Operational_Failure);
    end Run_Expand;
 
+   procedure Run_Unexpand
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Tab_Stop   : Natural := 8;
+      All_Blanks : Boolean := False;
+      First_File : Positive := 1;
+      All_Ok     : Boolean := True;
+
+      function Valid_Tab_Stop (Text : String; Value : out Natural) return Boolean is
+      begin
+         return Parse_Natural_Text (Text, Value) and then Value > 0;
+      end Valid_Tab_Stop;
+
+      procedure Put_Byte (Ch : Character) is
+      begin
+         Context.Put ("" & Ch);
+      end Put_Byte;
+
+      function Spaces_To_Next_Tab (Column : Natural) return Natural is
+      begin
+         return Tab_Stop - (Column mod Tab_Stop);
+      end Spaces_To_Next_Tab;
+
+      procedure Emit_Blanks
+        (Count        : Natural;
+         Start_Column : in out Natural;
+         Compress     : Boolean)
+      is
+         Remaining : Natural := Count;
+         Needed    : Natural;
+      begin
+         if not Compress then
+            for I in 1 .. Remaining loop
+               Put_Byte (' ');
+               Start_Column := Start_Column + 1;
+               exit when Context.Output_Failed;
+            end loop;
+            return;
+         end if;
+
+         while Remaining > 0 loop
+            Needed := Spaces_To_Next_Tab (Start_Column);
+            if Remaining >= Needed and then Needed > 1 then
+               Put_Byte (HT);
+               Start_Column := Start_Column + Needed;
+               Remaining := Remaining - Needed;
+            else
+               Put_Byte (' ');
+               Start_Column := Start_Column + 1;
+               Remaining := Remaining - 1;
+            end if;
+
+            exit when Context.Output_Failed;
+         end loop;
+      end Emit_Blanks;
+
+      procedure Unexpand_Text (Text : String; Ok : out Boolean) is
+         Column  : Natural := 0;
+         Leading : Boolean := True;
+         Pending : Natural := 0;
+      begin
+         Ok := True;
+         for Ch of Text loop
+            if Ch = ' ' then
+               Pending := Pending + 1;
+            else
+               if Pending > 0 then
+                  Emit_Blanks (Pending, Column, All_Blanks or else Leading);
+                  Pending := 0;
+                  if Context.Output_Failed then
+                     Ok := False;
+                     return;
+                  end if;
+               end if;
+
+               Put_Byte (Ch);
+               if Ch = LF then
+                  Column := 0;
+                  Leading := True;
+               elsif Ch = HT then
+                  Column := Column + Spaces_To_Next_Tab (Column);
+               else
+                  Column := Column + 1;
+                  Leading := False;
+               end if;
+
+               if Context.Output_Failed then
+                  Ok := False;
+                  return;
+               end if;
+            end if;
+         end loop;
+
+         if Pending > 0 then
+            Emit_Blanks (Pending, Column, All_Blanks or else Leading);
+         end if;
+         Ok := not Context.Output_Failed;
+      end Unexpand_Text;
+
+      procedure Unexpand_File (Name : String; Ok : out Boolean) is
+         Data : Unbounded_String;
+      begin
+         Read_All (Context, Name, Data, Ok);
+         if Ok then
+            Unexpand_Text (To_String (Data), Ok);
+         end if;
+      end Unexpand_File;
+   begin
+      while First_File <= Context.Argument_Count loop
+         declare
+            Arg : constant String := Context.Argument (First_File);
+         begin
+            if Arg = "--" then
+               First_File := First_File + 1;
+               exit;
+            elsif Arg = "-a" then
+               All_Blanks := True;
+               First_File := First_File + 1;
+            elsif Arg = "-t" then
+               if First_File >= Context.Argument_Count then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "missing option argument '-t'");
+                  return;
+               elsif not Valid_Tab_Stop (Context.Argument (First_File + 1), Tab_Stop) then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
+                  return;
+               end if;
+               First_File := First_File + 2;
+            elsif Arg'Length > 2
+              and then Arg (Arg'First) = '-'
+              and then Arg (Arg'First + 1) = 't'
+            then
+               if not Valid_Tab_Stop (Arg (Arg'First + 2 .. Arg'Last), Tab_Stop) then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
+                  return;
+               end if;
+               First_File := First_File + 1;
+            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               return;
+            else
+               exit;
+            end if;
+         end;
+      end loop;
+
+      if Context.Argument_Count < First_File then
+         Unexpand_File ("-", All_Ok);
+      else
+         for I in First_File .. Context.Argument_Count loop
+            declare
+               Ok : Boolean;
+            begin
+               Unexpand_File (Context.Argument (I), Ok);
+               All_Ok := All_Ok and Ok;
+               exit when Context.Output_Failed;
+            end;
+         end loop;
+      end if;
+
+      Result.Status :=
+        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Run_Unexpand;
+
    procedure Run_Fold
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -14328,6 +14496,7 @@ package body Posix_Tools.Commands.Expanded is
          when Touch_Command => Run_Touch (Context, Result);
          when Tr_Command => Run_Tr (Context, Result);
          when Tty_Command => Run_Tty (Context, Result);
+         when Unexpand_Command => Run_Unexpand (Context, Result);
          when Uname_Command => Run_Uname (Context, Result);
          when Uniq_Command => Run_Uniq (Context, Result);
          when Whoami_Command => Run_Whoami (Context, Result);

@@ -103,6 +103,7 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:touch", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tr", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tty", Test_Tty'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unexpand smoke", Test_Unexpand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Expanded_Command_Smoke'Access));
       AUnit.Test_Suites.Add_Test
@@ -280,6 +281,7 @@ package body Command_Tests.Suite is
         (Result, Caller.Create ("command:tail output failure", Test_Tail_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("regression:REG-TAIL-0004 tail output failure", Test_Tail_Output_Failure'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unexpand", Test_Unexpand'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:tail byte suffix", Test_Tail_Byte_Suffix_Property'Access));
       AUnit.Test_Suites.Add_Test

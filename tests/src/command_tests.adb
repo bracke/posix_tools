@@ -63,6 +63,7 @@ with Posix_Tools.Commands.Touch;
 with Posix_Tools.Commands.Tr;
 with Posix_Tools.Commands.True_Command;
 with Posix_Tools.Commands.Tty;
+with Posix_Tools.Commands.Unexpand;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
@@ -280,6 +281,8 @@ package body Command_Tests is
          Posix_Tools.Commands.True_Command.Run (Context, Result);
       elsif Name = "tty" then
          Posix_Tools.Commands.Tty.Run (Context, Result);
+      elsif Name = "unexpand" then
+         Posix_Tools.Commands.Unexpand.Run (Context, Result);
       elsif Name = "uname" then
          Posix_Tools.Commands.Uname.Run (Context, Result);
       elsif Name = "uniq" then
@@ -5776,6 +5779,70 @@ package body Command_Tests is
 
       Delete_If_Exists (Path);
    end Test_Expand;
+
+   procedure Test_Unexpand (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Path    : constant String := Fixture_Path ("unexpand-input.txt");
+      Missing : constant String := Fixture_Path ("unexpand-missing.txt");
+      LF      : constant Character := Character'Val (10);
+      HT      : constant Character := Character'Val (9);
+
+      procedure Delete_If_Exists (Name : String) is
+      begin
+         if Ada.Directories.Exists (Name) then
+            Ada.Directories.Delete_File (Name);
+         end if;
+      end Delete_If_Exists;
+   begin
+      Context.Initialize ("unexpand", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "        x");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = HT & "x",
+         "unexpand compresses leading blanks by default");
+
+      Context.Initialize ("unexpand", One_Arg ("-a"));
+      Test_Contexts.Set_Standard_Input (Context, "x       y");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "x" & HT & "y",
+         "unexpand -a compresses non-leading blanks");
+
+      Delete_If_Exists (Path);
+      Write_File (Path, "    x" & LF & "  y");
+      Context.Initialize ("unexpand", Two_Args ("-t4", Path));
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = HT & "x" & LF & "  y",
+         "unexpand reads file operands and honors tab width");
+
+      Context.Initialize ("unexpand", Two_Args ("-t", "0"));
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "unexpand rejects zero tab width");
+
+      Context.Initialize ("unexpand", One_Arg (Missing));
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "unexpand reports missing file");
+
+      Context.Initialize ("unexpand", No_Args);
+      Test_Contexts.Set_Standard_Input (Context, "    x");
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "unexpand returns operational failure after output failure");
+
+      Delete_If_Exists (Path);
+   end Test_Unexpand;
 
    procedure Test_Timeout_Statuses (T : in out Fixture) is
       pragma Unreferenced (T);
