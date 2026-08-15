@@ -217,11 +217,41 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Terminals.Standard_Error_Is_Terminal;
    end Standard_Error_Is_Terminal;
 
+   function Current_System_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.System_Name;
+   end Current_System_Name;
+
    function Current_Node_Name (Self : Context) return String is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.Host.Node_Name;
    end Current_Node_Name;
+
+   function Current_Release_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Release_Name;
+   end Current_Release_Name;
+
+   function Current_Version_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Version_Name;
+   end Current_Version_Name;
+
+   function Current_Machine_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Machine_Name;
+   end Current_Machine_Name;
+
+   function Current_Login_Name (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Login_Name;
+   end Current_Login_Name;
 
    function Set_Node_Name (Self : in out Context; Name : String) return Boolean is
       pragma Unreferenced (Self);
@@ -229,12 +259,33 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Host.Set_Node_Name (Name);
    end Set_Node_Name;
 
-   function Current_Group_Ids
+   function Current_User_Id (Self : Context; User_Id : out Natural) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Current_User_Id (User_Id);
+   end Current_User_Id;
+
+   function Current_Group_Id (Self : Context; Group_Id : out Natural) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Current_Group_Id (Group_Id);
+   end Current_Group_Id;
+
+   function Current_Supplementary_Group_Ids
      (Self   : Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last   : out Natural) return Boolean
    is
       pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Host.Current_Supplementary_Group_Ids (Groups, Last);
+   end Current_Supplementary_Group_Ids;
+
+   function Current_Group_Ids
+     (Self   : Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean
+   is
       Primary : Natural := 0;
 
       procedure Append_Group (Id : Natural) is
@@ -256,7 +307,7 @@ package body Posix_Tools.Commands.Contexts is
       end loop;
       Last := 0;
 
-      if Posix_Tools.Host_Adapters.Host.Current_Group_Id (Primary) then
+      if Self.Current_Group_Id (Primary) then
          Append_Group (Primary);
       end if;
 
@@ -264,7 +315,7 @@ package body Posix_Tools.Commands.Contexts is
          Raw_Groups : Posix_Tools.Host_Adapters.Host.Group_Id_List (1 .. Groups'Length);
          Raw_Last   : Natural := 0;
       begin
-         if Posix_Tools.Host_Adapters.Host.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
+         if Self.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
             for Index in 1 .. Raw_Last loop
                Append_Group (Raw_Groups (Index));
             end loop;
@@ -284,6 +335,18 @@ package body Posix_Tools.Commands.Contexts is
    begin
       return Posix_Tools.Host_Adapters.Host.User_Group_Ids (User_Name, Groups, Last);
    end User_Group_Ids;
+
+   function User_Name_For_Id (Self : Context; User_Id : Natural) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.File_System.User_Name_For_Id (User_Id);
+   end User_Name_For_Id;
+
+   function Group_Name_For_Id (Self : Context; Group_Id : Natural) return String is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.File_System.Group_Name_For_Id (Group_Id);
+   end Group_Name_For_Id;
 
    procedure Read_Standard_Input
      (Self   : in out Context;

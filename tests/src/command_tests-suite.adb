@@ -44,6 +44,8 @@ package body Command_Tests.Suite is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du", Test_Du'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:fold", Test_Fold'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:host identity commands", Test_Host_Identity_Commands'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:simple output failures", Test_Simple_Output_Failures'Access));
       AUnit.Test_Suites.Add_Test
         (Result,

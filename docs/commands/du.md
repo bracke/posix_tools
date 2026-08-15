@@ -38,6 +38,7 @@ Diagnostics for invalid options and paths that cannot be inspected.
 Directories are traversed recursively. Directory identities are tracked during each top-level traversal to avoid
 filesystem cycles. The V1 implementation asks the project filesystem adapter for allocated usage and otherwise uses
 host-reported byte sizes rounded to the selected unit size as the portable fallback.
+With `-s`, child entries are still included in the summary but are not written as separate output lines.
 
 ## Locale Behavior
 Help and diagnostics are localized. Numeric counts and pathnames are command data and are not localized.
@@ -55,7 +56,7 @@ Platforms without an allocated-block query use rounded byte sizes.
 `du -ak src`
 
 ## Conformance Status
-Conforming with implementation-defined behavior tracked by `DU-POSIX-001`.
+Conforming with implementation-defined behavior tracked by `DU-POSIX-001` and `DU-POSIX-002`.
 
 ## Known Limitations
 Allocated-block precision depends on the host adapter capability for the target platform; platforms that decline the

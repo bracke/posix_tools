@@ -31,6 +31,7 @@ Diagnostics for invalid usage and input failures.
 
 ## Behavioral Details
 The command preserves input bytes except for inserted delimiter and LF separators.
+Delimiter lists support `\n` for LF, `\t` for tab, `\\` for backslash, and `\0` for no delimiter byte.
 
 ## Locale Behavior
 Data output is not localized. Help and diagnostics are localized.
@@ -47,7 +48,7 @@ Missing rows in shorter inputs contribute empty fields. An empty delimiter list 
 `paste -s names values`
 
 ## Conformance Status
-Conforming with extensions. Requirement coverage is tracked by `PASTE-POSIX-001`.
+Conforming with extensions. Requirement coverage is tracked by `PASTE-POSIX-001` and `PASTE-POSIX-002`.
 
 ## Known Limitations
 None for the implemented V1 supported surface.

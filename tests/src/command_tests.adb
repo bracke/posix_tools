@@ -1070,6 +1070,36 @@ package body Command_Tests is
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep days suffix status");
 
+      Context.Initialize ("sleep", Two_Args ("0.0", "0.00s"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "sleep accepts fractional zero durations");
+
+      Context.Initialize ("sleep", No_Args);
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "sleep rejects missing operands");
+
+      Context.Initialize ("sleep", One_Arg ("-1"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "sleep rejects negative durations");
+
+      Context.Initialize ("sleep", Two_Args ("31622400", "1"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "sleep rejects duration sums above the implementation limit");
+
+      Context.Initialize ("sleep", One_Arg ("31622400d"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "sleep rejects suffixed durations above the implementation limit");
+
       Context.Initialize ("sleep", One_Arg ("0x"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -1341,14 +1371,14 @@ package body Command_Tests is
       Posix_Tools.Commands.Groups.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "60000 60001" & EOL,
+         and then Test_Contexts.Output (Context) = "test-primary test-extra" & EOL,
          "groups writes current group list");
 
       Context.Initialize ("groups", One_Arg ("named-user"));
       Posix_Tools.Commands.Groups.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "named-user : 60002 60000" & EOL,
+         and then Test_Contexts.Output (Context) = "named-user : named-extra test-primary" & EOL,
          "groups writes named user group list");
 
       Context.Initialize ("groups", One_Arg ("missing-user"));
@@ -4441,31 +4471,31 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "-name" & EOL,
          "find treats option-like operand after -- as path operand");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-name", "expanded-source.txt"));
+      Context.Initialize ("find", Three_Args (Made, "-name", "expanded-source.txt"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -name output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-name", "expanded-source.t?t"));
+      Context.Initialize ("find", Three_Args (Made, "-name", "expanded-source.t?t"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -name question wildcard output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-name", "expanded-source.[tx][xq]t"));
+      Context.Initialize ("find", Three_Args (Made, "-name", "expanded-source.[tx][xq]t"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -name bracket list output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-name", "expanded-source.[a-z][a-z]t"));
+      Context.Initialize ("find", Three_Args (Made, "-name", "expanded-source.[a-z][a-z]t"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -name bracket range output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-name", "expanded-source.[!0-9][!0-9]t"));
+      Context.Initialize ("find", Three_Args (Made, "-name", "expanded-source.[!0-9][!0-9]t"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
@@ -4529,19 +4559,19 @@ package body Command_Tests is
             "find -type b excludes character device");
       end if;
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "9c"));
+      Context.Initialize ("find", Three_Args (Made, "-size", "9c"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -size exact bytes output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "+8c"));
+      Context.Initialize ("find", Three_Args (Made, "-size", "+8c"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -size greater bytes output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "-2"));
+      Context.Initialize ("find", Three_Args (Made, "-size", "-2"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
@@ -4559,13 +4589,13 @@ package body Command_Tests is
         (Other,
          GNAT.OS_Lib.GM_Time_Of (2020, 1, 2, 3, 4, 5));
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-mtime", "-1"));
+      Context.Initialize ("find", Three_Args (Source, "-mtime", "-1"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
          "find -mtime less than one day output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-mtime", "+99999"));
+      Context.Initialize ("find", Three_Args (Source, "-mtime", "+99999"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (not Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
@@ -4577,7 +4607,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "find rejects invalid -mtime count");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-newer", Other));
+      Context.Initialize ("find", Three_Args (Source, "-newer", Other));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
@@ -4728,20 +4758,20 @@ package body Command_Tests is
                   User_Name : constant String := Hostkit.Metadata.User_Name_For_Id (User_Id);
                   Group_Name : constant String := Hostkit.Metadata.Group_Name_For_Id (Group_Id);
                begin
-                  Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-user", User_Text));
+                  Context.Initialize ("find", Three_Args (Source, "-user", User_Text));
                   Posix_Tools.Commands.Find.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
                      "find -user numeric output");
 
-                  Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-group", Group_Text));
+                  Context.Initialize ("find", Three_Args (Source, "-group", Group_Text));
                   Posix_Tools.Commands.Find.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
                      "find -group numeric output");
 
                   if User_Name /= "" then
-                     Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-user", User_Name));
+                     Context.Initialize ("find", Three_Args (Source, "-user", User_Name));
                      Posix_Tools.Commands.Find.Run (Context, Result);
                      AUnit.Assertions.Assert
                        (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
@@ -4749,14 +4779,14 @@ package body Command_Tests is
                   end if;
 
                   if Group_Name /= "" then
-                     Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-group", Group_Name));
+                     Context.Initialize ("find", Three_Args (Source, "-group", Group_Name));
                      Posix_Tools.Commands.Find.Run (Context, Result);
                      AUnit.Assertions.Assert
                        (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL),
                         "find -group named output");
                   end if;
 
-                  Context.Initialize ("find", Two_Args (Fixture_Path ("."), "-nouser"));
+                  Context.Initialize ("find", Two_Args (Source, "-nouser"));
                   Posix_Tools.Commands.Find.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Result.Status = Posix_Tools.Exit_Status.Success
@@ -4765,7 +4795,7 @@ package body Command_Tests is
                                  (Test_Contexts.Output (Context), "expanded-source.txt" & EOL)),
                      "find -nouser output");
 
-                  Context.Initialize ("find", Two_Args (Fixture_Path ("."), "-nogroup"));
+                  Context.Initialize ("find", Two_Args (Source, "-nogroup"));
                   Posix_Tools.Commands.Find.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Result.Status = Posix_Tools.Exit_Status.Success
@@ -4793,7 +4823,7 @@ package body Command_Tests is
 
       Context.Initialize
         ("find",
-         Six_Args (Fixture_Path ("."), "-name", "expanded-source.txt", "-o", "-name", "expanded-other.txt"));
+         Six_Args (Made, "-name", "expanded-source.txt", "-o", "-name", "expanded-other.txt"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "expanded-source.txt" & EOL)
@@ -5251,6 +5281,24 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "",
          "cmp accepts -- after -s and stays silent");
 
+      Write_File (Cmp_First, "ab" & EOL & "cd" & EOL);
+      Write_File (Cmp_Second, "ab" & EOL & "cx" & EOL);
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Output (Context), "byte 5, line 2"),
+         "cmp reports the line containing the first differing byte");
+
+      Write_File (Cmp_First, "short");
+      Write_File (Cmp_Second, "shorter");
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Output (Context), "EOF on " & Cmp_First),
+         "cmp reports EOF on the shorter file");
+
       Write_File (Paste_First, "a" & EOL & "b" & EOL);
       Write_File (Paste_Second, "1" & EOL & "2" & EOL);
       Context.Initialize ("paste", Two_Args (Paste_First, Paste_Second));
@@ -5282,6 +5330,20 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "a,1" & EOL & "b,2" & EOL,
          "paste accepts an attached delimiter list");
+
+      Context.Initialize ("paste", Three_Args ("-d\0", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a1" & EOL & "b2" & EOL,
+         "paste delimiter list supports backslash-zero as an empty delimiter");
+
+      Context.Initialize ("paste", Four_Args ("-d", "\n", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL & "1" & EOL & "b" & EOL & "2" & EOL,
+         "paste delimiter list supports newline escape");
 
       Context.Initialize ("paste", Three_Args ("-s", Paste_First, Paste_Second));
       Posix_Tools.Commands.Paste.Run (Context, Result);
@@ -5326,6 +5388,27 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "cut rejects -n outside byte mode");
 
+      Context.Initialize ("cut", Five_Args ("-b", "1", "-c", "2", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "multiple list options"),
+         "cut rejects multiple list options");
+
+      Context.Initialize ("cut", Five_Args ("-b", "1", "-d", ",", Cut_File));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "invalid field option"),
+         "cut rejects field delimiter option outside field mode");
+
+      Context.Initialize ("cut", Three_Args ("-s", "-b", "1"));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "invalid field option"),
+         "cut rejects field suppression option outside field mode");
+
       Write_File (Cut_File, "a,b,c" & EOL);
       Context.Initialize ("cut", Five_Args ("-f", "2", "-d", ",", Cut_File));
       Posix_Tools.Commands.Cut.Run (Context, Result);
@@ -5365,6 +5448,22 @@ package body Command_Tests is
            & Character'Val (9) & Character'Val (9) & "b" & EOL
            & Character'Val (9) & "c" & EOL,
          "comm merges sorted files into three columns");
+
+      Context.Initialize ("comm", Three_Args ("-12", Comm_First, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "b" & EOL,
+         "comm suppression options leave only common lines");
+
+      Context.Initialize ("comm", Three_Args ("--", Comm_First, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL
+           & Character'Val (9) & Character'Val (9) & "b" & EOL
+           & Character'Val (9) & "c" & EOL,
+         "comm honors end-of-options before operands");
 
       Write_File (Od_File, "A");
       Context.Initialize ("od", One_Arg (Od_File));
@@ -6072,6 +6171,14 @@ package body Command_Tests is
          and then Contains (Test_Contexts.Output (Context), HT & Child_Path & LF)
          and then Contains (Test_Contexts.Output (Context), HT & Dir_Path & LF),
          "du -a reports child and directory paths");
+
+      Context.Initialize ("du", Two_Args ("-s", Dir_Path));
+      Posix_Tools.Commands.Du.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), HT & Dir_Path & LF)
+         and then not Contains (Test_Contexts.Output (Context), HT & Child_Path & LF),
+         "du -s reports only the top-level directory summary");
 
       Context.Initialize ("du", Two_Args (Dir_Path, Dir_Path));
       Posix_Tools.Commands.Du.Run (Context, Result);
@@ -6885,6 +6992,139 @@ package body Command_Tests is
          end;
       end loop;
    end Test_Basename_Dirname_Command_Property;
+
+   procedure Test_Host_Identity_Commands (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+   begin
+      Context.Initialize ("arch", No_Args);
+      Posix_Tools.Commands.Arch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-machine" & LF,
+         "arch uses context machine identity");
+
+      Context.Initialize ("whoami", No_Args);
+      Posix_Tools.Commands.Whoami.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-user" & LF,
+         "whoami uses context user identity");
+
+      Context.Initialize ("whoami", No_Args);
+      Test_Contexts.Set_Current_User_Available (Context, False);
+      Posix_Tools.Commands.Whoami.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Contains (Test_Contexts.Error_Output (Context), "unsupported platform capability"),
+         "whoami reports unavailable user identity");
+
+      Context.Initialize ("logname", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LOGNAME", "login-user");
+      Posix_Tools.Commands.Logname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "login-user" & LF,
+         "logname prefers the command environment login name");
+
+      Context.Initialize ("logname", No_Args);
+      Posix_Tools.Commands.Logname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "session-user" & LF,
+         "logname falls back to the context session login name");
+
+      Context.Initialize ("id", No_Args);
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "uid=50000(test-user) gid=60000(test-primary) groups=60000(test-primary),60001(test-extra)" & LF,
+         "id default output is decorated with context names");
+
+      Context.Initialize ("id", One_Arg ("-u"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "50000" & LF,
+         "id -u prints the numeric user id");
+
+      Context.Initialize ("id", Two_Args ("-u", "-n"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-user" & LF,
+         "id -un prints the user name");
+
+      Context.Initialize ("id", One_Arg ("-G"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "60000 60001" & LF,
+         "id -G prints numeric group ids");
+
+      Context.Initialize ("id", Two_Args ("-G", "-n"));
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-primary test-extra" & LF,
+         "id -Gn prints named group ids");
+
+      Context.Initialize ("id", No_Args);
+      Test_Contexts.Set_Current_Group_Available (Context, False);
+      Posix_Tools.Commands.Id.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Error_Output (Context), "unsupported platform capability"),
+         "id reports unavailable group identity");
+
+      Context.Initialize ("groups", No_Args);
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-primary test-extra" & LF,
+         "groups prints current context group names");
+
+      Context.Initialize ("groups", One_Arg ("named-user"));
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "named-user : named-extra test-primary" & LF,
+         "groups prints named user group names");
+
+      Context.Initialize ("groups", One_Arg ("missing-user"));
+      Posix_Tools.Commands.Groups.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Error_Output (Context), "missing-user"),
+         "groups reports unknown user group lookup failures");
+
+      Context.Initialize ("hostname", No_Args);
+      Posix_Tools.Commands.Hostname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "test-node" & LF,
+         "hostname prints context node name");
+
+      Context.Initialize ("hostname", One_Arg ("new-node"));
+      Test_Contexts.Set_Node_Name_Allowed (Context, True);
+      Posix_Tools.Commands.Hostname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Node_Name_Set_Called (Context)
+         and then Test_Contexts.Captured_Node_Name (Context) = "new-node",
+         "hostname delegates node-name updates through the context");
+
+      Context.Initialize ("uname", Two_Args ("-s", "-n"));
+      Posix_Tools.Commands.Uname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "test-node"),
+         "uname -n includes the context node name");
+   end Test_Host_Identity_Commands;
 
    procedure Test_Simple_Output_Failures (T : in out Fixture) is
       pragma Unreferenced (T);

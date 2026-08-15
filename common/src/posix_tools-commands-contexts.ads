@@ -23,8 +23,19 @@ package Posix_Tools.Commands.Contexts is
    function Standard_Input_Terminal_Name (Self : Context) return String;
    function Standard_Output_Is_Terminal (Self : Context) return Boolean;
    function Standard_Error_Is_Terminal (Self : Context) return Boolean;
+   function Current_System_Name (Self : Context) return String;
    function Current_Node_Name (Self : Context) return String;
+   function Current_Release_Name (Self : Context) return String;
+   function Current_Version_Name (Self : Context) return String;
+   function Current_Machine_Name (Self : Context) return String;
+   function Current_Login_Name (Self : Context) return String;
    function Set_Node_Name (Self : in out Context; Name : String) return Boolean;
+   function Current_User_Id (Self : Context; User_Id : out Natural) return Boolean;
+   function Current_Group_Id (Self : Context; Group_Id : out Natural) return Boolean;
+   function Current_Supplementary_Group_Ids
+     (Self   : Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean;
    function Current_Group_Ids
      (Self   : Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
@@ -34,6 +45,8 @@ package Posix_Tools.Commands.Contexts is
       User_Name : String;
       Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last      : out Natural) return Boolean;
+   function User_Name_For_Id (Self : Context; User_Id : Natural) return String;
+   function Group_Name_For_Id (Self : Context; Group_Id : Natural) return String;
    function Physical_Current_Directory (Self : Context) return String;
    function Try_Physical_Current_Directory
      (Self : Context;

@@ -29,7 +29,8 @@ Diagnostics for invalid usage.
 
 ## Behavioral Details
 Fractional values are accepted. Unsuffixed values and `s` are seconds, `m` is minutes, `h` is hours, and `d` is days.
-Excessively large durations are rejected.
+Excessively large durations are rejected. V1 caps each invocation at 86400 seconds of total requested sleep time.
+Each duration must contain at least one digit and must not be negative.
 
 ## Locale Behavior
 Help and diagnostics are localized; duration syntax is not localized.
@@ -46,7 +47,7 @@ Fractional operands, multiple operands, suffix units, `--help`, `--version`, `--
 `sleep 1m`
 
 ## Conformance Status
-Conforming with extensions tracked by `SLEEP-POSIX-001`.
+Conforming with extensions tracked by `SLEEP-POSIX-001` and `SLEEP-POSIX-002`.
 
 ## Known Limitations
 None known for the implemented V1 surface.

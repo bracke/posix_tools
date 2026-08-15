@@ -40,8 +40,19 @@ package Test_Contexts is
    overriding function Standard_Input_Terminal_Name (Self : Capturing_Context) return String;
    overriding function Standard_Output_Is_Terminal (Self : Capturing_Context) return Boolean;
    overriding function Standard_Error_Is_Terminal (Self : Capturing_Context) return Boolean;
+   overriding function Current_System_Name (Self : Capturing_Context) return String;
    overriding function Current_Node_Name (Self : Capturing_Context) return String;
+   overriding function Current_Release_Name (Self : Capturing_Context) return String;
+   overriding function Current_Version_Name (Self : Capturing_Context) return String;
+   overriding function Current_Machine_Name (Self : Capturing_Context) return String;
+   overriding function Current_Login_Name (Self : Capturing_Context) return String;
    overriding function Set_Node_Name (Self : in out Capturing_Context; Name : String) return Boolean;
+   overriding function Current_User_Id (Self : Capturing_Context; User_Id : out Natural) return Boolean;
+   overriding function Current_Group_Id (Self : Capturing_Context; Group_Id : out Natural) return Boolean;
+   overriding function Current_Supplementary_Group_Ids
+     (Self   : Capturing_Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean;
    overriding function Current_Group_Ids
      (Self   : Capturing_Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
@@ -51,6 +62,8 @@ package Test_Contexts is
       User_Name : String;
       Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last      : out Natural) return Boolean;
+   overriding function User_Name_For_Id (Self : Capturing_Context; User_Id : Natural) return String;
+   overriding function Group_Name_For_Id (Self : Capturing_Context; Group_Id : Natural) return String;
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural;
    overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context);
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
@@ -95,6 +108,8 @@ package Test_Contexts is
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Node_Name_Allowed (Self : in out Capturing_Context; Value : Boolean);
+   procedure Set_Current_User_Available (Self : in out Capturing_Context; Value : Boolean);
+   procedure Set_Current_Group_Available (Self : in out Capturing_Context; Value : Boolean);
    function Node_Name_Set_Called (Self : Capturing_Context) return Boolean;
    function Captured_Node_Name (Self : Capturing_Context) return String;
    function Redirected_Output_Path (Self : Capturing_Context) return String;
@@ -141,6 +156,8 @@ private
       Node_Name_Text : Ada.Strings.Unbounded.Unbounded_String;
       Node_Name_Set_Allowed : Boolean := False;
       Node_Name_Set_Done : Boolean := False;
+      User_Id_Available : Boolean := True;
+      Group_Id_Available : Boolean := True;
       Redirect_Path : Ada.Strings.Unbounded.Unbounded_String;
       Redirect_Output : Boolean := False;
       Redirect_Error : Boolean := False;

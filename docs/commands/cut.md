@@ -35,6 +35,8 @@ Diagnostics for invalid usage and input failures.
 
 ## Behavioral Details
 Lists accept one-based numbers, open-ended ranges, and closed ranges separated by commas, blanks, or tabs.
+Exactly one of `-b`, `-c`, or `-f` may be selected. Supplying more than one list mode is invalid usage.
+The delimiter option `-d` and suppression option `-s` are valid only with field mode `-f`.
 
 ## Locale Behavior
 Data output is not localized. Help and diagnostics are localized.
@@ -50,7 +52,7 @@ therefore has no additional effect when used with `-b`.
 `cut -f 2 -d , data.csv`
 
 ## Conformance Status
-Conforming with extensions. Requirement coverage is tracked by `CUT-POSIX-001`.
+Conforming with extensions. Requirement coverage is tracked by `CUT-POSIX-001` and `CUT-POSIX-002`.
 
 ## Known Limitations
 None for the implemented V1 supported surface.

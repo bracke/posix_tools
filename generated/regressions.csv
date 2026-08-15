@@ -43,3 +43,10 @@ REG-STDOUT-0005,tr,return operational failure when translated byte output cannot
 REG-TR-0001,tr,expand locale equivalence classes use locale collation order for complement translation and accept supported multibyte collating symbols,command:expanded utilities
 REG-STDERR-0001,xargs,return operational failure when -t trace output cannot be written before utility execution,command:expanded utilities
 REG-XARGS-0001,xargs,preserve POSIX xargs utility exit-status band mapping for statuses 1 through 125 126 127 255 and missing utilities,command:xargs status bands
+REG-CMP-0001,cmp,report the correct byte and line for the first difference and report EOF on the shorter operand,command:expanded utilities
+REG-COMM-0001,comm,honor grouped suppression options and -- before operands while preserving expected tab prefixes,command:expanded utilities
+REG-CUT-0001,cut,reject multiple list-selection modes and field-only options outside field mode instead of silently using a mixed mode state,command:expanded utilities
+REG-DU-0001,du,make -s suppress child output lines while still printing the requested directory summary,command:du
+REG-PASTE-0001,paste,interpret escaped delimiter-list entries for newline tab backslash and empty delimiter,command:expanded utilities
+REG-SLEEP-0001,sleep,reject missing negative malformed and excessive duration operands while accepting fractional zero-duration operands,command:expanded utilities
+REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identity reads name resolution and node-name operations through command context services so command tests can use deterministic fake identity data,command:host identity commands

@@ -190,7 +190,7 @@ package body Posix_Tools.Commands.Expanded is
          return;
       end if;
 
-      Context.Put_Line (Host.Machine_Name);
+      Context.Put_Line (Context.Current_Machine_Name);
       Set_Success (Context, Result);
    end Run_Arch;
 
@@ -8316,8 +8316,8 @@ package body Posix_Tools.Commands.Expanded is
          return;
       end if;
 
-      if Host.Current_User_Id (User_Id) then
-         Name := To_Unbounded_String (FS.User_Name_For_Id (User_Id));
+      if Context.Current_User_Id (User_Id) then
+         Name := To_Unbounded_String (Context.User_Name_For_Id (User_Id));
       end if;
 
       if Length (Name) > 0 then
@@ -8375,15 +8375,15 @@ package body Posix_Tools.Commands.Expanded is
       end if;
 
       if Length (Name) = 0 then
-         Name := To_Unbounded_String (Host.Login_Name);
+         Name := To_Unbounded_String (Context.Current_Login_Name);
       end if;
 
       if Length (Name) = 0 then
          declare
             User_Id : Natural;
          begin
-            if Host.Current_User_Id (User_Id) then
-               Name := To_Unbounded_String (FS.User_Name_For_Id (User_Id));
+            if Context.Current_User_Id (User_Id) then
+               Name := To_Unbounded_String (Context.User_Name_For_Id (User_Id));
             end if;
          end;
       end if;
@@ -8466,19 +8466,19 @@ package body Posix_Tools.Commands.Expanded is
          Output : Unbounded_String;
       begin
          if Show_System then
-            Add_Field (Output, Host.System_Name);
+            Add_Field (Output, Context.Current_System_Name);
          end if;
          if Show_Node then
-            Add_Field (Output, Host.Node_Name);
+            Add_Field (Output, Context.Current_Node_Name);
          end if;
          if Show_Release then
-            Add_Field (Output, Host.Release_Name);
+            Add_Field (Output, Context.Current_Release_Name);
          end if;
          if Show_Version then
-            Add_Field (Output, Host.Version_Name);
+            Add_Field (Output, Context.Current_Version_Name);
          end if;
          if Show_Machine then
-            Add_Field (Output, Host.Machine_Name);
+            Add_Field (Output, Context.Current_Machine_Name);
          end if;
          Context.Put_Line (To_String (Output));
       end;
@@ -8499,7 +8499,7 @@ package body Posix_Tools.Commands.Expanded is
       Group_Last      : Natural := 0;
 
       function Name_Or_Id (Is_User : Boolean; Id : Natural) return String is
-         Name : constant String := (if Is_User then FS.User_Name_For_Id (Id) else FS.Group_Name_For_Id (Id));
+         Name : constant String := (if Is_User then Context.User_Name_For_Id (Id) else Context.Group_Name_For_Id (Id));
       begin
          if Show_Name and then Name /= "" then
             return Name;
@@ -8509,7 +8509,7 @@ package body Posix_Tools.Commands.Expanded is
       end Name_Or_Id;
 
       function Decorated_Id (Is_User : Boolean; Id : Natural) return String is
-         Name : constant String := (if Is_User then FS.User_Name_For_Id (Id) else FS.Group_Name_For_Id (Id));
+         Name : constant String := (if Is_User then Context.User_Name_For_Id (Id) else Context.Group_Name_For_Id (Id));
       begin
          if Name = "" then
             return Trimmed_Image (Id);
@@ -8582,14 +8582,14 @@ package body Posix_Tools.Commands.Expanded is
          end;
       end loop;
 
-      if not Host.Current_User_Id (User_Id) then
+      if not Context.Current_User_Id (User_Id) then
          Posix_Tools.Commands.Helpers.Operational_Error
            (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          return;
       end if;
 
-      if not Host.Current_Group_Id (Group_Id) then
+      if not Context.Current_Group_Id (Group_Id) then
          Posix_Tools.Commands.Helpers.Operational_Error
            (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
@@ -8601,7 +8601,7 @@ package body Posix_Tools.Commands.Expanded is
          Raw_Groups : Host.Group_Id_List (1 .. 256);
          Raw_Last   : Natural := 0;
       begin
-         if Host.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
+         if Context.Current_Supplementary_Group_Ids (Raw_Groups, Raw_Last) then
             for Index in 1 .. Raw_Last loop
                Append_Group (Raw_Groups (Index));
             end loop;
@@ -8630,7 +8630,7 @@ package body Posix_Tools.Commands.Expanded is
       Group_Last : Natural := 0;
 
       function Group_Name_Or_Id (Id : Natural) return String is
-         Name : constant String := FS.Group_Name_For_Id (Id);
+         Name : constant String := Context.Group_Name_For_Id (Id);
       begin
          return (if Name = "" then Trimmed_Image (Id) else Name);
       end Group_Name_Or_Id;
@@ -9162,13 +9162,14 @@ package body Posix_Tools.Commands.Expanded is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      Total : Duration := 0.0;
+      Max_Duration_Seconds : constant Long_Long_Float := 86_400.0;
+      Total_Seconds        : Long_Long_Float := 0.0;
 
-      function Parse_Duration (Text : String; Value : out Duration) return Boolean is
+      function Parse_Duration (Text : String; Value : out Long_Long_Float) return Boolean is
          Whole      : Long_Long_Integer := 0;
-         Fraction   : Duration := 0.0;
-         Scale      : Duration := 1.0;
-         Multiplier : Duration := 1.0;
+         Fraction   : Long_Long_Float := 0.0;
+         Scale      : Long_Long_Float := 1.0;
+         Multiplier : Long_Long_Float := 1.0;
          Seen_Digit : Boolean := False;
          Seen_Dot   : Boolean := False;
          Last_Index  : Natural := Text'Last;
@@ -9205,10 +9206,15 @@ package body Posix_Tools.Commands.Expanded is
                   Seen_Digit := True;
                   if Seen_Dot then
                      Scale := Scale / 10.0;
-                     Fraction := Fraction + Duration (Character'Pos (Ch) - Character'Pos ('0')) * Scale;
+                     Fraction :=
+                       Fraction + Long_Long_Float (Character'Pos (Ch) - Character'Pos ('0')) * Scale;
                   else
+                     if Whole > (Long_Long_Integer'Last - 9) / 10 then
+                        Value := 0.0;
+                        return False;
+                     end if;
                      Whole := Whole * 10 + Long_Long_Integer (Character'Pos (Ch) - Character'Pos ('0'));
-                     if Whole > 31_622_400 then
+                     if Long_Long_Float (Whole) > Max_Duration_Seconds then
                         Value := 0.0;
                         return False;
                      end if;
@@ -9221,8 +9227,8 @@ package body Posix_Tools.Commands.Expanded is
                end if;
             end;
          end loop;
-         Value := (Duration (Whole) + Fraction) * Multiplier;
-         return Seen_Digit;
+         Value := (Long_Long_Float (Whole) + Fraction) * Multiplier;
+         return Seen_Digit and then Value <= Max_Duration_Seconds;
       end Parse_Duration;
    begin
       if Context.Argument_Count = 0 then
@@ -9232,18 +9238,23 @@ package body Posix_Tools.Commands.Expanded is
 
       for I in 1 .. Context.Argument_Count loop
          declare
-            Value : Duration;
+            Value : Long_Long_Float;
          begin
             if not Parse_Duration (Context.Argument (I), Value) then
                Posix_Tools.Commands.Helpers.Usage_Error
                  (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
                return;
             end if;
-            Total := Total + Value;
+            if Total_Seconds > Max_Duration_Seconds - Value then
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               return;
+            end if;
+            Total_Seconds := Total_Seconds + Value;
          end;
       end loop;
 
-      delay Total;
+      delay Duration (Total_Seconds);
       Set_Success (Context, Result);
    end Run_Sleep;
 
@@ -16028,13 +16039,42 @@ package body Posix_Tools.Commands.Expanded is
       Serial      : Boolean := False;
       Delimiters  : Unbounded_String := To_Unbounded_String (Character'Val (9) & "");
 
+      function Parsed_Delimiters (Text : String) return Unbounded_String is
+         Result : Unbounded_String;
+         Index  : Natural := Text'First;
+      begin
+         while Index <= Text'Last loop
+            if Text (Index) = '\' and then Index < Text'Last then
+               case Text (Index + 1) is
+                  when 'n' =>
+                     Append (Result, LF);
+                  when 't' =>
+                     Append (Result, Character'Val (9));
+                  when '\' =>
+                     Append (Result, '\');
+                  when '0' =>
+                     Append (Result, Character'Val (0));
+                  when others =>
+                     Append (Result, Text (Index + 1));
+               end case;
+               Index := Index + 2;
+            else
+               Append (Result, Text (Index));
+               Index := Index + 1;
+            end if;
+         end loop;
+         return Result;
+      end Parsed_Delimiters;
+
       function Delimiter (Position : Positive) return String is
          Text : constant String := To_String (Delimiters);
+         Ch   : Character;
       begin
          if Text = "" then
             return "";
          else
-            return Text (((Position - 1) mod Text'Length) + 1) & "";
+            Ch := Text (((Position - 1) mod Text'Length) + 1);
+            return (if Ch = Character'Val (0) then "" else Ch & "");
          end if;
       end Delimiter;
    begin
@@ -16054,13 +16094,13 @@ package body Posix_Tools.Commands.Expanded is
                     (Context, Result, "missing option argument '-d'");
                   return;
                end if;
-               Delimiters := To_Unbounded_String (Context.Argument (First + 1));
+               Delimiters := Parsed_Delimiters (Context.Argument (First + 1));
                First := First + 2;
             elsif Arg'Length > 2
               and then Arg (Arg'First) = '-'
               and then Arg (Arg'First + 1) = 'd'
             then
-               Delimiters := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
+               Delimiters := Parsed_Delimiters (Arg (Arg'First + 2 .. Arg'Last));
                First := First + 1;
             else
                exit;
@@ -16282,6 +16322,7 @@ package body Posix_Tools.Commands.Expanded is
       Mode       : Character := Character'Val (0);
       Ranges     : Range_Vectors.Vector;
       Delimiter  : Character := Character'Val (9);
+      Has_Delimiter : Boolean := False;
       Suppress   : Boolean := False;
       No_Split   : Boolean := False;
       First_File : Positive := 1;
@@ -16371,6 +16412,7 @@ package body Posix_Tools.Commands.Expanded is
                   return;
                end if;
                Delimiter := Context.Argument (First_File + 1) (Context.Argument (First_File + 1)'First);
+               Has_Delimiter := True;
                First_File := First_File + 2;
             elsif Arg'Length > 2
               and then Arg (Arg'First) = '-'
@@ -16382,11 +16424,17 @@ package body Posix_Tools.Commands.Expanded is
                   return;
                end if;
                Delimiter := Arg (Arg'First + 2);
+               Has_Delimiter := True;
                First_File := First_File + 1;
             elsif Arg'Length >= 2
               and then Arg (Arg'First) = '-'
               and then Arg (Arg'First + 1) in 'b' | 'c' | 'f'
             then
+               if Mode /= Character'Val (0) then
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, "multiple list options");
+                  return;
+               end if;
                Mode := Arg (Arg'First + 1);
                declare
                   Spec : constant String :=
@@ -16420,6 +16468,10 @@ package body Posix_Tools.Commands.Expanded is
       end if;
       if No_Split and then Mode /= 'b' then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '-n'");
+         return;
+      end if;
+      if (Has_Delimiter or else Suppress) and then Mode /= 'f' then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid field option");
          return;
       end if;
       if Context.Argument_Count < First_File then

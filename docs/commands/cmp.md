@@ -32,6 +32,7 @@ Diagnostics for invalid usage and input failures.
 
 ## Behavioral Details
 Comparison is byte-oriented. LF bytes update the reported line number.
+The command treats `--` as the end of options. Option-like filenames are accepted after `--`.
 
 ## Locale Behavior
 Comparison and data output are not localized. Help and diagnostics are localized.
@@ -47,7 +48,7 @@ EOF differences use a concise project diagnostic shape.
 `cmp -l old.bin new.bin`
 
 ## Conformance Status
-Conforming with extensions. Requirement coverage is tracked by `CMP-POSIX-001`.
+Conforming with extensions. Requirement coverage is tracked by `CMP-POSIX-001` and `CMP-POSIX-002`.
 
 ## Known Limitations
 None for the implemented V1 supported surface.

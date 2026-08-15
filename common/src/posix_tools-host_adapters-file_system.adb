@@ -609,6 +609,9 @@ package body Posix_Tools.Host_Adapters.File_System is
             if Name /= "." and then Name /= ".." then
                Action (Name, Ada.Directories.Full_Name (Dir_Entry), Stop);
             end if;
+         exception
+            when others =>
+               Ok := False;
          end;
       end loop;
       Close_Search (Ok);

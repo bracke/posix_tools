@@ -31,6 +31,7 @@ Diagnostics for invalid usage and input failures.
 
 ## Behavioral Details
 Input is compared using deterministic lexical string ordering.
+Grouped suppression options such as `-12` are accepted and remaining columns keep POSIX tab-prefix rules.
 
 ## Locale Behavior
 Data output is not localized. Help and diagnostics are localized.
@@ -45,7 +46,7 @@ The current comparison order is bytewise Ada string ordering for this command.
 `comm old.sorted new.sorted`
 
 ## Conformance Status
-Conforming with extensions. Requirement coverage is tracked by `COMM-POSIX-001`.
+Conforming with extensions. Requirement coverage is tracked by `COMM-POSIX-001` and `COMM-POSIX-002`.
 
 ## Known Limitations
 None for the implemented V1 supported surface.

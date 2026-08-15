@@ -19,7 +19,8 @@ Diagnostics for invalid usage.
 0 success, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
 Fractional values are accepted. Unsuffixed values and s are seconds, m is minutes, h is hours, and d is days.
-Excessively large durations are rejected.
+Excessively large durations are rejected. V1 caps each invocation at 86400 seconds of total requested sleep time.
+Each duration must contain at least one digit and must not be negative.
 .SH LOCALE BEHAVIOR
 Help and diagnostics are localized; duration syntax is not localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
@@ -31,7 +32,7 @@ sleep 0.5
 
 sleep 1m
 .SH CONFORMANCE STATUS
-Conforming with extensions tracked by SLEEP-POSIX-001.
+Conforming with extensions tracked by SLEEP-POSIX-001 and SLEEP-POSIX-002.
 .SH KNOWN LIMITATIONS
 None known for the implemented V1 surface.
 .SH SEE ALSO

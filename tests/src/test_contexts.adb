@@ -28,6 +28,8 @@ package body Test_Contexts is
       Self.Node_Name_Text := Ada.Strings.Unbounded.To_Unbounded_String ("test-node");
       Self.Node_Name_Set_Allowed := False;
       Self.Node_Name_Set_Done := False;
+      Self.User_Id_Available := True;
+      Self.Group_Id_Available := True;
       Self.Redirect_Path := Ada.Strings.Unbounded.Null_Unbounded_String;
       Self.Redirect_Output := False;
       Self.Redirect_Error := False;
@@ -273,10 +275,40 @@ package body Test_Contexts is
       return Self.Error_Is_Terminal;
    end Standard_Error_Is_Terminal;
 
+   overriding function Current_System_Name (Self : Capturing_Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "TestOS";
+   end Current_System_Name;
+
    overriding function Current_Node_Name (Self : Capturing_Context) return String is
    begin
       return Ada.Strings.Unbounded.To_String (Self.Node_Name_Text);
    end Current_Node_Name;
+
+   overriding function Current_Release_Name (Self : Capturing_Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "1.2.3";
+   end Current_Release_Name;
+
+   overriding function Current_Version_Name (Self : Capturing_Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "test-version";
+   end Current_Version_Name;
+
+   overriding function Current_Machine_Name (Self : Capturing_Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "test-machine";
+   end Current_Machine_Name;
+
+   overriding function Current_Login_Name (Self : Capturing_Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "session-user";
+   end Current_Login_Name;
 
    overriding function Set_Node_Name (Self : in out Capturing_Context; Name : String) return Boolean is
    begin
@@ -289,7 +321,19 @@ package body Test_Contexts is
       return False;
    end Set_Node_Name;
 
-   overriding function Current_Group_Ids
+   overriding function Current_User_Id (Self : Capturing_Context; User_Id : out Natural) return Boolean is
+   begin
+      User_Id := 50000;
+      return Self.User_Id_Available;
+   end Current_User_Id;
+
+   overriding function Current_Group_Id (Self : Capturing_Context; Group_Id : out Natural) return Boolean is
+   begin
+      Group_Id := 60000;
+      return Self.Group_Id_Available;
+   end Current_Group_Id;
+
+   overriding function Current_Supplementary_Group_Ids
      (Self   : Capturing_Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last   : out Natural) return Boolean
@@ -299,6 +343,25 @@ package body Test_Contexts is
       for Index in Groups'Range loop
          Groups (Index) := 0;
       end loop;
+      Groups (Groups'First) := 60000;
+      Groups (Groups'First + 1) := 60001;
+      Last := 2;
+      return True;
+   end Current_Supplementary_Group_Ids;
+
+   overriding function Current_Group_Ids
+     (Self   : Capturing_Context;
+      Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
+      Last   : out Natural) return Boolean
+   is
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+      if not Self.Group_Id_Available then
+         Last := 0;
+         return False;
+      end if;
       Groups (Groups'First) := 60000;
       Groups (Groups'First + 1) := 60001;
       Last := 2;
@@ -327,6 +390,34 @@ package body Test_Contexts is
       Last := 0;
       return False;
    end User_Group_Ids;
+
+   overriding function User_Name_For_Id (Self : Capturing_Context; User_Id : Natural) return String is
+      pragma Unreferenced (Self);
+   begin
+      case User_Id is
+         when 50000 =>
+            return "test-user";
+         when 50001 =>
+            return "named-user";
+         when others =>
+            return "";
+      end case;
+   end User_Name_For_Id;
+
+   overriding function Group_Name_For_Id (Self : Capturing_Context; Group_Id : Natural) return String is
+      pragma Unreferenced (Self);
+   begin
+      case Group_Id is
+         when 60000 =>
+            return "test-primary";
+         when 60001 =>
+            return "test-extra";
+         when 60002 =>
+            return "named-extra";
+         when others =>
+            return "";
+      end case;
+   end Group_Name_For_Id;
 
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural is
    begin
@@ -577,6 +668,16 @@ package body Test_Contexts is
    begin
       Self.Node_Name_Set_Allowed := Value;
    end Set_Node_Name_Allowed;
+
+   procedure Set_Current_User_Available (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.User_Id_Available := Value;
+   end Set_Current_User_Available;
+
+   procedure Set_Current_Group_Available (Self : in out Capturing_Context; Value : Boolean) is
+   begin
+      Self.Group_Id_Available := Value;
+   end Set_Current_Group_Available;
 
    function Node_Name_Set_Called (Self : Capturing_Context) return Boolean is
    begin

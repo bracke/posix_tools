@@ -21,6 +21,7 @@ Diagnostics for invalid usage and input failures.
 0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
 Input is compared using deterministic lexical string ordering.
+Grouped suppression options such as -12 are accepted and remaining columns keep POSIX tab-prefix rules.
 .SH LOCALE BEHAVIOR
 Data output is not localized. Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
@@ -30,7 +31,7 @@ The current comparison order is bytewise Ada string ordering for this command.
 .SH EXAMPLES
 comm old.sorted new.sorted
 .SH CONFORMANCE STATUS
-Conforming with extensions. Requirement coverage is tracked by COMM-POSIX-001.
+Conforming with extensions. Requirement coverage is tracked by COMM-POSIX-001 and COMM-POSIX-002.
 .SH KNOWN LIMITATIONS
 None for the implemented V1 supported surface.
 .SH SEE ALSO

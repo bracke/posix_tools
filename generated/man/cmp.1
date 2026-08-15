@@ -22,6 +22,7 @@ Diagnostics for invalid usage and input failures.
 0 files are equal, 1 files differ or an operational failure occurred, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
 Comparison is byte-oriented. LF bytes update the reported line number.
+The command treats -- as the end of options. Option-like filenames are accepted after --.
 .SH LOCALE BEHAVIOR
 Comparison and data output are not localized. Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
@@ -32,7 +33,7 @@ EOF differences use a concise project diagnostic shape.
 cmp old.bin new.bin
 cmp -l old.bin new.bin
 .SH CONFORMANCE STATUS
-Conforming with extensions. Requirement coverage is tracked by CMP-POSIX-001.
+Conforming with extensions. Requirement coverage is tracked by CMP-POSIX-001 and CMP-POSIX-002.
 .SH KNOWN LIMITATIONS
 None for the implemented V1 supported surface.
 .SH SEE ALSO
