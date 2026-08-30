@@ -37,6 +37,11 @@ package Posix_Tools.Host_Adapters.File_System is
    function Copy_File_Times (Source : String; Target : String) return Boolean;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
+   procedure Write_File
+     (Path        : String;
+      Text        : String;
+      Append_Mode : Boolean;
+      Ok          : out Boolean);
    function Create_Device
      (Path   : String;
       Kind   : Special_File_Kind;
@@ -98,8 +103,10 @@ package Posix_Tools.Host_Adapters.File_System is
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
    function Simple_Name (Path : String) return String;
-   function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer;
-   function Size (Path : String) return Long_Long_Integer;
+   function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer
+     with Post => Allocated_Size'Result >= 0;
+   function Size (Path : String) return Long_Long_Integer
+     with Post => Size'Result >= 0;
    function Special_File_Info_Of (Path : String) return Special_File_Info;
    function User_Id_For_Name (Name : String; Found : out Boolean) return Natural;
    function User_Name_For_Id (Id : Natural) return String;
@@ -128,10 +135,17 @@ package Posix_Tools.Host_Adapters.File_System is
    procedure For_Each_File_Chunk_From
      (Path   : String;
       Offset : Long_Long_Integer;
-      Ok     : out Boolean);
+      Ok     : out Boolean)
+     with Pre => Offset >= 0;
 
    function Physical_Current_Directory return String;
-   function Try_Physical_Current_Directory (Path : out String; Last : out Natural) return Boolean;
+   function Try_Physical_Current_Directory (Path : out String; Last : out Natural) return Boolean
+     with
+       Post =>
+         (if Try_Physical_Current_Directory'Result then
+            Last <= Path'Length
+          else
+            Last = 0);
 
 private
    type File_Time is new GNAT.OS_Lib.OS_Time;

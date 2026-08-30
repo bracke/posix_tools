@@ -1,73 +1,56 @@
+with Ada.Streams;
+
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Extension_Options;
 with Posix_Tools.Help;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Localization;
+with Posix_Tools.Numbers;
 with Posix_Tools.Presentation;
+with Posix_Tools.Text.Decimal_Parsing;
+with Posix_Tools.Text.Diagnostic_Fields;
+with Posix_Tools.Text.Escaping;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Helpers is
+   use type Ada.Streams.Stream_Element_Offset;
+   use type Posix_Tools.Numbers.Count;
+   use type Posix_Tools.Numbers.Parse_Status;
+
+   LF : constant Character := Character'Val (10);
+
    function Escape_Untrusted (Text : String) return String is
-      function Hex_Digit (Value : Natural) return Character is
-      begin
-         if Value < 10 then
-            return Character'Val (Character'Pos ('0') + Value);
-         else
-            return Character'Val (Character'Pos ('A') + Value - 10);
-         end if;
-      end Hex_Digit;
-
-      Result : String (1 .. Text'Length * 4);
-      Last   : Natural := 0;
    begin
-      if Text = "" then
-         return "";
-      end if;
-
-      for Ch of Text loop
-         declare
-            Code : constant Natural := Character'Pos (Ch);
-         begin
-            if Code < 32 or else Code = 127 then
-               Result (Last + 1) := '\';
-               Result (Last + 2) := 'x';
-               Result (Last + 3) := Hex_Digit (Code / 16);
-               Result (Last + 4) := Hex_Digit (Code mod 16);
-               Last := Last + 4;
-            else
-               Result (Last + 1) := Ch;
-               Last := Last + 1;
-            end if;
-         end;
-      end loop;
-
-      return Result (1 .. Last);
+      return Posix_Tools.Text.Escaping.Escape_Untrusted (Text);
    end Escape_Untrusted;
 
    function Localized_Usage_Message
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Message : String) return String
    is
-      Prefix : constant String := "extra operand '";
-      Missing_Option_Prefix : constant String := "missing option argument '";
-      Invalid_Operand_Prefix : constant String := "invalid operand '";
-      Unknown_Option_Prefix : constant String := "unknown option '";
-      Unknown_Command_Prefix : constant String := "unknown command '";
-      Unknown_Subcommand_Prefix : constant String := "unknown subcommand '";
-      Invalid_Line_Count_Prefix : constant String := "invalid line count '";
-      Invalid_Count_Prefix : constant String := "invalid count '";
+      use type Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic_Kind;
+
+      Diagnostic : constant Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic :=
+        Posix_Tools.Text.Diagnostic_Fields.Classify_Usage_Message (Message);
+
+      function Payload return String is
+      begin
+         if Posix_Tools.Text.Diagnostic_Fields.Has_Payload (Diagnostic) then
+            return Escape_Untrusted (Message (Diagnostic.Payload_First .. Diagnostic.Payload_Last));
+         end if;
+
+         return "";
+      end Payload;
    begin
-      if Message = "missing operand" then
+      case Diagnostic.Kind is
+      when Posix_Tools.Text.Diagnostic_Fields.Missing_Operand =>
          return Posix_Tools.Localization.Text
            (Context.Effective_Locale,
             "posix_tools.diagnostic.missing_operand",
             Message);
-      elsif Message'Length > Missing_Option_Prefix'Length
-        and then Message (Message'First .. Message'First + Missing_Option_Prefix'Length - 1)
-          = Missing_Option_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Missing_Option_Argument =>
          declare
-            Option : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Missing_Option_Prefix'Length .. Message'Last - 1));
+            Option : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -76,13 +59,9 @@ package body Posix_Tools.Commands.Helpers is
                Option,
                "missing option argument '" & Option & "'");
          end;
-      elsif Message'Length > Prefix'Length
-        and then Message (Message'First .. Message'First + Prefix'Length - 1) = Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Extra_Operand =>
          declare
-            Operand : constant String :=
-              Escape_Untrusted (Message (Message'First + Prefix'Length .. Message'Last - 1));
+            Operand : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -91,15 +70,9 @@ package body Posix_Tools.Commands.Helpers is
                Operand,
                "extra operand '" & Operand & "'");
          end;
-      elsif Message'Length > Invalid_Operand_Prefix'Length
-        and then Message (Message'First .. Message'First + Invalid_Operand_Prefix'Length - 1)
-          = Invalid_Operand_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Operand =>
          declare
-            Operand : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Invalid_Operand_Prefix'Length .. Message'Last - 1));
+            Operand : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -108,15 +81,9 @@ package body Posix_Tools.Commands.Helpers is
                Operand,
                "invalid operand '" & Operand & "'");
          end;
-      elsif Message'Length > Unknown_Option_Prefix'Length
-        and then Message (Message'First .. Message'First + Unknown_Option_Prefix'Length - 1)
-          = Unknown_Option_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Option =>
          declare
-            Option : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Unknown_Option_Prefix'Length .. Message'Last - 1));
+            Option : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -125,15 +92,9 @@ package body Posix_Tools.Commands.Helpers is
                Option,
                "unknown option '" & Option & "'");
          end;
-      elsif Message'Length > Unknown_Command_Prefix'Length
-        and then Message (Message'First .. Message'First + Unknown_Command_Prefix'Length - 1)
-          = Unknown_Command_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Command =>
          declare
-            Command : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Unknown_Command_Prefix'Length .. Message'Last - 1));
+            Command : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -142,15 +103,9 @@ package body Posix_Tools.Commands.Helpers is
                Command,
                "unknown command '" & Command & "'");
          end;
-      elsif Message'Length > Unknown_Subcommand_Prefix'Length
-        and then Message (Message'First .. Message'First + Unknown_Subcommand_Prefix'Length - 1)
-          = Unknown_Subcommand_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Subcommand =>
          declare
-            Subcommand : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Unknown_Subcommand_Prefix'Length .. Message'Last - 1));
+            Subcommand : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -159,15 +114,9 @@ package body Posix_Tools.Commands.Helpers is
                Subcommand,
                "unknown subcommand '" & Subcommand & "'");
          end;
-      elsif Message'Length > Invalid_Line_Count_Prefix'Length
-        and then Message (Message'First .. Message'First + Invalid_Line_Count_Prefix'Length - 1)
-          = Invalid_Line_Count_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Line_Count =>
          declare
-            Count : constant String :=
-              Escape_Untrusted
-                (Message (Message'First + Invalid_Line_Count_Prefix'Length .. Message'Last - 1));
+            Count : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -176,14 +125,9 @@ package body Posix_Tools.Commands.Helpers is
                Count,
                "invalid line count '" & Count & "'");
          end;
-      elsif Message'Length > Invalid_Count_Prefix'Length
-        and then Message (Message'First .. Message'First + Invalid_Count_Prefix'Length - 1)
-          = Invalid_Count_Prefix
-        and then Message (Message'Last) = '''
-      then
+      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Count =>
          declare
-            Count : constant String :=
-              Escape_Untrusted (Message (Message'First + Invalid_Count_Prefix'Length .. Message'Last - 1));
+            Count : constant String := Payload;
          begin
             return Posix_Tools.Localization.Text_1
               (Context.Effective_Locale,
@@ -192,9 +136,9 @@ package body Posix_Tools.Commands.Helpers is
                Count,
                "invalid count '" & Count & "'");
          end;
-      else
+      when Posix_Tools.Text.Diagnostic_Fields.Plain =>
          return Message;
-      end if;
+      end case;
    end Localized_Usage_Message;
 
    function Diagnostic_Line
@@ -211,28 +155,25 @@ package body Posix_Tools.Commands.Helpers is
       Conventional : Boolean := True) return Boolean
    is
       Count : constant Natural := Context.Argument_Count;
+      Action : constant Posix_Tools.Extension_Options.Extension_Action :=
+        Posix_Tools.Extension_Options.Intercept_Action
+          (Argument_Count => Count,
+           First_Argument => (if Count = 0 then "" else Context.Argument (1)),
+           Conventional   => Conventional);
    begin
-      if Count = 0 then
-         return False;
-      end if;
-
-      if Conventional or else Count = 1 then
-         if Context.Argument (1) = "--help" then
+      case Action is
+         when Posix_Tools.Extension_Options.Render_Help =>
             Posix_Tools.Help.Render_Command_Help (Context, Context.Command_Name);
-            Result.Status := Posix_Tools.Exit_Status.Success;
-            return True;
-         elsif Context.Argument (1) = "--version" then
+         when Posix_Tools.Extension_Options.Render_Version =>
             Posix_Tools.Help.Render_Version (Context, Context.Command_Name);
-            Result.Status := Posix_Tools.Exit_Status.Success;
-            return True;
-         elsif Context.Argument (1) = "--posix-tools-identify" and then Count = 1 then
+         when Posix_Tools.Extension_Options.Render_Identity =>
             Posix_Tools.Help.Render_Identity (Context, Context.Command_Name);
-            Result.Status := Posix_Tools.Exit_Status.Success;
-            return True;
-         end if;
-      end if;
+         when Posix_Tools.Extension_Options.No_Extension =>
+            return False;
+      end case;
 
-      return False;
+      Result.Status := Posix_Tools.Exit_Status.Success;
+      return True;
    end Intercept_Extension;
 
    procedure Usage_Error
@@ -245,6 +186,175 @@ package body Posix_Tools.Commands.Helpers is
         (Diagnostic_Line (Context, Context.Command_Name & ": " & Localized_Usage_Message (Context, Message)));
       Result.Status := Posix_Tools.Exit_Status.Invalid_Usage;
    end Usage_Error;
+
+   function Parse_Natural_Operand
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result;
+      Text    : String;
+      Subject : String;
+      Value   : out Natural) return Boolean
+   is
+      Parsed : constant Posix_Tools.Numbers.Parse_Result :=
+        Posix_Tools.Numbers.Parse_Nonnegative (Text);
+   begin
+      if Parsed.Status /= Posix_Tools.Numbers.Valid
+        or else Parsed.Value > Posix_Tools.Numbers.Count (Natural'Last)
+      then
+         Usage_Error (Context, Result, "invalid " & Subject & " '" & Text & "'");
+         Value := 0;
+         return False;
+      end if;
+
+      Value := Natural (Parsed.Value);
+      return True;
+   end Parse_Natural_Operand;
+
+   function Read_Affirmative_Response
+     (Context           : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Wait_For_Line_End : Boolean := False) return Boolean
+   is
+      Buffer : Ada.Streams.Stream_Element_Array (1 .. 1);
+      Last   : Ada.Streams.Stream_Element_Offset;
+      First  : Character := Character'Val (0);
+   begin
+      loop
+         if not Context.Try_Read_Standard_Input (Buffer, Last)
+           or else Last < Buffer'First
+         then
+            return False;
+         end if;
+
+         declare
+            Ch : constant Character := Character'Val (Buffer (Buffer'First));
+         begin
+            if not Wait_For_Line_End then
+               return Ch in 'y' | 'Y';
+            elsif Ch = LF then
+               return First in 'y' | 'Y';
+            elsif First = Character'Val (0) then
+               First := Ch;
+            end if;
+         end;
+      end loop;
+   end Read_Affirmative_Response;
+
+   function Resolve_Group_Id (Text : String; Value : out Natural) return Boolean is
+      Found  : Boolean;
+      Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
+        Posix_Tools.Text.Decimal_Parsing.Natural_Value (Text);
+   begin
+      if Parsed.Valid then
+         Value := Parsed.Value;
+         return True;
+      end if;
+
+      Value := Posix_Tools.Host_Adapters.File_System.Group_Id_For_Name (Text, Found);
+      return Found;
+   end Resolve_Group_Id;
+
+   function Resolve_User_Id (Text : String; Value : out Natural) return Boolean is
+      Found  : Boolean;
+      Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
+        Posix_Tools.Text.Decimal_Parsing.Natural_Value (Text);
+   begin
+      if Parsed.Valid then
+         Value := Parsed.Value;
+         return True;
+      end if;
+
+      Value := Posix_Tools.Host_Adapters.File_System.User_Id_For_Name (Text, Found);
+      return Found;
+   end Resolve_User_Id;
+
+   function Id_Text (Id : Natural; Name : String; Prefer_Name : Boolean) return String is
+   begin
+      if Prefer_Name and then Name /= "" then
+         return Name;
+      else
+         return Posix_Tools.Text.Numeric_Images.Integer_Image (Id);
+      end if;
+   end Id_Text;
+
+   function Decorated_Id_Text (Id : Natural; Name : String) return String is
+      Text : constant String := Posix_Tools.Text.Numeric_Images.Integer_Image (Id);
+   begin
+      if Name = "" then
+         return Text;
+      else
+         return Text & "(" & Name & ")";
+      end if;
+   end Decorated_Id_Text;
+
+   function Group_Id_Text
+     (Context     : Posix_Tools.Commands.Contexts.Context'Class;
+      Id          : Natural;
+      Prefer_Name : Boolean := True) return String
+   is
+   begin
+      return Id_Text (Id, Context.Group_Name_For_Id (Id), Prefer_Name);
+   end Group_Id_Text;
+
+   function User_Id_Text
+     (Context     : Posix_Tools.Commands.Contexts.Context'Class;
+      Id          : Natural;
+      Prefer_Name : Boolean := True) return String
+   is
+   begin
+      return Id_Text (Id, Context.User_Name_For_Id (Id), Prefer_Name);
+   end User_Id_Text;
+
+   function Decorated_Group_Id_Text
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Id      : Natural) return String
+   is
+   begin
+      return Decorated_Id_Text (Id, Context.Group_Name_For_Id (Id));
+   end Decorated_Group_Id_Text;
+
+   function Decorated_User_Id_Text
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Id      : Natural) return String
+   is
+   begin
+      return Decorated_Id_Text (Id, Context.User_Name_For_Id (Id));
+   end Decorated_User_Id_Text;
+
+   function Current_User_Name
+     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
+   is
+      User_Id : Natural;
+   begin
+      if Context.Current_User_Id (User_Id) then
+         return Context.User_Name_For_Id (User_Id);
+      else
+         return "";
+      end if;
+   end Current_User_Name;
+
+   procedure For_Each_Directory_Child
+     (Path   : String;
+      Listed : out Boolean)
+   is
+      package FS renames Posix_Tools.Host_Adapters.File_System;
+
+      use type Posix_Tools.Host_Adapters.File_System.File_Kind;
+
+      procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean);
+
+      procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean) is
+         pragma Unreferenced (Name, Stop);
+      begin
+         Action (Full_Name);
+      end Visit;
+
+      procedure Each is new FS.For_Each_Directory_Entry (Visit);
+   begin
+      if FS.Kind (Path) = FS.Directory then
+         Each (Path, Listed);
+      else
+         Listed := True;
+      end if;
+   end For_Each_Directory_Child;
 
    procedure Operational_Error
      (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;

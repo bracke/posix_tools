@@ -42,6 +42,7 @@ is
          Reset (Self);
          Status := Invalid;
       else
+         pragma Assert (Self.Accumulator >= 0);
          Self.Accumulator :=
            Self.Accumulator * 64 + Long_Long_Integer (Byte mod 64);
          Self.Expected_Continuations := Self.Expected_Continuations - 1;

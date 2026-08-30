@@ -28,6 +28,7 @@ package Test_Contexts is
       Last   : out Ada.Streams.Stream_Element_Offset) return Boolean;
    overriding function Environment_Pairs
      (Self : Capturing_Context) return Posix_Tools.Arguments.Vector;
+   overriding function Environment_Defined (Self : Capturing_Context; Name : String) return Boolean;
    overriding function Environment_Value (Self : Capturing_Context; Name : String) return String;
    overriding function Effective_Locale (Self : Capturing_Context) return String;
    overriding function Physical_Current_Directory (Self : Capturing_Context) return String;
@@ -82,6 +83,12 @@ package Test_Contexts is
       Arguments   : Posix_Tools.Arguments.Vector;
       Environment : Posix_Tools.Arguments.Vector;
       Exit_Status : out Integer) return Boolean;
+   overriding function Execute_Utility_With_Nice_Adjustment
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Adjustment  : Integer;
+      Exit_Status : out Integer) return Boolean;
    overriding function Execute_Utility_With_Timeout
      (Self        : in out Capturing_Context;
       Utility     : String;
@@ -115,6 +122,7 @@ package Test_Contexts is
    function Redirected_Output_Path (Self : Capturing_Context) return String;
    function Redirected_Output_Enabled (Self : Capturing_Context) return Boolean;
    function Redirected_Error_Enabled (Self : Capturing_Context) return Boolean;
+   function Nice_Adjustment (Self : Capturing_Context) return Integer;
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
    procedure Set_Tail_Follow_Append
      (Self       : in out Capturing_Context;
@@ -161,6 +169,7 @@ private
       Redirect_Path : Ada.Strings.Unbounded.Unbounded_String;
       Redirect_Output : Boolean := False;
       Redirect_Error : Boolean := False;
+      Last_Nice_Adjustment : Integer := 0;
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;

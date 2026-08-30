@@ -13,9 +13,14 @@ package body Posix_Tools.Host_Adapters.Environment is
       return Result;
    end Pairs;
 
+   function Defined (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Exists (Name);
+   end Defined;
+
    function Value (Name : String) return String is
    begin
-      if Ada.Environment_Variables.Exists (Name) then
+      if Defined (Name) then
          return Ada.Environment_Variables.Value (Name);
       else
          return "";

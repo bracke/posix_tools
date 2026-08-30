@@ -19,6 +19,8 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:count windows", Test_Count_Windows'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("basic:exit status", Test_Exit_Status'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:paths", Test_Paths'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:paths", Test_Path_Properties'Access));

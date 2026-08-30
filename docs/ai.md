@@ -64,8 +64,8 @@
 - Keep POSIX command behavior separate from the non-POSIX root executable.
 - Do not route command data output through styling.
 - Keep byte-oriented data paths binary preserving.
-- Keep UTF-8 decoding and Unicode classification isolated from command
-  algorithms so future locale-aware behavior can replace the policy.
+- Keep UTF-8 decoding, Unicode classification, and locale-aware behavior
+  isolated from command algorithms.
 - Keep per-run command state local to `Run` or helper calls, not package-level
   mutable variables.
 - Preserve `--posix-tools-identify` as a sole-argument internal operation.

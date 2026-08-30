@@ -18,8 +18,14 @@ package Posix_Tools.Host_Adapters.Signals is
    function Is_Supported (Item : Signal) return Boolean;
    function Name (Item : Signal) return String;
    function Number (Item : Signal) return Integer;
-   function From_Number (Value : Integer; Item : out Signal) return Boolean;
+   function From_Number (Value : Integer; Item : out Signal) return Boolean
+     with Post =>
+       (if not From_Number'Result then Item = Terminate_Signal);
    function Send_To_Process (Process_Id : Integer; Item : Signal) return Boolean;
-   function Current_Disposition (Item : Signal; Value : out Disposition) return Boolean;
-   function Set_Disposition (Item : Signal; Value : Disposition) return Boolean;
+   function Current_Disposition (Item : Signal; Value : out Disposition) return Boolean
+     with Post =>
+       (if not Current_Disposition'Result then Value = Unknown_Disposition);
+   function Set_Disposition (Item : Signal; Value : Disposition) return Boolean
+     with Post =>
+       (if Value = Unknown_Disposition then not Set_Disposition'Result);
 end Posix_Tools.Host_Adapters.Signals;

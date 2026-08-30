@@ -5,6 +5,7 @@ with Hostkit.Descriptors;
 with Hostkit.Process;
 with Hostkit.Spawn;
 with Posix_Tools.Host_Adapters.Environment;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Host_Adapters.Processes is
    function Equal_Position (Text : String) return Natural is
@@ -97,6 +98,42 @@ package body Posix_Tools.Host_Adapters.Processes is
          Exit_Status := 125;
       return False;
    end Run_With_Environment;
+
+   function Run_With_Nice_Adjustment
+     (Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Adjustment  : Integer;
+      Exit_Status : out Integer) return Boolean
+   is
+      use Ada.Strings.Unbounded;
+
+      Nice_Program : constant String := Hostkit.Process.Locate ("nice");
+      Host_Arguments : Hostkit.String_Vectors.Vector;
+   begin
+      if Nice_Program = "" then
+         Exit_Status := 127;
+         return False;
+      end if;
+
+      Host_Arguments.Append (To_Unbounded_String ("-n"));
+      Host_Arguments.Append
+        (To_Unbounded_String (Posix_Tools.Text.Numeric_Images.Integer_Image (Adjustment)));
+      Host_Arguments.Append (To_Unbounded_String (Utility));
+      for I in 1 .. Natural (Arguments.Length) loop
+         Host_Arguments.Append (To_Unbounded_String (Arguments.Element (I)));
+      end loop;
+
+      if Hostkit.Process.Run (Nice_Program, Host_Arguments, Exit_Status) then
+         return True;
+      end if;
+
+      Exit_Status := 126;
+      return False;
+   exception
+      when others =>
+         Exit_Status := 125;
+         return False;
+   end Run_With_Nice_Adjustment;
 
    function Run_With_Timeout
      (Utility     : String;

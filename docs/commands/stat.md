@@ -52,8 +52,8 @@ ownership metadata is reported as `unknown`. The `-c` format language is a focus
 
 ## Locale Behavior
 
-Metadata labels and diagnostics are locale-dependent in future catalog-backed help. Pathname data and numeric output
-are locale-invariant in V1.
+Metadata labels and diagnostics follow the project localization layer where catalog entries exist. Pathname data and
+numeric output are locale-invariant in V1.
 
 ## Implementation-Defined Choices
 

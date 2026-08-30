@@ -36,7 +36,7 @@ tests. `locale` selects locale-dependent help and diagnostic tests.
 
 Current registered suites include path tests, numeric tests, tail ring arithmetic tests, and wc field arithmetic tests.
 They also include stream LF segment tests, stream byte and UTF-8 counting tests, command-package tests, root-command
-tests, locale-dependent help and diagnostic tests, and regression coverage for binary fixtures, expanded-command option
+tests, locale-dependent help and diagnostic tests, and regression coverage for binary fixtures, command option
 ordering, `env` utility status propagation, verbose output failures in `cp`, `ln`, `mv`, and `rm`, `xargs` status
 classification, `head`, `tail`, and `wc`.
 
@@ -93,9 +93,13 @@ instead of silently broadening or ignoring the requested filter.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,
 and text files for tab characters, trailing whitespace, and multiple
 consecutive blank lines, skipping generated build outputs and binary fixtures.
-`posix_tools_tests prove` invokes selected GNATprove flow-analysis targets
-through `project_tools` and Alire for `Posix_Tools.Numbers`,
-`Posix_Tools.Paths`, `Posix_Tools.Text.UTF_8`, `Posix_Tools.Counts`,
-`Posix_Tools.Tail_Rings`, and `Posix_Tools.Wc_Fields`. These selected units
-enable `SPARK_Mode` and are checked as flow-analysis targets; this does not
-claim functional proof beyond the executed GNATprove mode and units.
+`posix_tools_tests prove` invokes selected GNATprove targets directly through
+`project_tools` against `common/posix_tools_proof.gpr`. The maintained target
+inventory and documented non-SPARK boundaries are in `docs/proof-coverage.md`;
+metadata checks keep that document synchronized with SPARK-enabled package
+specs and the curated proof target list. These selected units enable
+`SPARK_Mode` and are checked with Z3 in proof mode, warnings as errors, and
+unproved checks treated as errors; this does not claim functional proof beyond
+the executed GNATprove mode and units.
+Restricted sandboxes may block Why3's local proof-server socket; in that case,
+run the same `prove` command in a normal host execution context.

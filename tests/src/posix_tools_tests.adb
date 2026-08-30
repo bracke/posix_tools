@@ -10,13 +10,20 @@ with AUnit.Reporter.Text;
 with AUnit.Run;
 with AUnit.Test_Filters;
 with All_Suites;
+with Build_Checks;
+with Format_Checks;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Host_Adapters.Executables;
 with Posix_Tools.Paths;
+with Posix_Tools.Text.Byte_Classes;
+with Posix_Tools.Text.Line_Breaks;
+with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
 with Project_Tools.Release_Checks;
+with Package_Entries;
+with Proof_Targets;
 with Project_Tools.Text;
 
 procedure Posix_Tools_Tests is
@@ -323,21 +330,6 @@ procedure Posix_Tools_Tests is
          end if;
       end Require_Command_Inventory_Current;
 
-      function Without_Trailing_CR (Line : String) return String is
-      begin
-         if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
-            return Line (Line'First .. Line'Last - 1);
-         else
-            return Line;
-         end if;
-      end Without_Trailing_CR;
-
-      function Starts_With (Text : String; Prefix : String) return Boolean is
-      begin
-         return Text'Length >= Prefix'Length
-           and then Text (Text'First .. Text'First + Prefix'Length - 1) = Prefix;
-      end Starts_With;
-
       function Count_Exact_Lines (Text : String; Expected : String) return Natural is
          Start : Positive := Text'First;
          Count : Natural := 0;
@@ -348,7 +340,10 @@ procedure Posix_Tools_Tests is
 
          for I in Text'Range loop
             if Text (I) = Character'Val (10) then
-               if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) = Expected then
+               if I > Start
+                 and then Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Text (Start .. I - 1)) = Expected
+               then
                   Count := Count + 1;
                end if;
 
@@ -356,7 +351,10 @@ procedure Posix_Tools_Tests is
             end if;
          end loop;
 
-         if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) = Expected then
+         if Start <= Text'Last
+           and then Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+             (Text (Start .. Text'Last)) = Expected
+         then
             Count := Count + 1;
          end if;
 
@@ -373,7 +371,12 @@ procedure Posix_Tools_Tests is
 
          for I in Text'Range loop
             if Text (I) = Character'Val (10) then
-               if I > Start and then Starts_With (Without_Trailing_CR (Text (Start .. I - 1)), Prefix) then
+               if I > Start
+                 and then Posix_Tools.Text.Matching.Starts_With
+                   (Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                      (Text (Start .. I - 1)),
+                    Prefix)
+               then
                   Count := Count + 1;
                end if;
 
@@ -381,7 +384,12 @@ procedure Posix_Tools_Tests is
             end if;
          end loop;
 
-         if Start <= Text'Last and then Starts_With (Without_Trailing_CR (Text (Start .. Text'Last)), Prefix) then
+         if Start <= Text'Last
+           and then Posix_Tools.Text.Matching.Starts_With
+             (Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                (Text (Start .. Text'Last)),
+              Prefix)
+         then
             Count := Count + 1;
          end if;
 
@@ -398,7 +406,10 @@ procedure Posix_Tools_Tests is
 
          for I in Text'Range loop
             if Text (I) = Character'Val (10) then
-               if I > Start and then Without_Trailing_CR (Text (Start .. I - 1)) /= "" then
+               if I > Start
+                 and then Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Text (Start .. I - 1)) /= ""
+               then
                   Count := Count + 1;
                end if;
 
@@ -406,7 +417,10 @@ procedure Posix_Tools_Tests is
             end if;
          end loop;
 
-         if Start <= Text'Last and then Without_Trailing_CR (Text (Start .. Text'Last)) /= "" then
+         if Start <= Text'Last
+           and then Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+             (Text (Start .. Text'Last)) /= ""
+         then
             Count := Count + 1;
          end if;
 
@@ -423,6 +437,131 @@ procedure Posix_Tools_Tests is
             Project_Tools.Release_Checks.Fail (Description & " duplicated in " & Path);
          end if;
       end Require_Exact_Line;
+
+      function Proof_Unit_Name (Path : String) return String is
+         use Ada.Characters.Handling;
+         Name_First : Natural := Path'First;
+         Name_Last  : Natural := Path'Last;
+      begin
+         for I in reverse Path'Range loop
+            if Path (I) = '/' or else Path (I) = '\' then
+               Name_First := I + 1;
+               exit;
+            end if;
+         end loop;
+
+         if Project_Tools.Text.Ends_With (Path, ".ads") then
+            Name_Last := Path'Last - 4;
+         end if;
+
+         declare
+            Name : String := To_Lower (Path (Name_First .. Name_Last));
+         begin
+            for Ch of Name loop
+               if Ch = '-' then
+                  Ch := '.';
+               end if;
+            end loop;
+            return Name;
+         end;
+      end Proof_Unit_Name;
+
+      procedure Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented is
+         use Ada.Strings.Unbounded;
+
+         Proof_Driver : constant String :=
+           Project_Tools.Files.Read_Raw_File
+             (Project_Tools.Files.Join (Root, "tests/src/proof_targets.adb"));
+         Proof_Document : constant String :=
+           Ada.Characters.Handling.To_Lower
+             (Project_Tools.Files.Read_Raw_File
+                (Project_Tools.Files.Join (Root, "docs/proof-coverage.md")));
+         Source_Roots : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("common/src"),
+            To_Unbounded_String ("common/generated")];
+      begin
+         for Source_Root of Source_Roots loop
+            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+               declare
+                  File_Path : constant String := To_String (Path);
+               begin
+                  if Project_Tools.Text.Ends_With (File_Path, ".ads")
+                    and then Project_Tools.Files.File_Contains (File_Path, "SPARK_Mode => On")
+                  then
+                     declare
+                        Unit_Name : constant String := Proof_Unit_Name (File_Path);
+                     begin
+                        if not Posix_Tools.Text.Matching.Contains
+                          (Proof_Driver, "To_Unbounded_String (""" & Unit_Name & """)")
+                        then
+                           Project_Tools.Release_Checks.Fail
+                             ("SPARK unit is missing from proof targets: " & Unit_Name);
+                        elsif not Posix_Tools.Text.Matching.Contains
+                          (Proof_Document, "- `" & Unit_Name & "`")
+                        then
+                           Project_Tools.Release_Checks.Fail
+                             ("SPARK unit is missing from proof coverage docs: " & Unit_Name);
+                        end if;
+                     end;
+                  end if;
+               end;
+            end loop;
+         end loop;
+      end Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented;
+
+      function Is_Documented_Non_SPARK_Boundary
+        (Unit_Name      : String;
+         Proof_Document : String) return Boolean
+      is
+         use Posix_Tools.Text.Matching;
+
+         function Has_Entry (Name : String) return Boolean is
+         begin
+            return Contains (Proof_Document, "- `" & Name & "`");
+         end Has_Entry;
+      begin
+         return
+           Has_Entry (Unit_Name)
+           or else
+             (Starts_With (Unit_Name, "posix_tools.commands.")
+              and then Has_Entry ("posix_tools.commands.*"))
+           or else
+             (Starts_With (Unit_Name, "posix_tools.host_adapters")
+              and then Has_Entry ("posix_tools.host_adapters.*"));
+      end Is_Documented_Non_SPARK_Boundary;
+
+      procedure Require_Non_SPARK_Specs_Are_Documented_Boundaries is
+         use Ada.Strings.Unbounded;
+
+         Proof_Document : constant String :=
+           Ada.Characters.Handling.To_Lower
+             (Project_Tools.Files.Read_Raw_File
+                (Project_Tools.Files.Join (Root, "docs/proof-coverage.md")));
+         Source_Roots : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("common/src"),
+            To_Unbounded_String ("common/generated")];
+      begin
+         for Source_Root of Source_Roots loop
+            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+               declare
+                  File_Path : constant String := To_String (Path);
+               begin
+                  if Project_Tools.Text.Ends_With (File_Path, ".ads")
+                    and then not Project_Tools.Files.File_Contains (File_Path, "SPARK_Mode => On")
+                  then
+                     declare
+                        Unit_Name : constant String := Proof_Unit_Name (File_Path);
+                     begin
+                        if not Is_Documented_Non_SPARK_Boundary (Unit_Name, Proof_Document) then
+                           Project_Tools.Release_Checks.Fail
+                             ("non-SPARK spec is missing from proof boundary docs: " & Unit_Name);
+                        end if;
+                     end;
+                  end if;
+               end;
+            end loop;
+         end loop;
+      end Require_Non_SPARK_Specs_Are_Documented_Boundaries;
 
       procedure Require_Package_File_List_Matches_Manifest is
          Files_Path : constant String := Project_Tools.Files.Join (Root, "generated/package-files.txt");
@@ -470,7 +609,9 @@ procedure Posix_Tools_Tests is
          for I in Files'Range loop
             if Files (I) = Character'Val (10) then
                if I > Start then
-                  Check_File_List_Line (Without_Trailing_CR (Files (Start .. I - 1)));
+                  Check_File_List_Line
+                    (Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                       (Files (Start .. I - 1)));
                   File_Count := File_Count + 1;
                end if;
 
@@ -479,7 +620,9 @@ procedure Posix_Tools_Tests is
          end loop;
 
          if Start <= Files'Last then
-            Check_File_List_Line (Without_Trailing_CR (Files (Start .. Files'Last)));
+            Check_File_List_Line
+              (Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                 (Files (Start .. Files'Last)));
             File_Count := File_Count + 1;
          end if;
 
@@ -494,30 +637,43 @@ procedure Posix_Tools_Tests is
          Files  : constant String :=
            Project_Tools.Files.Read_Raw_File
              (Project_Tools.Files.Join (Root, "generated/package-files.txt"));
-         Prefix : constant String := Root & "/";
 
-         function Package_Relative_Path (Path : String) return String is
+         procedure Require_Fixture (Relative_Path : String) is
          begin
-            if Project_Tools.Text.Starts_With (Path, Prefix) then
-               return Path (Prefix'Length + 1 .. Path'Last);
-            else
-               return Path;
+            if Count_Exact_Lines (Files, Relative_Path) = 0 then
+               Project_Tools.Release_Checks.Fail
+                 ("package file list missing test fixture " & Relative_Path);
             end if;
-         end Package_Relative_Path;
+         end Require_Fixture;
       begin
-         for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, "fixtures")) loop
-            declare
-               Relative_Path : constant String :=
-                 Package_Relative_Path (Ada.Strings.Unbounded.To_String (Path));
-            begin
-               if Project_Tools.Text.Starts_With (Relative_Path, "fixtures/expanded-") then
-                  null;
-               elsif Count_Exact_Lines (Files, Relative_Path) = 0 then
-                  Project_Tools.Release_Checks.Fail
-                    ("package file list missing test fixture " & Relative_Path);
-               end if;
-            end;
-         end loop;
+         Require_Fixture ("fixtures/invalid-da-utf8.bin");
+         Require_Fixture ("fixtures/reg-cat-0001.bin");
+         Require_Fixture ("fixtures/reg-cat-first.bin");
+         Require_Fixture ("fixtures/reg-cat-later.bin");
+         Require_Fixture ("fixtures/reg-cat-second.bin");
+         Require_Fixture ("fixtures/reg-end-of-options.txt");
+         Require_Fixture ("fixtures/reg-head-counts.txt");
+         Require_Fixture ("fixtures/reg-head-default-long.txt");
+         Require_Fixture ("fixtures/reg-head-default-short.txt");
+         Require_Fixture ("fixtures/reg-head-header-first.txt");
+         Require_Fixture ("fixtures/reg-head-header-second.txt");
+         Require_Fixture ("fixtures/reg-tail-byte-mode.bin");
+         Require_Fixture ("fixtures/reg-tail-byte-spill.bin");
+         Require_Fixture ("fixtures/reg-tail-compact.bin");
+         Require_Fixture ("fixtures/reg-tail-head-first.txt");
+         Require_Fixture ("fixtures/reg-tail-head-second.txt");
+         Require_Fixture ("fixtures/reg-tail-line-mode.txt");
+         Require_Fixture ("fixtures/reg-tail-plus.txt");
+         Require_Fixture ("fixtures/reg-wc-bad-continuation.bin");
+         Require_Fixture ("fixtures/reg-wc-default.txt");
+         Require_Fixture ("fixtures/reg-wc-first.txt");
+         Require_Fixture ("fixtures/reg-wc-invalid.bin");
+         Require_Fixture ("fixtures/reg-wc-mixed-invalid.bin");
+         Require_Fixture ("fixtures/reg-wc-out-of-range.bin");
+         Require_Fixture ("fixtures/reg-wc-overlong.bin");
+         Require_Fixture ("fixtures/reg-wc-second.txt");
+         Require_Fixture ("fixtures/reg-wc-surrogate.bin");
+         Require_Fixture ("fixtures/reg-wc-utf8.txt");
       end Require_Package_File_List_Covers_Fixtures;
 
       procedure Require_Package_File_List_Covers_Release_Metadata is
@@ -951,6 +1107,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/development.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/portability.md");
+      Project_Tools.Release_Checks.Require_File (Check, "docs/proof-coverage.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/release-process.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/security.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/testing.md");
@@ -1003,13 +1160,13 @@ procedure Posix_Tools_Tests is
          "docs/testing.md",
          "`posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "function Has_Tab");
+        (Check, "tests/src/format_checks.adb", "function Has_Tab");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "function Has_Trailing_Whitespace");
+        (Check, "tests/src/format_checks.adb", "function Has_Trailing_Whitespace");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "function Has_Multiple_Blank_Lines");
+        (Check, "tests/src/format_checks.adb", "function Has_Multiple_Blank_Lines");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "function Is_Checked_Text_File");
+        (Check, "tests/src/format_checks.adb", "function Is_Checked_Text_File");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Command = ""test""");
       Project_Tools.Release_Checks.Require_Text
@@ -1151,7 +1308,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-numbers.adb", "return (Status => Overflow, Value => 0)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-numbers.adb", "if Value > (Count'Last - Count");
+        (Check, "common/src/posix_tools-numbers.adb", "if Value > (Count'Last - Digit_Value (Ch)) / 10");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests.adb", "parse maximum count");
       Project_Tools.Release_Checks.Require_Text
@@ -1161,13 +1318,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-arguments-parsing.ads", "Missing_Argument");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-arguments-parsing.adb", "Current = ""--""");
+        (Check, "common/src/posix_tools-option_parsing.adb", "Current = ""--""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-arguments-parsing.adb", "Current = ""-""");
+        (Check, "common/src/posix_tools-option_parsing.adb", "Current = ""-""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-arguments-parsing.adb", "Position.Offset < Current'Length");
+        (Check, "common/src/posix_tools-option_parsing.adb", "Position.Offset < Current'Length");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-arguments-parsing.adb", "Position.Index < Count");
+        (Check, "common/src/posix_tools-option_parsing.adb", "Position.Index < Argument_Count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.adb", "Posix_Tools.Option_Parsing.Decide_Short");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests-suite.adb", "property:option parsing");
       Project_Tools.Release_Checks.Require_Text
@@ -1199,11 +1358,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-dirname.adb", "Operand_Count > 1");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:basename edge cases");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:basename edge cases");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:dirname edge cases");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:dirname edge cases");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:basename dirname commands");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:basename dirname commands");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "basename command empty");
       Project_Tools.Release_Checks.Require_Text
@@ -1223,9 +1382,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-echo.adb", "Conventional => False");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:echo data edge cases");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:echo data edge cases");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:echo output");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:echo output");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "echo treats -- backslash and -n as data");
       Project_Tools.Release_Checks.Require_Text
@@ -1241,11 +1400,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-false_command.adb", "Conventional => False");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:true extension edges");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:true extension edges");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:false extension edges");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:false extension edges");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:true false operands");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:true false operands");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "true false operand property seed 0x7F00F15E");
       Project_Tools.Release_Checks.Require_Text
@@ -1271,19 +1430,19 @@ procedure Posix_Tools_Tests is
          "common/src/posix_tools-commands-file_helpers.adb",
          "Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat files");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat files");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat continues after missing file");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat continues after missing file");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:cat byte preservation");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:cat byte preservation");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "seed 0x50540003");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "PROPERTY-CAT-BYTES-001");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat output failure");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat output failure");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "cat continues after missing file");
       Project_Tools.Release_Checks.Require_Text
@@ -1295,19 +1454,19 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-CAT-0003");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-CAT-0003");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-CAT-0003");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-STDOUT-0004");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-STDOUT-0004");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-TAIL-0004");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-TAIL-0004");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-WC-0005");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-WC-0005");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-ENV-0001");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-ENV-0001");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-VERBOSE-0001");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-VERBOSE-0001");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-XARGS-0001");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-XARGS-0001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-ENV-0001");
       Project_Tools.Release_Checks.Require_Text
@@ -1315,41 +1474,41 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-XARGS-0001");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cp");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cp");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:date");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:date");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:dd");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:dd");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:env");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:env");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:find");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:find");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:ln");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:ln");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:mkdir");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:mkdir");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:mv");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:mv");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:printf");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:printf");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:rm");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:rm");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:rmdir");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:rmdir");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:sort");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:sort");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tee");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tee");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:test");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:test");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:touch");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:touch");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tr");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tr");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:uniq");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:uniq");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:xargs");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:xargs");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "test selector suite cp");
       Project_Tools.Release_Checks.Require_Text
@@ -1389,19 +1548,19 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "Finish_Line_Prefix");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head counts");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head counts");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head default limits");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head default limits");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:head prefix");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:head prefix");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:head standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:head standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head invalid count");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head invalid count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head multiple file headers");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head multiple file headers");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head standard input");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head long default output");
       Project_Tools.Release_Checks.Require_Text
@@ -1451,11 +1610,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Context.Try_Physical_Current_Directory");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:pwd options");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:pwd options");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:pwd context fallbacks");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:pwd context fallbacks");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:pwd option precedence");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:pwd option precedence");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "pwd -L output");
       Project_Tools.Release_Checks.Require_Text
@@ -1475,7 +1634,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) = ""--""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "type Count_Origin is (From_End, From_Start)");
+        (Check, "common/src/posix_tools-tail_counts.ads", "type Count_Origin is (From_End, From_Start)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Current_Mode : Mode := Line_Mode");
       Project_Tools.Release_Checks.Require_Text
@@ -1496,16 +1655,16 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-commands-tail.adb", "Context.Argument (Index) (2) = 'c'");
       Project_Tools.Release_Checks.Require_Text
         (Check,
-         "common/src/posix_tools-commands-tail.adb",
+         "common/src/posix_tools-tail_counts.adb",
          "Text (Text'First) = '+'");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Count_Origin_Value := From_Start");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Posix_Tools.Tail_Counts.Parse_Count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "missing option argument");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "invalid count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Tail_Bytes (Context");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "procedure Copy");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Copy_Line_Suffix");
       Project_Tools.Release_Checks.Require_Text
@@ -1515,27 +1674,27 @@ procedure Posix_Tools_Tests is
          "common/src/posix_tools-commands-tail.adb",
          "Context.Put_Line (""==> "" & Context.Argument (File_Index)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail byte mode edges");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail compact counts");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail compact counts");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail follow live");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail follow live");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail invalid count");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail invalid count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail line mode edges");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail line mode edges");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail multiple file headers");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail multiple file headers");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail plus origin");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail plus origin");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:tail byte suffix");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:tail byte suffix");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:tail standard input bytes");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:tail standard input bytes");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:tail line suffix");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:tail line suffix");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "tail default ten lines from end output");
       Project_Tools.Release_Checks.Require_Text
@@ -1599,15 +1758,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Text_Invalid (State)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Bytes := Self.Current.Bytes + 1");
+        (Check, "common/src/posix_tools-streams-counting.adb", "Increment (Self.Current.Bytes)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Lines := Self.Current.Lines + 1");
+        (Check, "common/src/posix_tools-streams-counting.adb", "Increment (Self.Current.Lines)");
       Project_Tools.Release_Checks.Require_Text
         (Check,
          "common/src/posix_tools-streams-counting.adb",
-         "Self.Current.Characters := Self.Current.Characters + 1");
+         "Increment (Self.Current.Characters)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-streams-counting.adb", "Self.Current.Words := Self.Current.Words + 1");
+        (Check, "common/src/posix_tools-streams-counting.adb", "Increment (Self.Current.Words)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-streams-counting.adb", "Posix_Tools.Text.UTF_8.Decode");
       Project_Tools.Release_Checks.Require_Text
@@ -1619,25 +1778,25 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/basic_tests-suite.adb", "streams:utf-8 counting");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc multiple files");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc multiple files");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc default and mixed text");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc default and mixed text");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc text counts");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc text counts");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc invalid UTF-8");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc invalid UTF-8");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc malformed UTF-8");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc malformed UTF-8");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:wc byte count");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:wc byte count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:wc standard input bytes");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:wc standard input bytes");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:wc line count");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:wc line count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "property:wc standard input lines");
+        (Check, "tests/src/command_tests-suite_entries.adb", "property:wc standard input lines");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "wc default field order");
       Project_Tools.Release_Checks.Require_Text
@@ -1673,7 +1832,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-WC-0006");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:end-of-options");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:end-of-options");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head skips -- after count");
       Project_Tools.Release_Checks.Require_Text
@@ -1741,15 +1900,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "posix_tools.diagnostic.file.read_failed");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "posix_tools.diagnostic.resource.count_too_large");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "posix_tools.diagnostic.resource.count_too_large");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "posix_tools.diagnostic.text.invalid_utf8");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "locale:help");
+        (Check, "tests/src/command_tests-suite_entries.adb", "locale:help");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "locale:diagnostic");
+        (Check, "tests/src/command_tests-suite_entries.adb", "locale:diagnostic");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "regression:REG-DIAG-0001");
+        (Check, "tests/src/command_tests-suite_entries.adb", "regression:REG-DIAG-0001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-DIAG-0001");
       Project_Tools.Release_Checks.Require_Text
@@ -1863,9 +2022,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:root verify");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:root verify");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "locale:root verify statuses");
+        (Check, "tests/src/command_tests-suite_entries.adb", "locale:root verify statuses");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Contains_Executable (Context.Argument (2))");
       Project_Tools.Release_Checks.Require_Text
@@ -1903,7 +2062,7 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-pwd.adb", "Posix_Tools.Exit_Status.Operational_Failure");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:simple output failures");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:simple output failures");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "simple output failure diagnostic");
       Project_Tools.Release_Checks.Require_Text
@@ -1919,13 +2078,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "exit when Context.Output_Failed");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat output failure");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat output failure");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head output failure");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head output failure");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail output failure");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail output failure");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc output failure");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc output failure");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "cat output failure has no read diagnostic");
       Project_Tools.Release_Checks.Require_Text
@@ -1951,11 +2110,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-environment.adb", "with Ada.Environment_Variables;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Ada.Directories;");
+        (Check, "common/src/posix_tools-host_adapters-file_system-directories.adb", "with Ada.Directories;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Hostkit.Descriptors;");
+        (Check, "common/src/posix_tools-host_adapters-file_system-io.adb", "with Hostkit.Descriptors;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "Hostkit.Metadata.Same_File");
+        (Check, "common/src/posix_tools-host_adapters-file_system-paths.adb", "Hostkit.Metadata.Same_File");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "type File_Time is private");
       Project_Tools.Release_Checks.Require_Text
@@ -1965,7 +2124,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Set_Modification_Time");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp");
+        (Check,
+         "common/src/posix_tools-host_adapters-file_system-times.adb",
+         "GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-file_system.adb",
          "Ada.Streams.Stream_IO",
@@ -2029,23 +2190,263 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "build common crate");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools root");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.version");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.command_inventory");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.numbers");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.paths");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.utf_8");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.classification");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.whitespace_data");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.streams.counting");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.counts");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.tail_rings");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.tail_counts");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.wc_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.exit_status");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.commands.results");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.commands");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.streams");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.escaping");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.checksum_lines");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.checksums");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.cut_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.dd_conversions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.duration_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.file_magic_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.line_breaks");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.byte_classes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.matching");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.nice_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.base_parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.suffixes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.tab_stops");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.logical_paths");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.portable_paths");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.test_operators");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.hex_digests");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.sort_modifiers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.paste_delimiters");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.printf_escapes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.seq_formats");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.find_expressions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.od_formats");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.signal_names");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.nl_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.decimal_parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.file_modes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.file_modes level 2");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.numeric_images");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.option_parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.octal_modes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.octal_parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.owner_groups");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.time_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.touch_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "proof target posix_tools.text.xargs_fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "tests/src/posix_tools_tests.adb", "--prover=z3");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/development.md", "Selected GNATprove targets");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "docs/testing.md", "Posix_Tools.Tail_Rings");
+        (Check, "docs/development.md", "docs/proof-coverage.md");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "docs/testing.md", "Posix_Tools.Wc_Fields");
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Cut_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.DD_Conversions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Duration_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Checksum_Lines");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Checksums");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.File_Magic_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Decimal_Parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Base_Parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Suffixes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Tab_Stops");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Logical_Paths");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Portable_Paths");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Test_Operators");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Hex_Digests");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Sort_Modifiers");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Paste_Delimiters");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Nice_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Xargs_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Find_Expressions");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.OD_Formats");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Signal_Names");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.NL_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Count_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Parsed_Find_Count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Parse_Find_Count");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Age_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Ownership_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Missing_Owner_Name_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Parse_Type_Filter");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Find_Special_File_Class");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-find_expressions.ads", "Type_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.File_Modes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Has_Mode_Bit");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Has_Any_Mode_Bit");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Has_All_Mode_Bits");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Set_Mode_Bit");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Clear_Mode_Bit");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Clear_Mode_Mask");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Set_Mode_Mask");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Parsed_Permission_Mode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Parse_Permission_Mode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Parse_Find_Permission_Mode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Symbolic_Permission_Bits");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Apply_Symbolic_Permission_Operation");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Apply_Symbolic_Mode");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Symbolic_Who_Mask");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-file_modes.ads", "Permission_Matches");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-touch_fields.ads", "Normalize_ISO_Date_Time");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-arguments-parsing.ads", "Missing_Argument");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-signals.ads", "Unknown_Disposition");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Numeric_Images");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Seq_Formats");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Tail_Counts");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Option_Parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-option_parsing.ads", "Cursor_Progresses");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-option_parsing.ads", "Source_Is_Consistent");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-option_parsing.ads", "Status_Is_Consistent");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-xargs_parsing.adb", "Text.Byte_Classes.Is_Xargs_Blank");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-host_adapters-host.ads", "Last <= Groups'Length");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-contexts.ads", "Last <= Groups'Length");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Octal_Parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Octal_Modes");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Time_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Text.Touch_Fields");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-text-line_breaks.ads", "Line_Number_Through");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Posix_Tools.Arguments.Parsing");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "host adapters");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "Ada.Containers.Indefinite_Vectors");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "docs/proof-coverage.md");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/testing.md", "metadata checks keep that document synchronized");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "docs/proof-coverage.md", "dispatcher-only boundary");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/testing.md", "tail ring arithmetic tests");
       Project_Tools.Release_Checks.Require_Text
@@ -2053,16 +2454,16 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/release-process.md", "posix_tools_tests prove");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "build root crate");
+        (Check, "tests/src/build_checks.adb", "build root crate");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "build tests crate");
+        (Check, "tests/src/build_checks.adb", "build tests crate");
       Project_Tools.Release_Checks.Require_Text
         (Check,
-         "tests/src/posix_tools_tests.adb",
+         "tests/src/build_checks.adb",
          "for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop");
       Project_Tools.Release_Checks.Require_Text
         (Check,
-         "tests/src/posix_tools_tests.adb",
+         "tests/src/build_checks.adb",
          """build "" & Posix_Tools.Command_Inventory.Executable (I)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "procedure Run_Staged_Verification");
@@ -2109,29 +2510,61 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Streams;");
       Forbid_Text
-        ("common/src/posix_tools-commands-expanded.adb",
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "procedure Run_",
+         "command dispatcher must not regain command-local algorithms");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Find.Run");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Sort.Run");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Test_Command.Run");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Uniq.Run");
+      Forbid_Text
+        ("common/src/posix_tools-commands-find.adb",
          "with Hostkit.Fs",
-         "expanded command algorithms must use the project filesystem adapter");
+         "find command algorithm must use the project filesystem adapter");
       Forbid_Text
-        ("common/src/posix_tools-commands-expanded.adb",
+        ("common/src/posix_tools-commands-find.adb",
          "with Hostkit.Metadata",
-         "expanded command algorithms must use the project filesystem adapter for metadata");
+         "find command algorithm must use the project filesystem adapter for metadata");
       Forbid_Text
-        ("common/src/posix_tools-commands-expanded.adb",
+        ("common/src/posix_tools-commands-find.adb",
          "with Hostkit.Signals",
-         "expanded command algorithms must use the project signals adapter");
+         "find command algorithm must use the project signals adapter");
       Forbid_Text
-        ("common/src/posix_tools-commands-expanded.adb",
+        ("common/src/posix_tools-commands-find.adb",
          "with Ada.Directories",
-         "expanded command algorithms must use the project filesystem adapter");
+         "find command algorithm must use the project filesystem adapter");
       Forbid_Text
-        ("common/src/posix_tools-commands-expanded.adb",
+        ("common/src/posix_tools-commands-find.adb",
          "GNAT.OS_Lib",
-         "expanded command algorithms must use the project filesystem adapter for timestamps");
+         "find command algorithm must use the project filesystem adapter for timestamps");
+      Forbid_Text
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "with Hostkit.Fs",
+         "command dispatcher must not depend on hostkit directly");
+      Forbid_Text
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "with Hostkit.Metadata",
+         "command dispatcher must not depend on hostkit metadata");
+      Forbid_Text
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "with Hostkit.Signals",
+         "command dispatcher must not depend on hostkit signals");
+      Forbid_Text
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "with Ada.Directories",
+         "command dispatcher must not use filesystem algorithms");
+      Forbid_Text
+        ("common/src/posix_tools-commands-dispatcher.adb",
+         "GNAT.OS_Lib",
+         "command dispatcher must not use OS timestamp helpers");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-expanded.adb", "with Posix_Tools.Host_Adapters.File_System;");
+        (Check, "common/src/posix_tools-commands-find.adb", "with Posix_Tools.Host_Adapters.File_System;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-expanded.adb", "with Posix_Tools.Host_Adapters.Signals;");
+        (Check, "common/src/posix_tools-commands-tee.adb", "with Posix_Tools.Host_Adapters.Signals;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Terminals;");
       Project_Tools.Release_Checks.Require_Text
@@ -2209,13 +2642,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/test_contexts.ads", "function Try_Read_Standard_Input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:cat standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:cat standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:head standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:head standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail standard input");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc standard input");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc standard input");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-STDIN-0001");
       Forbid_Text
@@ -2241,19 +2674,19 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "For_Each_File_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "File_Helpers.For_Each_Chunk");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "File_Helpers.For_Each_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Action => Retain_Chunk");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Action => Retain_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Action => Emit_From_Start");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Action => Emit_From_Start");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "File_Helpers.For_Each_Chunk");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Action => Count_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:tail byte mode edges");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:tail byte mode edges");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/command_tests-suite.adb", "command:wc default and mixed text");
+        (Check, "tests/src/command_tests-suite_entries.adb", "command:wc default and mixed text");
       Forbid_Text
         ("common/src/posix_tools-commands-head.adb",
          "Requested : Posix_Tools.Numbers.Count := 10;",
@@ -2271,17 +2704,17 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "First_File : Positive := 1;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "type Count_Origin is (From_End, From_Start);");
+        (Check, "common/src/posix_tools-tail_counts.ads", "type Count_Origin is (From_End, From_Start);");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Origin     : Count_Origin := From_End;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Filled : Natural := 0;");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Filled : Natural := 0;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "Next : Ada.Streams.Stream_Element_Offset := Ring'First;");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Next   : Ada.Streams.Stream_Element_Offset := Ring'First;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "procedure Retain_Chunk");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "procedure Retain_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "procedure Emit_From_Start");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "procedure Emit_From_Start");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "head output failure status");
       Project_Tools.Release_Checks.Require_Text
@@ -2703,6 +3136,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "platform-aware executable artifact lookup");
+      Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented;
+      Require_Non_SPARK_Specs_Are_Documented_Boundaries;
       Require_Release_Checksums_Cover_Inventory;
       Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
       Project_Tools.Release_Checks.Require_Manifest_Entry
@@ -2713,6 +3148,8 @@ procedure Posix_Tools_Tests is
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "alire.toml");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/alire.toml");
+      Project_Tools.Release_Checks.Require_Manifest_Entry
+        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/posix_tools_proof.gpr");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/architecture.md");
       Project_Tools.Release_Checks.Require_Manifest_Entry
@@ -2939,210 +3376,11 @@ procedure Posix_Tools_Tests is
         (Content,
          "posix-tools package manifest " & Posix_Tools.Version.Version_String
          & Character'Val (10));
-      Add_Entry (".gitattributes");
-      Add_Entry ("alire.toml");
-      Add_Entry ("posix_tools.gpr");
-      Add_Entry ("README.md");
-      Add_Entry ("LICENSE");
-      Add_Entry (".github/workflows/ci.yml");
-      Add_Entry ("generated/command_inventory.csv");
-      Add_Entry ("generated/requirements.csv");
-      Add_Entry ("generated/regressions.csv");
-      Add_Entry ("generated/manual-index.md");
-      Add_Entry ("generated/man/posix-tools.1");
-      Add_Entry ("CHANGELOG.md");
-      Add_Entry ("SECURITY.md");
-      Add_Entry ("docs/ai.md");
-      Add_Entry ("docs/architecture.md");
-      Add_Entry ("docs/conformance.md");
-      Add_Entry ("docs/development.md");
-      Add_Entry ("docs/portability.md");
-      Add_Entry ("docs/release-process.md");
-      Add_Entry ("docs/security.md");
-      Add_Entry ("docs/testing.md");
-      Add_Entry ("src/posix-tools.adb");
-      Add_Entry ("common/alire.toml");
-      Add_Entry ("common/posix_tools_common.gpr");
-      Add_Entry ("common/src/posix_tools.ads");
-      Add_Entry ("common/src/posix_tools-arguments.adb");
-      Add_Entry ("common/src/posix_tools-arguments.ads");
-      Add_Entry ("common/src/posix_tools-arguments-parsing.adb");
-      Add_Entry ("common/src/posix_tools-arguments-parsing.ads");
-      Add_Entry ("common/src/posix_tools-command_inventory.adb");
-      Add_Entry ("common/src/posix_tools-command_inventory.ads");
-      Add_Entry ("common/src/posix_tools-commands.ads");
-      Add_Entry ("common/src/posix_tools-commands-basename.adb");
-      Add_Entry ("common/src/posix_tools-commands-basename.ads");
-      Add_Entry ("common/src/posix_tools-commands-cat.adb");
-      Add_Entry ("common/src/posix_tools-commands-cat.ads");
-      Add_Entry ("common/src/posix_tools-commands-contexts.adb");
-      Add_Entry ("common/src/posix_tools-commands-contexts.ads");
-      Add_Entry ("common/src/posix_tools-commands-cp.adb");
-      Add_Entry ("common/src/posix_tools-commands-cp.ads");
-      Add_Entry ("common/src/posix_tools-commands-date.adb");
-      Add_Entry ("common/src/posix_tools-commands-date.ads");
-      Add_Entry ("common/src/posix_tools-commands-dd.adb");
-      Add_Entry ("common/src/posix_tools-commands-dd.ads");
-      Add_Entry ("common/src/posix_tools-commands-dirname.adb");
-      Add_Entry ("common/src/posix_tools-commands-dirname.ads");
-      Add_Entry ("common/src/posix_tools-commands-echo.adb");
-      Add_Entry ("common/src/posix_tools-commands-echo.ads");
-      Add_Entry ("common/src/posix_tools-commands-env.adb");
-      Add_Entry ("common/src/posix_tools-commands-env.ads");
-      Add_Entry ("common/src/posix_tools-commands-expanded.adb");
-      Add_Entry ("common/src/posix_tools-commands-expanded.ads");
-      Add_Entry ("common/src/posix_tools-commands-false_command.adb");
-      Add_Entry ("common/src/posix_tools-commands-false_command.ads");
-      Add_Entry ("common/src/posix_tools-commands-file_helpers.adb");
-      Add_Entry ("common/src/posix_tools-commands-file_helpers.ads");
-      Add_Entry ("common/src/posix_tools-commands-find.adb");
-      Add_Entry ("common/src/posix_tools-commands-find.ads");
-      Add_Entry ("common/src/posix_tools-commands-head.adb");
-      Add_Entry ("common/src/posix_tools-commands-head.ads");
-      Add_Entry ("common/src/posix_tools-commands-helpers.adb");
-      Add_Entry ("common/src/posix_tools-commands-helpers.ads");
-      Add_Entry ("common/src/posix_tools-commands-ln.adb");
-      Add_Entry ("common/src/posix_tools-commands-ln.ads");
-      Add_Entry ("common/src/posix_tools-commands-mkdir.adb");
-      Add_Entry ("common/src/posix_tools-commands-mkdir.ads");
-      Add_Entry ("common/src/posix_tools-commands-mv.adb");
-      Add_Entry ("common/src/posix_tools-commands-mv.ads");
-      Add_Entry ("common/src/posix_tools-commands-printf.adb");
-      Add_Entry ("common/src/posix_tools-commands-printf.ads");
-      Add_Entry ("common/src/posix_tools-commands-pwd.adb");
-      Add_Entry ("common/src/posix_tools-commands-pwd.ads");
-      Add_Entry ("common/src/posix_tools-commands-results.ads");
-      Add_Entry ("common/src/posix_tools-commands-rm.adb");
-      Add_Entry ("common/src/posix_tools-commands-rm.ads");
-      Add_Entry ("common/src/posix_tools-commands-rmdir.adb");
-      Add_Entry ("common/src/posix_tools-commands-rmdir.ads");
-      Add_Entry ("common/src/posix_tools-commands-root.adb");
-      Add_Entry ("common/src/posix_tools-commands-root.ads");
-      Add_Entry ("common/src/posix_tools-commands-sort.adb");
-      Add_Entry ("common/src/posix_tools-commands-sort.ads");
-      Add_Entry ("common/src/posix_tools-commands-tail.adb");
-      Add_Entry ("common/src/posix_tools-commands-tail.ads");
-      Add_Entry ("common/src/posix_tools-commands-tee.adb");
-      Add_Entry ("common/src/posix_tools-commands-tee.ads");
-      Add_Entry ("common/src/posix_tools-commands-test_command.adb");
-      Add_Entry ("common/src/posix_tools-commands-test_command.ads");
-      Add_Entry ("common/src/posix_tools-commands-touch.adb");
-      Add_Entry ("common/src/posix_tools-commands-touch.ads");
-      Add_Entry ("common/src/posix_tools-commands-tr.adb");
-      Add_Entry ("common/src/posix_tools-commands-tr.ads");
-      Add_Entry ("common/src/posix_tools-commands-true_command.adb");
-      Add_Entry ("common/src/posix_tools-commands-true_command.ads");
-      Add_Entry ("common/src/posix_tools-commands-uniq.adb");
-      Add_Entry ("common/src/posix_tools-commands-uniq.ads");
-      Add_Entry ("common/src/posix_tools-commands-wc.adb");
-      Add_Entry ("common/src/posix_tools-commands-wc.ads");
-      Add_Entry ("common/src/posix_tools-commands-xargs.adb");
-      Add_Entry ("common/src/posix_tools-commands-xargs.ads");
-      Add_Entry ("common/src/posix_tools-exit_status.ads");
-      Add_Entry ("common/src/posix_tools-help.adb");
-      Add_Entry ("common/src/posix_tools-help.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-arguments.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-arguments.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-environment.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-environment.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-executables.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-executables.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-file_watches.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-file_watches.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-file_system.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-file_system.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-run_command.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-run_command.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-signals.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-signals.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-streams.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-terminals.ads");
-      Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.adb");
-      Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.ads");
-      Add_Entry ("common/src/posix_tools-localization.adb");
-      Add_Entry ("common/src/posix_tools-localization.ads");
-      Add_Entry ("common/src/posix_tools-counts.adb");
-      Add_Entry ("common/src/posix_tools-counts.ads");
-      Add_Entry ("common/src/posix_tools-numbers.adb");
-      Add_Entry ("common/src/posix_tools-numbers.ads");
-      Add_Entry ("common/src/posix_tools-paths.adb");
-      Add_Entry ("common/src/posix_tools-paths.ads");
-      Add_Entry ("common/src/posix_tools-presentation.adb");
-      Add_Entry ("common/src/posix_tools-presentation.ads");
-      Add_Entry ("common/src/posix_tools-streams.ads");
-      Add_Entry ("common/src/posix_tools-streams-counting.adb");
-      Add_Entry ("common/src/posix_tools-streams-counting.ads");
-      Add_Entry ("common/src/posix_tools-streams-lines.adb");
-      Add_Entry ("common/src/posix_tools-streams-lines.ads");
-      Add_Entry ("common/src/posix_tools-tail_rings.adb");
-      Add_Entry ("common/src/posix_tools-tail_rings.ads");
-      Add_Entry ("common/src/posix_tools-text.ads");
-      Add_Entry ("common/src/posix_tools-text-classification.adb");
-      Add_Entry ("common/src/posix_tools-text-classification.ads");
-      Add_Entry ("common/src/posix_tools-text-utf_8.adb");
-      Add_Entry ("common/src/posix_tools-text-utf_8.ads");
-      Add_Entry ("common/generated/posix_tools-text-whitespace_data.adb");
-      Add_Entry ("common/generated/posix_tools-text-whitespace_data.ads");
-      Add_Entry ("common/src/posix_tools-version.ads");
-      Add_Entry ("common/src/posix_tools-wc_fields.adb");
-      Add_Entry ("common/src/posix_tools-wc_fields.ads");
-      Add_Entry ("common/messages/posix_tools.catalog");
-      Add_Entry ("tests/alire.toml");
-      Add_Entry ("tests/posix_tools_tests.gpr");
-      Add_Entry ("tests/src/all_suites.adb");
-      Add_Entry ("tests/src/all_suites.ads");
-      Add_Entry ("tests/src/basic_tests-suite.adb");
-      Add_Entry ("tests/src/basic_tests-suite.ads");
-      Add_Entry ("tests/src/basic_tests.adb");
-      Add_Entry ("tests/src/basic_tests.ads");
-      Add_Entry ("tests/src/command_tests-suite.adb");
-      Add_Entry ("tests/src/command_tests-suite.ads");
-      Add_Entry ("tests/src/command_tests.adb");
-      Add_Entry ("tests/src/command_tests.ads");
-      Add_Entry ("tests/src/posix_tools_tests.adb");
-      Add_Entry ("tests/src/test_contexts.adb");
-      Add_Entry ("tests/src/test_contexts.ads");
-      Add_Entry ("fixtures/invalid-da-utf8.bin");
-      Add_Entry ("fixtures/reg-cat-0001.bin");
-      Add_Entry ("fixtures/reg-cat-first.bin");
-      Add_Entry ("fixtures/reg-cat-later.bin");
-      Add_Entry ("fixtures/reg-cat-second.bin");
-      Add_Entry ("fixtures/reg-end-of-options.txt");
-      Add_Entry ("fixtures/reg-head-counts.txt");
-      Add_Entry ("fixtures/reg-head-default-long.txt");
-      Add_Entry ("fixtures/reg-head-default-short.txt");
-      Add_Entry ("fixtures/reg-head-header-first.txt");
-      Add_Entry ("fixtures/reg-head-header-second.txt");
-      Add_Entry ("fixtures/reg-tail-byte-mode.bin");
-      Add_Entry ("fixtures/reg-tail-byte-spill.bin");
-      Add_Entry ("fixtures/reg-tail-compact.bin");
-      Add_Entry ("fixtures/reg-tail-head-first.txt");
-      Add_Entry ("fixtures/reg-tail-head-second.txt");
-      Add_Entry ("fixtures/reg-tail-line-mode.txt");
-      Add_Entry ("fixtures/reg-tail-plus.txt");
-      Add_Entry ("fixtures/reg-wc-bad-continuation.bin");
-      Add_Entry ("fixtures/reg-wc-default.txt");
-      Add_Entry ("fixtures/reg-wc-first.txt");
-      Add_Entry ("fixtures/reg-wc-invalid.bin");
-      Add_Entry ("fixtures/reg-wc-mixed-invalid.bin");
-      Add_Entry ("fixtures/reg-wc-out-of-range.bin");
-      Add_Entry ("fixtures/reg-wc-overlong.bin");
-      Add_Entry ("fixtures/reg-wc-second.txt");
-      Add_Entry ("fixtures/reg-wc-surrogate.bin");
-      Add_Entry ("fixtures/reg-wc-utf8.txt");
-
-      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
-         Add_Entry (Posix_Tools.Command_Inventory.Manifest_Path (I));
-         Add_Entry (Posix_Tools.Command_Inventory.Project_File_Path (I));
-         Add_Entry
-           ("tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
-         Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
-      end loop;
+      declare
+         procedure Append_Entries is new Package_Entries (Add_Entry);
+      begin
+         Append_Entries;
+      end;
 
       Append (Files, "generated/package-files.txt" & Character'Val (10));
       Project_Tools.Files.Write_Raw_File
@@ -3313,15 +3551,6 @@ procedure Posix_Tools_Tests is
          return "";
       end Field;
 
-      function Without_Trailing_CR (Line : String) return String is
-      begin
-         if Line'Length > 0 and then Line (Line'Last) = Character'Val (13) then
-            return Line (Line'First .. Line'Last - 1);
-         else
-            return Line;
-         end if;
-      end Without_Trailing_CR;
-
       function Field_Count (Line : String) return Natural is
          Count : Natural := 1;
       begin
@@ -3358,7 +3587,10 @@ procedure Posix_Tools_Tests is
          for Ch of Text loop
             if Ch = '-' then
                Has_Hyphen := True;
-            elsif not (Ch in 'A' .. 'Z' or else Ch in '0' .. '9') then
+            elsif not
+              (Posix_Tools.Text.Byte_Classes.Is_ASCII_Upper (Ch)
+               or else Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Ch))
+            then
                return False;
             end if;
          end loop;
@@ -3371,7 +3603,7 @@ procedure Posix_Tools_Tests is
          Last_Hyphen : Natural := 0;
       begin
          if Text'Length < Prefix'Length + 6
-           or else Text (Text'First .. Text'First + Prefix'Length - 1) /= Prefix
+           or else not Posix_Tools.Text.Matching.Starts_With (Text, Prefix)
          then
             return False;
          end if;
@@ -3379,7 +3611,10 @@ procedure Posix_Tools_Tests is
          for I in Text'First + Prefix'Length .. Text'Last loop
             if Text (I) = '-' then
                Last_Hyphen := I;
-            elsif not (Text (I) in 'A' .. 'Z' or else Text (I) in '0' .. '9') then
+            elsif not
+              (Posix_Tools.Text.Byte_Classes.Is_ASCII_Upper (Text (I))
+               or else Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)))
+            then
                return False;
             end if;
          end loop;
@@ -3391,7 +3626,7 @@ procedure Posix_Tools_Tests is
          end if;
 
          for I in Last_Hyphen + 1 .. Text'Last loop
-            if not (Text (I) in '0' .. '9') then
+            if not Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)) then
                return False;
             end if;
          end loop;
@@ -3495,7 +3730,7 @@ procedure Posix_Tools_Tests is
          return Project_Tools.Files.File_Contains
              (Project_Tools.Files.Join (Root, "tests/src/basic_tests-suite.adb"), Needle)
            or else Project_Tools.Files.File_Contains
-             (Project_Tools.Files.Join (Root, "tests/src/command_tests-suite.adb"), Needle);
+             (Project_Tools.Files.Join (Root, "tests/src/command_tests-suite_entries.adb"), Needle);
       end Has_AUnit_Test;
 
       function Has_Regression_Id (Name : String) return Boolean is
@@ -3756,16 +3991,10 @@ procedure Posix_Tools_Tests is
          return Start <= Text'Last and then Text (Start .. Text'Last) = Token;
       end Contains_Token;
 
-      function Starts_At (Text : String; Position : Positive; Prefix : String) return Boolean is
-      begin
-         return Position + Prefix'Length - 1 <= Text'Last
-           and then Text (Position .. Position + Prefix'Length - 1) = Prefix;
-      end Starts_At;
-
       function First_Doc_Path (Text : String) return String is
       begin
          for I in Text'Range loop
-            if Starts_At (Text, I, "docs/") then
+            if Posix_Tools.Text.Matching.Starts_With_At (Text, "docs/", I) then
                for J in I .. Text'Last loop
                   if Text (J) = ';' or else Text (J) = ' ' then
                      return Text (I .. J - 1);
@@ -3786,7 +4015,9 @@ procedure Posix_Tools_Tests is
             if Requirements (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
+                     Line : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Requirements (Start .. I - 1));
                   begin
                      if Field (Line, 1) /= "id"
                        and then Contains_Token (Field (Line, 2), Executable)
@@ -3802,7 +4033,9 @@ procedure Posix_Tools_Tests is
 
          if Start <= Requirements'Last then
             declare
-               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Requirements (Start .. Requirements'Last));
             begin
                return Field (Line, 1) /= "id"
                  and then Contains_Token (Field (Line, 2), Executable);
@@ -3819,7 +4052,9 @@ procedure Posix_Tools_Tests is
             if Requirements (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
+                     Line : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Requirements (Start .. I - 1));
                   begin
                      if Field (Line, 1) /= "id"
                        and then Contains_Token (Field (Line, 2), Executable)
@@ -3836,7 +4071,9 @@ procedure Posix_Tools_Tests is
 
          if Start <= Requirements'Last then
             declare
-               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Requirements (Start .. Requirements'Last));
             begin
                return Field (Line, 1) /= "id"
                  and then Contains_Token (Field (Line, 2), Executable)
@@ -3887,6 +4124,13 @@ procedure Posix_Tools_Tests is
          then
             Project_Tools.Release_Checks.Fail
               (Id_Text & " mixes an older POSIX baseline into the V1 registry");
+         elsif To_String (Row.Posix_Reference) = "Project extension"
+           and then not
+             (Project_Tools.Text.Contains (Id_Text, "-EXT-")
+              or else Posix_Tools.Text.Matching.Starts_With (Id_Text, "NONPOSIX-"))
+         then
+            Project_Tools.Release_Checks.Fail
+              (Id_Text & " records a project extension without an extension identifier");
          else
             Check_Implementation_References (Id_Text, Implementation_Text);
             Check_Test_References (Id_Text, Test_Text);
@@ -3948,7 +4192,9 @@ procedure Posix_Tools_Tests is
             if Requirements (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Without_Trailing_CR (Requirements (Start .. I - 1));
+                     Line : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Requirements (Start .. I - 1));
                   begin
                      if Line_Number = 1 then
                         if Line /= "id,command,summary,posix_reference,implementation,test,status" then
@@ -3968,7 +4214,9 @@ procedure Posix_Tools_Tests is
 
          if Start <= Requirements'Last then
             declare
-               Line : constant String := Without_Trailing_CR (Requirements (Start .. Requirements'Last));
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Requirements (Start .. Requirements'Last));
             begin
                Check_Row (Line, Line_Number);
                Remember_Id (Line, Line_Number);
@@ -4011,7 +4259,9 @@ procedure Posix_Tools_Tests is
             if Regressions (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Without_Trailing_CR (Regressions (Start .. I - 1));
+                     Line : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Regressions (Start .. I - 1));
                   begin
                      if Line_Number = 1 then
                         if Line /= "id,command,summary,test" then
@@ -4031,7 +4281,9 @@ procedure Posix_Tools_Tests is
 
          if Start <= Regressions'Last then
             declare
-               Line : constant String := Without_Trailing_CR (Regressions (Start .. Regressions'Last));
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Regressions (Start .. Regressions'Last));
             begin
                Check_Regression_Row (Line, Line_Number);
                Remember_Id (Line, Line_Number);
@@ -4052,7 +4304,9 @@ procedure Posix_Tools_Tests is
             if Inventory_Csv (I) = Character'Val (10) then
                if I > Start then
                   declare
-                     Line : constant String := Without_Trailing_CR (Inventory_Csv (Start .. I - 1));
+                     Line : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Inventory_Csv (Start .. I - 1));
                   begin
                      if Line_Number = 1 then
                         if Line /=
@@ -4075,7 +4329,9 @@ procedure Posix_Tools_Tests is
 
          if Start <= Inventory_Csv'Last then
             declare
-               Line : constant String := Without_Trailing_CR (Inventory_Csv (Start .. Inventory_Csv'Last));
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Inventory_Csv (Start .. Inventory_Csv'Last));
             begin
                Check_Inventory_Row (Line, Line_Number);
                Row_Count := Row_Count + 1;
@@ -4117,194 +4373,64 @@ procedure Posix_Tools_Tests is
       Ada.Text_IO.Put_Line ("conformance metadata checks passed");
    end Run_Conformance_Checks;
 
-   function Ends_With (Text : String; Suffix : String) return Boolean is
-   begin
-      return Text'Length >= Suffix'Length
-        and then Text (Text'Last - Suffix'Length + 1 .. Text'Last) = Suffix;
-   end Ends_With;
-
-   function Is_Checked_Text_File (Path : String) return Boolean is
-   begin
-      return Ends_With (Path, ".adb")
-        or else Ends_With (Path, ".ads")
-        or else Ends_With (Path, ".gpr")
-        or else Ends_With (Path, ".toml")
-        or else Ends_With (Path, ".md")
-        or else Ends_With (Path, ".csv")
-        or else Ends_With (Path, ".txt");
-   end Is_Checked_Text_File;
-
-   function Has_Tab (Text : String) return Boolean is
-   begin
-      for Ch of Text loop
-         if Ch = Character'Val (9) then
-            return True;
-         end if;
-      end loop;
-
-      return False;
-   end Has_Tab;
-
-   function Has_Trailing_Whitespace (Text : String) return Boolean is
-      Line_Last : Natural := 0;
-   begin
-      for I in Text'Range loop
-         if Text (I) = Character'Val (10) then
-            declare
-               Last : Natural := I - 1;
-            begin
-               if Last >= Text'First and then Text (Last) = Character'Val (13) then
-                  Last := Last - 1;
-               end if;
-
-               if Last >= Line_Last
-                 and then (Text (Last) = ' ' or else Text (Last) = Character'Val (9))
-               then
-                  return True;
-               end if;
-            end;
-            Line_Last := I + 1;
-         end if;
-      end loop;
-
-      return Text'Length > 0
-        and then (Text (Text'Last) = ' ' or else Text (Text'Last) = Character'Val (9));
-   end Has_Trailing_Whitespace;
-
-   function Has_Multiple_Blank_Lines (Text : String) return Boolean is
-      Previous_Blank : Boolean := False;
-      Line_Has_Text  : Boolean := False;
-   begin
-      for Ch of Text loop
-         if Ch = Character'Val (10) then
-            if not Line_Has_Text then
-               if Previous_Blank then
-                  return True;
-               end if;
-               Previous_Blank := True;
-            else
-               Previous_Blank := False;
-            end if;
-
-            Line_Has_Text := False;
-         elsif Ch /= Character'Val (13) then
-            Line_Has_Text := True;
-         end if;
-      end loop;
-
-      return False;
-   end Has_Multiple_Blank_Lines;
-
    procedure Run_Format_Checks is
-      use Ada.Strings.Unbounded;
-      Base : constant String := Root;
-      Files : constant Project_Tools.Files.Path_List :=
-        Project_Tools.Files.List_Tree
-          (Base,
-           Skip_Entries =>
-             [To_Unbounded_String ("alire"),
-              To_Unbounded_String ("bin"),
-              To_Unbounded_String ("config"),
-              To_Unbounded_String ("fixtures"),
-              To_Unbounded_String ("lib"),
-              To_Unbounded_String ("obj")]);
    begin
-      for Path of Files loop
-         declare
-            File_Path : constant String := To_String (Path);
-         begin
-            if Is_Checked_Text_File (File_Path) then
-               declare
-                  Content : constant String := Project_Tools.Files.Read_Raw_File (File_Path);
-               begin
-                  if Has_Tab (Content) then
-                     Project_Tools.Release_Checks.Fail ("tab character in " & File_Path);
-                  elsif Has_Trailing_Whitespace (Content) then
-                     Project_Tools.Release_Checks.Fail ("trailing whitespace in " & File_Path);
-                  elsif Has_Multiple_Blank_Lines (Content) then
-                     Project_Tools.Release_Checks.Fail ("multiple consecutive blank lines in " & File_Path);
-                  end if;
-               end;
-            end if;
-         end;
-      end loop;
-
-      Ada.Text_IO.Put_Line ("format checks passed");
+      Format_Checks.Run (Root);
    end Run_Format_Checks;
 
-   procedure Build_Crate (Alire : String; Directory : String; Label : String) is
+   procedure Run_Build is
+   begin
+      Build_Checks.Run (Root);
+   end Run_Build;
+
+   function Prove_Args
+     (Unit_Name : String;
+      Mode      : String;
+      Level     : String := "1")
+      return Project_Tools.Processes.Argument_Vectors.Vector is
+   begin
+      return Project_Tools.Processes.Arguments
+        ([Project_Tools.Processes.Argument ("-P"),
+          Project_Tools.Processes.Argument ("posix_tools_proof.gpr"),
+          Project_Tools.Processes.Argument ("-u"),
+          Project_Tools.Processes.Argument (Unit_Name),
+          Project_Tools.Processes.Argument ("--mode=" & Mode),
+          Project_Tools.Processes.Argument ("--level=" & Level),
+          Project_Tools.Processes.Argument ("--checks-as-errors=on"),
+          Project_Tools.Processes.Argument ("--warnings=error"),
+          Project_Tools.Processes.Argument ("--prover=z3")]);
+   end Prove_Args;
+
+   procedure Prove_Target
+     (Gnatprove : String;
+      Label     : String;
+      Unit_Name : String;
+      Mode      : String;
+      Level     : String := "1")
+   is
       Status : constant Integer :=
         Project_Tools.Processes.Run_Status
           (Label   => Label,
-           Dir     => Directory,
-           Program => Alire,
-           Args    => Project_Tools.Processes.Arguments
-             ([Project_Tools.Processes.Argument ("-n"),
-               Project_Tools.Processes.Argument ("build")]));
-   begin
-      if Status /= 0 then
-         Project_Tools.Release_Checks.Fail (Label & " failed");
-      end if;
-   end Build_Crate;
-
-   procedure Run_Build is
-      Base : constant String := Root;
-      Alire : constant String := Project_Tools.Processes.Locate_Command ("alr");
-   begin
-      if Alire = "" then
-         Project_Tools.Release_Checks.Fail ("alr command not found");
-      end if;
-
-      Build_Crate (Alire, Project_Tools.Files.Join (Base, "common"), "build common crate");
-      Build_Crate (Alire, Base, "build root crate");
-      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Build_Crate
-           (Alire,
-            Project_Tools.Files.Join
-              (Base, "tools/" & Posix_Tools.Command_Inventory.Executable (I)),
-            "build " & Posix_Tools.Command_Inventory.Executable (I));
-      end loop;
-      Build_Crate (Alire, Project_Tools.Files.Join (Base, "tests"), "build tests crate");
-   end Run_Build;
-
-   procedure Prove_Target (Alire : String; Unit_Name : String) is
-      Status : constant Integer :=
-        Project_Tools.Processes.Run_Status
-          (Label   => "proof target " & Unit_Name,
            Dir     => Project_Tools.Files.Join (Root, "common"),
-           Program => Alire,
-           Args    => Project_Tools.Processes.Arguments
-             ([Project_Tools.Processes.Argument ("-n"),
-               Project_Tools.Processes.Argument ("exec"),
-               Project_Tools.Processes.Argument ("--"),
-               Project_Tools.Processes.Argument ("gnatprove"),
-               Project_Tools.Processes.Argument ("-P"),
-               Project_Tools.Processes.Argument ("posix_tools_common.gpr"),
-               Project_Tools.Processes.Argument ("-u"),
-               Project_Tools.Processes.Argument (Unit_Name),
-               Project_Tools.Processes.Argument ("--mode=flow"),
-               Project_Tools.Processes.Argument ("--level=0")]));
+           Program => Gnatprove,
+           Args    => Prove_Args (Unit_Name, Mode, Level));
    begin
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail ("proof target " & Unit_Name & " failed");
+         Project_Tools.Release_Checks.Fail
+           ("proof target " & Unit_Name & " failed in " & Mode & " mode");
       end if;
    end Prove_Target;
 
    procedure Run_Proof_Checks is
-      Alire : constant String := Project_Tools.Processes.Locate_Command ("alr");
+      procedure Run_Targets is new Proof_Targets (Prove_Target);
+      Gnatprove : constant String := Project_Tools.Processes.Locate_Command ("gnatprove");
    begin
-      if Alire = "" then
-         Project_Tools.Release_Checks.Fail ("alr command not found for proof checks");
+      if Gnatprove = "" then
+         Project_Tools.Release_Checks.Fail
+           ("gnatprove command not found for proof checks; install it with `alr -n install gnatprove`");
       end if;
 
-      Prove_Target (Alire, "posix_tools.numbers");
-      Prove_Target (Alire, "posix_tools.paths");
-      Prove_Target (Alire, "posix_tools.text.utf_8");
-      Prove_Target (Alire, "posix_tools.counts");
-      Ada.Text_IO.Put_Line ("proof target posix_tools.tail_rings");
-      Prove_Target (Alire, "posix_tools.tail_rings");
-      Ada.Text_IO.Put_Line ("proof target posix_tools.wc_fields");
-      Prove_Target (Alire, "posix_tools.wc_fields");
+      Run_Targets (Gnatprove);
       Ada.Text_IO.Put_Line ("proof checks passed");
    end Run_Proof_Checks;
 
@@ -4482,7 +4608,7 @@ procedure Posix_Tools_Tests is
              Project_Tools.Processes.Argument ("regression")]),
          "regression:REG-CAT-0001");
       Expect_Selector
-        ("test selector expanded regression",
+        ("test selector command regression",
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
              Project_Tools.Processes.Argument ("--category"),

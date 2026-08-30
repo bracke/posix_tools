@@ -3,6 +3,8 @@ with Posix_Tools.Numbers;
 private with Hostkit.Descriptors;
 
 package Posix_Tools.Host_Adapters.Temporary_Storage is
+   use type Ada.Streams.Stream_Element_Offset;
+
    type Store is limited private;
 
    function Create (Self : in out Store; Max_Bytes : Posix_Tools.Numbers.Count) return Boolean;
@@ -10,7 +12,8 @@ package Posix_Tools.Host_Adapters.Temporary_Storage is
    function Append
      (Self   : in out Store;
       Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return Boolean;
+      Last   : Ada.Streams.Stream_Element_Offset) return Boolean
+     with Pre => Last < Buffer'First or else Last in Buffer'Range;
 
    function Prepare_For_Read (Self : in out Store) return Boolean;
 
@@ -18,7 +21,14 @@ package Posix_Tools.Host_Adapters.Temporary_Storage is
      (Self   : in out Store;
       First  : Posix_Tools.Numbers.Count;
       Buffer : out Ada.Streams.Stream_Element_Array;
-      Last   : out Ada.Streams.Stream_Element_Offset) return Boolean;
+      Last   : out Ada.Streams.Stream_Element_Offset) return Boolean
+     with
+       Pre => Buffer'First > Ada.Streams.Stream_Element_Offset'First,
+       Post =>
+         (if Read'Result then
+            Last < Buffer'First or else Last in Buffer'Range
+          else
+            Last < Buffer'First);
 
    function Size (Self : Store) return Posix_Tools.Numbers.Count;
 

@@ -194,6 +194,20 @@ package body Test_Contexts is
       return Self.Env_Vars;
    end Environment_Pairs;
 
+   overriding function Environment_Defined (Self : Capturing_Context; Name : String) return Boolean is
+   begin
+      for Pair of Self.Env_Vars loop
+         if Pair'Length > Name'Length
+           and then Pair (Pair'First .. Pair'First + Name'Length - 1) = Name
+           and then Pair (Pair'First + Name'Length) = '='
+         then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Environment_Defined;
+
    overriding function Environment_Value (Self : Capturing_Context; Name : String) return String is
    begin
       for I in reverse 1 .. Natural (Self.Env_Vars.Length) loop
@@ -546,6 +560,18 @@ package body Test_Contexts is
       end if;
    end Execute_Utility_With_Environment;
 
+   overriding function Execute_Utility_With_Nice_Adjustment
+     (Self        : in out Capturing_Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Adjustment  : Integer;
+      Exit_Status : out Integer) return Boolean
+   is
+   begin
+      Self.Last_Nice_Adjustment := Adjustment;
+      return Execute_Utility (Self, Utility, Arguments, Exit_Status);
+   end Execute_Utility_With_Nice_Adjustment;
+
    overriding function Execute_Utility_With_Timeout
      (Self        : in out Capturing_Context;
       Utility     : String;
@@ -703,6 +729,11 @@ package body Test_Contexts is
    begin
       return Self.Redirect_Error;
    end Redirected_Error_Enabled;
+
+   function Nice_Adjustment (Self : Capturing_Context) return Integer is
+   begin
+      return Self.Last_Nice_Adjustment;
+   end Nice_Adjustment;
 
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural) is
    begin

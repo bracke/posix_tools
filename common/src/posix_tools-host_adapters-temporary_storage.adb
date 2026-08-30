@@ -3,7 +3,6 @@ with Ada.Directories;
 with Hostkit.Fs;
 
 package body Posix_Tools.Host_Adapters.Temporary_Storage is
-   use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Numbers.Count;
 
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);

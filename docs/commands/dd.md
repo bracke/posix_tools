@@ -59,7 +59,7 @@ records when an input line is longer than `cbs=`.
 Copied data is not localized. Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
-The current implementation keeps the expanded command simple and deterministic. Default input and output block sizes
+The current implementation keeps byte-copy behavior simple and deterministic. Default input and output block sizes
 are 512 bytes.
 
 ## Extensions

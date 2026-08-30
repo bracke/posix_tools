@@ -29,7 +29,7 @@ Overwrite prompts and diagnostics for invalid usage and file failures.
 .SH EXIT STATUS
 0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
-The V1 expanded implementation copies file contents through bounded internal buffers at the command boundary. Recursive
+The command copies file contents through bounded internal buffers at the command boundary. Recursive
 directory copying creates missing target directories and copies contained entries. Interactive overwrite prompts are
 localized through messages, safely escape untrusted path text, and accept
 an initial y or Y byte as confirmation; any other response, including end-of-input, skips that operand without

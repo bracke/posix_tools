@@ -8,12 +8,14 @@ package Posix_Tools.Host_Adapters.Host is
    function Current_Supplementary_Group_Ids
      (Groups : out Group_Id_List;
       Last   : out Natural)
-      return Boolean;
+      return Boolean
+      with Post => Last <= Groups'Length;
    function User_Group_Ids
      (User_Name : String;
       Groups    : out Group_Id_List;
       Last      : out Natural)
-      return Boolean;
+      return Boolean
+      with Post => Last <= Groups'Length;
    function Native_Locale return String;
    function Login_Name return String;
    function Own_Process_Id return Integer;

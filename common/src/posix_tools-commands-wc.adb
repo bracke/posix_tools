@@ -12,16 +12,6 @@ package body Posix_Tools.Commands.Wc is
 
    subtype Counts is Posix_Tools.Streams.Counting.Counts;
 
-   function Image (Value : Long_Long_Integer) return String is
-      Raw : constant String := Long_Long_Integer'Image (Value);
-      Rendered : constant String := Raw (Raw'First + 1 .. Raw'Last);
-   begin
-      pragma Assert
-        (Rendered'Length =
-           Posix_Tools.Wc_Fields.Decimal_Width (Posix_Tools.Wc_Fields.Nonnegative_Count (Value)));
-      return Rendered;
-   end Image;
-
    procedure Count_Buffer
      (Buffer  : Ada.Streams.Stream_Element_Array;
       Last    : Ada.Streams.Stream_Element_Offset;
@@ -94,19 +84,19 @@ package body Posix_Tools.Commands.Wc is
       Text : Unbounded_String;
    begin
       if Show_L then
-         Append (Text, " " & Image (C.Lines));
+         Append (Text, " " & Posix_Tools.Wc_Fields.Count_Image (C.Lines));
       end if;
       if Show_W then
-         Append (Text, " " & Image (C.Words));
+         Append (Text, " " & Posix_Tools.Wc_Fields.Count_Image (C.Words));
       end if;
       if Show_C then
-         Append (Text, " " & Image (C.Bytes));
+         Append (Text, " " & Posix_Tools.Wc_Fields.Count_Image (C.Bytes));
       end if;
       if Show_M then
-         Append (Text, " " & Image (C.Characters));
+         Append (Text, " " & Posix_Tools.Wc_Fields.Count_Image (C.Characters));
       end if;
       if Show_Max_Line_Length then
-         Append (Text, " " & Image (C.Max_Line_Length));
+         Append (Text, " " & Posix_Tools.Wc_Fields.Count_Image (C.Max_Line_Length));
       end if;
       if Name /= "" then
          Append (Text, " " & Name);

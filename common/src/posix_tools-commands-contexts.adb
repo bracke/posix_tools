@@ -52,6 +52,12 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Environment.Pairs;
    end Environment_Pairs;
 
+   function Environment_Defined (Self : Context; Name : String) return Boolean is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Environment.Defined (Name);
+   end Environment_Defined;
+
    function Effective_Locale (Self : Context) return String is
       LC_All      : constant String := Self.Environment_Value ("LC_ALL");
       LC_Messages : constant String := Self.Environment_Value ("LC_MESSAGES");
@@ -163,6 +169,19 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Processes.Run_With_Environment
         (Utility, Arguments, Environment, Exit_Status);
    end Execute_Utility_With_Environment;
+
+   function Execute_Utility_With_Nice_Adjustment
+     (Self        : in out Context;
+      Utility     : String;
+      Arguments   : Posix_Tools.Arguments.Vector;
+      Adjustment  : Integer;
+      Exit_Status : out Integer) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Host_Adapters.Processes.Run_With_Nice_Adjustment
+        (Utility, Arguments, Adjustment, Exit_Status);
+   end Execute_Utility_With_Nice_Adjustment;
 
    function Execute_Utility_With_Timeout
      (Self        : in out Context;

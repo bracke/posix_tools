@@ -1,36 +1,8 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Text.Logical_Paths;
 
 package body Posix_Tools.Commands.Pwd is
-   function Usable_Logical_Path (Path : String) return Boolean is
-      Component_Start : Positive;
-   begin
-      if Path = "" or else Path (Path'First) /= '/' then
-         return False;
-      end if;
-
-      Component_Start := Path'First + 1;
-      for I in Component_Start .. Path'Last + 1 loop
-         if I = Path'Last + 1 or else Path (I) = '/' then
-            if I > Component_Start then
-               declare
-                  Component : constant String := Path (Component_Start .. I - 1);
-               begin
-                  if Component = "." or else Component = ".." then
-                     return False;
-                  end if;
-               end;
-            end if;
-
-            if I <= Path'Last then
-               Component_Start := I + 1;
-            end if;
-         end if;
-      end loop;
-
-      return True;
-   end Usable_Logical_Path;
-
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -66,7 +38,7 @@ package body Posix_Tools.Commands.Pwd is
          Logical_Path : constant String := Context.Environment_Value ("PWD");
       begin
          if Logical
-           and then Usable_Logical_Path (Logical_Path)
+           and then Posix_Tools.Text.Logical_Paths.Usable_Logical_Path (Logical_Path)
            and then Context.Path_Names_Current_Directory (Logical_Path)
          then
             Context.Put (Logical_Path & Character'Val (10));

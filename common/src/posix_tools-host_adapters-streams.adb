@@ -1,8 +1,6 @@
 with Hostkit.Descriptors;
 
 package body Posix_Tools.Host_Adapters.Streams is
-   use type Ada.Streams.Stream_Element_Offset;
-
    function To_Bytes (Text : String) return Ada.Streams.Stream_Element_Array is
       Buffer : Ada.Streams.Stream_Element_Array
         (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));

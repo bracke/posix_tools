@@ -20,8 +20,9 @@ Current Ada tooling entry points:
 - `posix_tools_tests build` builds the root crate, every command subcrate, and
   the tests crate through Alire using `project_tools`.
 - `posix_tools_tests docs` regenerates `generated/manual-index.md`.
-- `posix_tools_tests prove` runs selected SPARK-enabled GNATprove flow-analysis
-  targets through Alire and `project_tools` when GNATprove is installed.
+- `posix_tools_tests prove` runs selected SPARK-enabled GNATprove targets
+  directly through `project_tools` against `common/posix_tools_proof.gpr` when
+  GNATprove is installed.
 - `posix_tools_tests package` regenerates `generated/package-manifest.txt`
   with byte counts and FNV-1a checksums for packaged files.
 - `posix_tools_tests release-check` and `release` regenerate
@@ -32,7 +33,7 @@ Current Ada tooling entry points:
   tests crate, verifies the exact built root and command executables by internal
   identity, executes built binaries for version-output and representative
   command-data smoke coverage, validates metadata, runs format checks, validates
-  conformance metadata, runs the selected GNATprove flow-analysis targets, and
+  conformance metadata, runs the selected GNATprove targets, and
   runs the AUnit suite.
 - Metadata validation asserts that the `release-check` branch names the selector
   smoke, staged verification, executable smoke, source archive, release checksum,
@@ -78,10 +79,32 @@ Current Ada tooling entry points:
   manual index, and package file list. The generated package manifest and
   release checksum file are validated separately as release outputs around the
   archive.
-- The proof gate runs selected GNATprove flow targets through Alire, including
-  numeric parsing, lexical paths, UTF-8 decoding, head/tail count-window
-  arithmetic, tail ring-buffer index arithmetic, and `wc` decimal field-width
-  arithmetic.
+- The proof gate runs selected GNATprove targets directly, including the root
+  SPARK boundary, version metadata predicates, numeric parsing, lexical paths,
+  UTF-8 decoding, Unicode whitespace classification, text stream counting
+  arithmetic, head/tail count-window arithmetic, tail count-origin parsing,
+  tail ring-buffer index
+  arithmetic, `wc` decimal field-width arithmetic, process status-code ranges,
+  command result records, text escaping length rules, and LF line-segment
+  arithmetic and line-number scans, ASCII/POSIX byte-class predicates, substring predicates, and
+  direct `xargs` blank splitting, `find` expression, type-filter, type-match,
+  count parsing, count-relation, age-window, and ownership-result
+  predicates, bounded decimal range parsing, short-option decisions, signal-name
+  classification, `sort` transformed-key locale-collation decisions and `-k`
+  positive key-number parsing, `nl` field classification, fixed-width file-mode, any/all
+  mode-bit, set/clear/mask bit, `find -perm` octal/symbolic routing,
+  symbolic mode application for `find`, `chmod`, and `mkdir`, permission-match,
+  numeric, and split-suffix image construction, and octal mode parsing.
+  Time-of-day field parsing and free-form `touch` date vocabulary are also
+  covered by the selected proof targets.
+  `docs/proof-coverage.md` records the integrated target inventory,
+  host-boundary exclusions, and current analyzer limitations. The selected units
+  run with Z3 in proof mode, with warnings and unproved checks treated as
+  errors. The integrated suite uses level 1 by default and includes an
+  additional level-2 pass for `Posix_Tools.Text.File_Modes`.
+  GNATprove proof mode still depends on Why3 local server processes, so the
+  release proof gate must run in an execution context that permits those local
+  sockets.
 - The metadata gate verifies that `generated/release-checksums.txt` contains
   exactly the synchronized version header, package-manifest row, source-archive
   row, root executable row, and one row for every command executable from the

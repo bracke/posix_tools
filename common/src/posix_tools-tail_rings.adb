@@ -19,11 +19,7 @@ is
          New_Filled := New_Filled + 1;
       end if;
 
-      if Current = Last then
-         New_Next := First;
-      else
-         New_Next := Current + 1;
-      end if;
+      New_Next := Next_Position (First, Last, Current);
 
       return (Filled => New_Filled, Next => New_Next);
    end Advance;

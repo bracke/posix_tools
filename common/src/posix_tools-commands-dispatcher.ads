@@ -1,8 +1,8 @@
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Results;
 
-package Posix_Tools.Commands.Expanded is
-   type Expanded_Command is
+package Posix_Tools.Commands.Dispatcher is
+   type Dispatch_Command is
      (Arch_Command,
       Chgrp_Command,
       Chmod_Command,
@@ -69,7 +69,7 @@ package Posix_Tools.Commands.Expanded is
       Yes_Command);
 
    procedure Run
-     (Command : Expanded_Command;
+     (Command : Dispatch_Command;
       Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result);
-end Posix_Tools.Commands.Expanded;
+end Posix_Tools.Commands.Dispatcher;

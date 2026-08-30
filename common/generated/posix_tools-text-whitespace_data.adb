@@ -1,4 +1,6 @@
-package body Posix_Tools.Text.Whitespace_Data is
+package body Posix_Tools.Text.Whitespace_Data
+  with SPARK_Mode => On
+is
    function Is_Whitespace (Code_Point : Long_Long_Integer) return Boolean is
    begin
       for Range_Value of White_Space_Ranges loop

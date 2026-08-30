@@ -1,7 +1,59 @@
 with Posix_Tools.Text.Classification;
 
-package body Posix_Tools.Streams.Counting is
+package body Posix_Tools.Streams.Counting
+  with SPARK_Mode => On
+is
    use type Posix_Tools.Text.UTF_8.Decode_Status;
+
+   procedure Increment (Value : in out Count_Value)
+     with Post => Value = Saturating_Add (Value'Old, 1);
+
+   procedure Note_Code_Point
+     (Self       : in out Counter;
+      Code_Point : Long_Long_Integer)
+     with Post =>
+       Self.Current.Bytes = Self.Current.Bytes'Old
+       and then Self.Current.Characters >= Self.Current.Characters'Old
+       and then Self.Current.Lines = Self.Current.Lines'Old
+       and then Self.Current.Max_Line_Length >= Self.Current.Max_Line_Length'Old
+       and then Self.Current.Words >= Self.Current.Words'Old
+       and then Self.Invalid_Text = Self.Invalid_Text'Old;
+
+   procedure Note_Invalid (Self : in out Counter)
+     with Post =>
+       Self.Current.Bytes = Self.Current.Bytes'Old
+       and then Self.Current.Characters = Self.Current.Characters'Old
+       and then Self.Current.Lines = Self.Current.Lines'Old
+       and then Self.Current.Max_Line_Length = Self.Current.Max_Line_Length'Old
+       and then Self.Current_Line_Length = Self.Current_Line_Length'Old
+       and then Self.Current.Words = Self.Current.Words'Old
+       and then Self.Invalid_Text;
+
+   procedure Decode_Byte
+     (Self : in out Counter;
+      Byte : Natural)
+     with Post =>
+       Self.Current.Bytes = Self.Current.Bytes'Old
+       and then Self.Current.Characters >= Self.Current.Characters'Old
+       and then Self.Current.Lines = Self.Current.Lines'Old
+       and then Self.Current.Max_Line_Length >= Self.Current.Max_Line_Length'Old
+       and then Self.Current.Words >= Self.Current.Words'Old
+       and then (if Self.Invalid_Text'Old then Self.Invalid_Text);
+
+   procedure Increment (Value : in out Count_Value) is
+   begin
+      Value := Saturating_Add (Value, 1);
+   end Increment;
+
+   procedure Advance_Tab_Stop (Value : in out Count_Value) is
+      Next : constant Count_Value := (Value / 8) + 1;
+   begin
+      if Next > Count_Value'Last / 8 then
+         Value := Count_Value'Last;
+      else
+         Value := Next * 8;
+      end if;
+   end Advance_Tab_Stop;
 
    procedure Note_Code_Point
      (Self       : in out Counter;
@@ -15,25 +67,25 @@ package body Posix_Tools.Streams.Counting is
          Self.Current_Line_Length := 0;
       end Finish_Line;
    begin
-      Self.Current.Characters := Self.Current.Characters + 1;
+      Increment (Self.Current.Characters);
 
       case Code_Point is
          when 10 =>
             Finish_Line;
          when 9 =>
-            Self.Current_Line_Length := ((Self.Current_Line_Length / 8) + 1) * 8;
+            Advance_Tab_Stop (Self.Current_Line_Length);
          when 8 =>
             if Self.Current_Line_Length > 0 then
                Self.Current_Line_Length := Self.Current_Line_Length - 1;
             end if;
          when others =>
-            Self.Current_Line_Length := Self.Current_Line_Length + 1;
+            Increment (Self.Current_Line_Length);
       end case;
 
       if Posix_Tools.Text.Classification.Is_Whitespace (Code_Point) then
          Self.In_Word := False;
       elsif not Self.In_Word then
-         Self.Current.Words := Self.Current.Words + 1;
+         Increment (Self.Current.Words);
          Self.In_Word := True;
       end if;
    end Note_Code_Point;
@@ -60,19 +112,40 @@ package body Posix_Tools.Streams.Counting is
    end Decode_Byte;
 
    procedure Process (Self : in out Counter; Input : String) is
+      Initial_Bytes : constant Count_Value := Self.Current.Bytes;
+      Initial_Characters : constant Count_Value := Self.Current.Characters;
+      Initial_Lines : constant Count_Value := Self.Current.Lines;
+      Initial_Max_Line_Length : constant Count_Value := Self.Current.Max_Line_Length;
+      Initially_Invalid : constant Boolean := Self.Invalid_Text;
+      Initial_Words : constant Count_Value := Self.Current.Words;
    begin
-      for Ch of Input loop
-         Self.Current.Bytes := Self.Current.Bytes + 1;
+      for I in Input'Range loop
+         declare
+            Ch : constant Character := Input (I);
+         begin
+            Increment (Self.Current.Bytes);
 
-         if Ch = Character'Val (10) then
-            Self.Current.Lines := Self.Current.Lines + 1;
-         end if;
+            if Ch = Character'Val (10) then
+               Increment (Self.Current.Lines);
+            end if;
 
-         Decode_Byte (Self, Character'Pos (Ch));
+            Decode_Byte (Self, Character'Pos (Ch));
+         end;
+
+         pragma Loop_Invariant
+           (Self.Current.Bytes =
+              Saturating_Add (Initial_Bytes, Count_Value (I - Input'First + 1)));
+         pragma Loop_Invariant (Self.Current.Characters >= Initial_Characters);
+         pragma Loop_Invariant (Self.Current.Lines >= Initial_Lines);
+         pragma Loop_Invariant (Self.Current.Max_Line_Length >= Initial_Max_Line_Length);
+         pragma Loop_Invariant (Self.Current.Words >= Initial_Words);
+         pragma Loop_Invariant (if Initially_Invalid then Self.Invalid_Text);
       end loop;
    end Process;
 
    procedure Finish_Text (Self : in out Counter) is
+      Initial_Line_Length : constant Count_Value := Self.Current_Line_Length;
+      Initial_Max_Line_Length : constant Count_Value := Self.Current.Max_Line_Length;
       Status : Posix_Tools.Text.UTF_8.Decode_Status;
    begin
       Posix_Tools.Text.UTF_8.Finish (Self.Decoder, Status);
@@ -80,8 +153,8 @@ package body Posix_Tools.Streams.Counting is
          Note_Invalid (Self);
       end if;
 
-      if Self.Current_Line_Length > Self.Current.Max_Line_Length then
-         Self.Current.Max_Line_Length := Self.Current_Line_Length;
+      if Initial_Line_Length > Initial_Max_Line_Length then
+         Self.Current.Max_Line_Length := Initial_Line_Length;
       end if;
    end Finish_Text;
 
@@ -89,11 +162,6 @@ package body Posix_Tools.Streams.Counting is
    begin
       return Self.Current;
    end Snapshot;
-
-   function Text_Invalid (Self : Counter) return Boolean is
-   begin
-      return Self.Invalid_Text;
-   end Text_Invalid;
 
    function Count_Bytes (Input : String) return Counts is
       State : Counter;

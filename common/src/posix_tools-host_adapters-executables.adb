@@ -6,26 +6,16 @@ with Hostkit;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Process;
+with Posix_Tools.Text.Matching;
 
 package body Posix_Tools.Host_Adapters.Executables is
    Excessive_Output : constant String := "posix-tools-excessive-identity-output";
    Max_Identity_Output_Bytes : constant := 4096;
 
-   function Starts_With (Text : String; Pattern : String) return Boolean is
-   begin
-      if Pattern = "" then
-         return True;
-      elsif Text'Length < Pattern'Length then
-         return False;
-      end if;
-
-      return Text (Text'First .. Text'First + Pattern'Length - 1) = Pattern;
-   end Starts_With;
-
    function Is_Wrong_Version_Output (Text : String; Prefix : String) return Boolean is
       LF : constant Character := Character'Val (10);
    begin
-      if not Starts_With (Text, Prefix)
+      if not Posix_Tools.Text.Matching.Starts_With (Text, Prefix)
         or else Text'Length <= Prefix'Length
         or else Text (Text'Last) /= LF
       then

@@ -1,4 +1,5 @@
 with Ada.Streams;
+with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Numbers;
 
@@ -24,6 +25,42 @@ package Posix_Tools.Commands.File_Helpers is
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
       Ok        : out Boolean);
+
+   procedure Read_All
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Data      : out Ada.Strings.Unbounded.Unbounded_String;
+      Ok        : out Boolean);
+
+   function Read_File
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Ok        : out Boolean) return String;
+
+   function Read_Standard_Input
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class) return String;
+
+   function Join_Path (Directory, Leaf : String) return String;
+
+   function Simple_Name (Path : String) return String;
+
+   function Target_Path
+     (Source              : String;
+      Target              : String;
+      Target_Is_Directory : Boolean) return String;
+
+   function Is_Directory (Path : String) return Boolean;
+
+   function Remove_Non_Directory_Target (Path : String) return Boolean;
+
+   procedure Copy_Path
+     (Context        : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Source         : String;
+      Target         : String;
+      Recursive      : Boolean;
+      Preserve_Mode  : Boolean;
+      Preserve_Links : Boolean;
+      Ok             : out Boolean);
 
    procedure Copy_File
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -57,4 +94,10 @@ package Posix_Tools.Commands.File_Helpers is
    procedure Copy_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Ok      : out Boolean);
+
+   procedure Write_File
+     (Path        : String;
+      Text        : String;
+      Append_Mode : Boolean;
+      Ok          : out Boolean);
 end Posix_Tools.Commands.File_Helpers;
