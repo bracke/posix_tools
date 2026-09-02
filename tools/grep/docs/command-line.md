@@ -3,7 +3,7 @@
 ## Synopsis
 
 ```text
-grep [-FcilLqvinHhxs] [-e pattern] [-f pattern_file] pattern [file...]
+grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] [-m num] [-e pattern] [-f pattern_file] pattern [file...]
 ```
 
 With no file operands, `grep` searches standard input. A file operand of `-`
@@ -14,15 +14,24 @@ also names standard input.
 - `-e pattern`: add a search pattern.
 - `-f pattern_file`: read newline-separated patterns from a file.
 - `-F`: treat patterns as fixed strings.
+- `-E`, `-G`: use the regular-expression matcher exposed by `greplib`.
 - `-i`: ignore ASCII case differences.
 - `-v`: select non-matching records.
+- `-w`: require whole-word matches.
+- `-A num`: print trailing context records.
+- `-B num`: print leading context records.
+- `-C num`: print leading and trailing context records.
 - `-c`: print selected-record counts.
 - `-l`: print names of files with selected records.
 - `-L`: print names of files without selected records.
+- `-m num`: stop after `num` selected records per input source.
+- `-o`: print only matching text.
 - `-q`: suppress output and report only status.
+- `-b`: prefix output records with zero-based byte offsets.
 - `-n`: prefix selected records with one-based record numbers.
 - `-H`: force file-name prefixes.
 - `-h`: suppress file-name prefixes.
+- `-r`, `-R`: recursively search directory operands.
 - `-x`: require the accepted match to cover the whole record.
 - `-s`: suppress diagnostics for input/search failures.
 - `--help`, `--version`, `--posix-tools-identify`: administrative extensions.

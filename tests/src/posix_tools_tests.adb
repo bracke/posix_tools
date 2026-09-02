@@ -5063,6 +5063,56 @@ procedure Posix_Tools_Tests is
          0,
          "alpha" & LF);
 
+      Expect_Output
+        ("grep executable context data",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-A"),
+                                             Project_Tools.Processes.Argument ("1"),
+                                             Project_Tools.Processes.Argument ("alpha"),
+                                             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF & "beta" & LF);
+
+      Expect_Output
+        ("grep executable only-matching data",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-ow"),
+                                             Project_Tools.Processes.Argument ("alpha"),
+                                             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF);
+
+      declare
+         Grep_Dir : constant String :=
+           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-grep-dir");
+         Grep_Subdir : constant String := Project_Tools.Files.Join (Grep_Dir, "sub");
+         Grep_File : constant String := Project_Tools.Files.Join (Grep_Subdir, "hit.txt");
+      begin
+         Remove_Path (Grep_Dir);
+         Expect_Output
+           ("grep executable recursive mkdir root",
+            Built_Command_Path ("mkdir"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Grep_Dir)]),
+            0,
+            "");
+         Expect_Output
+           ("grep executable recursive mkdir sub",
+            Built_Command_Path ("mkdir"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Grep_Subdir)]),
+            0,
+            "");
+         Project_Tools.Files.Write_Raw_File (Grep_File, "needle" & LF);
+         Expect_Output
+           ("grep executable recursive data",
+            Built_Command_Path ("grep"),
+            Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-r"),
+                                                Project_Tools.Processes.Argument ("needle"),
+                                                Project_Tools.Processes.Argument (Grep_Dir)]),
+            0,
+            Grep_File & ":needle" & LF);
+         Remove_Path (Grep_Dir);
+      end;
+
       declare
          Link_Target : constant String :=
            Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-link.txt");

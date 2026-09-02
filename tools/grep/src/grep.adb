@@ -8,6 +8,7 @@ with Greplib;
 with Greplib.Byte_Strings;
 with Greplib.Collected;
 with Greplib.Diagnostics;
+with Greplib.Directories;
 with Greplib.Events;
 with Greplib.Options;
 with Greplib.Patterns;
@@ -19,13 +20,14 @@ with Posix_Tools.Version;
 
 procedure Grep is
    use Ada.Strings.Unbounded;
+   use type Greplib.Events.Event_Kind;
    use type Greplib.Wide_Count;
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
      (Positive, Unbounded_String);
 
    type Invocation is record
-      Patterns : Greplib.Patterns.Pattern_List;
+      Pattern_Texts : String_Vectors.Vector;
       Pattern_Count : Natural := 0;
       Files : String_Vectors.Vector;
       Fixed_Strings : Boolean := False;
@@ -33,9 +35,16 @@ procedure Grep is
       List_With_Matches : Boolean := False;
       List_Without_Matches : Boolean := False;
       Quiet : Boolean := False;
+      Recursive : Boolean := False;
       Invert_Match : Boolean := False;
       Ignore_Case : Boolean := False;
+      Whole_Word : Boolean := False;
       Whole_Record : Boolean := False;
+      Only_Matching : Boolean := False;
+      Byte_Offset : Boolean := False;
+      Maximum_Selected : Greplib.Wide_Count := 0;
+      Before_Context : Greplib.Wide_Count := 0;
+      After_Context : Greplib.Wide_Count := 0;
       Line_Number : Boolean := False;
       Force_With_Filename : Boolean := False;
       Force_Without_Filename : Boolean := False;
@@ -58,15 +67,29 @@ procedure Grep is
 
    procedure Add_Pattern (Config : in out Invocation; Text : String) is
    begin
-      if Config.Fixed_Strings then
-         Greplib.Patterns.Append
-           (Config.Patterns, Greplib.Patterns.Fixed_String_Pattern (Text));
-      else
-         Greplib.Patterns.Append
-           (Config.Patterns, Greplib.Patterns.Regular_Expression_Pattern (Text));
-      end if;
+      Config.Pattern_Texts.Append (To_Unbounded_String (Text));
       Config.Pattern_Count := Config.Pattern_Count + 1;
    end Add_Pattern;
+
+   function Pattern_List_Of (Config : Invocation) return Greplib.Patterns.Pattern_List is
+      Result : Greplib.Patterns.Pattern_List;
+   begin
+      for I in 1 .. Natural (Config.Pattern_Texts.Length) loop
+         if Config.Fixed_Strings then
+            Greplib.Patterns.Append
+              (Result,
+               Greplib.Patterns.Fixed_String_Pattern
+                 (To_String (Config.Pattern_Texts.Element (I))));
+         else
+            Greplib.Patterns.Append
+              (Result,
+               Greplib.Patterns.Regular_Expression_Pattern
+                 (To_String (Config.Pattern_Texts.Element (I))));
+         end if;
+      end loop;
+
+      return Result;
+   end Pattern_List_Of;
 
    procedure Add_File_Patterns
      (Config : in out Invocation;
@@ -95,6 +118,8 @@ procedure Grep is
          return False;
       elsif Config.Force_With_Filename then
          return True;
+      elsif Config.Recursive then
+         return True;
       else
          return Natural (Config.Files.Length) > 1;
       end if;
@@ -103,7 +128,8 @@ procedure Grep is
    procedure Usage is
       Ignored : constant Boolean :=
         Write_Err
-          ("usage: grep [-FcilLqvinHhxs] [-e pattern] [-f pattern_file] pattern [file...]" & ASCII.LF);
+          ("usage: grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] "
+           & "[-m num] [-e pattern] [-f pattern_file] pattern [file...]" & ASCII.LF);
    begin
       null;
    end Usage;
@@ -129,11 +155,19 @@ procedure Grep is
            & "  -F           treat patterns as fixed strings" & ASCII.LF
            & "  -i           ignore ASCII case differences" & ASCII.LF
            & "  -v           select non-matching records" & ASCII.LF
+           & "  -w           require a whole-word match" & ASCII.LF
+           & "  -A NUM       print NUM records of trailing context" & ASCII.LF
+           & "  -B NUM       print NUM records of leading context" & ASCII.LF
+           & "  -C NUM       print NUM records of leading and trailing context" & ASCII.LF
            & "  -c           print selected-record counts" & ASCII.LF
            & "  -l, -L       print file names with or without selected records" & ASCII.LF
+           & "  -m NUM       stop after NUM selected records per input" & ASCII.LF
+           & "  -o           print only matching text" & ASCII.LF
            & "  -q           suppress output and stop after the first match" & ASCII.LF
+           & "  -b           prefix output records with byte offsets" & ASCII.LF
            & "  -n           prefix selected records with line numbers" & ASCII.LF
            & "  -H, -h       force or suppress file-name prefixes" & ASCII.LF
+           & "  -r, -R       recursively search directory operands" & ASCII.LF
            & "  -x           require a whole-record match" & ASCII.LF
            & "  -s           suppress input diagnostics" & ASCII.LF
            & "      --help, --version, --posix-tools-identify" & ASCII.LF);
@@ -146,9 +180,66 @@ procedure Grep is
       Arg : String;
       Index : in out Positive) is
       J : Positive := 2;
+
+      function Option_Argument (Option : Character) return String is
+      begin
+         if J < Arg'Last then
+            declare
+               Value : constant String := Arg (J + 1 .. Arg'Last);
+            begin
+               J := Arg'Last;
+               return Value;
+            end;
+         elsif Index < Ada.Command_Line.Argument_Count then
+            Index := Index + 1;
+            return Ada.Command_Line.Argument (Index);
+         else
+            Put_Error ("option -" & Option & " requires an argument");
+            Config.Valid := False;
+            return "";
+         end if;
+      end Option_Argument;
+
+      procedure Set_Context (Option : Character; Value : String) is
+         Parsed : Greplib.Wide_Count;
+      begin
+         begin
+            Parsed := Greplib.Wide_Count'Value (Value);
+         exception
+            when others =>
+               Put_Error ("invalid context count for -" & Option & ": " & Value);
+               Config.Valid := False;
+               return;
+         end;
+
+         case Option is
+            when 'A' =>
+               Config.After_Context := Parsed;
+            when 'B' =>
+               Config.Before_Context := Parsed;
+            when 'C' =>
+               Config.Before_Context := Parsed;
+               Config.After_Context := Parsed;
+            when others =>
+               null;
+         end case;
+      end Set_Context;
+
+      procedure Set_Maximum_Selected (Value : String) is
+      begin
+         begin
+            Config.Maximum_Selected := Greplib.Wide_Count'Value (Value);
+         exception
+            when others =>
+               Put_Error ("invalid selected-record limit for -m: " & Value);
+               Config.Valid := False;
+         end;
+      end Set_Maximum_Selected;
    begin
       while J <= Arg'Last loop
          case Arg (J) is
+            when 'b' =>
+               Config.Byte_Offset := True;
             when 'F' =>
                Config.Fixed_Strings := True;
             when 'c' =>
@@ -161,10 +252,16 @@ procedure Grep is
                Config.List_Without_Matches := True;
             when 'q' =>
                Config.Quiet := True;
+            when 'r' | 'R' =>
+               Config.Recursive := True;
             when 'v' =>
                Config.Invert_Match := True;
+            when 'w' =>
+               Config.Whole_Word := True;
             when 'x' =>
                Config.Whole_Record := True;
+            when 'o' =>
+               Config.Only_Matching := True;
             when 'n' =>
                Config.Line_Number := True;
             when 'H' =>
@@ -173,30 +270,41 @@ procedure Grep is
                Config.Force_Without_Filename := True;
             when 's' =>
                Config.Suppress_Diagnostics := True;
-            when 'E' =>
+            when 'E' | 'G' =>
                null;
+            when 'A' | 'B' | 'C' =>
+               declare
+                  Option : constant Character := Arg (J);
+                  Value : constant String := Option_Argument (Option);
+               begin
+                  if not Config.Valid then
+                     return;
+                  end if;
+                  Set_Context (Option, Value);
+               end;
+            when 'm' =>
+               declare
+                  Value : constant String := Option_Argument ('m');
+               begin
+                  if not Config.Valid then
+                     return;
+                  end if;
+                  Set_Maximum_Selected (Value);
+               end;
             when 'e' | 'f' =>
                declare
                   Option : constant Character := Arg (J);
-                  Value : Unbounded_String;
+                  Value : constant String := Option_Argument (Option);
                begin
-                  if J < Arg'Last then
-                     Value := To_Unbounded_String (Arg (J + 1 .. Arg'Last));
-                     J := Arg'Last;
-                  elsif Index < Ada.Command_Line.Argument_Count then
-                     Index := Index + 1;
-                     Value := To_Unbounded_String (Ada.Command_Line.Argument (Index));
-                  else
-                     Put_Error ("option -" & Option & " requires an argument");
-                     Config.Valid := False;
+                  if not Config.Valid then
                      return;
                   end if;
 
                   if Option = 'e' then
-                     Add_Pattern (Config, To_String (Value));
+                     Add_Pattern (Config, Value);
                      Config.Have_Explicit_Pattern := True;
                   else
-                     Add_File_Patterns (Config, To_String (Value));
+                     Add_File_Patterns (Config, Value);
                      Config.Have_Explicit_Pattern := True;
                   end if;
                end;
@@ -291,6 +399,69 @@ procedure Grep is
       File_Name : String;
       Result : Greplib.Collected.Collected_Result) is
       Prefix_File : constant Boolean := Needs_File_Prefix (Config);
+      Last_Group : Greplib.Wide_Count := 0;
+
+      procedure Render_Record
+        (Event : Greplib.Events.Search_Event;
+         Separator : Character) is
+         Content : constant String :=
+           Greplib.Byte_Strings.To_String (Greplib.Events.Content (Event));
+
+         function Prefix
+           (Output_Separator : Character;
+            Offset : Greplib.Byte_Offset := Greplib.Events.Record_Byte_Offset (Event))
+            return String
+         is
+            Result : Unbounded_String;
+         begin
+            if Prefix_File then
+               Append (Result, Source_Name (File_Name, Event) & Output_Separator);
+            end if;
+            if Config.Line_Number then
+               Append
+                 (Result,
+                  Count_Image (Greplib.Events.Record_No (Event)) & Output_Separator);
+            end if;
+            if Config.Byte_Offset then
+               Append (Result, Count_Image (Offset) & Output_Separator);
+            end if;
+
+            return To_String (Result);
+         end Prefix;
+      begin
+         if Config.Only_Matching
+           and then Greplib.Events.Kind (Event) = Greplib.Events.Selected_Record
+         then
+            for I in 1 .. Natural (Greplib.Events.Spans (Event).Length) loop
+               declare
+                  Span : constant Greplib.Events.Match_Span :=
+                    Greplib.Events.Spans (Event).Element (I);
+               begin
+                  if Span.Last_Byte_Exclusive > Span.First_Byte then
+                     declare
+                        First : constant Positive :=
+                          Content'First + Natural (Span.First_Byte);
+                        Last : constant Natural :=
+                          Content'First + Natural (Span.Last_Byte_Exclusive) - 1;
+                        Offset : constant Greplib.Byte_Offset :=
+                          Greplib.Events.Record_Byte_Offset (Event) + Span.First_Byte;
+                        Ignored : constant Boolean :=
+                          Write_Out (Prefix (Separator, Offset) & Content (First .. Last) & ASCII.LF);
+                     begin
+                        null;
+                     end;
+                  end if;
+               end;
+            end loop;
+         else
+            declare
+               Ignored : constant Boolean :=
+                 Write_Out (Prefix (Separator) & Content & ASCII.LF);
+            begin
+               null;
+            end;
+         end if;
+      end Render_Record;
    begin
       for I in 1 .. Natural (Result.Events.Length) loop
          declare
@@ -298,24 +469,20 @@ procedure Grep is
          begin
             case Greplib.Events.Kind (Event) is
                when Greplib.Events.Selected_Record =>
-                  declare
-                     Prefix : Unbounded_String;
-                     Content : constant String :=
-                       Greplib.Byte_Strings.To_String (Greplib.Events.Content (Event));
-                  begin
-                     if Prefix_File then
-                        Append (Prefix, Source_Name (File_Name, Event) & ":");
-                     end if;
-                     if Config.Line_Number then
-                        Append (Prefix, Count_Image (Greplib.Events.Record_No (Event)) & ":");
-                     end if;
+                  Render_Record (Event, ':');
+                  Last_Group := Greplib.Events.Group_Number (Event);
+               when Greplib.Events.Context_Record =>
+                  if Last_Group /= 0
+                    and then Greplib.Events.Group_Number (Event) /= Last_Group
+                  then
                      declare
-                        Ignored : constant Boolean :=
-                          Write_Out (To_String (Prefix) & Content & ASCII.LF);
+                        Ignored : constant Boolean := Write_Out ("--" & ASCII.LF);
                      begin
                         null;
                      end;
-                  end;
+                  end if;
+                  Render_Record (Event, '-');
+                  Last_Group := Greplib.Events.Group_Number (Event);
                when Greplib.Events.Count_Result =>
                   declare
                      Prefix : constant String :=
@@ -350,6 +517,14 @@ procedure Grep is
       Options : in out Greplib.Options.Search_Options) is
    begin
       Options.Invert_Match := Config.Invert_Match;
+      Options.Context.Before := Config.Before_Context;
+      Options.Context.After := Config.After_Context;
+      Options.Maximum_Selected_Records := Config.Maximum_Selected;
+      if Config.Only_Matching then
+         Options.Spans := Greplib.Options.All_Spans;
+      elsif Config.Byte_Offset then
+         Options.Spans := Greplib.Options.First_Span;
+      end if;
       if Config.Quiet then
          Options.Mode := Greplib.Options.Quiet;
       elsif Config.Count_Only then
@@ -411,6 +586,53 @@ procedure Grep is
       end case;
    end Search_One;
 
+   procedure Search_Paths
+     (Config : Invocation;
+      Set : Greplib.Patterns.Compiled_Pattern_Set;
+      Had_Selected : in out Boolean;
+      Had_Error : in out Boolean) is
+      Roots : Greplib.Paths.Path_List;
+      Options : Greplib.Options.Search_Options;
+      Directory_Options : Greplib.Directories.Directory_Search_Options;
+      Collection : Greplib.Collected.Collection_Options;
+      Result : Greplib.Collected.Collected_Result;
+   begin
+      if Config.Files.Is_Empty then
+         Greplib.Paths.Append (Roots, Greplib.Paths.To_Path ("."));
+      else
+         for I in 1 .. Natural (Config.Files.Length) loop
+            Greplib.Paths.Append
+              (Roots, Greplib.Paths.To_Path (To_String (Config.Files.Element (I))));
+         end loop;
+      end if;
+
+      Apply_Mode (Config, Options);
+      Directory_Options.Recursive := True;
+      Collection.On_Limit := Greplib.Collected.Continue_Without_Collecting;
+      Greplib.Collected.Search_Paths
+        (Roots, Set, Options, Directory_Options, Collection, Result);
+      Render_Events (Config, "", Result);
+      Report_Diagnostics
+        (Greplib.Results.Diagnostics (Result.Outcome), Config.Suppress_Diagnostics);
+
+      declare
+         Summary : constant Greplib.Results.Search_Summary :=
+           Greplib.Results.Summary (Result.Outcome);
+      begin
+         Had_Selected :=
+           Had_Selected or else Greplib.Results.Selected_Record_Count (Summary) > 0;
+      end;
+
+      case Greplib.Results.Status (Result.Outcome) is
+         when Greplib.Results.Completed =>
+            null;
+         when Greplib.Results.Completed_With_Recoverable_Errors
+            | Greplib.Results.Cancelled
+            | Greplib.Results.Failed =>
+            Had_Error := True;
+      end case;
+   end Search_Paths;
+
    Config : Invocation;
 begin
    if Posix_Tools.Process_Entry.Is_Identity_Request then
@@ -439,7 +661,8 @@ begin
    begin
       Compile_Options.Case_Insensitive := Config.Ignore_Case;
       Compile_Options.Whole_Record := Config.Whole_Record;
-      Set := Greplib.Patterns.Compile (Config.Patterns, Compile_Options);
+      Compile_Options.Whole_Word := Config.Whole_Word;
+      Set := Greplib.Patterns.Compile (Pattern_List_Of (Config), Compile_Options);
       if not Greplib.Patterns.Is_Usable (Set) then
          Report_Diagnostics (Greplib.Patterns.Diagnostics (Set), Config.Suppress_Diagnostics);
          Posix_Tools.Process_Entry.Set_Exit_Status (2);
@@ -450,7 +673,9 @@ begin
          Had_Selected : Boolean := False;
          Had_Error : Boolean := False;
       begin
-         if Config.Files.Is_Empty then
+         if Config.Recursive then
+            Search_Paths (Config, Set, Had_Selected, Had_Error);
+         elsif Config.Files.Is_Empty then
             Search_One (Config, Set, "-", Had_Selected, Had_Error);
          else
             for I in 1 .. Natural (Config.Files.Length) loop

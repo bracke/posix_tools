@@ -6,7 +6,7 @@ grep - search input records for matching patterns
 
 ## Synopsis
 
-`grep [-FcilLqvinHhxs] [-e pattern] [-f pattern_file] pattern [file...]`
+`grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] [-m num] [-e pattern] [-f pattern_file] pattern [file...]`
 
 ## Description
 
@@ -28,9 +28,13 @@ present, every non-option operand is an input file.
 
 `-F` treats patterns as fixed strings.
 
+`-E` and `-G` select the regular-expression matcher exposed by `greplib`.
+
 `-i` ignores ASCII case differences.
 
 `-v` selects records that do not match.
+
+`-w` requires a match to be bounded by ASCII word boundaries.
 
 `-c` prints selected-record counts.
 
@@ -38,11 +42,21 @@ present, every non-option operand is an input file.
 
 `-L` prints names of files without selected records.
 
+`-m num` stops after `num` selected records per input source.
+
+`-o` prints only matching text, one accepted span per output record.
+
 `-q` suppresses output and reports only status.
+
+`-b` prefixes output records with zero-based byte offsets. With `-o`, offsets
+refer to the selected match span.
 
 `-n` prefixes selected records with one-based record numbers.
 
 `-H` forces file-name prefixes and `-h` suppresses them.
+
+`-r` and `-R` recursively search directory operands. With no file operands,
+recursive search starts in the current directory.
 
 `-x` requires a match to cover the whole record.
 
@@ -76,8 +90,9 @@ suppresses input/search diagnostics.
 ## Behavioral Details
 
 Each file operand is searched independently. Matching, invert-match selection,
-whole-record checks, count modes, quiet mode, and source-name modes are
-delegated to `greplib`.
+whole-word and whole-record checks, selected-record limits, context windows,
+count modes, quiet mode, source-name modes, match spans, byte offsets, and
+recursive traversal are delegated to `greplib`.
 
 ## Locale Behavior
 
@@ -93,7 +108,8 @@ engine dialect. Use `-F` for byte-exact fixed-string matching.
 ## Extensions
 
 `--help`, `--version`, and `--posix-tools-identify` are project extensions.
-`-H` and `-h` provide explicit file-name prefix control.
+`-H`, `-h`, `-o`, `-b`, `-m`, `-w`, `-r`, and `-R` provide explicit prefix,
+match-only, limit, word-boundary, and recursive traversal controls.
 
 ## Examples
 
@@ -121,12 +137,24 @@ Print counts for multiple files:
 grep -c needle first.txt second.txt
 ```
 
+Print one line of trailing context:
+
+```
+grep -A 1 needle input.txt
+```
+
+Search a directory recursively:
+
+```
+grep -r needle src
+```
+
 ## Conformance Status
 
 Conforming with implementation-defined behavior and extensions.
 
 ## Known Limitations
 
-Recursive directory search and GNU-only output modes are not implemented in
-this wrapper. The regular-expression dialect is the dialect provided by
-`greplib` and `regexp`.
+The regular-expression dialect is the dialect provided by `greplib` and
+`regexp`; this wrapper does not provide a separate POSIX BRE parser. Diagnostic
+wording is currently locale-invariant.

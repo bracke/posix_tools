@@ -9,12 +9,13 @@ Pattern compilation and all record matching are delegated to
 ## Status
 
 This integration supports file and standard-input searches, `-e`, `-f`, `-F`,
-`-i`, `-v`, `-c`, `-l`, `-L`, `-q`, `-n`, `-H`, `-h`, `-x`, `-s`, `--help`,
+`-E`, `-G`, `-i`, `-v`, `-w`, `-A`, `-B`, `-C`, `-c`, `-l`, `-L`, `-m`,
+`-o`, `-q`, `-b`, `-n`, `-H`, `-h`, `-r`, `-R`, `-x`, `-s`, `--help`,
 `--version`, and `--posix-tools-identify`.
 
-Recursive search and GNU-only output modes are not implemented here. Regular
-expression syntax follows the `regexp` engine exposed by `greplib`; use `-F`
-for byte-exact fixed-string matching.
+Regular expression syntax follows the `regexp` engine exposed by `greplib`;
+use `-F` for byte-exact fixed-string matching. Diagnostic wording is currently
+locale-invariant.
 
 ## Building
 
@@ -29,6 +30,9 @@ grep needle input.txt
 grep -n -e error -e warning log.txt
 grep -F 'a.b' input.txt
 grep -c needle first.txt second.txt
+grep -A 1 needle input.txt
+grep -r needle src
+grep -ow word input.txt
 ```
 
 ## License
