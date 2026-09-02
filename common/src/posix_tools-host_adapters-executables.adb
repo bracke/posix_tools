@@ -232,8 +232,6 @@ package body Posix_Tools.Host_Adapters.Executables is
 
          if not Outcome.Started or else Outcome.Timed_Out then
             return "unverifiable";
-         elsif Outcome.Exit_Status /= 0 then
-            return "wrong project";
          elsif Output = Excessive_Output or else Error = Excessive_Output then
             return "wrong project";
          elsif Error /= "" then
@@ -242,6 +240,8 @@ package body Posix_Tools.Host_Adapters.Executables is
             return "ok";
          elsif Is_Wrong_Version_Output (Output, Version_Prefix) then
             return "wrong version";
+         elsif Outcome.Exit_Status /= 0 then
+            return "wrong project";
          else
             return "wrong project";
          end if;
