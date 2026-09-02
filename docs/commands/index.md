@@ -56,6 +56,7 @@ V1 command references:
 - [rm](rm.md)
 - [rmdir](rmdir.md)
 - [seq](seq.md)
+- [sed](sed.md)
 - [sha256sum](sha256sum.md)
 - [sleep](sleep.md)
 - [split](split.md)

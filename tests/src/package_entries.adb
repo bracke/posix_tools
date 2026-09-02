@@ -175,6 +175,8 @@ begin
    Add_Entry ("common/src/posix_tools-paths.ads");
    Add_Entry ("common/src/posix_tools-presentation.adb");
    Add_Entry ("common/src/posix_tools-presentation.ads");
+   Add_Entry ("common/src/posix_tools-process_entry.adb");
+   Add_Entry ("common/src/posix_tools-process_entry.ads");
    Add_Entry ("common/src/posix_tools-streams.ads");
    Add_Entry ("common/src/posix_tools-streams-counting.adb");
    Add_Entry ("common/src/posix_tools-streams-counting.ads");
@@ -423,13 +425,95 @@ begin
    Add_Entry ("tools/awk/src/library/awk_cli.ads");
    Add_Entry ("tools/awk/src/library/awk_cli_context_state.ads");
 
+   Add_Entry ("tools/sed/CHANGELOG.md");
+   Add_Entry ("tools/sed/LICENSE");
+   Add_Entry ("tools/sed/README.md");
+   Add_Entry ("tools/sed/docs/command-line.md");
+   Add_Entry ("tools/sed/docs/diagnostics-and-localization.md");
+   Add_Entry ("tools/sed/docs/input-output-model.md");
+   Add_Entry ("tools/sed/docs/posix-conformance.md");
+   Add_Entry ("tools/sed/docs/testing.md");
+   Add_Entry ("tools/sed/examples/README.md");
+   Add_Entry ("tools/sed/examples/double-space.sed");
+   Add_Entry ("tools/sed/examples/reverse-lines.sed");
+   Add_Entry ("tools/sed/examples/squeeze-blank.sed");
+   Add_Entry ("tools/sed/examples/strip-trailing-blanks.sed");
+   Add_Entry ("tools/sed/share/sed/messages/catalog.txt");
+   Add_Entry ("tools/sed/src/library/sed-application.adb");
+   Add_Entry ("tools/sed/src/library/sed-application.ads");
+   Add_Entry ("tools/sed/src/library/sed-command_line-arguments.adb");
+   Add_Entry ("tools/sed/src/library/sed-command_line-arguments.ads");
+   Add_Entry ("tools/sed/src/library/sed-command_line-options.adb");
+   Add_Entry ("tools/sed/src/library/sed-command_line-options.ads");
+   Add_Entry ("tools/sed/src/library/sed-command_line-validation.adb");
+   Add_Entry ("tools/sed/src/library/sed-command_line-validation.ads");
+   Add_Entry ("tools/sed/src/library/sed-command_line.adb");
+   Add_Entry ("tools/sed/src/library/sed-command_line.ads");
+   Add_Entry ("tools/sed/src/library/sed-configuration.adb");
+   Add_Entry ("tools/sed/src/library/sed-configuration.ads");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-quoting.adb");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-quoting.ads");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-registry.adb");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-registry.ads");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-rendering.adb");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics-rendering.ads");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics.adb");
+   Add_Entry ("tools/sed/src/library/sed-diagnostics.ads");
+   Add_Entry ("tools/sed/src/library/sed-engine.adb");
+   Add_Entry ("tools/sed/src/library/sed-engine.ads");
+   Add_Entry ("tools/sed/src/library/sed-environment.adb");
+   Add_Entry ("tools/sed/src/library/sed-environment.ads");
+   Add_Entry ("tools/sed/src/library/sed-execution-environment.adb");
+   Add_Entry ("tools/sed/src/library/sed-execution-environment.ads");
+   Add_Entry ("tools/sed/src/library/sed-execution.adb");
+   Add_Entry ("tools/sed/src/library/sed-execution.ads");
+   Add_Entry ("tools/sed/src/library/sed-help.adb");
+   Add_Entry ("tools/sed/src/library/sed-help.ads");
+   Add_Entry ("tools/sed/src/library/sed-input-cursor.adb");
+   Add_Entry ("tools/sed/src/library/sed-input-cursor.ads");
+   Add_Entry ("tools/sed/src/library/sed-input-delivery.adb");
+   Add_Entry ("tools/sed/src/library/sed-input-delivery.ads");
+   Add_Entry ("tools/sed/src/library/sed-input-logical_stream.adb");
+   Add_Entry ("tools/sed/src/library/sed-input-logical_stream.ads");
+   Add_Entry ("tools/sed/src/library/sed-input.ads");
+   Add_Entry ("tools/sed/src/library/sed-io-filesystem.adb");
+   Add_Entry ("tools/sed/src/library/sed-io-filesystem.ads");
+   Add_Entry ("tools/sed/src/library/sed-io-process_streams.adb");
+   Add_Entry ("tools/sed/src/library/sed-io-process_streams.ads");
+   Add_Entry ("tools/sed/src/library/sed-io.ads");
+   Add_Entry ("tools/sed/src/library/sed-localization.adb");
+   Add_Entry ("tools/sed/src/library/sed-localization.ads");
+   Add_Entry ("tools/sed/src/library/sed-output-named_files.adb");
+   Add_Entry ("tools/sed/src/library/sed-output-named_files.ads");
+   Add_Entry ("tools/sed/src/library/sed-output-standard.adb");
+   Add_Entry ("tools/sed/src/library/sed-output-standard.ads");
+   Add_Entry ("tools/sed/src/library/sed-output.ads");
+   Add_Entry ("tools/sed/src/library/sed-scripts-compilation-engine.adb");
+   Add_Entry ("tools/sed/src/library/sed-scripts-compilation-engine.ads");
+   Add_Entry ("tools/sed/src/library/sed-scripts-compilation.adb");
+   Add_Entry ("tools/sed/src/library/sed-scripts-compilation.ads");
+   Add_Entry ("tools/sed/src/library/sed-scripts-layout.adb");
+   Add_Entry ("tools/sed/src/library/sed-scripts-layout.ads");
+   Add_Entry ("tools/sed/src/library/sed-scripts-loading.adb");
+   Add_Entry ("tools/sed/src/library/sed-scripts-loading.ads");
+   Add_Entry ("tools/sed/src/library/sed-scripts.adb");
+   Add_Entry ("tools/sed/src/library/sed-scripts.ads");
+   Add_Entry ("tools/sed/src/library/sed-status.adb");
+   Add_Entry ("tools/sed/src/library/sed-status.ads");
+   Add_Entry ("tools/sed/src/library/sed-terminal.adb");
+   Add_Entry ("tools/sed/src/library/sed-terminal.ads");
+   Add_Entry ("tools/sed/src/library/sed-version.ads");
+   Add_Entry ("tools/sed/src/library/sed.ads");
+
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
       Add_Entry (Posix_Tools.Command_Inventory.Manifest_Path (I));
       Add_Entry (Posix_Tools.Command_Inventory.Project_File_Path (I));
       Add_Entry
-        ("tools/" & Posix_Tools.Command_Inventory.Executable (I)
-         & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+        ((if Posix_Tools.Command_Inventory.Executable (I) = "sed"
+          then "tools/sed/src/sed_main.adb"
+          else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+               & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
       Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
    end loop;
    Add_Entry ("common/src/posix_tools-commands-find_evaluation-actions.adb");

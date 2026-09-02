@@ -39,7 +39,8 @@ package body Format_Checks is
                   Last := Last - 1;
                end if;
 
-               if Last >= Line_Last
+               if Last >= Text'First
+                 and then Last >= Line_Last
                  and then (Text (Last) = ' ' or else Text (Last) = Character'Val (9))
                then
                   return True;

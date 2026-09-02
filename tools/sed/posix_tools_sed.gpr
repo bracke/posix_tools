@@ -1,0 +1,29 @@
+with "../../common/posix_tools_common.gpr";
+with "../../../sedlib/sedlib.gpr";
+with "../../../messages/messages.gpr";
+with "../../../terminal_styles/terminal_styles.gpr";
+
+project Posix_Tools_Sed is
+   for Source_Dirs use ("src", "src/library");
+   for Object_Dir use "obj/sed";
+   for Exec_Dir use "bin";
+   for Main use ("sed_main.adb");
+   for Languages use ("Ada");
+
+   package Builder is
+      for Executable ("sed_main.adb") use "sed";
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-g");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+
+   package Install is
+      for Artifacts ("share/sed") use ("share/sed");
+   end Install;
+end Posix_Tools_Sed;

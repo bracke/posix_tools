@@ -51,7 +51,7 @@ is
          U.Append
            (Result,
             Styled
-              (Text, TS.Role_Header, Destination_Is_Terminal, No_Color_Active));
+              (Text, P.Header, Destination_Is_Terminal, No_Color_Active));
       else
          U.Append (Result, Text);
       end if;

@@ -57,6 +57,12 @@ jobs:
           repository: bracke/awklib
           path: awklib
 
+      - name: Check out sedlib
+        uses: actions/checkout@v7
+        with:
+          repository: bracke/sedlib
+          path: sedlib
+
       - name: Check out regexp
         uses: actions/checkout@v7
         with:

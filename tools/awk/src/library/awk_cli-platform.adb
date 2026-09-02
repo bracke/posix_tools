@@ -9,6 +9,7 @@ with Hostkit.Fs;
 with Hostkit.Host;
 with Hostkit.Process;
 with Hostkit.Shell;
+with Posix_Tools.Host_Adapters.Streams;
 
 package body Awk_CLI.Platform is
    use type Ada.Streams.Stream_Element_Offset;

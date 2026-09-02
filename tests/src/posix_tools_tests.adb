@@ -1072,8 +1072,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-SECURITY-CURRENT-001");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "29 POSIX-style utilities");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`grep` and `sed` remain");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "30 POSIX-style utilities");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`grep` remains");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
@@ -2783,6 +2783,10 @@ procedure Posix_Tools_Tests is
               (Posix_Tools.Command_Inventory.Manifest_Path (I),
                "hostkit =",
                Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on hostkit");
+         end if;
+         if Posix_Tools.Command_Inventory.Executable (I) /= "awk"
+           and then Posix_Tools.Command_Inventory.Executable (I) /= "sed"
+         then
             Forbid_Text
               (Posix_Tools.Command_Inventory.Manifest_Path (I),
                "messages =",
@@ -2813,7 +2817,9 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
-            "for Main use (""" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"")");
+            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
+             then "for Main use (""sed_main.adb"")"
+             else "for Main use (""" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"")"));
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
@@ -2823,18 +2829,29 @@ procedure Posix_Tools_Tests is
             Posix_Tools.Command_Inventory.Project_File_Path (I),
             "for Exec_Dir use ""bin""");
          Project_Tools.Release_Checks.Require_File
-           (Check, "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+           (Check,
+            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
+             then "tools/sed/src/sed_main.adb"
+             else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+                  & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
          declare
             Wrapper : constant String :=
-              "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-              & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb";
+              (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
+               then "tools/sed/src/sed_main.adb"
+               else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+                    & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
             Command_Source : constant String :=
               Command_Source_Path (Posix_Tools.Command_Inventory.Executable (I));
          begin
             if Posix_Tools.Command_Inventory.Executable (I) = "awk" then
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
+            elsif Posix_Tools.Command_Inventory.Executable (I) = "sed" then
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Sed.Application.Run");
             else
                Project_Tools.Release_Checks.Require_Text
                  (Check,
@@ -3009,18 +3026,14 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "EXTERNAL-COMMAND-SCOPE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "awk,posix_tools_awk");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "sed,posix_tools_sed");
       Forbid_Text
         ("generated/command_inventory.csv",
          "grep,posix_tools_grep",
          "grep is implemented in a separate project and must not be in this repository inventory");
-      Forbid_Text
-        ("generated/command_inventory.csv",
-         "sed,posix_tools_sed",
-         "sed is implemented in a separate project and must not be in this repository inventory");
       if Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/grep")) then
          Project_Tools.Release_Checks.Fail ("grep command subcrate must not be present in posix_tools");
-      elsif Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/sed")) then
-         Project_Tools.Release_Checks.Fail ("sed command subcrate must not be present in posix_tools");
       end if;
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
@@ -3040,6 +3053,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: i18n");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/awklib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: awklib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/sedlib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: sedlib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/regexp");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: regexp");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/httpclient");
@@ -3206,8 +3221,10 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_Manifest_Entry
            (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
             Root,
-            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
+             then "tools/sed/src/sed_main.adb"
+             else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
+                  & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
          Project_Tools.Release_Checks.Require_Manifest_Entry
            (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
             Root,
@@ -3229,7 +3246,7 @@ procedure Posix_Tools_Tests is
       end loop;
       Project_Tools.Release_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "README.md", "`grep` and `sed` are not implemented in this repository");
+        (Check, "README.md", "`grep` is not implemented in this repository");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-README-INVENTORY-001");
       Ada.Text_IO.Put_Line ("metadata checks passed");
@@ -3917,7 +3934,9 @@ procedure Posix_Tools_Tests is
          Index : constant Positive := Number - 1;
          Executable : constant String := Field (Line, 1);
          Wrapper_Path : constant String :=
-           "tools/" & Executable & "/src/" & Executable & ".adb";
+           (if Executable = "sed"
+            then "tools/sed/src/sed_main.adb"
+            else "tools/" & Executable & "/src/" & Executable & ".adb");
       begin
          if Field_Count (Line) /= 11 then
             Project_Tools.Release_Checks.Fail

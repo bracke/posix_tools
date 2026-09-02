@@ -1,0 +1,36 @@
+name = "posix_tools_sed"
+description = "sed command for posix_tools"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["sed"]
+project-files = ["posix_tools_sed.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[depends-on]]
+sedlib = "*"
+
+[[depends-on]]
+messages = "*"
+
+[[depends-on]]
+terminal_styles = "*"
+
+[[pins]]
+posix_tools_common = { path = "../../common" }
+
+[[pins]]
+sedlib = { path = "../../../sedlib" }
+
+[[pins]]
+messages = { path = "../../../messages" }
+
+[[pins]]
+terminal_styles = { path = "../../../terminal_styles" }
+
+[build-profiles]
+"*" = "development"

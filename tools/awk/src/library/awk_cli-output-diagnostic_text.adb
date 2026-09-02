@@ -40,7 +40,7 @@ is
               "severity",
               Label,
               L.Primary (Catalog, Item)),
-           TS.Role_Error,
+           P.Error,
            Destination_Is_Terminal,
            No_Color_Active));
 begin

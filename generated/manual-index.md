@@ -55,6 +55,7 @@ Version: 0.1.0
 - `rm`: docs/commands/rm.md
 - `rmdir`: docs/commands/rmdir.md
 - `seq`: docs/commands/seq.md
+- `sed`: docs/commands/sed.md
 - `sha256sum`: docs/commands/sha256sum.md
 - `sleep`: docs/commands/sleep.md
 - `split`: docs/commands/split.md

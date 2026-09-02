@@ -89,6 +89,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.host_adapters.*`
 - `posix_tools.localization`
 - `posix_tools.presentation`
+- `posix_tools.process_entry`
 - `posix_tools.streams.lines`
 - `posix_tools.text.dd_blocks`
 - `posix_tools.text.dd_conversion_engine`
@@ -269,11 +270,13 @@ future helper extraction for GNATprove more localized.
 The host adapters, localization, process/environment interfaces, filesystem
 operations, and packaging/test tooling remain outside GNATprove. Their boundary
 is intentionally treated as host integration code and covered by tests and
-metadata checks rather than SPARK proof. The stream, process, and filesystem
-adapters expose runtime contracts for read-buffer bounds, failed-start status
-bands, nonnegative file sizes, nonnegative read offsets, and current-directory
-buffer bounds. Those contracts do not prove the operating-system calls behind
-them.
+metadata checks rather than SPARK proof. `Posix_Tools.Process_Entry` is part of
+that process-facing boundary: it reads command-line identity requests, writes
+standard identity output, and sets the process exit status for integrated
+external command wrappers. The stream, process, and filesystem adapters expose
+runtime contracts for read-buffer bounds, failed-start status bands, nonnegative
+file sizes, nonnegative read offsets, and current-directory buffer bounds. Those
+contracts do not prove the operating-system calls behind them.
 
 The remaining non-SPARK package specs are deliberate boundaries: command specs
 depend on the non-SPARK command context and result-dispatch surface; argument

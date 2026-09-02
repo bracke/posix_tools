@@ -1,8 +1,8 @@
 posix-tools release checksums 0.1.0
-manifest generated/package-manifest.txt fnv1a64=56474d2688721a56
-archive dist/posix-tools-0.1.0-source.7z fnv1a64=0a03c705fff13313
+manifest generated/package-manifest.txt fnv1a64=5978b101e30efcce
+archive dist/posix-tools-0.1.0-source.7z fnv1a64=88e50ebd3a033540
 executable tools/arch/bin/arch fnv1a64=6885ecc7d1c710e2
-executable tools/awk/bin/awk fnv1a64=c0764a72d6e41485
+executable tools/awk/bin/awk fnv1a64=870e22457ad5aa74
 executable tools/basename/bin/basename fnv1a64=7ab0d22c40d8a481
 executable tools/cat/bin/cat fnv1a64=bce2ff2cd4128eb1
 executable tools/chgrp/bin/chgrp fnv1a64=d93a9c25dd8d0c36
@@ -54,6 +54,7 @@ executable tools/realpath/bin/realpath fnv1a64=63fa561aef078983
 executable tools/rm/bin/rm fnv1a64=da8047db5c20e945
 executable tools/rmdir/bin/rmdir fnv1a64=4d67e8118996d36b
 executable tools/seq/bin/seq fnv1a64=a8c8dae03695ca18
+executable tools/sed/bin/sed fnv1a64=03e9776b36974970
 executable tools/sha256sum/bin/sha256sum fnv1a64=56e3bfa0e1639765
 executable tools/sleep/bin/sleep fnv1a64=86ee40934eb64c45
 executable tools/split/bin/split fnv1a64=180eeab2d15d5da4

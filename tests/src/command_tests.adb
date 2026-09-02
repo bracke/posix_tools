@@ -331,6 +331,21 @@ package body Command_Tests is
          Posix_Tools.Commands.Rmdir.Run (Context, Result);
       elsif Name = "seq" then
          Posix_Tools.Commands.Seq.Run (Context, Result);
+      elsif Name = "sed" then
+         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
+            Posix_Tools.Help.Render_Command_Help (Context, "sed");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
+            Posix_Tools.Help.Render_Version (Context, "sed");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1
+           and then Context.Argument (1) = "--posix-tools-identify"
+         then
+            Posix_Tools.Help.Render_Identity (Context, "sed");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         else
+            AUnit.Assertions.Assert (False, "sed is not context-dispatched");
+         end if;
       elsif Name = "sha256sum" then
          Posix_Tools.Commands.Sha256sum.Run (Context, Result);
       elsif Name = "sleep" then
