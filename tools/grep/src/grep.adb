@@ -30,11 +30,14 @@ procedure Grep is
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
      (Positive, Unbounded_String);
 
+   type Regex_Mode is (Basic_Regular_Expression, Extended_Regular_Expression);
+
    type Invocation is record
       Pattern_Texts : String_Vectors.Vector;
       Pattern_Count : Natural := 0;
       Files : String_Vectors.Vector;
       Fixed_Strings : Boolean := False;
+      Regex : Regex_Mode := Basic_Regular_Expression;
       Count_Only : Boolean := False;
       List_With_Matches : Boolean := False;
       List_Without_Matches : Boolean := False;
@@ -138,21 +141,109 @@ procedure Grep is
       Config.Pattern_Count := Config.Pattern_Count + 1;
    end Add_Pattern;
 
+   function Basic_Interval_End (Pattern : String; First : Natural) return Natural is
+      I : Natural := First;
+   begin
+      while I <= Pattern'Last loop
+         if Pattern (I) = '\'
+           and then I < Pattern'Last
+           and then Pattern (I + 1) = '}'
+         then
+            return I;
+         end if;
+         I := I + 1;
+      end loop;
+
+      return 0;
+   end Basic_Interval_End;
+
+   function Basic_To_Extended (Pattern : String) return String is
+      Result : Unbounded_String;
+      I : Natural := Pattern'First;
+   begin
+      while I <= Pattern'Last loop
+         case Pattern (I) is
+            when '[' =>
+               Append (Result, Pattern (I));
+               I := I + 1;
+               while I <= Pattern'Last loop
+                  Append (Result, Pattern (I));
+                  exit when Pattern (I) = ']';
+                  if Pattern (I) = '\'
+                    and then I < Pattern'Last
+                  then
+                     I := I + 1;
+                     Append (Result, Pattern (I));
+                  end if;
+                  I := I + 1;
+               end loop;
+            when '\' =>
+               if I = Pattern'Last then
+                  Append (Result, '\');
+               else
+                  declare
+                     Next : constant Character := Pattern (I + 1);
+                  begin
+                     case Next is
+                        when '(' | ')' =>
+                           Append (Result, Next);
+                        when '{' =>
+                           declare
+                              Closing : constant Natural :=
+                                Basic_Interval_End (Pattern, I + 2);
+                           begin
+                              if Closing = 0 then
+                                 Append (Result, "\{");
+                              else
+                                 Append (Result, '{');
+                                 if I + 2 <= Closing - 1 then
+                                    Append (Result, Pattern (I + 2 .. Closing - 1));
+                                 end if;
+                                 Append (Result, '}');
+                                 I := Closing;
+                              end if;
+                           end;
+                        when '+' | '?' | '|' =>
+                           Append (Result, Next);
+                        when others =>
+                           Append (Result, '\');
+                           Append (Result, Next);
+                     end case;
+                     I := I + 1;
+                  end;
+               end if;
+            when '+' | '?' | '|' | '(' | ')' | '{' | '}' =>
+               Append (Result, '\');
+               Append (Result, Pattern (I));
+            when others =>
+               Append (Result, Pattern (I));
+         end case;
+         I := I + 1;
+      end loop;
+
+      return To_String (Result);
+   end Basic_To_Extended;
+
    function Pattern_List_Of (Config : Invocation) return Greplib.Patterns.Pattern_List is
       Result : Greplib.Patterns.Pattern_List;
    begin
       for I in 1 .. Natural (Config.Pattern_Texts.Length) loop
+         declare
+            Source : constant String := To_String (Config.Pattern_Texts.Element (I));
+         begin
          if Config.Fixed_Strings then
             Greplib.Patterns.Append
               (Result,
-               Greplib.Patterns.Fixed_String_Pattern
-                 (To_String (Config.Pattern_Texts.Element (I))));
+               Greplib.Patterns.Fixed_String_Pattern (Source));
          else
             Greplib.Patterns.Append
               (Result,
                Greplib.Patterns.Regular_Expression_Pattern
-                 (To_String (Config.Pattern_Texts.Element (I))));
+                 (if Config.Regex = Basic_Regular_Expression
+                  then Basic_To_Extended (Source)
+                  else Source));
          end if;
+         end;
       end loop;
 
       return Result;
@@ -222,6 +313,8 @@ procedure Grep is
            & "  -e PATTERN   use PATTERN as a search pattern" & ASCII.LF
            & "  -f FILE      read patterns from FILE" & ASCII.LF
            & "  -F           treat patterns as fixed strings" & ASCII.LF
+           & "  -G           use basic regular expressions (default)" & ASCII.LF
+           & "  -E           use extended regular expressions" & ASCII.LF
            & "  -i           ignore ASCII case differences" & ASCII.LF
            & "  -v           select non-matching records" & ASCII.LF
            & "  -w           require a whole-word match" & ASCII.LF
@@ -323,6 +416,12 @@ procedure Grep is
                Config.Byte_Offset := True;
             when 'F' =>
                Config.Fixed_Strings := True;
+            when 'G' =>
+               Config.Fixed_Strings := False;
+               Config.Regex := Basic_Regular_Expression;
+            when 'E' =>
+               Config.Fixed_Strings := False;
+               Config.Regex := Extended_Regular_Expression;
             when 'c' =>
                Config.Count_Only := True;
             when 'i' =>
@@ -351,8 +450,6 @@ procedure Grep is
                Config.Force_Without_Filename := True;
             when 's' =>
                Config.Suppress_Diagnostics := True;
-            when 'E' | 'G' =>
-               null;
             when 'A' | 'B' | 'C' =>
                declare
                   Option : constant Character := Arg (J);

@@ -14,7 +14,8 @@ also names standard input.
 - `-e pattern`: add a search pattern.
 - `-f pattern_file`: read newline-separated patterns from a file.
 - `-F`: treat patterns as fixed strings.
-- `-E`, `-G`: use the regular-expression matcher exposed by `greplib`.
+- `-G`: use POSIX basic regular-expression syntax. This is the default.
+- `-E`: use the extended regular-expression syntax exposed by `greplib`.
 - `-i`: ignore ASCII case differences.
 - `-v`: select non-matching records.
 - `-w`: require whole-word matches.

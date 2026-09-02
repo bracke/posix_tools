@@ -13,9 +13,10 @@ This integration supports file and standard-input searches, `-e`, `-f`, `-F`,
 `-o`, `-q`, `-b`, `-n`, `-H`, `-h`, `-r`, `-R`, `-x`, `-s`, `--help`,
 `--version`, and `--posix-tools-identify`.
 
-Regular expression syntax follows the `regexp` engine exposed by `greplib`;
-use `-F` for byte-exact fixed-string matching. Diagnostics are rendered through
-the project message catalog.
+By default, and with `-G`, patterns use POSIX basic regular-expression syntax
+translated onto the `regexp` engine exposed by `greplib`. Use `-E` for the
+native extended regular-expression syntax and `-F` for byte-exact fixed-string
+matching. Diagnostics are rendered through the project message catalog.
 
 ## Building
 

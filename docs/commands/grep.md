@@ -28,7 +28,9 @@ present, every non-option operand is an input file.
 
 `-F` treats patterns as fixed strings.
 
-`-E` and `-G` select the regular-expression matcher exposed by `greplib`.
+`-G` selects POSIX basic regular-expression syntax. This is the default.
+
+`-E` selects the extended regular-expression syntax exposed by `greplib`.
 
 `-i` ignores ASCII case differences.
 
@@ -103,9 +105,10 @@ Case-insensitive matching follows the ASCII folding behavior exposed by
 
 ## Implementation-Defined Choices
 
-Regular expression syntax follows the `regexp` engine used by `greplib`; this
-wrapper does not translate POSIX basic regular expressions into a distinct
-engine dialect. Use `-F` for byte-exact fixed-string matching.
+Basic regular-expression syntax is translated onto the `regexp` engine used by
+`greplib`. Use `-E` for that engine's extended syntax and `-F` for byte-exact
+fixed-string matching. Locale-specific collating-symbol and equivalence-class
+semantics are implementation-defined.
 
 ## Extensions
 
@@ -157,5 +160,7 @@ Conforming with implementation-defined behavior and extensions.
 
 ## Known Limitations
 
-The regular-expression dialect is the dialect provided by `greplib` and
-`regexp`; this wrapper does not provide a separate POSIX BRE parser.
+`grep` uses the `regexp` engine through `greplib`. The `-G` translator covers
+basic grouping, intervals, backreferences, bracket expressions, and escaped
+ordinary extended metacharacters. Locale-specific collation behavior is limited
+to the support available in `regexp`.

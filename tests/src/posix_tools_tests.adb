@@ -5065,6 +5065,41 @@ procedure Posix_Tools_Tests is
          0,
          "alpha" & LF);
 
+      Expect_Output_With_Input
+        ("grep executable basic regex default",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("a+b")]),
+         "a+b" & LF & "ab" & LF,
+         0,
+         "a+b");
+
+      Expect_Output_With_Input
+        ("grep executable extended regex",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-E"),
+                                             Project_Tools.Processes.Argument ("a+b")]),
+         "a+b" & LF & "ab" & LF,
+         0,
+         "ab");
+
+      Expect_Output_With_Input
+        ("grep executable basic regex interval",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-G"),
+                                             Project_Tools.Processes.Argument ("^a\{2,3\}$")]),
+         "a" & LF & "aa" & LF & "aaa" & LF & "aaaa" & LF,
+         0,
+         "aa" & LF & "aaa");
+
+      Expect_Output_With_Input
+        ("grep executable basic regex grouping",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-G"),
+                                             Project_Tools.Processes.Argument ("^a\(b\|c\)$")]),
+         "ab" & LF & "ac" & LF & "ad" & LF,
+         0,
+         "ab" & LF & "ac");
+
       Expect_Output
         ("grep executable context data",
          Built_Command_Path ("grep"),
