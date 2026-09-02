@@ -5100,6 +5100,45 @@ procedure Posix_Tools_Tests is
          0,
          "ab" & LF & "ac");
 
+      Expect_Output_With_Input
+        ("grep executable basic regex equivalence class",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-G"),
+                                             Project_Tools.Processes.Argument ("[[=a=]]")]),
+         "=" & LF & "a" & LF & "b" & LF,
+         0,
+         "a");
+
+      Expect_Output_With_Input
+        ("grep executable basic regex collating symbol",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("-G"),
+                                             Project_Tools.Processes.Argument ("[[.ch.]]")]),
+         "cat" & LF & "hat" & LF & "chord" & LF,
+         0,
+         "chord");
+
+      declare
+         Env_Command : constant String := Project_Tools.Processes.Locate_Command ("env");
+         N_Tilde : constant String := Character'Val (16#C3#) & Character'Val (16#B1#);
+      begin
+         if Env_Command = "" then
+            Project_Tools.Release_Checks.Fail ("grep locale range smoke requires env");
+         end if;
+
+         Expect_Output_With_Input
+           ("grep executable basic regex locale range",
+            Env_Command,
+            Project_Tools.Processes.Arguments
+              ([Project_Tools.Processes.Argument ("LC_ALL=es_ES.UTF-8"),
+                Project_Tools.Processes.Argument (Built_Command_Path ("grep")),
+                Project_Tools.Processes.Argument ("-G"),
+                Project_Tools.Processes.Argument ("[n-o]")]),
+            "n" & LF & N_Tilde & LF & "o" & LF & "p" & LF,
+            0,
+            "n" & LF & N_Tilde & LF & "o");
+      end;
+
       Expect_Output
         ("grep executable context data",
          Built_Command_Path ("grep"),

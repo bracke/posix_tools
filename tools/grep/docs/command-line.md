@@ -15,6 +15,8 @@ also names standard input.
 - `-f pattern_file`: read newline-separated patterns from a file.
 - `-F`: treat patterns as fixed strings.
 - `-G`: use POSIX basic regular-expression syntax. This is the default.
+  Equivalence classes, collating symbols, and ordinary ranges use shared
+  `posix_tools` collation helpers.
 - `-E`: use the extended regular-expression syntax exposed by `greplib`.
 - `-i`: ignore ASCII case differences.
 - `-v`: select non-matching records.

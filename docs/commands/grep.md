@@ -107,8 +107,10 @@ Case-insensitive matching follows the ASCII folding behavior exposed by
 
 Basic regular-expression syntax is translated onto the `regexp` engine used by
 `greplib`. Use `-E` for that engine's extended syntax and `-F` for byte-exact
-fixed-string matching. Locale-specific collating-symbol and equivalence-class
-semantics are implementation-defined.
+fixed-string matching. Equivalence classes and collating symbols in basic
+bracket expressions are expanded through the common text collation helpers.
+Ordinary range expressions are expanded through the common locale collation
+order.
 
 ## Extensions
 
@@ -161,6 +163,8 @@ Conforming with implementation-defined behavior and extensions.
 ## Known Limitations
 
 `grep` uses the `regexp` engine through `greplib`. The `-G` translator covers
-basic grouping, intervals, backreferences, bracket expressions, and escaped
-ordinary extended metacharacters. Locale-specific collation behavior is limited
-to the support available in `regexp`.
+basic grouping, intervals, backreferences, bracket expressions, equivalence
+classes, collating symbols, and escaped ordinary extended metacharacters.
+Locale-specific range membership and ordering use the common collation data
+available to `posix_tools`; range endpoints that are themselves multi-character
+collating symbols are not expanded as full POSIX collating-element ranges.

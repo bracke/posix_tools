@@ -14,6 +14,7 @@ with Greplib.Options;
 with Greplib.Patterns;
 with Greplib.Results;
 with Greplib.Paths;
+with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Streams;
@@ -157,26 +158,211 @@ procedure Grep is
       return 0;
    end Basic_Interval_End;
 
+   function Bracket_Element_End
+     (Pattern : String;
+      First   : Natural;
+      Marker  : Character) return Natural is
+      I : Natural := First;
+   begin
+      while I < Pattern'Last loop
+         if Pattern (I) = Marker and then Pattern (I + 1) = ']' then
+            return I;
+         end if;
+         I := I + 1;
+      end loop;
+
+      return 0;
+   end Bracket_Element_End;
+
+   procedure Append_Class_Literal
+     (Result : in out Unbounded_String;
+      Text   : String) is
+   begin
+      for Ch of Text loop
+         if Ch in '\' | ']' | '^' | '-' then
+            Append (Result, '\');
+         end if;
+         Append (Result, Ch);
+      end loop;
+   end Append_Class_Literal;
+
+   function Basic_Bracket_End (Pattern : String; First : Natural) return Natural is
+      I : Natural := First + 1;
+   begin
+      if I <= Pattern'Last and then Pattern (I) in '^' | '!' then
+         I := I + 1;
+      end if;
+      if I <= Pattern'Last and then Pattern (I) = ']' then
+         I := I + 1;
+      end if;
+
+      while I <= Pattern'Last loop
+         if I + 1 <= Pattern'Last
+           and then Pattern (I) = '['
+           and then Pattern (I + 1) in ':' | '=' | '.'
+         then
+            declare
+               Closing : constant Natural := Bracket_Element_End (Pattern, I + 2, Pattern (I + 1));
+            begin
+               if Closing /= 0 then
+                  I := Closing + 2;
+               else
+                  I := I + 1;
+               end if;
+            end;
+         elsif Pattern (I) = ']' then
+            return I;
+         else
+            I := I + 1;
+         end if;
+      end loop;
+
+      return 0;
+   end Basic_Bracket_End;
+
+   function Basic_To_Extended (Pattern : String) return String;
+
+   function Translate_Basic_Bracket
+     (Pattern : String;
+      First   : Natural;
+      Last    : Natural;
+      Locale  : String) return String
+   is
+      Class_Text : Unbounded_String;
+      Alternatives : String_Vectors.Vector;
+      I : Natural := First + 1;
+      Negated : Boolean := False;
+      Changed : Boolean := False;
+
+      procedure Append_Locale_Range (Low, High : Character) is
+         Order : constant String :=
+           Posix_Tools.Commands.Text_Helpers.Locale_Collation_Order (Locale, "");
+         Low_Pos  : Natural := 0;
+         High_Pos : Natural := 0;
+      begin
+         for J in Order'Range loop
+            if Order (J) = Low and then Low_Pos = 0 then
+               Low_Pos := J;
+            end if;
+            if Order (J) = High and then High_Pos = 0 then
+               High_Pos := J;
+            end if;
+         end loop;
+
+         if Low_Pos = 0 or else High_Pos = 0 or else Low_Pos > High_Pos then
+            Append_Class_Literal (Class_Text, [1 => Low]);
+            Append_Class_Literal (Class_Text, "-");
+            Append_Class_Literal (Class_Text, [1 => High]);
+         else
+            Append_Class_Literal (Class_Text, Order (Low_Pos .. High_Pos));
+         end if;
+      end Append_Locale_Range;
+   begin
+      if I <= Last - 1 and then Pattern (I) in '^' | '!' then
+         Negated := True;
+         Append (Class_Text, Pattern (I));
+         I := I + 1;
+      end if;
+
+      while I <= Last - 1 loop
+         if I + 1 <= Last - 1
+           and then Pattern (I) = '['
+           and then Pattern (I + 1) in ':' | '=' | '.'
+         then
+            declare
+               Marker  : constant Character := Pattern (I + 1);
+               Closing : constant Natural := Bracket_Element_End (Pattern, I + 2, Marker);
+            begin
+               if Closing = 0 or else Closing + 1 > Last - 1 then
+                  Append (Class_Text, Pattern (I));
+                  I := I + 1;
+               elsif Marker = ':' then
+                  Append (Class_Text, Pattern (I .. Closing + 1));
+                  I := Closing + 2;
+               elsif Marker = '=' then
+                  declare
+                     Expanded : constant String :=
+                       Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec
+                         (Pattern (I .. Closing + 1), Locale);
+                  begin
+                     Append_Class_Literal (Class_Text, Expanded);
+                     Changed := True;
+                     I := Closing + 2;
+                  end;
+               else
+                  declare
+                     Symbol : constant String :=
+                       Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec
+                         (Pattern (I .. Closing + 1), Locale);
+                  begin
+                     if Symbol'Length = 1 then
+                        Append_Class_Literal (Class_Text, Symbol);
+                     else
+                        Alternatives.Append (To_Unbounded_String (Symbol));
+                     end if;
+                     Changed := True;
+                     I := Closing + 2;
+                  end;
+               end if;
+            end;
+         else
+            if I + 2 <= Last - 1 and then Pattern (I + 1) = '-' then
+               Append_Locale_Range (Pattern (I), Pattern (I + 2));
+               Changed := True;
+               I := I + 3;
+            else
+               Append (Class_Text, Pattern (I));
+               I := I + 1;
+            end if;
+         end if;
+      end loop;
+
+      if not Changed then
+         return Pattern (First .. Last);
+      elsif Alternatives.Is_Empty then
+         return "[" & To_String (Class_Text) & "]";
+      elsif Negated then
+         return Pattern (First .. Last);
+      else
+         declare
+            Output : Unbounded_String;
+         begin
+            Append (Output, "(?:");
+            if Length (Class_Text) > 0 then
+               Append (Output, "[" & To_String (Class_Text) & "]");
+            end if;
+            for J in 1 .. Natural (Alternatives.Length) loop
+               if Length (Class_Text) > 0 or else J > 1 then
+                  Append (Output, "|");
+               end if;
+               Append (Output, Basic_To_Extended (To_String (Alternatives.Element (J))));
+            end loop;
+            Append (Output, ")");
+            return To_String (Output);
+         end;
+      end if;
+   end Translate_Basic_Bracket;
+
    function Basic_To_Extended (Pattern : String) return String is
       Result : Unbounded_String;
       I : Natural := Pattern'First;
+      Current_Locale : constant String := Locale;
    begin
       while I <= Pattern'Last loop
          case Pattern (I) is
             when '[' =>
-               Append (Result, Pattern (I));
-               I := I + 1;
-               while I <= Pattern'Last loop
-                  Append (Result, Pattern (I));
-                  exit when Pattern (I) = ']';
-                  if Pattern (I) = '\'
-                    and then I < Pattern'Last
-                  then
-                     I := I + 1;
+               declare
+                  Closing : constant Natural := Basic_Bracket_End (Pattern, I);
+               begin
+                  if Closing = 0 then
                      Append (Result, Pattern (I));
+                  else
+                     Append
+                       (Result,
+                        Translate_Basic_Bracket (Pattern, I, Closing, Current_Locale));
+                     I := Closing;
                   end if;
-                  I := I + 1;
-               end loop;
+               end;
             when '\' =>
                if I = Pattern'Last then
                   Append (Result, '\');
