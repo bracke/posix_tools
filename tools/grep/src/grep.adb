@@ -1052,7 +1052,6 @@ procedure Grep is
       end case;
    end Search_Paths;
 
-   Config : Invocation;
 begin
    if Posix_Tools.Process_Entry.Is_Identity_Request then
       if not Posix_Tools.Process_Entry.Write_Identity ("grep") then
@@ -1061,55 +1060,59 @@ begin
       return;
    end if;
 
-   begin
-      Parse (Config);
-   exception
-      when Program_Error =>
-         return;
-   end;
-
-   if not Config.Valid then
-      Usage;
-      Posix_Tools.Process_Entry.Set_Exit_Status (2);
-      return;
-   end if;
-
    declare
-      Compile_Options : Greplib.Patterns.Compilation_Options;
-      Set : Greplib.Patterns.Compiled_Pattern_Set;
+      Config : Invocation;
    begin
-      Compile_Options.Case_Insensitive := Config.Ignore_Case;
-      Compile_Options.Whole_Record := Config.Whole_Record;
-      Compile_Options.Whole_Word := Config.Whole_Word;
-      Set := Greplib.Patterns.Compile (Pattern_List_Of (Config), Compile_Options);
-      if not Greplib.Patterns.Is_Usable (Set) then
-         Report_Diagnostics (Greplib.Patterns.Diagnostics (Set), Config.Suppress_Diagnostics);
+      begin
+         Parse (Config);
+      exception
+         when Program_Error =>
+            return;
+      end;
+
+      if not Config.Valid then
+         Usage;
          Posix_Tools.Process_Entry.Set_Exit_Status (2);
          return;
       end if;
 
       declare
-         Had_Selected : Boolean := False;
-         Had_Error : Boolean := False;
+         Compile_Options : Greplib.Patterns.Compilation_Options;
+         Set : Greplib.Patterns.Compiled_Pattern_Set;
       begin
-         if Config.Recursive then
-            Search_Paths (Config, Set, Had_Selected, Had_Error);
-         elsif Config.Files.Is_Empty then
-            Search_One (Config, Set, "-", Had_Selected, Had_Error);
-         else
-            for I in 1 .. Natural (Config.Files.Length) loop
-               Search_One
-                 (Config, Set, To_String (Config.Files.Element (I)), Had_Selected, Had_Error);
-            end loop;
+         Compile_Options.Case_Insensitive := Config.Ignore_Case;
+         Compile_Options.Whole_Record := Config.Whole_Record;
+         Compile_Options.Whole_Word := Config.Whole_Word;
+         Set := Greplib.Patterns.Compile (Pattern_List_Of (Config), Compile_Options);
+         if not Greplib.Patterns.Is_Usable (Set) then
+            Report_Diagnostics (Greplib.Patterns.Diagnostics (Set), Config.Suppress_Diagnostics);
+            Posix_Tools.Process_Entry.Set_Exit_Status (2);
+            return;
          end if;
 
-         if Had_Error then
-            Posix_Tools.Process_Entry.Set_Exit_Status (2);
-         elsif Had_Selected then
-            Posix_Tools.Process_Entry.Set_Exit_Status (0);
-         else
-            Posix_Tools.Process_Entry.Set_Exit_Status (1);
-         end if;
+         declare
+            Had_Selected : Boolean := False;
+            Had_Error : Boolean := False;
+         begin
+            if Config.Recursive then
+               Search_Paths (Config, Set, Had_Selected, Had_Error);
+            elsif Config.Files.Is_Empty then
+               Search_One (Config, Set, "-", Had_Selected, Had_Error);
+            else
+               for I in 1 .. Natural (Config.Files.Length) loop
+                  Search_One
+                    (Config, Set, To_String (Config.Files.Element (I)), Had_Selected, Had_Error);
+               end loop;
+            end if;
+
+            if Had_Error then
+               Posix_Tools.Process_Entry.Set_Exit_Status (2);
+            elsif Had_Selected then
+               Posix_Tools.Process_Entry.Set_Exit_Status (0);
+            else
+               Posix_Tools.Process_Entry.Set_Exit_Status (1);
+            end if;
+         end;
       end;
    end;
 exception

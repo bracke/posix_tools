@@ -640,7 +640,7 @@ docs/commands/groups.md bytes= 1820 fnv1a64=378e68acb451bb5e
 generated/man/grep.1 bytes= 4620 fnv1a64=f2b3ae5f8380eebb
 tools/grep/alire.toml bytes= 755 fnv1a64=132fd072f73492ad
 tools/grep/posix_tools_grep.gpr bytes= 631 fnv1a64=dd96443eae9b0400
-tools/grep/src/grep.adb bytes= 39974 fnv1a64=2cbbb0291879e360
+tools/grep/src/grep.adb bytes= 40146 fnv1a64=7843a2d5ea2f7e03
 docs/commands/grep.md bytes= 4766 fnv1a64=bb386ba637557d74
 generated/man/head.1 bytes= 1907 fnv1a64=09095ec4731c953d
 tools/head/alire.toml bytes= 411 fnv1a64=4985e43eb3477d62
