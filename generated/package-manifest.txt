@@ -287,7 +287,7 @@ tests/src/build_checks.adb bytes= 1527 fnv1a64=822af0487284959d
 tests/src/build_checks.ads bytes= 76 fnv1a64=80078369870becde
 tests/src/format_checks.adb bytes= 3979 fnv1a64=4aa5728740551083
 tests/src/format_checks.ads bytes= 78 fnv1a64=cac3dfd61f7e3b5c
-tests/src/posix_tools_tests.adb bytes= 284493 fnv1a64=0b73c2f5b83ecd28
+tests/src/posix_tools_tests.adb bytes= 286120 fnv1a64=db8ced1def5724bc
 tests/src/test_contexts.adb bytes= 28934 fnv1a64=985cd676d785545b
 tests/src/test_contexts.ads bytes= 10454 fnv1a64=47277ed4f57746c5
 fixtures/invalid-da-utf8.bin bytes= 2 fnv1a64=0907e507b5a015dd

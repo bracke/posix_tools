@@ -4695,15 +4695,56 @@ procedure Posix_Tools_Tests is
    end Run_Test_Selector_Smoke;
 
    procedure Run_Staged_Verification is
+      use Ada.Strings.Unbounded;
+
+      function Display_Output (Text : String) return String is
+         Result : Unbounded_String;
+      begin
+         for Ch of Text loop
+            case Ch is
+               when Character'Val (10) =>
+                  Append (Result, "\n");
+               when Character'Val (13) =>
+                  Append (Result, "\r");
+               when Character'Val (9) =>
+                  Append (Result, "\t");
+               when others =>
+                  Append (Result, Ch);
+            end case;
+         end loop;
+
+         return To_String (Result);
+      end Display_Output;
+
+      function Identity_Diagnostic
+        (Executable : String;
+         Program    : String) return String
+      is
+         Captured : constant Project_Tools.Processes.Captured_Process :=
+           Project_Tools.Processes.Capture
+             (Label   => "identity diagnostic " & Executable,
+              Dir     => Root,
+              Program => Program,
+              Args    => Project_Tools.Processes.Arguments
+                ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
+              Quiet   => True);
+      begin
+         return
+           " path=""" & Program & """"
+           & " direct-status=" & Integer'Image (Captured.Status)
+           & " direct-output=""" & Display_Output (To_String (Captured.Output)) & """";
+      end Identity_Diagnostic;
    begin
       declare
+         Program : constant String := Built_Root_Path;
          Status : constant String :=
            Posix_Tools.Host_Adapters.Executables.Verify_Identity_At_Path
-             ("posix-tools", Built_Root_Path);
+             ("posix-tools", Program);
       begin
          if Status /= "ok" then
             Project_Tools.Release_Checks.Fail
-              ("staged verification failed for posix-tools: " & Status);
+              ("staged verification failed for posix-tools: " & Status
+               & Identity_Diagnostic ("posix-tools", Program));
          end if;
       end;
 
@@ -4721,13 +4762,15 @@ procedure Posix_Tools_Tests is
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          declare
             Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
+            Program    : constant String := Built_Command_Path (Executable);
             Status     : constant String :=
               Posix_Tools.Host_Adapters.Executables.Verify_Identity_At_Path
-                (Executable, Built_Command_Path (Executable));
+                (Executable, Program);
          begin
             if Status /= "ok" then
                Project_Tools.Release_Checks.Fail
-                 ("staged verification failed for " & Executable & ": " & Status);
+                 ("staged verification failed for " & Executable & ": " & Status
+                  & Identity_Diagnostic (Executable, Program));
             end if;
          end;
       end loop;
