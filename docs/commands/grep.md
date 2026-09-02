@@ -76,8 +76,8 @@ version text depending on the selected mode. Data output is not localized.
 
 ## Standard Error
 
-Standard error carries invocation, pattern, and input diagnostics unless `-s`
-suppresses input/search diagnostics.
+Standard error carries localized invocation, pattern, and input diagnostics
+unless `-s` suppresses input/search diagnostics.
 
 ## Exit Status
 
@@ -96,8 +96,10 @@ recursive traversal are delegated to `greplib`.
 
 ## Locale Behavior
 
-Output formatting is locale-invariant. Case-insensitive matching follows the
-ASCII folding behavior exposed by `greplib`.
+Data output formatting is locale-invariant. Diagnostics use the project
+message catalog selected by `LC_ALL`, `LANG`, or the native host locale.
+Case-insensitive matching follows the ASCII folding behavior exposed by
+`greplib`.
 
 ## Implementation-Defined Choices
 
@@ -156,5 +158,4 @@ Conforming with implementation-defined behavior and extensions.
 ## Known Limitations
 
 The regular-expression dialect is the dialect provided by `greplib` and
-`regexp`; this wrapper does not provide a separate POSIX BRE parser. Diagnostic
-wording is currently locale-invariant.
+`regexp`; this wrapper does not provide a separate POSIX BRE parser.

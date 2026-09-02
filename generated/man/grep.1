@@ -60,8 +60,8 @@ is exactly -.
 Standard output carries selected records, counts, source names, help text, or
 version text depending on the selected mode. Data output is not localized.
 .SH STANDARD ERROR
-Standard error carries invocation, pattern, and input diagnostics unless -s
-suppresses input/search diagnostics.
+Standard error carries localized invocation, pattern, and input diagnostics
+unless -s suppresses input/search diagnostics.
 .SH EXIT STATUS
 0 indicates that at least one selected record was found.
 
@@ -74,8 +74,10 @@ whole-word and whole-record checks, selected-record limits, context windows,
 count modes, quiet mode, source-name modes, match spans, byte offsets, and
 recursive traversal are delegated to greplib.
 .SH LOCALE BEHAVIOR
-Output formatting is locale-invariant. Case-insensitive matching follows the
-ASCII folding behavior exposed by greplib.
+Data output formatting is locale-invariant. Diagnostics use the project
+message catalog selected by LC_ALL, LANG, or the native host locale.
+Case-insensitive matching follows the ASCII folding behavior exposed by
+greplib.
 .SH IMPLEMENTATION-DEFINED CHOICES
 Regular expression syntax follows the regexp engine used by greplib; this
 wrapper does not translate POSIX basic regular expressions into a distinct
@@ -123,7 +125,6 @@ grep -r needle src
 Conforming with implementation-defined behavior and extensions.
 .SH KNOWN LIMITATIONS
 The regular-expression dialect is the dialect provided by greplib and
-regexp; this wrapper does not provide a separate POSIX BRE parser. Diagnostic
-wording is currently locale-invariant.
+regexp; this wrapper does not provide a separate POSIX BRE parser.
 .SH SEE ALSO
 docs/commands/grep.md

@@ -14,8 +14,8 @@ This integration supports file and standard-input searches, `-e`, `-f`, `-F`,
 `--version`, and `--posix-tools-identify`.
 
 Regular expression syntax follows the `regexp` engine exposed by `greplib`;
-use `-F` for byte-exact fixed-string matching. Diagnostic wording is currently
-locale-invariant.
+use `-F` for byte-exact fixed-string matching. Diagnostics are rendered through
+the project message catalog.
 
 ## Building
 

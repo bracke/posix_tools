@@ -14,8 +14,12 @@ with Greplib.Options;
 with Greplib.Patterns;
 with Greplib.Results;
 with Greplib.Paths;
+with Posix_Tools.Host_Adapters.Environment;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Streams;
+with Posix_Tools.Localization;
 with Posix_Tools.Process_Entry;
+with Posix_Tools.Text.Escaping;
 with Posix_Tools.Version;
 
 procedure Grep is
@@ -59,11 +63,74 @@ procedure Grep is
    function Write_Err (Text : String) return Boolean
      renames Posix_Tools.Host_Adapters.Streams.Write_Standard_Error;
 
+   function Locale return String is
+      LC_All : constant String := Posix_Tools.Host_Adapters.Environment.Value ("LC_ALL");
+      Lang   : constant String := Posix_Tools.Host_Adapters.Environment.Value ("LANG");
+      Native : constant String := Posix_Tools.Host_Adapters.Host.Native_Locale;
+   begin
+      if LC_All /= "" then
+         return LC_All;
+      elsif Lang /= "" then
+         return Lang;
+      elsif Native /= "" then
+         return Native;
+      else
+         return "en";
+      end if;
+   exception
+      when Constraint_Error | Program_Error =>
+         return "en";
+   end Locale;
+
+   function Escape_Untrusted (Text : String) return String is
+   begin
+      return Posix_Tools.Text.Escaping.Escape_Untrusted (Text);
+   end Escape_Untrusted;
+
+   function Localized
+     (Key : String;
+      Default : String) return String is
+   begin
+      return Posix_Tools.Localization.Text (Locale, Key, Default);
+   end Localized;
+
+   function Localized_1
+     (Key : String;
+      Name : String;
+      Value : String;
+      Default : String) return String is
+   begin
+      return Posix_Tools.Localization.Text_1
+        (Locale, Key, Name, Escape_Untrusted (Value), Default);
+   end Localized_1;
+
    procedure Put_Error (Text : String) is
       Ignored : constant Boolean := Write_Err ("grep: " & Text & ASCII.LF);
    begin
       null;
    end Put_Error;
+
+   procedure Put_Localized_Error
+     (Key : String;
+      Default : String) is
+   begin
+      Put_Error (Localized (Key, Default));
+   end Put_Localized_Error;
+
+   procedure Put_Localized_Error_1
+     (Key : String;
+      Name : String;
+      Value : String;
+      Default : String) is
+   begin
+      Put_Error (Localized_1 (Key, Name, Value, Default));
+   end Put_Localized_Error_1;
+
+   function Count_Image (Value : Greplib.Wide_Count) return String is
+      Image : constant String := Greplib.Wide_Count'Image (Value);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end Count_Image;
 
    procedure Add_Pattern (Config : in out Invocation; Text : String) is
    begin
@@ -102,13 +169,15 @@ procedure Grep is
       end loop;
       Ada.Text_IO.Close (File);
    exception
-      when Error : others =>
+      when others =>
          if Ada.Text_IO.Is_Open (File) then
             Ada.Text_IO.Close (File);
          end if;
-         Put_Error
-           (Path & ": cannot read pattern file: "
-            & Ada.Exceptions.Exception_Message (Error));
+         Put_Localized_Error_1
+           ("posix_tools.grep.diagnostic.pattern_file.read_failed",
+            "path",
+            Path,
+            "cannot read pattern file '" & Escape_Untrusted (Path) & "'");
          Config.Valid := False;
    end Add_File_Patterns;
 
@@ -194,7 +263,11 @@ procedure Grep is
             Index := Index + 1;
             return Ada.Command_Line.Argument (Index);
          else
-            Put_Error ("option -" & Option & " requires an argument");
+            Put_Localized_Error_1
+              ("posix_tools.diagnostic.missing_option_argument",
+               "option",
+               "-" & Option,
+               "missing option argument '-" & Option & "'");
             Config.Valid := False;
             return "";
          end if;
@@ -207,7 +280,11 @@ procedure Grep is
             Parsed := Greplib.Wide_Count'Value (Value);
          exception
             when others =>
-               Put_Error ("invalid context count for -" & Option & ": " & Value);
+               Put_Localized_Error_1
+                 ("posix_tools.grep.diagnostic.context.invalid",
+                  "count",
+                  Value,
+                  "invalid context count '" & Escape_Untrusted (Value) & "'");
                Config.Valid := False;
                return;
          end;
@@ -231,7 +308,11 @@ procedure Grep is
             Config.Maximum_Selected := Greplib.Wide_Count'Value (Value);
          exception
             when others =>
-               Put_Error ("invalid selected-record limit for -m: " & Value);
+               Put_Localized_Error_1
+                 ("posix_tools.grep.diagnostic.limit.invalid",
+                  "count",
+                  Value,
+                  "invalid selected-record limit '" & Escape_Untrusted (Value) & "'");
                Config.Valid := False;
          end;
       end Set_Maximum_Selected;
@@ -309,7 +390,11 @@ procedure Grep is
                   end if;
                end;
             when others =>
-               Put_Error ("unknown option -" & Arg (J));
+               Put_Localized_Error_1
+                 ("posix_tools.diagnostic.option.unknown",
+                  "option",
+                  "-" & Arg (J),
+                  "unknown option '-" & Arg (J) & "'");
                Config.Valid := False;
                return;
          end case;
@@ -352,10 +437,67 @@ procedure Grep is
       end loop;
 
       if Config.Pattern_Count = 0 then
-         Put_Error ("missing pattern");
+         Put_Localized_Error
+           ("posix_tools.grep.diagnostic.pattern.missing",
+            "missing pattern");
          Config.Valid := False;
       end if;
    end Parse;
+
+   function Diagnostic_Detail
+     (Item : Greplib.Diagnostics.Diagnostic) return String is
+      Result : Unbounded_String;
+   begin
+      if Greplib.Diagnostics.Message (Item) /= "" then
+         Append (Result, Escape_Untrusted (Greplib.Diagnostics.Message (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Path (Item) then
+         Append (Result, " path=" & Escape_Untrusted (Greplib.Diagnostics.Path (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Filesystem_Operation (Item) then
+         Append
+           (Result,
+            " op=" & Escape_Untrusted (Greplib.Diagnostics.Filesystem_Operation (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Record_Number (Item) then
+         Append (Result, " record=" & Count_Image (Greplib.Diagnostics.Record_No (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Native_Error (Item) then
+         Append
+           (Result,
+            " native=" & Escape_Untrusted (Integer'Image (Greplib.Diagnostics.Native_Error (Item))));
+      end if;
+      if Greplib.Diagnostics.Has_Exception_Name (Item) then
+         Append
+           (Result,
+            " exception=" & Escape_Untrusted (Greplib.Diagnostics.Exception_Name (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Numeric_Limit (Item) then
+         Append (Result, " limit=" & Count_Image (Greplib.Diagnostics.Numeric_Limit (Item)));
+      end if;
+      if Greplib.Diagnostics.Has_Observed_Size (Item) then
+         Append
+           (Result, " observed=" & Count_Image (Greplib.Diagnostics.Observed_Size (Item)));
+      end if;
+
+      return To_String (Result);
+   end Diagnostic_Detail;
+
+   function Localized_Diagnostic
+     (Item : Greplib.Diagnostics.Diagnostic) return String
+   is
+      Identifier : constant String :=
+        Greplib.Diagnostics.Identifier (Greplib.Diagnostics.Code (Item));
+      Detail : constant String := Diagnostic_Detail (Item);
+      Default : constant String :=
+        Identifier & (if Detail = "" then "" else ": " & Detail);
+   begin
+      return Localized_1
+        ("posix_tools.grep.diagnostic." & Identifier,
+         "detail",
+         Detail,
+         Default);
+   end Localized_Diagnostic;
 
    procedure Report_Diagnostics
      (List : Greplib.Diagnostics.Diagnostic_List;
@@ -367,21 +509,15 @@ procedure Grep is
 
       for I in 1 .. Natural (Greplib.Diagnostics.Length (List)) loop
          declare
-            Diagnostic : constant Greplib.Diagnostics.Diagnostic :=
-              Greplib.Diagnostics.Element (List, I);
-            Text : constant String := Greplib.Diagnostics.Debug_Image (Diagnostic);
+           Diagnostic : constant Greplib.Diagnostics.Diagnostic :=
+             Greplib.Diagnostics.Element (List, I);
+            Text : constant String := Localized_Diagnostic (Diagnostic);
             Ignored : constant Boolean := Write_Err ("grep: " & Text & ASCII.LF);
          begin
             null;
          end;
       end loop;
    end Report_Diagnostics;
-
-   function Count_Image (Value : Greplib.Wide_Count) return String is
-      Image : constant String := Greplib.Wide_Count'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Count_Image;
 
    function Source_Name
      (Configured_Name : String;
@@ -695,6 +831,10 @@ begin
    end;
 exception
    when Error : others =>
-      Put_Error ("internal error: " & Ada.Exceptions.Exception_Name (Error));
+      Put_Localized_Error_1
+        ("posix_tools.grep.diagnostic.internal_error",
+         "detail",
+         Ada.Exceptions.Exception_Name (Error),
+         "internal error: " & Escape_Untrusted (Ada.Exceptions.Exception_Name (Error)));
       Posix_Tools.Process_Entry.Set_Exit_Status (2);
 end Grep;

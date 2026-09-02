@@ -4812,13 +4812,15 @@ procedure Posix_Tools_Tests is
          Args            : Project_Tools.Processes.Argument_Vectors.Vector;
          Input           : String;
          Expected_Status : Integer;
-         Expected_Output : String)
+         Expected_Output : String;
+         Err_To_Out      : Boolean := False)
       is
          Captured : constant Project_Tools.Processes.Captured_Process :=
            Project_Tools.Processes.Capture_Command
              (Command   => Program,
               Arguments => Args,
-              Input     => Input);
+              Input     => Input,
+              Err_To_Out => Err_To_Out);
       begin
          if Captured.Status /= Expected_Status then
             Project_Tools.Release_Checks.Fail
@@ -5081,6 +5083,29 @@ procedure Posix_Tools_Tests is
                                              Project_Tools.Processes.Argument (Smoke_File)]),
          0,
          "alpha" & LF);
+
+      declare
+         Env_Command : constant String := Project_Tools.Processes.Locate_Command ("env");
+      begin
+         if Env_Command = "" then
+            Project_Tools.Release_Checks.Fail ("grep localized diagnostic smoke requires env");
+         end if;
+
+         Expect_Output_With_Input
+           ("grep executable localized diagnostic",
+            Env_Command,
+            Project_Tools.Processes.Arguments
+              ([Project_Tools.Processes.Argument ("LC_ALL=da_DK.UTF-8"),
+                Project_Tools.Processes.Argument (Built_Command_Path ("grep")),
+                Project_Tools.Processes.Argument ("-Z"),
+                Project_Tools.Processes.Argument ("pattern")]),
+            "",
+            2,
+            "grep: ukendt valgmulighed -Z" & LF
+            & "usage: grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] "
+            & "[-m num] [-e pattern] [-f pattern_file] pattern [file...]",
+            True);
+      end;
 
       declare
          Grep_Dir : constant String :=
