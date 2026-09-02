@@ -87,6 +87,7 @@ with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Commands.Yes;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Help;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Localization;
 with Posix_Tools.Paths;
@@ -213,6 +214,21 @@ package body Command_Tests is
    begin
       if Name = "arch" then
          Posix_Tools.Commands.Arch.Run (Context, Result);
+      elsif Name = "awk" then
+         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
+            Posix_Tools.Help.Render_Command_Help (Context, "awk");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
+            Posix_Tools.Help.Render_Version (Context, "awk");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1
+           and then Context.Argument (1) = "--posix-tools-identify"
+         then
+            Posix_Tools.Help.Render_Identity (Context, "awk");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         else
+            AUnit.Assertions.Assert (False, "awk is not context-dispatched");
+         end if;
       elsif Name = "basename" then
          Posix_Tools.Commands.Basename.Run (Context, Result);
       elsif Name = "cat" then

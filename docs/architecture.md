@@ -43,10 +43,13 @@ executable checks, temporary capture files, bounded identity invocation, and
 hostkit-descriptor-based identity-output validation for the root verifier.
 POSIX command packages must not import hostkit directly.
 
-`awk`, `grep`, and `sed` are intentionally outside this repository because
-their implementations live in separate sibling projects. The release metadata
-gate rejects command inventory rows or binary subcrate directories for those
-names so this repository remains focused on the compiled inventory it owns.
+`awk` is integrated as a binary crate under `tools/awk` and uses its own
+process-facing CLI layer backed by `awklib`. It is included in the release
+inventory and package checks, but it does not use the in-memory
+`Posix_Tools.Commands.Contexts.Context` command package model used by the
+smaller utilities. `grep` and `sed` remain separate sibling projects; the
+release metadata gate rejects command inventory rows or binary subcrate
+directories for those names.
 
 Byte-oriented helpers live under `Posix_Tools.Streams`. `Posix_Tools.Streams.Lines`
 defines the LF segment contract used by file-oriented command behavior: newline

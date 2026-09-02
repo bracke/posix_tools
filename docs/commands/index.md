@@ -3,6 +3,7 @@
 V1 command references:
 
 - [arch](arch.md)
+- [awk](awk.md)
 - [basename](basename.md)
 - [cat](cat.md)
 - [chgrp](chgrp.md)

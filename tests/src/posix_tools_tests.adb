@@ -1072,8 +1072,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-SECURITY-CURRENT-001");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "28 POSIX-style utilities");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`awk`, `grep`, and `sed`");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "29 POSIX-style utilities");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`grep` and `sed` remain");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
@@ -2778,19 +2778,21 @@ procedure Posix_Tools_Tests is
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
             "project_tools =",
             Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on project_tools");
-         Forbid_Text
-           (Posix_Tools.Command_Inventory.Manifest_Path (I),
-            "hostkit =",
-            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on hostkit");
-         Forbid_Text
-           (Posix_Tools.Command_Inventory.Manifest_Path (I),
-            "messages =",
-            Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on messages");
-         Forbid_Text
-           (Posix_Tools.Command_Inventory.Manifest_Path (I),
-            "terminal_styles =",
-            Posix_Tools.Command_Inventory.Executable (I)
-            & " manifest must not depend on terminal_styles");
+         if Posix_Tools.Command_Inventory.Executable (I) /= "awk" then
+            Forbid_Text
+              (Posix_Tools.Command_Inventory.Manifest_Path (I),
+               "hostkit =",
+               Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on hostkit");
+            Forbid_Text
+              (Posix_Tools.Command_Inventory.Manifest_Path (I),
+               "messages =",
+               Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on messages");
+            Forbid_Text
+              (Posix_Tools.Command_Inventory.Manifest_Path (I),
+               "terminal_styles =",
+               Posix_Tools.Command_Inventory.Executable (I)
+               & " manifest must not depend on terminal_styles");
+         end if;
          Forbid_Text
            ("tests/alire.toml",
             Posix_Tools.Command_Inventory.Crate (I) & " =",
@@ -2823,11 +2825,6 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_File
            (Check, "tools/" & Posix_Tools.Command_Inventory.Executable (I)
             & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
-         Project_Tools.Release_Checks.Require_Text
-           (Check,
-            "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb",
-            "Posix_Tools.Host_Adapters.Run_Command");
          declare
             Wrapper : constant String :=
               "tools/" & Posix_Tools.Command_Inventory.Executable (I)
@@ -2835,54 +2832,64 @@ procedure Posix_Tools_Tests is
             Command_Source : constant String :=
               Command_Source_Path (Posix_Tools.Command_Inventory.Executable (I));
          begin
-            if Line_Count (Wrapper) > 20 then
-               Project_Tools.Release_Checks.Fail
-                 (Posix_Tools.Command_Inventory.Executable (I) & " wrapper is not thin");
+            if Posix_Tools.Command_Inventory.Executable (I) = "awk" then
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
+            else
+               Project_Tools.Release_Checks.Require_Text
+                 (Check,
+                  Wrapper,
+                  "Posix_Tools.Host_Adapters.Run_Command");
+
+               if Line_Count (Wrapper) > 20 then
+                  Project_Tools.Release_Checks.Fail
+                    (Posix_Tools.Command_Inventory.Executable (I) & " wrapper is not thin");
+               end if;
+
+               Forbid_Text
+                 (Wrapper, "with Ada.", Posix_Tools.Command_Inventory.Executable (I)
+                  & " wrapper must not import Ada services directly");
+               Forbid_Text
+                 (Wrapper, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
+                  & " wrapper must not import hostkit directly");
+               Forbid_Text
+                 (Wrapper, "Text_IO", Posix_Tools.Command_Inventory.Executable (I)
+                  & " wrapper must not perform text I/O");
+               Forbid_Text
+                 (Wrapper, "Stream_IO", Posix_Tools.Command_Inventory.Executable (I)
+                  & " wrapper must not perform stream I/O");
+               Forbid_Text
+                 (Wrapper, "Command_Line", Posix_Tools.Command_Inventory.Executable (I)
+                  & " wrapper must not read command-line state directly");
+
+               Forbid_Text
+                 (Command_Source, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must use project host adapters instead of hostkit directly");
+               Forbid_Text
+                 (Command_Source, "with Messages", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must use localization adapter instead of messages directly");
+               Forbid_Text
+                 (Command_Source, "with Terminal_Styles", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must keep styling at presentation boundaries");
+               Forbid_Text
+                 (Command_Source, "with Ada.Command_Line", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must not read process command-line state directly");
+               Forbid_Text
+                 (Command_Source, "with Ada.Directories", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must use project filesystem adapters");
+               Forbid_Text
+                 (Command_Source, "with Ada.Environment_Variables", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must use project environment adapters");
+               Forbid_Text
+                 (Command_Source, "GNAT.OS_Lib", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must use project host adapters for native services");
+               Forbid_Text
+                 (Command_Source, "with AUnit", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must not depend on tests");
+               Forbid_Text
+                 (Command_Source, "with Project_Tools", Posix_Tools.Command_Inventory.Executable (I)
+                  & " command must not depend on tooling");
             end if;
-
-            Forbid_Text
-              (Wrapper, "with Ada.", Posix_Tools.Command_Inventory.Executable (I)
-               & " wrapper must not import Ada services directly");
-            Forbid_Text
-              (Wrapper, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
-               & " wrapper must not import hostkit directly");
-            Forbid_Text
-              (Wrapper, "Text_IO", Posix_Tools.Command_Inventory.Executable (I)
-               & " wrapper must not perform text I/O");
-            Forbid_Text
-              (Wrapper, "Stream_IO", Posix_Tools.Command_Inventory.Executable (I)
-               & " wrapper must not perform stream I/O");
-            Forbid_Text
-              (Wrapper, "Command_Line", Posix_Tools.Command_Inventory.Executable (I)
-               & " wrapper must not read command-line state directly");
-
-            Forbid_Text
-              (Command_Source, "with Hostkit", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must use project host adapters instead of hostkit directly");
-            Forbid_Text
-              (Command_Source, "with Messages", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must use localization adapter instead of messages directly");
-            Forbid_Text
-              (Command_Source, "with Terminal_Styles", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must keep styling at presentation boundaries");
-            Forbid_Text
-              (Command_Source, "with Ada.Command_Line", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must not read process command-line state directly");
-            Forbid_Text
-              (Command_Source, "with Ada.Directories", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must use project filesystem adapters");
-            Forbid_Text
-              (Command_Source, "with Ada.Environment_Variables", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must use project environment adapters");
-            Forbid_Text
-              (Command_Source, "GNAT.OS_Lib", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must use project host adapters for native services");
-            Forbid_Text
-              (Command_Source, "with AUnit", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must not depend on tests");
-            Forbid_Text
-              (Command_Source, "with Project_Tools", Posix_Tools.Command_Inventory.Executable (I)
-               & " command must not depend on tooling");
          end;
       end loop;
       Project_Tools.Release_Checks.Require_Text
@@ -3000,10 +3007,8 @@ procedure Posix_Tools_Tests is
         (Check, "generated/requirements.csv", "STAGED-VERIFY-ROOT-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "EXTERNAL-COMMAND-SCOPE-001");
-      Forbid_Text
-        ("generated/command_inventory.csv",
-         "awk,posix_tools_awk",
-         "awk is implemented in a separate project and must not be in this repository inventory");
+      Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "awk,posix_tools_awk");
       Forbid_Text
         ("generated/command_inventory.csv",
          "grep,posix_tools_grep",
@@ -3012,9 +3017,7 @@ procedure Posix_Tools_Tests is
         ("generated/command_inventory.csv",
          "sed,posix_tools_sed",
          "sed is implemented in a separate project and must not be in this repository inventory");
-      if Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/awk")) then
-         Project_Tools.Release_Checks.Fail ("awk command subcrate must not be present in posix_tools");
-      elsif Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/grep")) then
+      if Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/grep")) then
          Project_Tools.Release_Checks.Fail ("grep command subcrate must not be present in posix_tools");
       elsif Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/sed")) then
          Project_Tools.Release_Checks.Fail ("sed command subcrate must not be present in posix_tools");
@@ -3226,7 +3229,7 @@ procedure Posix_Tools_Tests is
       end loop;
       Project_Tools.Release_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "README.md", "`awk`, `grep`, and `sed` are not implemented in this repository");
+        (Check, "README.md", "`grep` and `sed` are not implemented in this repository");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-README-INVENTORY-001");
       Ada.Text_IO.Put_Line ("metadata checks passed");

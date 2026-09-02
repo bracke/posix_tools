@@ -3,6 +3,7 @@
 Version: 0.1.0
 
 - `arch`: docs/commands/arch.md
+- `awk`: docs/commands/awk.md
 - `basename`: docs/commands/basename.md
 - `cat`: docs/commands/cat.md
 - `chgrp`: docs/commands/chgrp.md

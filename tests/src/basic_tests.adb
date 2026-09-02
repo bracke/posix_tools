@@ -120,18 +120,19 @@ package body Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 74), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 75), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "arch", "first command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (68) = "unlink", "unlink command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (74) = "yes", "last command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (2) = "awk", "awk command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (69) = "unlink", "unlink command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (75) = "yes", "last command");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Manifest_Path (2) = "tools/basename/alire.toml",
+        (Posix_Tools.Command_Inventory.Manifest_Path (3) = "tools/basename/alire.toml",
          "manifest path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Project_File_Path (70) = "tools/wc/posix_tools_wc.gpr",
+        (Posix_Tools.Command_Inventory.Project_File_Path (71) = "tools/wc/posix_tools_wc.gpr",
          "project file path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Documentation_Path (58) = "docs/commands/tail.md",
+        (Posix_Tools.Command_Inventory.Documentation_Path (59) = "docs/commands/tail.md",
          "documentation path");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Help (1), "help flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Version (1), "version flag");

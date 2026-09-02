@@ -1,5 +1,6 @@
 executable,crate,package,manifest_path,project_file_path,documentation_path,release_included,posix_status,help,version,identity
 arch,posix_tools_arch,Posix_Tools.Commands.Arch,tools/arch/alire.toml,tools/arch/posix_tools_arch.gpr,docs/commands/arch.md,true,conforming_with_extensions,true,true,true
+awk,posix_tools_awk,Awk_CLI,tools/awk/alire.toml,tools/awk/posix_tools_awk.gpr,docs/commands/awk.md,true,conforming_with_extensions,true,true,true
 basename,posix_tools_basename,Posix_Tools.Commands.Basename,tools/basename/alire.toml,tools/basename/posix_tools_basename.gpr,docs/commands/basename.md,true,conforming_with_extensions,true,true,true
 cat,posix_tools_cat,Posix_Tools.Commands.Cat,tools/cat/alire.toml,tools/cat/posix_tools_cat.gpr,docs/commands/cat.md,true,conforming_with_extensions,true,true,true
 chgrp,posix_tools_chgrp,Posix_Tools.Commands.Chgrp,tools/chgrp/alire.toml,tools/chgrp/posix_tools_chgrp.gpr,docs/commands/chgrp.md,true,conforming_with_extensions,true,true,true

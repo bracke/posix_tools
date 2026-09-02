@@ -1,7 +1,7 @@
 package Posix_Tools.Command_Inventory
   with SPARK_Mode => On
 is
-   Command_Count : constant Positive := 74;
+   Command_Count : constant Positive := 75;
 
    function Executable (Index : Positive) return String
      with
