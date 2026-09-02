@@ -137,7 +137,15 @@ jobs:
 
       - name: Install GNATprove
         run: |
-          alr -n install gnatprove
+          for attempt in 1 2 3; do
+            if alr -n install gnatprove; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
           alire_bin="${HOME}/.alire/bin"
           echo "${alire_bin}" >> "${GITHUB_PATH}"
           if command -v cygpath >/dev/null 2>&1; then
