@@ -31,6 +31,7 @@ V1 inventory:
 - `fold`
 - `getconf`
 - `groups`
+- `grep`
 - `head`
 - `hostname`
 - `id`
@@ -81,10 +82,6 @@ V1 inventory:
 - `xargs`
 - `yes`
 - `posix-tools`
-
-`grep` is not implemented in this repository; it is maintained as a separate
-sibling project and is intentionally excluded from the `posix_tools` command
-inventory.
 
 The normative baseline is The Open Group Base Specifications, Issue 8, IEEE Std 1003.1-2024.
 The root `posix-tools` executable is a project management command and is not part of POSIX conformance claims.

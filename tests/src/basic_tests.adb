@@ -120,29 +120,30 @@ package body Basic_Tests is
    procedure Test_Command_Inventory (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 76), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 77), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "arch", "first command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (2) = "awk", "awk command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (54) = "sed", "sed command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (70) = "unlink", "unlink command");
-      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (76) = "yes", "last command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (28) = "grep", "grep command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (55) = "sed", "sed command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (71) = "unlink", "unlink command");
+      AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (77) = "yes", "last command");
       AUnit.Assertions.Assert
         (Posix_Tools.Command_Inventory.Manifest_Path (3) = "tools/basename/alire.toml",
          "manifest path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Project_File_Path (72) = "tools/wc/posix_tools_wc.gpr",
+        (Posix_Tools.Command_Inventory.Project_File_Path (73) = "tools/wc/posix_tools_wc.gpr",
          "project file path");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Documentation_Path (60) = "docs/commands/tail.md",
+        (Posix_Tools.Command_Inventory.Documentation_Path (61) = "docs/commands/tail.md",
          "documentation path");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Help (1), "help flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Version (1), "version flag");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Has_Identity (1), "identity flag");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (58) = "conforming_with_extensions",
+        (Posix_Tools.Command_Inventory.Posix_Status (59) = "conforming_with_extensions",
          "tail status value");
       AUnit.Assertions.Assert
-        (Posix_Tools.Command_Inventory.Posix_Status (70) = "conforming_with_extensions",
+        (Posix_Tools.Command_Inventory.Posix_Status (73) = "conforming_with_extensions",
          "wc status value");
    end Test_Command_Inventory;
 

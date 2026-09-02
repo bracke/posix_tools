@@ -29,6 +29,7 @@ Version: 0.1.0
 - `fold`: docs/commands/fold.md
 - `getconf`: docs/commands/getconf.md
 - `groups`: docs/commands/groups.md
+- `grep`: docs/commands/grep.md
 - `head`: docs/commands/head.md
 - `hostname`: docs/commands/hostname.md
 - `id`: docs/commands/id.md

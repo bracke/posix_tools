@@ -129,11 +129,9 @@
 
 - A monolithic command dispatcher for POSIX utilities.
 - A plugin system for V1 commands.
-- An in-repository `grep` implementation; that command family is owned by a
-  separate project and must stay out of this command inventory.
-- Common-runner rewrites of `awk` or `sed`; they are integrated as `tools/awk`
-  and `tools/sed` around their process-facing `awklib` and `sedlib` CLI
-  runtimes.
+- Common-runner rewrites of `awk`, `grep`, or `sed`; they are integrated as
+  `tools/awk`, `tools/grep`, and `tools/sed` around process-facing wrappers
+  backed by `awklib`, `greplib`, and `sedlib`.
 - Direct Hostkit use from command algorithms.
 - Direct terminal styling in command data paths.
 - Shell, Python, JavaScript, Make, CMake, or PowerShell project tooling.

@@ -26,6 +26,7 @@ find,posix_tools_find,Posix_Tools.Commands.Find,tools/find/alire.toml,tools/find
 fold,posix_tools_fold,Posix_Tools.Commands.Fold,tools/fold/alire.toml,tools/fold/posix_tools_fold.gpr,docs/commands/fold.md,true,conforming_with_extensions,true,true,true
 getconf,posix_tools_getconf,Posix_Tools.Commands.Getconf,tools/getconf/alire.toml,tools/getconf/posix_tools_getconf.gpr,docs/commands/getconf.md,true,conforming_with_extensions,true,true,true
 groups,posix_tools_groups,Posix_Tools.Commands.Groups,tools/groups/alire.toml,tools/groups/posix_tools_groups.gpr,docs/commands/groups.md,true,conforming_with_extensions,true,true,true
+grep,posix_tools_grep,Greplib,tools/grep/alire.toml,tools/grep/posix_tools_grep.gpr,docs/commands/grep.md,true,conforming_with_extensions,true,true,true
 head,posix_tools_head,Posix_Tools.Commands.Head,tools/head/alire.toml,tools/head/posix_tools_head.gpr,docs/commands/head.md,true,conforming_with_extensions,true,true,true
 hostname,posix_tools_hostname,Posix_Tools.Commands.Hostname,tools/hostname/alire.toml,tools/hostname/posix_tools_hostname.gpr,docs/commands/hostname.md,true,conforming_with_extensions,true,true,true
 id,posix_tools_id,Posix_Tools.Commands.Id,tools/id/alire.toml,tools/id/posix_tools_id.gpr,docs/commands/id.md,true,conforming_with_extensions,true,true,true

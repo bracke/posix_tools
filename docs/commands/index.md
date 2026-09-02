@@ -29,6 +29,7 @@ V1 command references:
 - [fold](fold.md)
 - [getconf](getconf.md)
 - [groups](groups.md)
+- [grep](grep.md)
 - [head](head.md)
 - [hostname](hostname.md)
 - [id](id.md)

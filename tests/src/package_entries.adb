@@ -425,6 +425,10 @@ begin
    Add_Entry ("tools/awk/src/library/awk_cli.ads");
    Add_Entry ("tools/awk/src/library/awk_cli_context_state.ads");
 
+   Add_Entry ("tools/grep/README.md");
+   Add_Entry ("tools/grep/docs/command-line.md");
+   Add_Entry ("tools/grep/examples/README.md");
+
    Add_Entry ("tools/sed/CHANGELOG.md");
    Add_Entry ("tools/sed/LICENSE");
    Add_Entry ("tools/sed/README.md");

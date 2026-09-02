@@ -419,6 +419,9 @@ tools/awk/src/library/awk_cli-redirections.ads
 tools/awk/src/library/awk_cli.adb
 tools/awk/src/library/awk_cli.ads
 tools/awk/src/library/awk_cli_context_state.ads
+tools/grep/README.md
+tools/grep/docs/command-line.md
+tools/grep/examples/README.md
 tools/sed/CHANGELOG.md
 tools/sed/LICENSE
 tools/sed/README.md
@@ -633,6 +636,11 @@ tools/groups/alire.toml
 tools/groups/posix_tools_groups.gpr
 tools/groups/src/groups.adb
 docs/commands/groups.md
+generated/man/grep.1
+tools/grep/alire.toml
+tools/grep/posix_tools_grep.gpr
+tools/grep/src/grep.adb
+docs/commands/grep.md
 generated/man/head.1
 tools/head/alire.toml
 tools/head/posix_tools_head.gpr

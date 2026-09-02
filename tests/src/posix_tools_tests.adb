@@ -1072,8 +1072,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-SECURITY-CURRENT-001");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "30 POSIX-style utilities");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`grep` remains");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "31 POSIX-style utilities");
+      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`awk`, `grep`, and `sed`");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
       Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
@@ -2785,6 +2785,7 @@ procedure Posix_Tools_Tests is
                Posix_Tools.Command_Inventory.Executable (I) & " manifest must not depend on hostkit");
          end if;
          if Posix_Tools.Command_Inventory.Executable (I) /= "awk"
+           and then Posix_Tools.Command_Inventory.Executable (I) /= "grep"
            and then Posix_Tools.Command_Inventory.Executable (I) /= "sed"
          then
             Forbid_Text
@@ -2848,6 +2849,12 @@ procedure Posix_Tools_Tests is
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
+            elsif Posix_Tools.Command_Inventory.Executable (I) = "grep" then
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Patterns.Compile");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_File");
+               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_Stream");
             elsif Posix_Tools.Command_Inventory.Executable (I) = "sed" then
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
                Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
@@ -3023,18 +3030,13 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "STAGED-VERIFY-ROOT-001");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/requirements.csv", "EXTERNAL-COMMAND-SCOPE-001");
+        (Check, "generated/requirements.csv", "INTEGRATED-COMMAND-SCOPE-001");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "awk,posix_tools_awk");
       Project_Tools.Release_Checks.Require_Text
+        (Check, "generated/command_inventory.csv", "grep,posix_tools_grep");
+      Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "sed,posix_tools_sed");
-      Forbid_Text
-        ("generated/command_inventory.csv",
-         "grep,posix_tools_grep",
-         "grep is implemented in a separate project and must not be in this repository inventory");
-      if Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "tools/grep")) then
-         Project_Tools.Release_Checks.Fail ("grep command subcrate must not be present in posix_tools");
-      end if;
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
@@ -3053,6 +3055,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: i18n");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/awklib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: awklib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/greplib");
+      Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: greplib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/sedlib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: sedlib");
       Project_Tools.Release_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/regexp");
@@ -3245,8 +3249,6 @@ procedure Posix_Tools_Tests is
            (Check, "README.md", "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`");
       end loop;
       Project_Tools.Release_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "README.md", "`grep` is not implemented in this repository");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-README-INVENTORY-001");
       Ada.Text_IO.Put_Line ("metadata checks passed");
@@ -4841,6 +4843,28 @@ procedure Posix_Tools_Tests is
            & "version=" & Posix_Tools.Version.Version_String & LF;
       end Identity_Output;
 
+      function Version_Output (Command : String) return String is
+      begin
+         if Command = "awk" then
+            return
+              "awk " & Posix_Tools.Version.Version_String & LF
+              & "awklib 0.1.0" & LF
+              & "license MIT" & LF;
+         elsif Command = "grep" then
+            return
+              "grep " & Posix_Tools.Version.Version_String & LF
+              & "engine greplib" & LF
+              & "license MIT" & LF;
+         elsif Command = "sed" then
+            return
+              "sed " & Posix_Tools.Version.Version_String & LF
+              & "engine sedlib 0.1.0-dev" & LF
+              & "license MIT" & LF;
+         else
+            return Command & " (posix-tools) " & Posix_Tools.Version.Version_String & LF;
+         end if;
+      end Version_Output;
+
       Smoke_File : constant String :=
         Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-smoke.txt");
       Smoke_Leaf : constant String := "posix-tools-executable-smoke.txt";
@@ -4900,7 +4924,7 @@ procedure Posix_Tools_Tests is
                Built_Command_Path (Executable),
                Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("--version")]),
                0,
-               Executable & " (posix-tools) " & Posix_Tools.Version.Version_String & LF);
+               Version_Output (Executable));
 
             Expect_Output
               (Executable & " executable identity",
@@ -5030,6 +5054,14 @@ procedure Posix_Tools_Tests is
                                              Project_Tools.Processes.Argument ("f")]),
          0,
          Smoke_File & LF);
+
+      Expect_Output
+        ("grep executable data",
+         Built_Command_Path ("grep"),
+         Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("alpha"),
+                                             Project_Tools.Processes.Argument (Smoke_File)]),
+         0,
+         "alpha" & LF);
 
       declare
          Link_Target : constant String :=
