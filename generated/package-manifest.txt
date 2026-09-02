@@ -172,7 +172,7 @@ common/src/posix_tools-paths.adb bytes= 5432 fnv1a64=6bb43be1fcbcf9cb
 common/src/posix_tools-paths.ads bytes= 1322 fnv1a64=540f3f7cb43069a2
 common/src/posix_tools-presentation.adb bytes= 1669 fnv1a64=647354f4f8b7817b
 common/src/posix_tools-presentation.ads bytes= 635 fnv1a64=59ad16da48042c86
-common/src/posix_tools-process_entry.adb bytes= 1081 fnv1a64=3b682361bb0634d9
+common/src/posix_tools-process_entry.adb bytes= 1186 fnv1a64=175288f4fa15cb32
 common/src/posix_tools-process_entry.ads bytes= 229 fnv1a64=617a1e2c48c4baa0
 common/src/posix_tools-streams.ads bytes= 96 fnv1a64=3bdc42193fc36d65
 common/src/posix_tools-streams-counting.adb bytes= 6181 fnv1a64=0b484d8b68cec608

@@ -17,11 +17,17 @@ package body Posix_Tools.Process_Entry is
    end Write_Line;
 
    function Write_Identity (Command : String) return Boolean is
-   begin
-      return Write_Line ("schema=1")
+      Ok : constant Boolean :=
+        Write_Line ("schema=1")
         and then Write_Line ("project=" & Posix_Tools.Version.Project_Name)
         and then Write_Line ("command=" & Command)
         and then Write_Line ("version=" & Posix_Tools.Version.Version_String);
+   begin
+      if Ok then
+         Set_Exit_Status (0);
+      end if;
+
+      return Ok;
    end Write_Identity;
 
    procedure Set_Exit_Status (Status : Integer) is
