@@ -5,6 +5,7 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with AUnit;
 with AUnit.Options;
 with AUnit.Reporter.Text;
 with AUnit.Run;
@@ -27,7 +28,9 @@ with Proof_Targets;
 with Project_Tools.Text;
 
 procedure Posix_Tools_Tests is
-   procedure Runner is new AUnit.Run.Test_Runner (All_Suites.Suite);
+   --  Test_Runner exits 0 however many assertions failed; Run_Tests takes
+   --  the status and fails the process on anything but success.
+   function Runner is new AUnit.Run.Test_Runner_With_Status (All_Suites.Suite);
 
    Reporter : AUnit.Reporter.Text.Text_Reporter;
    Options  : AUnit.Options.AUnit_Options :=
@@ -5523,6 +5526,7 @@ procedure Posix_Tools_Tests is
    end Test_Filter_Text;
 
    procedure Run_Tests is
+      use type AUnit.Status;
       Filter_Text : constant String := Test_Filter_Text;
    begin
       if Filter_Text /= "" then
@@ -5532,7 +5536,9 @@ procedure Posix_Tools_Tests is
          Options.Filter := null;
       end if;
 
-      Runner (Reporter, Options);
+      if Runner (Reporter, Options) /= AUnit.Success then
+         Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+      end if;
    end Run_Tests;
 begin
    if Command = "test"
