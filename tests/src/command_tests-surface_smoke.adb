@@ -1,4 +1,6 @@
 with Ada.Calendar;
+with Ada.Calendar.Formatting;
+with Ada.Calendar.Time_Zones;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
@@ -1423,15 +1425,21 @@ package body Command_Tests.Surface_Smoke is
             Ada.Calendar.Time_Of (2026, 8, 12, Duration (10 * 3_600))),
          "touch -a leaves modification timestamp unchanged");
       declare
+         --  touch -t names a local time: 15:40:11 at this host's offset.
          Expected_Access : constant Ada.Calendar.Time :=
-           Ada.Calendar.Time_Of (1970, 1, 1) + 1_786_542_011.0;
+           Ada.Calendar.Formatting.Time_Of
+             (2026, 8, 12, 15, 40, 11,
+              Time_Zone => Ada.Calendar.Time_Zones.UTC_Time_Offset (Ada.Calendar.Time_Of (2026, 8, 12)));
          Available : Boolean;
          Accessed  : constant Ada.Calendar.Time := Hostkit.Metadata.File_Access_Time (Touched, Available);
       begin
          if Available then
             AUnit.Assertions.Assert
               (Time_Near (Accessed, Expected_Access),
-               "touch -a applies explicit access timestamp");
+               "touch -a applies explicit access timestamp: got "
+               & Ada.Calendar.Formatting.Image (Accessed) & " expected "
+               & Ada.Calendar.Formatting.Image (Expected_Access) & " offset"
+               & Ada.Calendar.Time_Zones.UTC_Time_Offset (Ada.Calendar.Time_Of (2026, 8, 12))'Image);
          end if;
       end;
 
