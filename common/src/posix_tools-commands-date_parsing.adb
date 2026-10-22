@@ -1,5 +1,4 @@
 with Ada.Calendar.Formatting;
-with I18N.CLDR_Data;
 with I18N.Date_Time_Format;
 with I18N.Time_Zone_Data;
 with Posix_Tools.Host_Adapters.Clock;
@@ -191,7 +190,7 @@ package body Posix_Tools.Commands.Date_Parsing is
       Offset         : out Ada.Calendar.Time_Zones.Time_Offset;
       Zone_Name      : out Unbounded_String) return Boolean
    is
-      Canonical : constant String := I18N.CLDR_Data.Canonical_Time_Zone (Value);
+      Canonical : constant String := I18N.Time_Zone_Data.Canonical_Zone (Value);
       Year : Ada.Calendar.Year_Number;
       Month : Ada.Calendar.Month_Number;
       Day : Ada.Calendar.Day_Number;
