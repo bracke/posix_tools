@@ -155,12 +155,20 @@ package body Command_Tests.Surface_Smoke is
             AUnit.Assertions.Assert (False, "cleanup failed for " & Path);
       end Remove_Any;
 
+      function Octal (Mode : Natural) return String is
+         Digits_Of : constant String := "01234567";
+      begin
+         return [Digits_Of (Mode / 64 mod 8 + 1), Digits_Of (Mode / 8 mod 8 + 1), Digits_Of (Mode mod 8 + 1)];
+      end Octal;
+
       procedure Assert_Mode_When_Available (Path : String; Expected : Natural; Label : String) is
          Available : Boolean;
          Actual    : constant Natural := Hostkit.Metadata.File_Permission_Bits (Path, Available);
       begin
          if Hostkit.Metadata.Permissions_Supported and then Available then
-            AUnit.Assertions.Assert (Actual mod 8#1000# = Expected, Label);
+            AUnit.Assertions.Assert
+              (Actual mod 8#1000# = Expected,
+               Label & ": mode " & Octal (Actual mod 8#1000#) & ", expected " & Octal (Expected));
          end if;
       end Assert_Mode_When_Available;
 
