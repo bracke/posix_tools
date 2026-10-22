@@ -4542,6 +4542,8 @@ procedure Posix_Tools_Tests is
               Quiet   => True);
       begin
          if Captured.Status /= 0 then
+            --  The suite's own report says which test failed and why.
+            Ada.Text_IO.Put_Line (To_String (Captured.Output));
             Project_Tools.Release_Checks.Fail
               (Label & " failed with status" & Integer'Image (Captured.Status));
          elsif not Project_Tools.Text.Contains (To_String (Captured.Output), Needle) then
