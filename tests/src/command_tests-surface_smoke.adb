@@ -655,7 +655,12 @@ package body Command_Tests.Surface_Smoke is
       Context.Initialize ("chmod", Two_Args ("u+x,g=u,o=g", Chmod_Target));
       Posix_Tools.Commands.Chmod.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic copy status");
-      Assert_Mode_When_Available (Chmod_Target, 8#555#, "chmod applies symbolic copy mode");
+      --  A host whose programs carry a suffix (Windows) reports execute only
+      --  for files it would run, and this one is a .txt.
+      Assert_Mode_When_Available
+        (Chmod_Target,
+         (if Hostkit.Fs.Executable_Suffix = "" then 8#555# else 8#444#),
+         "chmod applies symbolic copy mode");
 
       Context.Initialize ("chmod", Two_Args ("u+", Chmod_Target));
       Posix_Tools.Commands.Chmod.Run (Context, Result);
