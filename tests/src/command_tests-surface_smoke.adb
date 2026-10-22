@@ -8,6 +8,7 @@ with AUnit.Assertions;
 with Command_Tests.Surface_Smoke.Helpers;
 with GNAT.OS_Lib;
 with Hostkit.Fs;
+with Hostkit.Signals;
 with Hostkit.Metadata;
 with Posix_Tools.Commands.Arch;
 with Posix_Tools.Commands.Cat;
@@ -794,8 +795,11 @@ package body Command_Tests.Surface_Smoke is
 
       Context.Initialize ("kill", One_Arg ("-l"));
       Posix_Tools.Commands.Kill.Run (Context, Result);
+      --  A host with no signals (Windows) has nothing to list.
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 0,
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then (Test_Contexts.Output (Context)'Length > 0
+                   or else not Hostkit.Signals.Is_Supported (Hostkit.Signals.Signal_Terminate)),
          "kill -l lists signals");
 
       Context.Initialize ("mv", Three_Args ("-ff", Linked, Moved));
