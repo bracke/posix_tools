@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with I18N.CLDR_Data;
+with I18N.Number_Format;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Matching;
 
@@ -31,7 +31,7 @@ package body Posix_Tools.Text.Sort_Numeric is
 
       for Ch in Character range '0' .. '9' loop
          declare
-            Localized : constant String := I18N.CLDR_Data.Digit_Text (Locale, Ch);
+            Localized : constant String := I18N.Number_Format.Digit_Text (Locale, Ch);
          begin
             if Localized /= String'(1 => Ch)
               and then Posix_Tools.Text.Matching.Starts_With_At (Text, Localized, Index)
@@ -51,9 +51,9 @@ package body Posix_Tools.Text.Sort_Numeric is
    function Numeric_Field (Locale, Text : String) return String is
       Index             : Positive := Text'First;
       Output            : Unbounded_String;
-      Decimal_Separator : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
-      Plus_Sign         : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
-      Minus_Sign        : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
+      Decimal_Separator : constant String := I18N.Number_Format.Decimal_Separator (Locale);
+      Plus_Sign         : constant String := I18N.Number_Format.Plus_Sign (Locale);
+      Minus_Sign        : constant String := I18N.Number_Format.Minus_Sign (Locale);
       Has_Digit         : Boolean := False;
       Digit             : Character;
       Width             : Natural;

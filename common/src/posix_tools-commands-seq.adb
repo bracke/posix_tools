@@ -1,6 +1,6 @@
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
-with I18N.CLDR_Data;
+with I18N.Number_Format;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Byte_Classes;
@@ -57,14 +57,14 @@ package body Posix_Tools.Commands.Seq is
 
       function Localize_Decimal_Number (Text : String) return String is
          Locale  : constant String := Numeric_Locale;
-         Radix   : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
-         Plus    : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
-         Minus   : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
+         Radix   : constant String := I18N.Number_Format.Decimal_Separator (Locale);
+         Plus    : constant String := I18N.Number_Format.Plus_Sign (Locale);
+         Minus   : constant String := I18N.Number_Format.Minus_Sign (Locale);
          Output  : Unbounded_String;
       begin
          for I in Text'Range loop
             if Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)) then
-               Append (Output, I18N.CLDR_Data.Digit_Text (Locale, Text (I)));
+               Append (Output, I18N.Number_Format.Digit_Text (Locale, Text (I)));
             elsif Text (I) = '.' then
                Append (Output, Radix);
             elsif Text (I) = '+' then

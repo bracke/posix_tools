@@ -1,5 +1,7 @@
 with Ada.Calendar.Formatting;
 with I18N.CLDR_Data;
+with I18N.Date_Time_Format;
+with I18N.Time_Zone_Data;
 with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
@@ -199,16 +201,13 @@ package body Posix_Tools.Commands.Date_Parsing is
       Sub_Second : Ada.Calendar.Formatting.Second_Duration;
       Valid : Boolean;
       Offset_Seconds : Integer;
-      Base_Valid : Boolean;
-      Base_Minutes : Integer;
-      Family : Unbounded_String;
       Short_Name : Unbounded_String;
    begin
       Ada.Calendar.Formatting.Split
         (Reference_Time, Year, Month, Day, Hour, Minute, Second, Sub_Second, Time_Zone => 0);
 
       Offset_Seconds :=
-        I18N.CLDR_Data.Time_Zone_Offset_Seconds_At_UTC
+        I18N.Time_Zone_Data.Offset_Seconds_At_UTC
           (Canonical,
            Natural (Year),
            Natural (Month),
@@ -223,16 +222,12 @@ package body Posix_Tools.Commands.Date_Parsing is
       end if;
 
       Offset := Ada.Calendar.Time_Zones.Time_Offset (Offset_Seconds / 60);
-      Base_Minutes := I18N.CLDR_Data.Time_Zone_Base_Offset_Minutes (Canonical, Base_Valid);
-      Family := To_Unbounded_String (I18N.CLDR_Data.Time_Zone_DST_Family (Canonical));
-      if To_String (Family) /= "" then
-         Short_Name :=
-           To_Unbounded_String
-             (I18N.CLDR_Data.Time_Zone_Short_Name
-                (Locale,
-                 To_String (Family),
-                 Base_Valid and then Offset_Seconds /= Base_Minutes * 60));
-      end if;
+      Short_Name :=
+        To_Unbounded_String
+          (I18N.Date_Time_Format.Short_Zone_Name
+             (Locale, Canonical,
+              Natural (Year), Natural (Month), Natural (Day),
+              Natural (Hour), Natural (Minute), Natural (Second)));
 
       Zone_Name :=
         (if To_String (Short_Name) /= ""

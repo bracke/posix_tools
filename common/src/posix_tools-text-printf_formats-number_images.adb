@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with I18N.CLDR_Data;
+with I18N.Number_Format;
 with Posix_Tools.Numbers;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
@@ -189,16 +189,16 @@ package body Posix_Tools.Text.Printf_Formats.Number_Images is
       Localize_Radix        : Boolean;
       Localize_Digit_Glyphs : Boolean := True) return String
    is
-      Radix  : constant String := I18N.CLDR_Data.Decimal_Separator (Locale);
-      Plus   : constant String := I18N.CLDR_Data.Number_Plus_Sign (Locale);
-      Minus  : constant String := I18N.CLDR_Data.Number_Minus_Sign (Locale);
+      Radix  : constant String := I18N.Number_Format.Decimal_Separator (Locale);
+      Plus   : constant String := I18N.Number_Format.Plus_Sign (Locale);
+      Minus  : constant String := I18N.Number_Format.Minus_Sign (Locale);
       Output : Unbounded_String;
    begin
       for I in Text'Range loop
          if Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I))
            and then Localize_Digit_Glyphs
          then
-            Append (Output, I18N.CLDR_Data.Digit_Text (Locale, Text (I)));
+            Append (Output, I18N.Number_Format.Digit_Text (Locale, Text (I)));
          elsif Text (I) = '.' and then Localize_Radix then
             Append (Output, Radix);
          elsif Text (I) = '+' then
