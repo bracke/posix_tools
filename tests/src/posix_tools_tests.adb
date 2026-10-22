@@ -4821,6 +4821,16 @@ procedure Posix_Tools_Tests is
               Quiet   => True);
       begin
          if Captured.Status /= Expected_Status then
+            --  Run it again with its errors kept: a crash says why on stderr.
+            declare
+               Again : constant Project_Tools.Processes.Captured_Process :=
+                 Project_Tools.Processes.Capture_Command
+                   (Command    => Program,
+                    Arguments  => Args,
+                    Err_To_Out => True);
+            begin
+               Ada.Text_IO.Put_Line (To_String (Again.Output));
+            end;
             Project_Tools.Release_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of" & Integer'Image (Expected_Status));
