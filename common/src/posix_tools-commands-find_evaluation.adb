@@ -1,4 +1,5 @@
 with Ada.Containers;
+with GNAT.OS_Lib;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Find_Evaluation.Actions;
 with Posix_Tools.Commands.Find_Evaluation.Predicates;
@@ -9,6 +10,21 @@ package body Posix_Tools.Commands.Find_Evaluation is
    use type Ada.Containers.Count_Type;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
+
+   --  -path patterns name directories with '/', as POSIX writes them; a host
+   --  whose own separator differs (Windows) is matched in that spelling.
+   function Slashed (Path : String) return String is
+   begin
+      return Result : String := Path do
+         if GNAT.OS_Lib.Directory_Separator /= '/' then
+            for C of Result loop
+               if C = GNAT.OS_Lib.Directory_Separator then
+                  C := '/';
+               end if;
+            end loop;
+         end if;
+      end return;
+   end Slashed;
 
    procedure Initialize
      (State      : out Evaluation_State;
@@ -101,7 +117,7 @@ package body Posix_Tools.Commands.Find_Evaluation is
             Index := Index + 2;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.Glob_Matches
-                (State.Expression.Element (Index - 1), Path);
+                (State.Expression.Element (Index - 1), Slashed (Path));
          elsif Token = "-mtime" then
             Index := Index + 2;
             return Active
