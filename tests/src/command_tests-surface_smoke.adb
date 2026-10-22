@@ -177,8 +177,14 @@ package body Command_Tests.Surface_Smoke is
          Available : Boolean;
          Actual    : constant Natural := Hostkit.Metadata.File_Permission_Bits (Path, Available);
       begin
+         --  Only a host's own mode bits carry setuid, setgid and sticky; a mode
+         --  rendered from an ACL (Windows) has the permission bits alone.
          if Hostkit.Metadata.Permissions_Supported and then Available then
-            AUnit.Assertions.Assert (Actual mod 8#10000# = Expected, Label);
+            if Hostkit.Metadata.Mode_Bits_Are_Native then
+               AUnit.Assertions.Assert (Actual mod 8#10000# = Expected, Label);
+            else
+               AUnit.Assertions.Assert (Actual mod 8#1000# = Expected mod 8#1000#, Label);
+            end if;
          end if;
       end Assert_Full_Mode_When_Available;
 
