@@ -4654,7 +4654,13 @@ package body Command_Tests.Surface_Smoke is
             "test executable source mode setup");
          Context.Initialize ("test", Two_Args ("-x", Source));
          Posix_Tools.Commands.Test_Command.Run (Context, Result);
-         AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "test -x status");
+         --  Where programs carry a suffix (Windows), a .txt does not run
+         --  whatever its mode.
+         AUnit.Assertions.Assert
+           (Result.Status
+            = (if Hostkit.Fs.Executable_Suffix = "" then Posix_Tools.Exit_Status.Success
+               else Posix_Tools.Exit_Status.Operational_Failure),
+            "test -x status");
 
          if Hostkit.Metadata.Set_Permissions (Source, 8#4700#) then
             declare

@@ -92,6 +92,10 @@ package Posix_Tools.Host_Adapters.File_System is
    function Ownership_Supported return Boolean;
    function Permissions_Supported return Boolean;
 
+   --  A child's pathname as POSIX forms it: the parent, a '/', and the name,
+   --  with no second separator when the parent already ends in one (either
+   --  spelling, on a host whose own is '\').
+   function Child_Path (Parent : String; Name : String) return String;
    function Path_Names_Current_Directory (Path : String) return Boolean;
    function Read_Link_Target (Path : String; Target : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
    function Real_Path (Path : String) return String;

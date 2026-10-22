@@ -389,6 +389,15 @@ package body Posix_Tools.Host_Adapters.File_System is
       Posix_Tools.Host_Adapters.File_System.Paths.Rename (Old_Path, New_Path);
    end Rename;
 
+   function Child_Path (Parent : String; Name : String) return String is
+      Joined : constant Boolean :=
+        Parent'Length > 0
+        and then (Parent (Parent'Last) = '/'
+                  or else Parent (Parent'Last) = GNAT.OS_Lib.Directory_Separator);
+   begin
+      return Parent & (if Joined then "" else "/") & Name;
+   end Child_Path;
+
    function Same_File (Left : String; Right : String) return Boolean is
    begin
       return Posix_Tools.Host_Adapters.File_System.Paths.Same_File (Left, Right);
