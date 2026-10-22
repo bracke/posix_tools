@@ -6,6 +6,7 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Find_Expressions;
+with GNAT.OS_Lib;
 
 package body Posix_Tools.Commands.Find is
    use type Ada.Containers.Count_Type;
@@ -62,10 +63,17 @@ package body Posix_Tools.Commands.Find is
             declare
                Iteration_Ok : Boolean;
 
+               --  A child's pathname is its parent's, a '/', and its name, as
+               --  POSIX forms it; the host's own spelling of the join (a '\'
+               --  on Windows) would leave the output in two separators.
                procedure Visit_Child (Name : String; Full_Name : String; Stop : in out Boolean) is
+                  pragma Unreferenced (Full_Name, Stop);
+                  Joined : constant Boolean :=
+                    Path'Length > 0
+                    and then (Path (Path'Last) = '/'
+                              or else Path (Path'Last) = GNAT.OS_Lib.Directory_Separator);
                begin
-                  pragma Unreferenced (Name, Stop);
-                  Visit (Full_Name, Root_Device, Root_Device_Available);
+                  Visit (Path & (if Joined then "" else "/") & Name, Root_Device, Root_Device_Available);
                end Visit_Child;
 
                procedure For_Each_Child is new FS.For_Each_Directory_Entry (Visit_Child);
