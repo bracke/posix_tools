@@ -375,15 +375,16 @@ package body Command_Tests.Surface_Smoke is
          AUnit.Assertions.Assert
            (Time_Near (Ada.Directories.Modification_Time (Target), Ada.Directories.Modification_Time (Source)),
             "cp -p preserves source modification time");
+         --  Against the time set above, not the source's now: reading the
+         --  source to copy it may move its access time (macOS does).
          declare
-            Source_Access_Available : Boolean;
             Target_Access_Available : Boolean;
-            Source_Access   : constant Ada.Calendar.Time :=
-              Hostkit.Metadata.File_Access_Time (Source, Source_Access_Available);
+            Source_Access : constant Ada.Calendar.Time :=
+              Ada.Calendar.Formatting.Time_Of (1970, 1, 1, 0.0, Time_Zone => 0) + Duration (1_612_325_106);
             Target_Access : constant Ada.Calendar.Time :=
               Hostkit.Metadata.File_Access_Time (Target, Target_Access_Available);
          begin
-            if Source_Access_Available and then Target_Access_Available then
+            if Target_Access_Available then
                AUnit.Assertions.Assert
                  (Time_Near (Target_Access, Source_Access),
                   "cp -p preserves source access time");
