@@ -117,6 +117,25 @@ package body Explore.Application is
       Errors        : Unbounded.Unbounded_String;
    end record;
 
+   --  The images the terminal holds, kept so that showing one again needs no
+   --  second transfer. An empty slot has Id zero.
+   Image_Cache_Slots : constant := 8;
+   Image_Cache_Bytes : constant := 32 * 1024 * 1024;
+
+   type Cached_Image is record
+      Path     : Unbounded.Unbounded_String;
+      Modified : Long_Long_Integer := 0;
+      Size     : Long_Long_Integer := 0;
+      Id       : Natural range 0 .. 255 := 0;
+      Columns  : Natural := 0;
+      Rows     : Natural := 0;
+      Bytes    : Natural := 0;
+      --  When it was last shown, for evicting the least recently used.
+      Used     : Natural := 0;
+   end record;
+
+   type Image_Cache is array (1 .. Image_Cache_Slots) of Cached_Image;
+
    type Session is record
       Directory : Unbounded.Unbounded_String;
       Home      : Unbounded.Unbounded_String;
@@ -163,8 +182,8 @@ package body Explore.Application is
       --  A cell's size in pixels, from the terminal's size reports.
       Cell_Width  : Positive := 8;
       Cell_Height : Positive := 16;
-      --  The id the last image was sent under; ids go round 1 .. 255.
-      Last_Image  : Natural := 0;
+      Images      : Image_Cache;
+      Image_Clock : Natural := 0;
    end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
@@ -184,9 +203,6 @@ package body Explore.Application is
 
    procedure Draw (State : in out Session; Ok : out Boolean);
 
-   --  Free the image the terminal holds for the preview, if any.
-   procedure Drop_Image (State : in out Session);
-
    procedure Edit_Filter (State : in out Session; Item : Input.Event);
 
    --  Edit Text with Item: typing, Backspace, and paste. Done when Enter was
@@ -202,6 +218,9 @@ package body Explore.Application is
    procedure Handle (State : in out Session; Item : Input.Event);
 
    procedure Handle_Mouse (State : in out Session; Item : Input.Event);
+
+   --  Stop showing the preview's image; the terminal keeps it for later.
+   procedure Hide_Image (State : in out Session);
 
    function Identify (State : in out Session) return Boolean;
 
@@ -380,18 +399,6 @@ package body Explore.Application is
       State.Dirty := False;
       State.Repaint := False;
    end Draw;
-
-   procedure Drop_Image (State : in out Session) is
-   begin
-      if State.Frame.Image_Id > 0 then
-         if not Write (Explore.Images.Delete (State.Frame.Image_Id, State.In_Tmux)) then
-            State.Quit := True;
-         end if;
-
-         State.Frame.Image_Id := 0;
-         State.Dirty := True;
-      end if;
-   end Drop_Image;
 
    procedure Edit_Filter (State : in out Session; Item : Input.Event) is
       Filter : Unbounded.Unbounded_String renames State.Browser.Filter;
@@ -608,6 +615,14 @@ package body Explore.Application is
 
       State.Dirty := True;
    end Handle_Mouse;
+
+   procedure Hide_Image (State : in out Session) is
+   begin
+      if State.Frame.Image_Id > 0 then
+         State.Frame.Image_Id := 0;
+         State.Dirty := True;
+      end if;
+   end Hide_Image;
 
    --  Ask the terminal who it is. True when it answered the private identity
    --  query before its device attributes, which every terminal answers.
@@ -1134,17 +1149,63 @@ package body Explore.Application is
    end Run_Session;
 
    procedure Show_Image (State : in out Session) is
+      use type Explore.Images.Image_Format;
+      use type Unbounded.Unbounded_String;
+
       Preview : Explore.Previews.Preview renames State.Frame.Preview;
       Content : constant Explore.Render.Area :=
         Explore.Render.Content_Area (Explore.Render.Layout_For (State.Size.Rows, State.Size.Columns));
+      Caps    : Explore.Protocol.Capability_Set renames State.Identity.Capabilities;
+      Bytes   : constant Natural := Unbounded.Length (Preview.Image);
+      Slot    : Natural := 0;
       Columns, Rows : Positive;
+
+      function Fresh_Id return Positive;
+
+      --  Free the least recently shown image other than the one at Keep.
+      procedure Evict (Keep : Natural);
+
+      procedure Evict (Keep : Natural) is
+         Oldest : Natural := 0;
+      begin
+         for I in State.Images'Range loop
+            if I /= Keep and then State.Images (I).Id > 0
+              and then (Oldest = 0 or else State.Images (I).Used < State.Images (Oldest).Used)
+            then
+               Oldest := I;
+            end if;
+         end loop;
+
+         if Oldest > 0 then
+            if not Write (Explore.Images.Delete (State.Images (Oldest).Id, State.In_Tmux)) then
+               State.Quit := True;
+            end if;
+
+            State.Images (Oldest) := (others => <>);
+         end if;
+      end Evict;
+
+      function Fresh_Id return Positive is
+      begin
+         for Id in 1 .. 255 loop
+            if (for all Item of State.Images => Item.Id /= Id) then
+               return Id;
+            end if;
+         end loop;
+
+         return 1;
+      end Fresh_Id;
    begin
-      Drop_Image (State);
+      Hide_Image (State);
 
       if Preview.Kind /= Explore.Previews.Image_Preview
-        or else not State.Identity.Capabilities (Explore.Protocol.Kitty_Graphics)
+        or else not Caps (Explore.Protocol.Kitty_Graphics)
+        or else (Preview.Format = Explore.Images.JPEG_Format and then not Caps (Explore.Protocol.Kitty_Graphics_JPEG))
+        or else (Preview.Format = Explore.Images.GIF_Format and then not Caps (Explore.Protocol.Kitty_Graphics_GIF))
         or else Content.Rows = 0
         or else Content.Columns = 0
+        or else Preview.Width = 0
+        or else Preview.Height = 0
       then
          return;
       end if;
@@ -1154,17 +1215,74 @@ package body Explore.Application is
          Natural'Min (Content.Columns, Explore.Images.Diacritic_Count),
          Natural'Min (Content.Rows, Explore.Images.Diacritic_Count),
          Columns, Rows);
-      State.Last_Image := State.Last_Image mod 255 + 1;
+      State.Image_Clock := State.Image_Clock + 1;
 
-      if not Write
-        (Explore.Images.Transmit_PNG
-           (State.Last_Image, Unbounded.To_String (Preview.Image), Columns, Rows, State.In_Tmux))
-      then
-         State.Quit := True;
-         return;
+      for I in State.Images'Range loop
+         if State.Images (I).Id > 0
+           and then State.Images (I).Path = Preview.Path
+           and then State.Images (I).Modified = Preview.Modified
+           and then State.Images (I).Size = Preview.File_Size
+         then
+            Slot := I;
+         end if;
+      end loop;
+
+      if Slot > 0 then
+         --  Already there: placed afresh only when the pane changed size.
+         if State.Images (Slot).Columns /= Columns or else State.Images (Slot).Rows /= Rows then
+            if not Write (Explore.Images.Place (State.Images (Slot).Id, Columns, Rows, State.In_Tmux)) then
+               State.Quit := True;
+               return;
+            end if;
+         end if;
+      else
+         --  Room by count, then by bytes, freeing the least recently shown.
+         for I in State.Images'Range loop
+            if State.Images (I).Id = 0 then
+               Slot := I;
+               exit;
+            end if;
+         end loop;
+
+         if Slot = 0 then
+            Evict (Keep => 0);
+
+            for I in State.Images'Range loop
+               if State.Images (I).Id = 0 then
+                  Slot := I;
+                  exit;
+               end if;
+            end loop;
+         end if;
+
+         while (for some Item of State.Images => Item.Id > 0)
+           and then Bytes + [for Item of State.Images => Item.Bytes]'Reduce ("+", 0) > Image_Cache_Bytes
+         loop
+            Evict (Keep => 0);
+         end loop;
+
+         State.Images (Slot) :=
+           (Path     => Preview.Path,
+            Modified => Preview.Modified,
+            Size     => Preview.File_Size,
+            Id       => Fresh_Id,
+            Bytes    => Bytes,
+            others   => <>);
+
+         if not Write
+           (Explore.Images.Transmit
+              (State.Images (Slot).Id, Preview.Format, Unbounded.To_String (Preview.Image), Columns, Rows,
+               State.In_Tmux))
+         then
+            State.Quit := True;
+            return;
+         end if;
       end if;
 
-      State.Frame.Image_Id := State.Last_Image;
+      State.Images (Slot).Columns := Columns;
+      State.Images (Slot).Rows := Rows;
+      State.Images (Slot).Used := State.Image_Clock;
+      State.Frame.Image_Id := State.Images (Slot).Id;
       State.Frame.Image_Columns := Columns;
       State.Frame.Image_Rows := Rows;
       State.Dirty := True;
@@ -1320,7 +1438,7 @@ package body Explore.Application is
       if Target /= Unbounded.To_String (State.Previewing) then
          State.Previewing := Unbounded.To_Unbounded_String (Target);
          State.Frame.Preview := (others => <>);
-         Drop_Image (State);
+         Hide_Image (State);
 
          if Target'Length > 0 then
             State.Preview_Generation := State.Preview_Generation + 1;

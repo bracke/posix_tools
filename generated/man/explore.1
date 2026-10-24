@@ -85,12 +85,16 @@ are dropped. The current and parent directories are watched, and re-read when th
 the same name. Entries are sorted by natural name by default, with directories first and ASCII case ignored. Only the
 cells that changed are redrawn.
 
-A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of a PNG of up to
-16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. A PNG is sent
-to the terminal once, through Kitty graphics, and placed in the pane with Unicode placeholders, scaled down to fit
-without stretching and never enlarged, using the cell size the terminal reports with its size. Inside tmux the
-graphics commands are passed through to the outer terminal while the placeholders stay ordinary text. Every image is
-freed when the selection moves on and when explore ends.
+A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of an image of up to
+16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. An image is
+sent to the terminal through Kitty graphics and placed in the pane with Unicode placeholders, scaled down to fit
+without stretching and never enlarged, using the cell size the terminal reports with its size. PNG goes as Kitty's
+f=100; JPEG and GIF go as bracke-terminal's private f=1001 and f=1002, and only when the terminal advertises
+kgfx-jpeg and kgfx-gif in its identity answer. The terminal keeps the last eight images sent, up to 32 MiB, so
+returning to one shows it at once, and a resize only places it again; the least recently shown is freed to make room,
+and all are freed when explore ends. Inside tmux the graphics commands are passed through to the outer terminal
+while the placeholders stay ordinary text. Images are sent directly over the terminal connection, which also works
+across ssh.
 
 Copies, moves, links, and deletions run one at a time on a worker task of their own, in the order they were asked
 for, through the shared Posix_Tools.File_Operations that cp, mv, and rm use. Copies keep modes, times, and
@@ -106,8 +110,9 @@ back the signal dispositions it changed. A terminate or hangup signal that was i
 ignored.
 
 Inside tmux (TMUX set in the environment), the identity query and every sequence meant for bracke-terminal itself
-are wrapped in tmux's DCS passthrough, which requires set -g allow-passthrough on in tmux. Whether tmux forwards the
-terminal's answers back to the pane is a validation item of a later milestone.
+are wrapped in tmux's DCS passthrough, which requires set -g allow-passthrough on in tmux. tmux 3.4 hands the
+terminal's answers back to the pane, so the identity check works the same inside tmux, and the image placeholders
+are ordinary text that tmux redraws itself.
 .SH LOCALE BEHAVIOR
 Interface text, help, and diagnostics are locale-dependent. Pathnames are shown as they are.
 .SH IMPLEMENTATION-DEFINED CHOICES
@@ -125,7 +130,7 @@ explore ~/projects
 Project extension; not a POSIX utility.
 .SH KNOWN LIMITATIONS
 Only bracke-terminal is supported, by design. There is no trash: deletion is permanent. JPEG and GIF images
-are described but not yet shown, and previews do not scroll. Content previews of archives and documents, tabs, search, bookmarks, and
+are shown only once the terminal advertises them, and previews do not scroll. Content previews of archives and documents, tabs, search, bookmarks, and
 configuration are not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
 when it changes.
 .SH SEE ALSO

@@ -108,11 +108,37 @@ package body Explore.Images is
       Rows := Positive'Min (Rows, Max_Rows);
    end Fit;
 
+   function Format_Code (Format : Image_Format) return Positive is
+     (case Format is
+        when PNG_Format => 100,
+        when JPEG_Format => 1001,
+        when GIF_Format => 1002);
+
+   function GIF_Size (Data : String; Width, Height : out Natural) return Boolean is
+      function Byte (At_Offset : Natural) return Natural is (Character'Pos (Data (Data'First + At_Offset)));
+   begin
+      Width := 0;
+      Height := 0;
+
+      if not Is_GIF (Data) or else Data'Length < 10 then
+         return False;
+      end if;
+
+      --  Little-endian, after the six-byte signature.
+      Width := Byte (6) + Byte (7) * 256;
+      Height := Byte (8) + Byte (9) * 256;
+      return Width > 0 and then Height > 0;
+   end GIF_Size;
+
    function Image (Value : Natural) return String is
       Text : constant String := Natural'Image (Value);
    begin
       return Text (Text'First + 1 .. Text'Last);
    end Image;
+
+   function Is_GIF (Data : String) return Boolean is
+     (Data'Length >= 6
+      and then (Data (Data'First .. Data'First + 5) = "GIF87a" or else Data (Data'First .. Data'First + 5) = "GIF89a"));
 
    function Is_JPEG (Data : String) return Boolean is
      (Data'Length >= 3
@@ -120,11 +146,56 @@ package body Explore.Images is
       and then Character'Pos (Data (Data'First + 1)) = 16#D8#
       and then Character'Pos (Data (Data'First + 2)) = 16#FF#);
 
+   function JPEG_Size (Data : String; Width, Height : out Natural) return Boolean is
+      function Byte (At_Offset : Natural) return Natural is (Character'Pos (Data (Data'First + At_Offset)));
+
+      Offset : Natural := 2;
+   begin
+      Width := 0;
+      Height := 0;
+
+      if not Is_JPEG (Data) then
+         return False;
+      end if;
+
+      --  Each marker is FF, its code, and a big-endian length that counts
+      --  itself; a start-of-frame marker carries the precision, the height,
+      --  and the width.
+      while Offset + 8 < Data'Length loop
+         exit when Byte (Offset) /= 16#FF#;
+
+         declare
+            Code   : constant Natural := Byte (Offset + 1);
+            Length : constant Natural := Byte (Offset + 2) * 256 + Byte (Offset + 3);
+         begin
+            if Code in 16#C0# .. 16#CF# and then Code not in 16#C4# | 16#C8# | 16#CC# then
+               Height := Byte (Offset + 5) * 256 + Byte (Offset + 6);
+               Width := Byte (Offset + 7) * 256 + Byte (Offset + 8);
+               return Width > 0 and then Height > 0;
+            elsif Code = 16#FF# then
+               --  Padding before a marker.
+               Offset := Offset + 1;
+            elsif Length < 2 then
+               return False;
+            else
+               Offset := Offset + 2 + Length;
+            end if;
+         end;
+      end loop;
+
+      return False;
+   end JPEG_Size;
+
    function Is_PNG (Data : String) return Boolean is
      (Data'Length >= 8
       and then Data (Data'First .. Data'First + 7)
         = Character'Val (16#89#) & "PNG" & Character'Val (13) & Character'Val (10) & Character'Val (26)
           & Character'Val (10));
+
+   function Place (Id : Positive; Columns, Rows : Positive; In_Tmux : Boolean) return String is
+     (Explore.Protocol.To_Outer_Terminal
+        (ESC & "_Ga=p,i=" & Image (Id) & ",p=1,q=2,U=1,c=" & Image (Columns) & ",r=" & Image (Rows) & ESC & "\",
+         In_Tmux));
 
    function PNG_Size (Data : String; Width, Height : out Natural) return Boolean is
       function Byte (At_Offset : Natural) return Long_Long_Integer is
@@ -151,7 +222,14 @@ package body Explore.Images is
       return Width > 0 and then Height > 0;
    end PNG_Size;
 
-   function Transmit_PNG (Id : Positive; Data : String; Columns, Rows : Positive; In_Tmux : Boolean) return String is
+   function Transmit
+     (Id      : Positive;
+      Format  : Image_Format;
+      Data    : String;
+      Columns : Positive;
+      Rows    : Positive;
+      In_Tmux : Boolean) return String
+   is
       Encoded : constant String := Base64 (Data);
       Result  : Ada.Strings.Unbounded.Unbounded_String;
       First   : Positive := Encoded'First;
@@ -162,16 +240,19 @@ package body Explore.Images is
             More  : constant Character := (if Last < Encoded'Last then '1' else '0');
             Keys  : constant String :=
               (if First = Encoded'First
-               then "a=T,f=100,t=d,i=" & Image (Id) & ",q=2,U=1,c=" & Image (Columns) & ",r=" & Image (Rows) & ",m="
+               then "a=T,f=" & Image (Format_Code (Format)) & ",t=d,i=" & Image (Id) & ",p=1,q=2,U=1,c="
+                    & Image (Columns) & ",r=" & Image (Rows) & ",m="
                else "m=");
          begin
-            Ada.Strings.Unbounded.Append (Result, Explore.Protocol.To_Outer_Terminal
-                              (ESC & "_G" & Keys & More & ";" & Encoded (First .. Last) & ESC & "\", In_Tmux));
+            Ada.Strings.Unbounded.Append
+              (Result,
+               Explore.Protocol.To_Outer_Terminal
+                 (ESC & "_G" & Keys & More & ";" & Encoded (First .. Last) & ESC & "\", In_Tmux));
             exit when Last >= Encoded'Last;
             First := Last + 1;
          end;
       end loop;
 
       return Ada.Strings.Unbounded.To_String (Result);
-   end Transmit_PNG;
+   end Transmit;
 end Explore.Images;

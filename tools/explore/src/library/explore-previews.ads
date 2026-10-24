@@ -1,9 +1,10 @@
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
+with Explore.Images;
 
 --  What the preview pane shows of a file: its first lines when it is text, a
 --  hex dump of its first bytes when it is not, or the image when it is a
---  PNG. Previews are built away from the screen from a bounded read of the
+--  PNG, JPEG, or GIF. Previews are built away from the screen from a bounded read of the
 --  file, so a large or slow file never holds the keyboard up.
 package Explore.Previews is
    package Line_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
@@ -16,10 +17,15 @@ package Explore.Previews is
       --  What the file is, as the file command describes it.
       Description : Ada.Strings.Unbounded.Unbounded_String;
       Lines       : Line_Vectors.Vector;
-      --  The PNG data and its size in pixels, for an image.
+      --  The image data, its encoding, and its size in pixels, for an image.
       Image       : Ada.Strings.Unbounded.Unbounded_String;
+      Format      : Explore.Images.Image_Format := Explore.Images.PNG_Format;
       Width       : Natural := 0;
       Height      : Natural := 0;
+      --  The file's modification time and size when it was read, which
+      --  together with its path tell one version of an image from another.
+      Modified    : Long_Long_Integer := 0;
+      File_Size   : Long_Long_Integer := 0;
       Generation  : Natural := 0;
    end record;
 

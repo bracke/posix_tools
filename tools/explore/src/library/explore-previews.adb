@@ -1,5 +1,4 @@
 with Ada.Streams;
-with Explore.Images;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Descriptions;
 
@@ -79,17 +78,32 @@ package body Explore.Previews is
       end if;
 
       declare
-         Data : constant String := Unbounded.To_String (Head);
+         Data   : constant String := Unbounded.To_String (Head);
+         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
+         Sized  : Boolean := False;
       begin
+         Result.Modified := Status.Modified_Seconds;
+         Result.File_Size := Status.Size;
          Result.Description :=
            Unbounded.To_Unbounded_String
              (if Explore.Images.Is_JPEG (Data) then "JPEG image data"
               else Posix_Tools.Text.File_Descriptions.Content_Description (Data, False, "", False));
 
-         if Explore.Images.Is_PNG (Data) and then FS.Size (Path) <= Image_Bytes then
+         if Explore.Images.Is_PNG (Data) then
+            Result.Format := Explore.Images.PNG_Format;
+            Sized := Explore.Images.PNG_Size (Data, Result.Width, Result.Height);
+         elsif Explore.Images.Is_JPEG (Data) then
+            Result.Format := Explore.Images.JPEG_Format;
+            Sized := Explore.Images.JPEG_Size (Data, Result.Width, Result.Height);
+         elsif Explore.Images.Is_GIF (Data) then
+            Result.Format := Explore.Images.GIF_Format;
+            Sized := Explore.Images.GIF_Size (Data, Result.Width, Result.Height);
+         end if;
+
+         if Sized and then FS.Size (Path) <= Image_Bytes then
             Read_Head (Path, Image_Bytes, Result.Image, Ok);
 
-            if Ok and then Explore.Images.PNG_Size (Data, Result.Width, Result.Height) then
+            if Ok then
                Result.Kind := Image_Preview;
                return Result;
             end if;

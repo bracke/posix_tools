@@ -23,6 +23,16 @@ package body Preview_Tests is
 
    procedure Write (Name, Text : String);
 
+   --  A JPEG's start: SOI, an APP0 segment, and a baseline frame header.
+   function JPEG_Header (Width, Height : Natural) return String is
+     (Character'Val (16#FF#) & Character'Val (16#D8#)
+      & Character'Val (16#FF#) & Character'Val (16#E0#) & Character'Val (0) & Character'Val (16)
+      & "JFIF" & Character'Val (0) & [1 .. 9 => Character'Val (0)]
+      & Character'Val (16#FF#) & Character'Val (16#C0#) & Character'Val (0) & Character'Val (17) & Character'Val (8)
+      & Character'Val (Height / 256) & Character'Val (Height mod 256)
+      & Character'Val (Width / 256) & Character'Val (Width mod 256)
+      & Character'Val (3) & [1 .. 9 => Character'Val (0)]);
+
    function Big_Endian (Value : Natural) return String is
      ([Character'Val (Value / 2 ** 24 mod 256), Character'Val (Value / 2 ** 16 mod 256),
        Character'Val (Value / 2 ** 8 mod 256), Character'Val (Value mod 256)]);
@@ -89,6 +99,13 @@ package body Preview_Tests is
          and then Ada.Strings.Unbounded.Length (Item.Image) = PNG_Header (32, 16)'Length,
          "a PNG with its size and data");
 
+      Write (Root & "/photo.jpg", JPEG_Header (64, 48));
+      Item := Previews.Build (Root & "/photo.jpg");
+      AUnit.Assertions.Assert
+        (Item.Kind = Previews.Image_Preview and then Item.Width = 64 and then Item.Height = 48
+         and then Images."=" (Item.Format, Images.JPEG_Format) and then Item.File_Size = JPEG_Header (64, 48)'Length,
+         "a JPEG with its size, encoding, and file size");
+
       Item := Previews.Build (Root & "/missing");
       AUnit.Assertions.Assert (Item.Kind = Previews.Unreadable_Preview, "a missing file");
 
@@ -134,6 +151,16 @@ package body Preview_Tests is
         (not Images.PNG_Size (PNG_Header (1, 1) (1 .. 20), Width, Height), "a truncated header");
       AUnit.Assertions.Assert
         (Images.Is_JPEG ([Character'Val (16#FF#), Character'Val (16#D8#), Character'Val (16#FF#)]), "JPEG");
+      AUnit.Assertions.Assert
+        (Images.JPEG_Size (JPEG_Header (800, 600), Width, Height) and then Width = 800 and then Height = 600,
+         "JPEG size from its frame header, past the segments before it");
+      AUnit.Assertions.Assert
+        (not Images.JPEG_Size (JPEG_Header (800, 600) (1 .. 10), Width, Height), "a JPEG cut off before its frame");
+      AUnit.Assertions.Assert
+        (Images.GIF_Size ("GIF89a" & Character'Val (16#2C#) & Character'Val (1) & Character'Val (16#C8#)
+                          & Character'Val (0), Width, Height)
+         and then Width = 300 and then Height = 200,
+         "GIF size, little-endian");
    end Test_PNG_Header;
 
    procedure Test_Transmit (T : in out Fixture) is
@@ -143,13 +170,20 @@ package body Preview_Tests is
       Tmux   : constant String := Images.Transmit_PNG (7, Data, 3, 2, In_Tmux => True);
    begin
       AUnit.Assertions.Assert
-        (Ada.Strings.Fixed.Index (Direct, ESC & "_Ga=T,f=100,t=d,i=7,q=2,U=1,c=3,r=2,m=1;") = 1,
+        (Ada.Strings.Fixed.Index (Direct, ESC & "_Ga=T,f=100,t=d,i=7,p=1,q=2,U=1,c=3,r=2,m=1;") = 1,
          "the first chunk carries the keys and a virtual placement");
       AUnit.Assertions.Assert (Count (Direct, ESC & "_G") = 2, "base64 of 5000 bytes takes two chunks");
       AUnit.Assertions.Assert (Count (Direct, ESC & "_Gm=0;") = 1, "the last chunk ends the transfer");
       AUnit.Assertions.Assert (Count (Tmux, ESC & "Ptmux;") = 2, "inside tmux each chunk is passed through");
       AUnit.Assertions.Assert
         (Images.Delete (7, In_Tmux => False) = ESC & "_Ga=d,d=I,i=7,q=2" & ESC & "\", "delete frees the data");
+      AUnit.Assertions.Assert
+        (Images.Place (7, 5, 4, In_Tmux => False) = ESC & "_Ga=p,i=7,p=1,q=2,U=1,c=5,r=4" & ESC & "\",
+         "an image is placed again without being sent again");
+      AUnit.Assertions.Assert
+        (Ada.Strings.Fixed.Index (Images.Transmit (9, Images.JPEG_Format, "x", 1, 1, False), "f=1001,") > 0
+         and then Ada.Strings.Fixed.Index (Images.Transmit (9, Images.GIF_Format, "x", 1, 1, False), "f=1002,") > 0,
+         "JPEG and GIF go by bracke-terminal's private codes");
    end Test_Transmit;
 
    procedure Write (Name, Text : String) is
