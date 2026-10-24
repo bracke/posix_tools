@@ -1,7 +1,9 @@
 with Ada.Containers.Indefinite_Vectors;
+with Ada.Strings.Unbounded;
 
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Ls is
@@ -39,20 +41,13 @@ package body Posix_Tools.Commands.Ls is
       end Emit_Line;
 
       procedure List_Path (Path : String; With_Header : Boolean) is
-         Names  : String_Vectors.Vector;
-         Listed : Boolean := True;
+         package Listing renames Posix_Tools.File_Operations.Listing;
 
-         procedure Add_Entry (Name : String; Full_Name : String; Stop : in out Boolean);
+         use type Listing.Read_Outcome;
 
-         procedure Add_Entry (Name : String; Full_Name : String; Stop : in out Boolean) is
-            pragma Unreferenced (Full_Name, Stop);
-         begin
-            if Visible (Name) then
-               Names.Append (Name);
-            end if;
-         end Add_Entry;
-
-         procedure Each is new FS.For_Each_Directory_Entry (Add_Entry);
+         Names   : String_Vectors.Vector;
+         Entries : Listing.Entry_Vectors.Vector;
+         Outcome : Listing.Read_Outcome;
       begin
          if FS.Kind (Path) = FS.Directory and then not Directory_As_File then
             if With_Header then
@@ -61,13 +56,27 @@ package body Posix_Tools.Commands.Ls is
                end if;
                Emit_Line (Path & ":");
             end if;
-            Each (Path, Listed);
-            if not Listed then
+            Listing.Read_Directory
+              (Path,
+               (Include_Hidden => Hidden /= Hide_Hidden, With_Status => False),
+               Entries,
+               Outcome);
+            if Outcome /= Listing.Read_Complete then
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
                  (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
                return;
             end if;
+            --  The listing leaves out the directory's own two entries.
+            if Hidden = All_Entries then
+               Names.Append (".");
+               Names.Append ("..");
+            end if;
+            for Item of Entries loop
+               if Visible (Ada.Strings.Unbounded.To_String (Item.Name)) then
+                  Names.Append (Ada.Strings.Unbounded.To_String (Item.Name));
+               end if;
+            end loop;
             String_Vector_Sorting.Sort (Names);
             for Name of Names loop
                Emit_Line (Name);

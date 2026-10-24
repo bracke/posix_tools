@@ -5476,6 +5476,23 @@ package body Command_Tests.Surface_Smoke is
          and then Test_Contexts.Output (Context) = ".hidden" & EOL & "visible" & EOL,
          "ls -A includes hidden entries other than dot and dot-dot");
 
+      Context.Initialize ("ls", Two_Args ("-a", Ls_Dir));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "." & EOL & ".." & EOL & ".hidden" & EOL & "visible" & EOL,
+         "ls -a includes dot and dot-dot");
+
+      if Hostkit.Fs.Create_Link ("nowhere", Hostkit.Fs.Join (Ls_Dir, "broken")) then
+         Context.Initialize ("ls", One_Arg (Ls_Dir));
+         Posix_Tools.Commands.Ls.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = "broken" & EOL & "visible" & EOL,
+            "ls lists a symbolic link whose target is missing");
+         Ada.Directories.Delete_File (Hostkit.Fs.Join (Ls_Dir, "broken"));
+      end if;
+
       Ada.Directories.Create_Directory (Ls_Other_Dir);
       Write_File (Hostkit.Fs.Join (Ls_Other_Dir, "zeta"), "zeta" & EOL);
       Context.Initialize ("ls", Two_Args (Ls_Dir, Ls_Other_Dir));

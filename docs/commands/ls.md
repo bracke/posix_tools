@@ -13,8 +13,8 @@ Lists file operands and directory entries.
 `file`: file or directory path.
 
 ## Options
-`-1` writes one entry per line. `-a` includes dot-prefixed entries. `-A` includes dot-prefixed entries other than `.` and
-`..` when the host reports them. `-d` lists directory operands as operands instead of listing their contents. Project
+`-1` writes one entry per line. `-a` includes dot-prefixed entries, `.` and `..` among them. `-A` includes
+dot-prefixed entries other than `.` and `..`. `-d` lists directory operands as operands instead of listing their contents. Project
 extensions `--help`, `--version`, and `--posix-tools-identify` are recognized. The end-of-options marker `--` is
 accepted.
 
@@ -31,7 +31,8 @@ Diagnostics for invalid usage and filesystem failures.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Directory entries are sorted deterministically before output.
+Directory entries are sorted deterministically before output. Directories are read through the shared
+`Posix_Tools.File_Operations.Listing`, and a symbolic link is listed whether or not its target exists.
 
 ## Locale Behavior
 Data output is not localized. Help and diagnostics are localized.
