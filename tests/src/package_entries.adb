@@ -159,6 +159,8 @@ begin
    Add_Entry ("common/src/posix_tools-host_adapters-signals.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-streams.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
+   Add_Entry ("common/src/posix_tools-host_adapters-terminal_io.adb");
+   Add_Entry ("common/src/posix_tools-host_adapters-terminal_io.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-terminals.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.adb");

@@ -72,8 +72,8 @@ package body Posix_Tools.Host_Adapters.Signals is
             return Default_Disposition;
          when Hostkit.Signals.Disposition_Ignore =>
             return Ignore_Disposition;
-         when others =>
-            return Unknown_Disposition;
+         when Hostkit.Signals.Disposition_Record =>
+            return Record_Disposition;
       end case;
    end From_Hostkit_Disposition;
 
@@ -84,6 +84,8 @@ package body Posix_Tools.Host_Adapters.Signals is
             return Hostkit.Signals.Disposition_Default;
          when Ignore_Disposition =>
             return Hostkit.Signals.Disposition_Ignore;
+         when Record_Disposition =>
+            return Hostkit.Signals.Disposition_Record;
          when Unknown_Disposition =>
             return Hostkit.Signals.Disposition_Default;
       end case;
@@ -137,4 +139,14 @@ package body Posix_Tools.Host_Adapters.Signals is
       return Value /= Unknown_Disposition
         and then Hostkit.Signals.Set_Disposition (To_Hostkit_Signal (Item), To_Hostkit_Disposition (Value));
    end Set_Disposition;
+
+   function Can_Record (Item : Signal) return Boolean is
+   begin
+      return Hostkit.Signals.Can_Record (To_Hostkit_Signal (Item));
+   end Can_Record;
+
+   function Take (Item : Signal) return Boolean is
+   begin
+      return Hostkit.Signals.Take (To_Hostkit_Signal (Item));
+   end Take;
 end Posix_Tools.Host_Adapters.Signals;

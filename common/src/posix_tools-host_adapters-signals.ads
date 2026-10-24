@@ -13,7 +13,9 @@ package Posix_Tools.Host_Adapters.Signals is
       Background_Write,
       Window_Change,
       Child);
-   type Disposition is (Default_Disposition, Ignore_Disposition, Unknown_Disposition);
+   --  Record_Disposition notes that the signal arrived and carries on; Take
+   --  then reports and forgets the arrival.
+   type Disposition is (Default_Disposition, Ignore_Disposition, Record_Disposition, Unknown_Disposition);
 
    function Is_Supported (Item : Signal) return Boolean;
    function Name (Item : Signal) return String;
@@ -28,4 +30,9 @@ package Posix_Tools.Host_Adapters.Signals is
    function Set_Disposition (Item : Signal; Value : Disposition) return Boolean
      with Post =>
        (if Value = Unknown_Disposition then not Set_Disposition'Result);
+   function Can_Record (Item : Signal) return Boolean;
+
+   --  Whether a recorded signal arrived since the last take, forgetting it in
+   --  the same step so that one landing in between is left for the next call.
+   function Take (Item : Signal) return Boolean;
 end Posix_Tools.Host_Adapters.Signals;
