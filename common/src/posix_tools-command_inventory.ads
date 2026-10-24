@@ -28,6 +28,19 @@ is
        Pre  => Index <= Command_Count,
        Post => Project_File_Path'Result'Length in 1 .. 41;
 
+   --  The file name of the command's main procedure. It is the executable's
+   --  name unless the command's library is rooted at a package of that same
+   --  name, in which case the main procedure cannot also carry it.
+   function Main_Source (Index : Positive) return String
+     with
+       Pre  => Index <= Command_Count,
+       Post => Main_Source'Result'Length in 1 .. 18;
+
+   function Wrapper_Path (Index : Positive) return String
+     with
+       Pre  => Index <= Command_Count,
+       Post => Wrapper_Path'Result'Length in 1 .. 38;
+
    function Documentation_Path (Index : Positive) return String
      with
        Pre  => Index <= Command_Count,

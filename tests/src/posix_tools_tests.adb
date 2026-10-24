@@ -2821,9 +2821,7 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
-            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
-             then "for Main use (""sed_main.adb"")"
-             else "for Main use (""" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"")"));
+            "for Main use (""" & Posix_Tools.Command_Inventory.Main_Source (I) & """)");
          Project_Tools.Release_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
@@ -2834,16 +2832,10 @@ procedure Posix_Tools_Tests is
             "for Exec_Dir use ""bin""");
          Project_Tools.Release_Checks.Require_File
            (Check,
-            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
-             then "tools/sed/src/sed_main.adb"
-             else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-                  & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
+            Posix_Tools.Command_Inventory.Wrapper_Path (I));
          declare
             Wrapper : constant String :=
-              (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
-               then "tools/sed/src/sed_main.adb"
-               else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-                    & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb");
+              Posix_Tools.Command_Inventory.Wrapper_Path (I);
             Command_Source : constant String :=
               Command_Source_Path (Posix_Tools.Command_Inventory.Executable (I));
          begin
@@ -3228,10 +3220,7 @@ procedure Posix_Tools_Tests is
          Project_Tools.Release_Checks.Require_Manifest_Entry
            (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
             Root,
-            (if Posix_Tools.Command_Inventory.Executable (I) = "sed"
-             then "tools/sed/src/sed_main.adb"
-             else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-                  & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
+            Posix_Tools.Command_Inventory.Wrapper_Path (I));
          Project_Tools.Release_Checks.Require_Manifest_Entry
            (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
             Root,
@@ -3938,10 +3927,6 @@ procedure Posix_Tools_Tests is
       procedure Check_Inventory_Row (Line : String; Number : Positive) is
          Index : constant Positive := Number - 1;
          Executable : constant String := Field (Line, 1);
-         Wrapper_Path : constant String :=
-           (if Executable = "sed"
-            then "tools/sed/src/sed_main.adb"
-            else "tools/" & Executable & "/src/" & Executable & ".adb");
       begin
          if Field_Count (Line) /= 11 then
             Project_Tools.Release_Checks.Fail
@@ -3995,7 +3980,8 @@ procedure Posix_Tools_Tests is
          Check_Inventory_Path (Executable, Field (Line, 4), "manifest path");
          Check_Inventory_Path (Executable, Field (Line, 5), "project file path");
          Check_Inventory_Path (Executable, Field (Line, 6), "documentation path");
-         Check_Inventory_Path (Executable, Wrapper_Path, "wrapper source path");
+         Check_Inventory_Path
+           (Executable, Posix_Tools.Command_Inventory.Wrapper_Path (Index), "wrapper source path");
       end Check_Inventory_Row;
 
       function Contains_Token (Text : String; Token : String) return Boolean is

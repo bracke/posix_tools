@@ -123,6 +123,12 @@ package body Basic_Tests is
       AUnit.Assertions.Assert (Same_Natural (Posix_Tools.Command_Inventory.Command_Count, 77), "inventory count");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (1) = "arch", "first command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (2) = "awk", "awk command");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Command_Inventory.Wrapper_Path (3) = "tools/basename/src/basename.adb",
+         "wrapper path");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Command_Inventory.Wrapper_Path (55) = "tools/sed/src/sed_main.adb",
+         "sed wrapper path");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (28) = "grep", "grep command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (55) = "sed", "sed command");
       AUnit.Assertions.Assert (Posix_Tools.Command_Inventory.Executable (71) = "unlink", "unlink command");

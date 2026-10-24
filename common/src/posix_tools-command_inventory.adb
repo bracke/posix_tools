@@ -28,6 +28,22 @@ is
       return "tools/" & Executable (Index) & "/" & Crate (Index) & ".gpr";
    end Project_File_Path;
 
+   function Main_Source (Index : Positive) return String is
+      --  Rebased to 1 so that the concatenation's bounds are evident.
+      Name : constant String (1 .. Executable (Index)'Length) := Executable (Index);
+   begin
+      if Name = "sed" then
+         return Name & "_main.adb";
+      else
+         return Name & ".adb";
+      end if;
+   end Main_Source;
+
+   function Wrapper_Path (Index : Positive) return String is
+   begin
+      return "tools/" & Executable (Index) & "/src/" & Main_Source (Index);
+   end Wrapper_Path;
+
    function Documentation_Path (Index : Positive) return String is
    begin
       return "docs/commands/" & Executable (Index) & ".md";

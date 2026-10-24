@@ -513,11 +513,7 @@ begin
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
       Add_Entry (Posix_Tools.Command_Inventory.Manifest_Path (I));
       Add_Entry (Posix_Tools.Command_Inventory.Project_File_Path (I));
-      Add_Entry
-        ((if Posix_Tools.Command_Inventory.Executable (I) = "sed"
-          then "tools/sed/src/sed_main.adb"
-          else "tools/" & Posix_Tools.Command_Inventory.Executable (I)
-               & "/src/" & Posix_Tools.Command_Inventory.Executable (I) & ".adb"));
+      Add_Entry (Posix_Tools.Command_Inventory.Wrapper_Path (I));
       Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
    end loop;
    Add_Entry ("common/src/posix_tools-commands-find_evaluation-actions.adb");
