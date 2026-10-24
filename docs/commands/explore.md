@@ -16,8 +16,33 @@ shows the directory it was given (or the current directory), and hands the termi
 `explore` runs only inside bracke-terminal. At start-up it asks the terminal to identify itself and refuses to run in
 any terminal that does not.
 
-This release is the foundation milestone: it starts, identifies the terminal, draws its frame, follows resizes, and
-quits on `q`. Navigation, file operations, and previews follow in later milestones.
+The screen has three panes: the parent of the current directory on the left, the current directory in the middle, and
+on the right a preview of the selected entry -- the listing of a directory, or the mode, size, time, and link target of
+anything else. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
+current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
+and any filter or pending prefix key.
+
+File operations, content previews, tabs, and search follow in later milestones.
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `j`, Down / `k`, Up | move down / up |
+| `l`, Right, Enter | enter the selected directory |
+| `h`, Left | go up to the parent directory |
+| `gg`, Home / `G`, End | first / last entry |
+| Ctrl-d / Ctrl-u | half a page down / up |
+| Ctrl-f, Page Down / Ctrl-b, Page Up | a page down / up |
+| `.` | show or hide entries whose names start with a dot |
+| `f` | type a filter: only names containing it, regardless of case, are shown; Enter keeps it, Escape clears it |
+| Escape | clear the filter |
+| `,n` `,a` `,e` `,s` `,m` `,t` | sort by natural name, name, extension, size, modification time, or kind; the capital letter sorts in reverse |
+| `~` | go to the home directory |
+| `q` | quit |
+
+The mouse wheel moves the selection. A click in the current pane selects the entry under it, in the parent pane goes
+up, and in the preview pane enters the selected directory.
 
 ## Operands
 
@@ -60,6 +85,13 @@ are ignored, so the terminal and `explore` can each grow without breaking the ot
 Once identified, `explore` switches to the alternate screen and asks for SGR mouse reports, focus reports, bracketed
 paste, in-band resize reports, and disambiguated keys. Each frame is sent as one synchronized update.
 
+Directories are read through the shared `Posix_Tools.File_Operations.Listing` on two worker tasks, away from the
+screen, so a large or slow directory never holds up the keyboard. Each pane has one outstanding read at most: moving on
+replaces it, a read already running for the replaced request stops at its next entry, and entries that arrive for it
+are dropped. The current and parent directories are watched, and re-read when they change, with the selection kept on
+the same name. Entries are sorted by natural name by default, with directories first and ASCII case ignored. Only the
+cells that changed are redrawn.
+
 On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --
 `explore` leaves the alternate screen, turns those reports off again, restores the saved terminal settings, and puts
 back the signal dispositions it changed. A terminate or hangup signal that was ignored when `explore` started stays
@@ -96,5 +128,6 @@ Project extension; not a POSIX utility.
 
 ## Known Limitations
 
-Only bracke-terminal is supported, by design. Directory listings, file operations, previews, tabs, search, and
-configuration are not yet implemented.
+Only bracke-terminal is supported, by design. File operations, content previews, tabs, search, bookmarks, and
+configuration are not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
+when it changes.

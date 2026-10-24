@@ -519,10 +519,22 @@ begin
    Add_Entry ("tools/sed/src/library/sed.ads");
    Add_Entry ("tools/explore/src/library/explore-application.adb");
    Add_Entry ("tools/explore/src/library/explore-application.ads");
+   Add_Entry ("tools/explore/src/library/explore-format.adb");
+   Add_Entry ("tools/explore/src/library/explore-format.ads");
    Add_Entry ("tools/explore/src/library/explore-input.adb");
    Add_Entry ("tools/explore/src/library/explore-input.ads");
+   Add_Entry ("tools/explore/src/library/explore-keymap.adb");
+   Add_Entry ("tools/explore/src/library/explore-keymap.ads");
+   Add_Entry ("tools/explore/src/library/explore-model.adb");
+   Add_Entry ("tools/explore/src/library/explore-model.ads");
    Add_Entry ("tools/explore/src/library/explore-protocol.adb");
    Add_Entry ("tools/explore/src/library/explore-protocol.ads");
+   Add_Entry ("tools/explore/src/library/explore-render.adb");
+   Add_Entry ("tools/explore/src/library/explore-render.ads");
+   Add_Entry ("tools/explore/src/library/explore-screen.adb");
+   Add_Entry ("tools/explore/src/library/explore-screen.ads");
+   Add_Entry ("tools/explore/src/library/explore-tasks.adb");
+   Add_Entry ("tools/explore/src/library/explore-tasks.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");
    Add_Entry ("tools/explore/tests/alire.toml");
    Add_Entry ("tools/explore/tests/posix_tools_explore_tests.gpr");
@@ -531,8 +543,12 @@ begin
    Add_Entry ("tools/explore/tests/src/explore_tests.adb");
    Add_Entry ("tools/explore/tests/src/input_tests.adb");
    Add_Entry ("tools/explore/tests/src/input_tests.ads");
+   Add_Entry ("tools/explore/tests/src/model_tests.adb");
+   Add_Entry ("tools/explore/tests/src/model_tests.ads");
    Add_Entry ("tools/explore/tests/src/protocol_tests.adb");
    Add_Entry ("tools/explore/tests/src/protocol_tests.ads");
+   Add_Entry ("tools/explore/tests/src/screen_tests.adb");
+   Add_Entry ("tools/explore/tests/src/screen_tests.ads");
 
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");

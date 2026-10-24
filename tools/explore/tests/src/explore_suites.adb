@@ -1,5 +1,7 @@
 with Input_Tests;
+with Model_Tests;
 with Protocol_Tests;
+with Screen_Tests;
 
 package body Explore_Suites is
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -7,6 +9,8 @@ package body Explore_Suites is
    begin
       AUnit.Test_Suites.Add_Test (Result, Protocol_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Input_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Screen_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Model_Tests.Suite);
       return Result;
    end Suite;
 end Explore_Suites;
