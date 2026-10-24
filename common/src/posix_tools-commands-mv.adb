@@ -2,7 +2,9 @@ with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.File_Operations.Moving;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Mv is
@@ -36,30 +38,6 @@ package body Posix_Tools.Commands.Mv is
          return Posix_Tools.Commands.Helpers.Read_Affirmative_Response (Context);
       end Confirm_Overwrite;
 
-      procedure Copy_Then_Remove (Source, Destination : String; Moved : out Boolean) is
-         Copied : Boolean;
-      begin
-         Moved := False;
-         Posix_Tools.Commands.File_Helpers.Copy_Path
-           (Context, Source, Destination, True, True, False, Copied);
-         if not Copied then
-            return;
-         end if;
-
-         begin
-            if FS.Kind (Source) = FS.Directory
-            then
-               FS.Delete_Tree (Source);
-            else
-               FS.Delete_File (Source);
-            end if;
-            Moved := True;
-         exception
-            when others =>
-               Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Source, "posix_tools.diagnostic.file.open_failed", "cannot open file");
-         end;
-      end Copy_Then_Remove;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -124,35 +102,23 @@ package body Posix_Tools.Commands.Mv is
                     (Target,
                      Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I))));
                Overwrite_Accepted : constant Boolean := Confirm_Overwrite (Destination);
+               Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
+               Moved   : Boolean;
             begin
                if Overwrite_Accepted then
-                  FS.Rename (Operands.Element (I), Destination);
-                  if Verbose then
+                  Posix_Tools.File_Operations.Moving.Move_Path (Operands.Element (I), Destination, Reports, Moved);
+
+                  if not Moved then
+                     Ok := False;
+                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                       (Context,
+                        Operands.Element (I),
+                        "posix_tools.diagnostic.file.open_failed",
+                        "cannot open file");
+                  elsif Verbose then
                      Context.Put_Line ("'" & Operands.Element (I) & "' -> '" & Destination & "'");
                   end if;
                end if;
-            exception
-               when others =>
-                  declare
-                     Moved : Boolean;
-                  begin
-                     if not Overwrite_Accepted then
-                        Moved := True;
-                     else
-                        Copy_Then_Remove (Operands.Element (I), Destination, Moved);
-                     end if;
-
-                     if not Moved then
-                        Ok := False;
-                        Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                          (Context,
-                           Operands.Element (I),
-                           "posix_tools.diagnostic.file.open_failed",
-                           "cannot open file");
-                     elsif Verbose then
-                        Context.Put_Line ("'" & Operands.Element (I) & "' -> '" & Destination & "'");
-                     end if;
-                  end;
             end;
          end loop;
       end;

@@ -57,6 +57,12 @@ package body Posix_Tools.Host_Adapters.File_System is
         (Source, Target, Status);
    end Copy_Regular_File;
 
+   procedure Copy_Regular_File_With_Progress (Source : String; Target : String; Status : out Copy_File_Status) is
+      procedure Copy is new Posix_Tools.Host_Adapters.File_System.IO.Copy_Regular_File_With_Progress (Progress);
+   begin
+      Copy (Source, Target, Status);
+   end Copy_Regular_File_With_Progress;
+
    procedure Write_File
      (Path        : String;
       Text        : String;

@@ -51,3 +51,5 @@ REG-PASTE-0001,paste,interpret escaped delimiter-list entries for newline tab ba
 REG-SLEEP-0001,sleep,reject missing negative malformed and excessive duration operands while accepting fractional zero-duration operands,command:extended utilities
 REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identity reads name resolution and node-name operations through command context services so command tests can use deterministic fake identity data,command:host identity commands
 REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls
+REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,regression:REG-RM-0001 rm keeps link targets
+REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,regression:REG-CP-0005 cp keeps broken links

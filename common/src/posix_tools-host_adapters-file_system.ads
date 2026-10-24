@@ -29,7 +29,9 @@ package Posix_Tools.Host_Adapters.File_System is
       Source_Open_Failed,
       Target_Open_Failed,
       Source_Read_Failed,
-      Target_Write_Failed);
+      Target_Write_Failed,
+      --  The caller asked the copy to stop; the target holds what was copied.
+      Copy_Stopped);
    type File_Time is private;
 
    function Can_Open_For_Read (Path : String) return Boolean;
@@ -37,6 +39,12 @@ package Posix_Tools.Host_Adapters.File_System is
    function Copy_File_Times (Source : String; Target : String) return Boolean;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
+
+   --  Copy_Regular_File, calling Progress with the bytes copied so far after
+   --  each block; setting Stop ends the copy with Copy_Stopped.
+   generic
+      with procedure Progress (Copied : Long_Long_Integer; Stop : in out Boolean);
+   procedure Copy_Regular_File_With_Progress (Source : String; Target : String; Status : out Copy_File_Status);
    procedure Write_File
      (Path        : String;
       Text        : String;

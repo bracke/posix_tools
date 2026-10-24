@@ -24,6 +24,9 @@ Diagnostics for invalid usage and removal failures. Interactive prompts are writ
 .SH BEHAVIORAL DETAILS
 Operands are processed in order. In interactive mode, a response whose first byte is y or Y confirms removal; any
 other response, including end of input, skips that operand without treating it as a failure.
+Removal is done by the shared Posix_Tools.File_Operations.Removing. A symbolic link is always removed itself, never
+what it points to, including a link to a directory under -r, and a tree is walked without following links, so that
+nothing outside it is removed. One diagnostic is written for an operand that could not be removed whole.
 .SH LOCALE BEHAVIOR
 Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES

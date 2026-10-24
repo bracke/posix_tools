@@ -43,6 +43,9 @@ source where hostkit reports identity, fail before writing. Recursive copies tha
 below the source directory fail before creating the destination subtree.
 FIFOs, character or block device nodes, and Unix-domain socket files are recreated through hostkit where the platform
 exposes portable special-file metadata and permits creation.
+Copying is done by the shared Posix_Tools.File_Operations.Copying, which explore uses too. A recursive copy visits
+every entry of each directory, symbolic links whose targets are missing included: under -P they are copied as links,
+and when links are followed they fail as unreadable files instead of being left out.
 .SH LOCALE BEHAVIOR
 Diagnostics and help are localized; copied data is not localized.
 .SH IMPLEMENTATION-DEFINED CHOICES

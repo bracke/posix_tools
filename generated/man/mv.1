@@ -23,8 +23,9 @@ Overwrite prompts and diagnostics for invalid usage and move failures.
 .SH EXIT STATUS
 0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
-The implementation first delegates to the Ada runtime rename operation. If that fails, it attempts a portable
-copy-and-remove fallback for regular files and directory trees. Interactive overwrite prompts accept an initial y
+The implementation first renames through the host. If that fails, as across filesystems, the shared
+Posix_Tools.File_Operations.Moving copies the operand, keeping modes, owners, times, and symbolic links as links, and
+removes the source only once all of it has been copied. Interactive overwrite prompts accept an initial y
 or Y byte as confirmation; any other response, including end-of-input, skips that operand without treating the skip
 as a move failure.
 .SH LOCALE BEHAVIOR

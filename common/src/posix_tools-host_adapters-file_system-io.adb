@@ -24,7 +24,22 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
    end Can_Open_For_Read;
 
    procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status) is
+      procedure Never_Stop (Copied : Long_Long_Integer; Stop : in out Boolean) is null;
+
+      procedure Copy is new Copy_Regular_File_With_Progress (Never_Stop);
+   begin
+      Copy (Source, Target, Status);
+   end Copy_Regular_File;
+
+   procedure Copy_Regular_File_With_Progress
+     (Source : String;
+      Target : String;
+      Status : out Copy_File_Status)
+   is
       use Hostkit.Descriptors;
+
+      Copied  : Long_Long_Integer := 0;
+      Stop    : Boolean := False;
 
       Input   : Descriptor := Invalid;
       Output  : Descriptor := Invalid;
@@ -92,6 +107,16 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
                            return;
                      end case;
                   end loop;
+
+                  Copied := Copied + Long_Long_Integer (Last - Buffer'First + 1);
+                  Progress (Copied, Stop);
+
+                  if Stop then
+                     Close_All;
+                     Restore_Source_Times;
+                     Status := Copy_Stopped;
+                     return;
+                  end if;
                end if;
 
             when Transfer_Interrupted =>
@@ -114,7 +139,7 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
       when others =>
          Close_All;
          Status := Source_Read_Failed;
-   end Copy_Regular_File;
+   end Copy_Regular_File_With_Progress;
 
    procedure Write_File
      (Path        : String;

@@ -87,7 +87,10 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.arguments.parsing`
 - `posix_tools.commands.*`
 - `posix_tools.file_operations`
+- `posix_tools.file_operations.copying`
 - `posix_tools.file_operations.listing`
+- `posix_tools.file_operations.moving`
+- `posix_tools.file_operations.removing`
 - `posix_tools.help`
 - `posix_tools.host_adapters.*`
 - `posix_tools.localization`

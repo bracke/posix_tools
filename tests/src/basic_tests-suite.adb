@@ -1,10 +1,12 @@
 with AUnit.Test_Caller;
 with AUnit.Test_Suites;
 with File_Operations_Tests;
+with Operation_Tests;
 
 package body Basic_Tests.Suite is
    package Caller is new AUnit.Test_Caller (Basic_Tests.Fixture);
    package File_Operations_Caller is new AUnit.Test_Caller (File_Operations_Tests.Fixture);
+   package Operation_Caller is new AUnit.Test_Caller (Operation_Tests.Fixture);
 
    function Test_Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -58,6 +60,20 @@ package body Basic_Tests.Suite is
         (Result,
          File_Operations_Caller.Create
            ("basic:listing sort", File_Operations_Tests.Test_Listing_Sort'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:copy tree", Operation_Tests.Test_Copy_Tree'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:copy conflicts", Operation_Tests.Test_Copy_Conflicts'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:copy cancel", Operation_Tests.Test_Copy_Cancel'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:remove tree", Operation_Tests.Test_Remove_Tree'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:move", Operation_Tests.Test_Move'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("regression:REG-RM-0001 rm keeps link targets", Operation_Tests.Test_Rm_Keeps_Link_Targets'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("regression:REG-CP-0005 cp keeps broken links", Operation_Tests.Test_Cp_Keeps_Broken_Links'Access));
       return Result;
    end Test_Suite;
 end Basic_Tests.Suite;

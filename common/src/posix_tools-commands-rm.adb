@@ -1,11 +1,9 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.File_Operations.Removing;
 
 package body Posix_Tools.Commands.Rm is
-   package FS renames Posix_Tools.Host_Adapters.File_System;
-
-   use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -72,22 +70,25 @@ package body Posix_Tools.Commands.Rm is
       end if;
 
       for I in First .. Context.Argument_Count loop
-         begin
-            if Confirm_Removal (Context.Argument (I)) then
-               if Recursive and then FS.Kind (Context.Argument (I)) = FS.Directory then
-                  FS.Delete_Tree (Context.Argument (I));
-               elsif Directory and then FS.Kind (Context.Argument (I)) = FS.Directory then
-                  FS.Delete_Directory (Context.Argument (I));
-               else
-                  FS.Delete_File (Context.Argument (I));
-               end if;
-               if Verbose then
-                  Context.Put_Line ("removed '" & Context.Argument (I) & "'");
-               end if;
-            end if;
-         exception
-            when others =>
-               if not Force then
+         if Confirm_Removal (Context.Argument (I)) then
+            declare
+               --  One diagnostic per operand, as rm has always given, rather
+               --  than one for each entry inside it that could not go.
+               Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
+               Removed : Boolean;
+            begin
+               Reports.Quiet := True;
+               Posix_Tools.File_Operations.Removing.Remove_Path
+                 (Context.Argument (I),
+                  (Recursive => Recursive, Empty_Directories => Directory),
+                  Reports,
+                  Removed);
+
+               if Removed then
+                  if Verbose then
+                     Context.Put_Line ("removed '" & Context.Argument (I) & "'");
+                  end if;
+               elsif not Force then
                   Ok := False;
                   Posix_Tools.Commands.Helpers.Subject_Operational_Error
                     (Context,
@@ -95,7 +96,8 @@ package body Posix_Tools.Commands.Rm is
                      "posix_tools.diagnostic.file.open_failed",
                      "cannot open file");
                end if;
-         end;
+            end;
+         end if;
       end loop;
 
       Result.Status :=
