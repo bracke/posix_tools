@@ -97,7 +97,8 @@ package body Explore.Application is
       Creating,          --  Typing the name of a file, or of a directory with a slash.
       Changing_Mode,     --  Typing permissions, octal or symbolic.
       Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
-      Answering);        --  The running job asks about a target that exists.
+      Answering,         --  A running job asks about a target that exists.
+      Viewing_Jobs);     --  The jobs panel is open.
 
    --  Interface text for operations, looked up once.
    type Operation_Labels is record
@@ -115,6 +116,13 @@ package body Explore.Application is
       Exists        : Unbounded.Unbounded_String;
       Invalid_Mode  : Unbounded.Unbounded_String;
       Errors        : Unbounded.Unbounded_String;
+      Copied        : Unbounded.Unbounded_String;
+      Moved         : Unbounded.Unbounded_String;
+      Linked        : Unbounded.Unbounded_String;
+      Deleted       : Unbounded.Unbounded_String;
+      Queued        : Unbounded.Unbounded_String;
+      No_Jobs       : Unbounded.Unbounded_String;
+      Jobs_Title    : Unbounded.Unbounded_String;
    end record;
 
    --  The images the terminal holds, kept so that showing one again needs no
@@ -193,6 +201,16 @@ package body Explore.Application is
    --  is the user's again.
    type Session_Outcome is (Session_Ended, Session_Signalled, Raw_Mode_Refused, Terminal_Unsupported, Output_Failed);
 
+   function Image (Value : Natural) return String is (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
+
+   function Verb_Of (State : Session; Kind : Explore.Jobs.Job_Kind) return String is
+     (Unbounded.To_String
+        (case Kind is
+           when Explore.Jobs.Copy_Job => State.Words.Copying,
+           when Explore.Jobs.Move_Job => State.Words.Moving,
+           when Explore.Jobs.Link_Job => State.Words.Linking,
+           when Explore.Jobs.Delete_Job => State.Words.Deleting));
+
    procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
    --  Carry out what was typed for Renaming, Creating, or Changing_Mode.
@@ -213,6 +231,9 @@ package body Explore.Application is
       Done      : out Boolean;
       Abandoned : out Boolean);
 
+   --  Fill the jobs panel's lines from the board, keeping its cursor in them.
+   procedure Fill_Panel (State : in out Session);
+
    procedure Give_Back_Signals (Saved : Saved_Dispositions);
 
    procedure Handle (State : in out Session; Item : Input.Event);
@@ -223,6 +244,9 @@ package body Explore.Application is
    procedure Hide_Image (State : in out Session);
 
    function Identify (State : in out Session) return Boolean;
+
+   --  The progress line of a running job.
+   function Lane_Line (State : Session; Lane : Explore.Jobs.Lane_View) return String;
 
    --  Interface text, looked up once: a catalog lookup reads the catalog.
    function Load_Labels (Locale : String) return Explore.Render.Labels;
@@ -243,6 +267,9 @@ package body Explore.Application is
    procedure Release_Watches (State : in out Session);
 
    procedure Resize (State : in out Session; Rows, Columns : Natural);
+
+   --  What became of an ended job, as one line.
+   function Result_Line (State : Session; Item : Explore.Jobs.Result_View) return String;
 
    procedure Run_Session (State : in out Session; Outcome : out Session_Outcome);
 
@@ -357,7 +384,7 @@ package body Explore.Application is
                Model.Clear_Marks (State.Browser);
                Model.Reload (State.Browser, Model.Current_Pane);
             end;
-         when Browsing | Confirming_Delete | Answering =>
+         when Browsing | Confirming_Delete | Answering | Viewing_Jobs =>
             null;
       end case;
    end Commit;
@@ -482,6 +509,43 @@ package body Explore.Application is
       end case;
    end Edit_Line;
 
+   procedure Fill_Panel (State : in out Session) is
+      Now : constant Explore.Jobs.Snapshot := State.Operations.Status;
+   begin
+      State.Frame.Panel_Lines.Clear;
+      State.Frame.Panel_Ids.Clear;
+
+      for Running of Now.Lanes loop
+         if Running.Running then
+            State.Frame.Panel_Lines.Append ("> " & Lane_Line (State, Running));
+            State.Frame.Panel_Ids.Append (Running.Job.Id);
+         end if;
+      end loop;
+
+      for Waiting of Now.Queued loop
+         State.Frame.Panel_Lines.Append
+           ("  " & Unbounded.To_String (State.Words.Queued) & ": " & Verb_Of (State, Waiting.Kind) & " "
+            & Unbounded.To_String (Waiting.First)
+            & (if Waiting.Total > 1 then " +" & Image (Waiting.Total - 1) else ""));
+         State.Frame.Panel_Ids.Append (Waiting.Id);
+      end loop;
+
+      for I in reverse 1 .. Natural (Now.History.Length) loop
+         State.Frame.Panel_Lines.Append ("  " & Result_Line (State, Now.History (I)));
+         State.Frame.Panel_Ids.Append (0);
+      end loop;
+
+      if State.Frame.Panel_Lines.Is_Empty then
+         State.Frame.Panel_Lines.Append ("  " & Unbounded.To_String (State.Words.No_Jobs));
+         State.Frame.Panel_Ids.Append (0);
+      end if;
+
+      State.Frame.Panel_Cursor :=
+        Natural'Max (1, Natural'Min (State.Frame.Panel_Cursor, Natural (State.Frame.Panel_Lines.Length)));
+      State.Frame.Panel_Title := State.Words.Jobs_Title;
+      State.Dirty := True;
+   end Fill_Panel;
+
    procedure Give_Back_Signals (Saved : Saved_Dispositions) is
    begin
       for Item in Watched_Signal loop
@@ -549,8 +613,42 @@ package body Explore.Application is
                      elsif Input.Is_Character (Item, 'S') then
                         State.Operations.Answer (Explore.Jobs.Skip_All);
                      elsif Item.Mods.Control and then Item.Code = 'c' then
-                        State.Operations.Cancel;
+                        declare
+                           Now  : constant Explore.Jobs.Snapshot := State.Operations.Status;
+                           Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
+                        begin
+                           if Lane > 0 then
+                              State.Operations.Cancel (Now.Lanes (Lane).Job.Id);
+                           end if;
+                        end;
                      end if;
+                  end if;
+               when Viewing_Jobs =>
+                  if Item.Kind = Input.Key_Event then
+                     declare
+                        Rows : constant Natural := Natural (State.Frame.Panel_Ids.Length);
+                     begin
+                        if Input.Is_Character (Item, 'j') or else Item.Key = Input.Down then
+                           State.Frame.Panel_Cursor := Natural'Min (Rows, State.Frame.Panel_Cursor + 1);
+                        elsif Input.Is_Character (Item, 'k') or else Item.Key = Input.Up then
+                           State.Frame.Panel_Cursor := Natural'Max (1, State.Frame.Panel_Cursor - 1);
+                        elsif Input.Is_Character (Item, 'x')
+                          or else (Item.Mods.Control and then Item.Code = 'c')
+                        then
+                           if State.Frame.Panel_Cursor in 1 .. Rows
+                             and then State.Frame.Panel_Ids (State.Frame.Panel_Cursor) > 0
+                           then
+                              State.Operations.Cancel (State.Frame.Panel_Ids (State.Frame.Panel_Cursor));
+                           end if;
+                        elsif Input.Is_Character (Item, 'w') or else Input.Is_Character (Item, 'q')
+                          or else Item.Key = Input.Escape
+                        then
+                           State.Mode := Browsing;
+                           State.Frame.Panel_Open := False;
+                        end if;
+                     end;
+
+                     Fill_Panel (State);
                   end if;
             end case;
          when Input.Mouse_Event =>
@@ -664,6 +762,16 @@ package body Explore.Application is
       return Identified;
    end Identify;
 
+   function Lane_Line (State : Session; Lane : Explore.Jobs.Lane_View) return String is
+      Percent : constant String :=
+        (if Lane.Size > 0
+         then " " & Image (Natural (Long_Long_Integer'Min (100, Lane.Copied * 100 / Lane.Size))) & "%"
+         else "");
+   begin
+      return Verb_Of (State, Lane.Job.Kind) & " " & Image (Natural'Min (Lane.Done + 1, Lane.Job.Total)) & "/"
+        & Image (Lane.Job.Total) & " " & Model.Name_Of (Unbounded.To_String (Lane.Current)) & Percent;
+   end Lane_Line;
+
    function Load_Labels (Locale : String) return Explore.Render.Labels is
       function Label (Key, Default : String) return Unbounded.Unbounded_String is
         (Unbounded.To_Unbounded_String
@@ -697,7 +805,14 @@ package body Explore.Application is
          Cancelled     => Word ("cancelled", "cancelled"),
          Exists        => Word ("exists", "already exists"),
          Invalid_Mode  => Word ("invalid_mode", "not a valid permission mode"),
-         Errors        => Word ("errors", "errors"));
+         Errors        => Word ("errors", "errors"),
+         Copied        => Word ("job.copied", "copied"),
+         Moved         => Word ("job.moved", "moved"),
+         Linked        => Word ("job.linked", "linked"),
+         Deleted       => Word ("job.deleted", "deleted"),
+         Queued        => Word ("job.queued", "waiting"),
+         No_Jobs       => Word ("job.none", "no operations"),
+         Jobs_Title    => Word ("job.title", "operations: j/k move, x cancel, w close"));
    end Load_Words;
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board) is
@@ -748,7 +863,8 @@ package body Explore.Application is
 
          Read_Into_Decoder
            (State,
-            (if Jobs.Busy or else State.Last_Job.Running or else State.Previewer.Busy then Busy_Poll_Ms
+            (if Jobs.Busy or else Explore.Jobs.Any_Running (State.Last_Job) or else State.Previewer.Busy
+             then Busy_Poll_Ms
              else Idle_Poll_Ms),
             Ended);
          exit when Ended;
@@ -840,7 +956,8 @@ package body Explore.Application is
                       elsif State.Cutting then Explore.Jobs.Move_Job
                       else Explore.Jobs.Copy_Job),
                    Sources => State.Clipboard,
-                   Target  => Current.Path));
+                   Target  => Current.Path,
+                   Id      => 0));
 
                --  What was cut is gone from where it was once pasted.
                if State.Cutting and then Item.Kind = Keymap.Paste then
@@ -889,10 +1006,15 @@ package body Explore.Application is
                     when others => Unbounded.Null_Unbounded_String);
             end if;
          when Keymap.Cancel_Job =>
-            if State.Last_Job.Running then
-               State.Operations.Cancel;
+            if Explore.Jobs.Any_Running (State.Last_Job) then
+               State.Operations.Cancel_Running;
                State.Frame.Message := State.Words.Cancelled;
             end if;
+         when Keymap.Show_Jobs =>
+            State.Mode := Viewing_Jobs;
+            State.Frame.Panel_Open := True;
+            State.Frame.Panel_Cursor := 1;
+            Fill_Panel (State);
          when Keymap.Sort_Entries =>
             State.Browser.Order.Key := Item.Key;
             State.Browser.Order.Descending := Item.Descending;
@@ -960,6 +1082,27 @@ package body Explore.Application is
          Show_Image (State);
       end if;
    end Resize;
+
+   function Result_Line (State : Session; Item : Explore.Jobs.Result_View) return String is
+      Done : constant String :=
+        (case Item.Job.Kind is
+           when Explore.Jobs.Copy_Job => Unbounded.To_String (State.Words.Copied),
+           when Explore.Jobs.Move_Job => Unbounded.To_String (State.Words.Moved),
+           when Explore.Jobs.Link_Job => Unbounded.To_String (State.Words.Linked),
+           when Explore.Jobs.Delete_Job => Unbounded.To_String (State.Words.Deleted));
+      What : constant String :=
+        Unbounded.To_String (Item.Job.First) & (if Item.Job.Total > 1 then " +" & Image (Item.Job.Total - 1) else "");
+   begin
+      case Item.Ended is
+         when Explore.Jobs.Succeeded =>
+            return Done & " " & What;
+         when Explore.Jobs.Cancelled =>
+            return Verb_Of (State, Item.Job.Kind) & " " & What & ": " & Unbounded.To_String (State.Words.Cancelled);
+         when Explore.Jobs.Failed =>
+            return Verb_Of (State, Item.Job.Kind) & " " & What & ": " & Image (Item.Errors) & " "
+              & Unbounded.To_String (State.Words.Errors);
+      end case;
+   end Result_Line;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -1105,10 +1248,10 @@ package body Explore.Application is
          Jobs       : aliased Explore.Tasks.Board;
          Workers    : array (1 .. Explore.Tasks.Worker_Count) of Explore.Tasks.Worker (Jobs'Access);
          Operations : aliased Explore.Jobs.Board;
-         Operator   : Explore.Jobs.Worker (Operations'Access);
+         Operators  : array (Explore.Jobs.Lane_Index) of Explore.Jobs.Worker (Operations'Access);
          Previewer  : aliased Explore.Previews.Board;
          Builder    : Explore.Previews.Worker (Previewer'Access);
-         pragma Unreferenced (Workers, Operator, Builder);
+         pragma Unreferenced (Workers, Operators, Builder);
 
          procedure Stop_Workers;
 
@@ -1356,10 +1499,10 @@ package body Explore.Application is
    end Take_Signals;
 
    procedure Watch_Jobs (State : in out Session) is
-      Now : constant Explore.Jobs.Snapshot := State.Operations.Status;
-
-      function Image (Value : Natural) return String is
-        (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
+      Now   : constant Explore.Jobs.Snapshot := State.Operations.Status;
+      Lane  : constant Natural := Explore.Jobs.Asking_Lane (Now);
+      Shown : Natural := 0;
+      Line  : Unbounded.Unbounded_String;
    begin
       if Now = State.Last_Job then
          return;
@@ -1367,64 +1510,73 @@ package body Explore.Application is
 
       State.Dirty := True;
 
-      if Now.Running then
-         declare
-            Verb : constant Unbounded.Unbounded_String :=
-              (case Now.Kind is
-                 when Explore.Jobs.Copy_Job => State.Words.Copying,
-                 when Explore.Jobs.Move_Job => State.Words.Moving,
-                 when Explore.Jobs.Link_Job => State.Words.Linking,
-                 when Explore.Jobs.Delete_Job => State.Words.Deleting);
-            Percent : constant String :=
-              (if Now.Size > 0
-               then " " & Image (Natural (Long_Long_Integer'Min (100, Now.Copied * 100 / Now.Size))) & "%"
-               else "");
-         begin
-            State.Frame.Job_Line :=
-              Unbounded.To_Unbounded_String
-                (Unbounded.To_String (Verb) & " " & Image (Natural'Min (Now.Done + 1, Now.Total)) & "/"
-                 & Image (Now.Total) & " " & Model.Name_Of (Unbounded.To_String (Now.Current)) & Percent
-                 & (if Now.Queued > 0 then " +" & Image (Now.Queued) else ""));
-         end;
-      else
-         State.Frame.Job_Line := Unbounded.Null_Unbounded_String;
+      --  The first running job in full, and how many more run or wait.
+      for Running of Now.Lanes loop
+         if Running.Running then
+            Shown := Shown + 1;
+
+            if Shown = 1 then
+               Line := Unbounded.To_Unbounded_String (Lane_Line (State, Running));
+            end if;
+         end if;
+      end loop;
+
+      if Shown + Natural (Now.Queued.Length) > 1 and then Shown > 0 then
+         Unbounded.Append (Line, " +" & Image (Shown - 1 + Natural (Now.Queued.Length)));
       end if;
 
-      if Now.Asking and then State.Mode /= Answering then
+      State.Frame.Job_Line := Line;
+
+      if Lane > 0 and then State.Mode /= Answering then
          State.Mode := Answering;
+         State.Frame.Panel_Open := False;
          State.Frame.Question :=
            Unbounded.To_Unbounded_String
              (Posix_Tools.Localization.Text_1
                 (Unbounded.To_String (State.Locale),
                  "posix_tools.explore.ui.conflict",
                  "path",
-                 Model.Name_Of (Unbounded.To_String (Now.Conflict)),
-                 Model.Name_Of (Unbounded.To_String (Now.Conflict))
+                 Model.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)),
+                 Model.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict))
                  & " exists: o overwrite, s skip, O overwrite all, S skip all"));
-      elsif not Now.Asking and then State.Mode = Answering then
+      elsif Lane = 0 and then State.Mode = Answering then
          State.Mode := Browsing;
          State.Frame.Question := Unbounded.Null_Unbounded_String;
       end if;
 
       if Now.Completed /= State.Last_Job.Completed then
-         --  Whatever the job changed is read again.
+         --  Whatever the jobs changed is read again, and the latest one to
+         --  end says how it went.
          Model.Reload_All (State.Browser);
-      end if;
 
-      if Now.Errors > 0 and then not Now.Running then
-         Complain (State, Unbounded.To_String (Now.Error_Path), Now.Error);
+         if not Now.History.Is_Empty then
+            declare
+               use type Explore.Jobs.Outcome;
 
-         if Now.Errors > 1 then
-            State.Frame.Message :=
-              Unbounded.To_Unbounded_String
-                (Image (Now.Errors) & " " & Unbounded.To_String (State.Words.Errors) & ", "
-                 & Unbounded.To_String (State.Frame.Message));
+               Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
+            begin
+               if Latest.Ended = Explore.Jobs.Failed then
+                  Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
+
+                  if Latest.Errors > 1 then
+                     State.Frame.Message :=
+                       Unbounded.To_Unbounded_String
+                         (Image (Latest.Errors) & " " & Unbounded.To_String (State.Words.Errors) & ", "
+                          & Unbounded.To_String (State.Frame.Message));
+                  end if;
+               else
+                  State.Frame.Message := Unbounded.To_Unbounded_String (Result_Line (State, Latest));
+                  State.Frame.Message_Is_Error := False;
+               end if;
+            end;
          end if;
-
-         State.Operations.Clear_Errors;
       end if;
 
-      State.Last_Job := State.Operations.Status;
+      if State.Frame.Panel_Open then
+         Fill_Panel (State);
+      end if;
+
+      State.Last_Job := Now;
    end Watch_Jobs;
 
    procedure Watch_Preview (State : in out Session) is

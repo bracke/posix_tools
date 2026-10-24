@@ -32,7 +32,8 @@ package Explore.Keymap is
       Rename_Entry,
       Create_Entry,
       Change_Mode,
-      Cancel_Job);
+      Cancel_Job,
+      Show_Jobs);
 
    type Command is record
       Kind       : Action := No_Action;

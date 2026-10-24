@@ -42,7 +42,8 @@ Tabs and search follow in later milestones.
 | r | rename the selected entry |
 | a | create a file, or a directory when the name ends in / |
 | m | change permissions, octal or symbolic as chmod takes them |
-| Ctrl-c | cancel the running copy, move, link, or delete |
+| Ctrl-c | cancel the running copies, moves, links, and deletions |
+| w | open the operations panel: running, waiting, and ended operations; j/k move in it, x cancels the operation under the cursor, whether running or waiting, and w, q, or Escape close it |
 | q | quit |
 
 When a pasted entry would replace one that exists, the operation waits for an answer: o overwrites it, s or
@@ -96,12 +97,16 @@ and all are freed when explore ends. Inside tmux the graphics commands are passe
 while the placeholders stay ordinary text. Images are sent directly over the terminal connection, which also works
 across ssh.
 
-Copies, moves, links, and deletions run one at a time on a worker task of their own, in the order they were asked
-for, through the shared Posix_Tools.File_Operations that cp, mv, and rm use. Copies keep modes, times, and
+Copies, moves, links, and deletions run on two worker tasks of their own, through the shared
+Posix_Tools.File_Operations that cp, mv, and rm use. They start in the order they were asked for, as far as that
+is safe: two operations of one kind never run at once, and an operation whose paths overlap an earlier one's -- the
+same path, or one inside the other -- waits for it, so a deletion never races the copy it would remove. Copies keep modes, times, and
 symbolic links; a copy into the directory it came from is named name_1, name_2, and so on; a move across
 filesystems copies and then removes the source; deletion removes links, never what they point to. The status line
-shows the running operation, its file, and how far the copy of that file is; up to sixteen operations wait their turn.
-Errors are shown when the operation ends, and the panes are read again. Renaming, creating, and changing permissions
+shows the first running operation, its file, and how far the copy of that file is, and how many more run or wait; up
+to sixteen wait their turn. When an operation ends the panes are read again and the status line says how it went: done,
+cancelled, or with how many errors and the first of them. The last sixteen that ended are listed in the operations
+panel. Renaming, creating, and changing permissions
 happen at once.
 
 On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --

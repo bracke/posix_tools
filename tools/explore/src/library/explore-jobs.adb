@@ -11,7 +11,7 @@ package body Explore.Jobs is
    use type Ops.Conflict_Choice;
 
    --  How a job's operations reach the board.
-   type Job_Observer (Jobs : not null access Board) is new Ops.Observer with record
+   type Job_Observer (Jobs : not null access Board; Lane : Lane_Index) is new Ops.Observer with record
       --  The answer given for every conflict, once the user chose one.
       Settled : Boolean := False;
       Always  : Ops.Conflict_Choice := Ops.Skip;
@@ -35,71 +35,135 @@ package body Explore.Jobs is
    --  Run one entry of a job.
    procedure Run_Item (Item : Job; Source : String; Watcher : in out Job_Observer'Class);
 
+   --  The first queued job that may start now: a lane is free, no job of
+   --  its kind runs, and it overlaps neither a running job nor one queued
+   --  before it. Zero when none may.
+   function Startable_Index (Queue : Job_Vectors.Vector; Lanes : Lane_Views; Running : Job_Array) return Natural;
+
+   function Asking_Lane (Item : Snapshot) return Natural is
+   begin
+      for Lane in Item.Lanes'Range loop
+         if Item.Lanes (Lane).Asking then
+            return Lane;
+         end if;
+      end loop;
+
+      return 0;
+   end Asking_Lane;
+
    protected body Board is
       procedure Answer (Choice : Conflict_Answer) is
       begin
-         if State.Asking then
-            Reply := Choice;
-            Answered := True;
-            State.Asking := False;
-            State.Conflict := Unbounded.Null_Unbounded_String;
-         end if;
+         for Lane in Lanes'Range loop
+            if Lanes (Lane).Asking then
+               Replies (Lane) := Choice;
+               Answered (Lane) := True;
+               Lanes (Lane).Asking := False;
+               Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
+               return;
+            end if;
+         end loop;
       end Answer;
 
-      procedure Ask (Target : String) is
+      procedure Ask (Lane : Lane_Index; Target : String) is
       begin
-         Answered := False;
-         State.Asking := True;
-         State.Conflict := Unbounded.To_Unbounded_String (Target);
+         Answered (Lane) := False;
+         Lanes (Lane).Asking := True;
+         Lanes (Lane).Conflict := Unbounded.To_Unbounded_String (Target);
       end Ask;
 
-      procedure Begin_Item (Path : String) is
+      procedure Begin_Item (Lane : Lane_Index; Path : String) is
       begin
-         State.Current := Unbounded.To_Unbounded_String (Path);
-         State.Copied := 0;
-         State.Size := 0;
+         Lanes (Lane).Current := Unbounded.To_Unbounded_String (Path);
+         Lanes (Lane).Copied := 0;
+         Lanes (Lane).Size := 0;
       end Begin_Item;
 
-      procedure Cancel is
+      procedure Cancel (Id : Natural) is
       begin
-         if State.Running then
-            Cancelling := True;
-         end if;
+         for Lane in Lanes'Range loop
+            if Lanes (Lane).Running and then Lanes (Lane).Job.Id = Id then
+               Lanes (Lane).Cancelling := True;
+               return;
+            end if;
+         end loop;
+
+         for I in 1 .. Natural (Queue.Length) loop
+            if Queue (I).Id = Id then
+               History.Append (Result_View'(Job => View_Of (Queue (I)), Ended => Cancelled, others => <>));
+
+               if Natural (History.Length) > Max_History then
+                  History.Delete_First;
+               end if;
+
+               Queue.Delete (I);
+               Completed := Completed + 1;
+               Recount;
+               return;
+            end if;
+         end loop;
       end Cancel;
 
-      function Cancel_Requested return Boolean is (Cancelling or else Closed);
+      function Cancel_Requested (Lane : Lane_Index) return Boolean is (Lanes (Lane).Cancelling or else Closed);
 
-      procedure Clear_Errors is
+      procedure Cancel_Running is
       begin
-         State.Errors := 0;
-         State.Error_Path := Unbounded.Null_Unbounded_String;
-      end Clear_Errors;
+         for Lane in Lanes'Range loop
+            if Lanes (Lane).Running then
+               Lanes (Lane).Cancelling := True;
+            end if;
+         end loop;
+      end Cancel_Running;
 
-      procedure End_Item is
+      procedure End_Item (Lane : Lane_Index) is
       begin
-         State.Done := State.Done + 1;
+         Lanes (Lane).Done := Lanes (Lane).Done + 1;
       end End_Item;
 
-      procedure Finish is
+      procedure Finish (Lane : Lane_Index) is
+         Result : Result_View := Results (Lane);
       begin
-         State.Running := False;
-         State.Asking := False;
-         State.Current := Unbounded.Null_Unbounded_String;
-         State.Completed := State.Completed + 1;
-         Cancelling := False;
+         Result.Done := Lanes (Lane).Done;
+         Result.Ended :=
+           (if Lanes (Lane).Cancelling then Cancelled elsif Result.Errors > 0 then Failed else Succeeded);
+         History.Append (Result);
+
+         if Natural (History.Length) > Max_History then
+            History.Delete_First;
+         end if;
+
+         Lanes (Lane) := (others => <>);
+         Running (Lane) := (others => <>);
+         Results (Lane) := (others => <>);
+         Answered (Lane) := False;
+         Completed := Completed + 1;
+         Recount;
       end Finish;
 
-      procedure Report_Error (Path : String; Error : Ops.Operation_Error) is
+      procedure Recount is
       begin
-         State.Errors := State.Errors + 1;
-         State.Error_Path := Unbounded.To_Unbounded_String (Path);
-         State.Error := Error;
+         Startable := (if Startable_Index (Queue, Lanes, Running) > 0 then 1 else 0);
+      end Recount;
+
+      procedure Report_Error
+        (Lane  : Lane_Index;
+         Path  : String;
+         Error : Ops.Operation_Error)
+      is
+      begin
+         Results (Lane).Errors := Results (Lane).Errors + 1;
+
+         --  The first error is the one worth showing; later ones often follow from it.
+         if Results (Lane).Errors = 1 then
+            Results (Lane).Error_Path := Unbounded.To_Unbounded_String (Path);
+            Results (Lane).Error := Error;
+         end if;
       end Report_Error;
 
-      procedure Report_Progress (Copied, Size : Long_Long_Integer) is
+      procedure Report_Progress (Lane : Lane_Index; Copied, Size : Long_Long_Integer) is
       begin
-         State.Copied := Copied;
-         State.Size := Size;
+         Lanes (Lane).Copied := Copied;
+         Lanes (Lane).Size := Size;
       end Report_Progress;
 
       procedure Shut_Down is
@@ -107,55 +171,70 @@ package body Explore.Jobs is
          Closed := True;
       end Shut_Down;
 
-      procedure Start (Kind : Job_Kind; Total : Natural) is
+      function Status return Snapshot is
+         Result : Snapshot := (Lanes => Lanes, History => History, Completed => Completed, others => <>);
       begin
-         State.Running := True;
-         State.Kind := Kind;
-         State.Done := 0;
-         State.Total := Total;
-         Cancelling := False;
-      end Start;
+         for Item of Queue loop
+            Result.Queued.Append (View_Of (Item));
+         end loop;
 
-      function Status return Snapshot is (State);
+         return Result;
+      end Status;
 
       procedure Submit (Item : Job; Accepted : out Boolean) is
       begin
-         Accepted := not Closed and then State.Queued < Max_Queued;
+         Accepted := not Closed and then Natural (Queue.Length) < Max_Queued and then not Item.Sources.Is_Empty;
 
          if Accepted then
-            Queue.Append (Item);
-            State.Queued := State.Queued + 1;
+            Last_Id := Last_Id + 1;
+            Queue.Append ((Item with delta Id => Last_Id));
+            Recount;
          end if;
       end Submit;
 
-      entry Take (Item : out Job; Closed : out Boolean)
-        when Board.Closed or else State.Queued > 0
+      entry Take (Item : out Job; Lane : out Lane_Index; Closed : out Boolean)
+        when Board.Closed or else Startable > 0
       is
+         Index : constant Natural := Startable_Index (Queue, Lanes, Running);
       begin
          Closed := Board.Closed;
+         Item := (others => <>);
+         Lane := Lane_Index'First;
 
-         if Closed then
-            Item := (others => <>);
+         if Closed or else Index = 0 then
+            Closed := True;
             return;
          end if;
 
-         Item := Queue.First_Element;
-         Queue.Delete_First;
-         State.Queued := State.Queued - 1;
+         for Free in Lanes'Range loop
+            if not Lanes (Free).Running then
+               Lane := Free;
+               exit;
+            end if;
+         end loop;
+
+         Item := Queue (Index);
+         Queue.Delete (Index);
+         Running (Lane) := Item;
+         Lanes (Lane) := (Running => True, Job => View_Of (Item), others => <>);
+         Results (Lane) := (Job => View_Of (Item), others => <>);
+         Recount;
       end Take;
 
-      entry Wait_Answer (Choice : out Conflict_Answer)
-        when Answered or else Cancelling or else Closed
+      entry Wait_Answer (for Lane in Lane_Index) (Choice : out Conflict_Answer)
+        when Answered (Lane) or else Lanes (Lane).Cancelling or else Closed
       is
       begin
          --  A job cancelled while it asked leaves the target alone.
-         Choice := (if Answered then Reply else Skip_One);
-         Answered := False;
-         State.Asking := False;
+         Choice := (if Answered (Lane) then Replies (Lane) else Skip_One);
+         Answered (Lane) := False;
+         Lanes (Lane).Asking := False;
+         Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
       end Wait_Answer;
    end Board;
 
-   overriding function Cancelled (Self : in out Job_Observer) return Boolean is (Self.Jobs.Cancel_Requested);
+   overriding function Cancelled (Self : in out Job_Observer) return Boolean is
+     (Self.Jobs.Cancel_Requested (Self.Lane));
 
    function Destination (Source, Directory : String) return String is
       Name   : constant String := Name_Of (Source);
@@ -195,20 +274,43 @@ package body Explore.Jobs is
       return Path (Path'First .. Last);
    end Name_Of;
 
+   function Overlap (Left, Right : Job) return Boolean is
+      --  Whether Inner is Outer or lies inside it.
+      function Within (Inner, Outer : String) return Boolean is
+        (Inner = Outer
+         or else (Inner'Length > Outer'Length
+                  and then Inner (Inner'First .. Inner'First + Outer'Length - 1) = Outer
+                  and then (Outer (Outer'Last) = '/' or else Inner (Inner'First + Outer'Length) = '/')));
+
+      function Paths (Item : Job) return Path_Vectors.Vector is
+        (if Item.Kind = Delete_Job or else Unbounded.Length (Item.Target) = 0 then Item.Sources
+         else Path_Vectors."&" (Item.Sources, Unbounded.To_String (Item.Target)));
+   begin
+      for A of Paths (Left) loop
+         for B of Paths (Right) loop
+            if Within (A, B) or else Within (B, A) then
+               return True;
+            end if;
+         end loop;
+      end loop;
+
+      return False;
+   end Overlap;
+
    overriding procedure Progress (Self : in out Job_Observer; Path : String; Copied : Long_Long_Integer) is
    begin
       if Unbounded.To_String (Self.Copying) /= Path then
          Self.Copying := Unbounded.To_Unbounded_String (Path);
          Self.Size := FS.Size (Path);
-         Self.Jobs.Begin_Item (Path);
+         Self.Jobs.Begin_Item (Self.Lane, Path);
       end if;
 
-      Self.Jobs.Report_Progress (Copied, Self.Size);
+      Self.Jobs.Report_Progress (Self.Lane, Copied, Self.Size);
    end Progress;
 
    overriding procedure Report_Error (Self : in out Job_Observer; Path : String; Error : Ops.Operation_Error) is
    begin
-      Self.Jobs.Report_Error (Path, Error);
+      Self.Jobs.Report_Error (Self.Lane, Path, Error);
    end Report_Error;
 
    overriding function Resolve_Conflict
@@ -221,8 +323,8 @@ package body Explore.Jobs is
          return Self.Always;
       end if;
 
-      Self.Jobs.Ask (Target);
-      Self.Jobs.Wait_Answer (Choice);
+      Self.Jobs.Ask (Self.Lane, Target);
+      Self.Jobs.Wait_Answer (Self.Lane) (Choice);
 
       case Choice is
          when Overwrite_One =>
@@ -240,7 +342,7 @@ package body Explore.Jobs is
       Directory : constant String := Unbounded.To_String (Item.Target);
       Ok        : Boolean;
    begin
-      Watcher.Jobs.Begin_Item (Source);
+      Watcher.Jobs.Begin_Item (Watcher.Lane, Source);
 
       case Item.Kind is
          when Copy_Job =>
@@ -273,34 +375,75 @@ package body Explore.Jobs is
             Ops.Removing.Remove_Path (Source, (Recursive => True, Empty_Directories => False), Watcher, Ok);
       end case;
 
-      Watcher.Jobs.End_Item;
+      Watcher.Jobs.End_Item (Watcher.Lane);
    end Run_Item;
+
+   function Startable_Index (Queue : Job_Vectors.Vector; Lanes : Lane_Views; Running : Job_Array) return Natural is
+   begin
+      if (for all Lane of Lanes => Lane.Running) then
+         return 0;
+      end if;
+
+      for I in 1 .. Natural (Queue.Length) loop
+         declare
+            Candidate : constant Job := Queue (I);
+            Clear     : Boolean := True;
+         begin
+            for Lane in Lanes'Range loop
+               if Lanes (Lane).Running
+                 and then (Running (Lane).Kind = Candidate.Kind or else Overlap (Running (Lane), Candidate))
+               then
+                  Clear := False;
+               end if;
+            end loop;
+
+            --  An earlier job it overlaps goes first, as asked.
+            for J in 1 .. I - 1 loop
+               if Overlap (Queue (J), Candidate) then
+                  Clear := False;
+               end if;
+            end loop;
+
+            if Clear then
+               return I;
+            end if;
+         end;
+      end loop;
+
+      return 0;
+   end Startable_Index;
+
+   function View_Of (Item : Job) return Job_View is
+     ((Id    => Item.Id,
+       Kind  => Item.Kind,
+       First => Unbounded.To_Unbounded_String (if Item.Sources.Is_Empty then "" else Name_Of (Item.Sources (1))),
+       Total => Natural (Item.Sources.Length)));
 
    task body Worker is
       Item   : Job;
+      Lane   : Lane_Index;
       Closed : Boolean;
    begin
       loop
-         Jobs.Take (Item, Closed);
+         Jobs.Take (Item, Lane, Closed);
          exit when Closed;
-         Jobs.Start (Item.Kind, Natural (Item.Sources.Length));
 
          declare
-            Watcher : Job_Observer (Jobs);
+            Watcher : Job_Observer (Jobs, Lane);
          begin
             for Source of Item.Sources loop
-               exit when Jobs.Cancel_Requested;
+               exit when Jobs.Cancel_Requested (Lane);
 
                begin
                   Run_Item (Item, Source, Watcher);
                exception
                   when others =>
-                     Jobs.Report_Error (Source, Ops.Cannot_Open);
+                     Jobs.Report_Error (Lane, Source, Ops.Cannot_Open);
                end;
             end loop;
          end;
 
-         Jobs.Finish;
+         Jobs.Finish (Lane);
       end loop;
    end Worker;
 end Explore.Jobs;

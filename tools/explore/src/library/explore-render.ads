@@ -1,3 +1,4 @@
+with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Explore.Model;
 with Explore.Previews;
@@ -46,6 +47,8 @@ package Explore.Render is
    --  line, inside the pane's margin. Empty when there is no preview pane.
    function Content_Area (Shape : Layout) return Area;
 
+   package Id_Vectors is new Ada.Containers.Vectors (Positive, Natural);
+
    type Frame_Context is record
       Text    : Labels;
       --  The owner and group of the selected entry, as names where known.
@@ -72,6 +75,14 @@ package Explore.Render is
       Image_Id     : Natural range 0 .. 255 := 0;
       Image_Columns : Natural := 0;
       Image_Rows   : Natural := 0;
+      --  The jobs panel, drawn over the panes while it is open: its title,
+      --  its lines, the line the cursor is on, and the job each line stands
+      --  for, zero for a line that stands for none.
+      Panel_Open   : Boolean := False;
+      Panel_Title  : Ada.Strings.Unbounded.Unbounded_String;
+      Panel_Lines  : Explore.Model.Path_Vectors.Vector;
+      Panel_Ids    : Id_Vectors.Vector;
+      Panel_Cursor : Natural := 0;
    end record;
 
    --  Draw the whole frame for Browser into Into, scrolling each pane so its

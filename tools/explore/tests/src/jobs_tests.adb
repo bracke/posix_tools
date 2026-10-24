@@ -61,29 +61,30 @@ package body Jobs_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:conflict question", Test_Conflict_Question'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:cancel", Test_Cancel'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:queue bound", Test_Queue_Bound'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:overlap", Test_Overlap'Access));
       return Result;
    end Suite;
 
    procedure Test_Cancel (T : in out Fixture) is
       pragma Unreferenced (T);
       Board    : aliased Jobs.Board;
-      Worker   : Jobs.Worker (Board'Access);
+      Workers  : array (Jobs.Lane_Index) of Jobs.Worker (Board'Access);
       Accepted : Boolean;
    begin
       Make_Fixture;
       Write (Path ("into/file"), "existing");
       Board.Submit
-        ((Jobs.Copy_Job, Sources (Path ("file"), Path ("dir")), Unbounded.To_Unbounded_String (Path ("into"))),
+        ((Jobs.Copy_Job, Sources (Path ("file"), Path ("dir")), Unbounded.To_Unbounded_String (Path ("into")), 0),
          Accepted);
 
       --  The job stops at its question; cancelling it answers for the user.
       for Attempt in 1 .. 500 loop
-         exit when Board.Status.Asking;
+         exit when Jobs.Asking_Lane (Board.Status) > 0;
          delay 0.01;
       end loop;
 
-      AUnit.Assertions.Assert (Board.Status.Asking, "the job asks about the existing file");
-      Board.Cancel;
+      AUnit.Assertions.Assert (Jobs.Asking_Lane (Board.Status) > 0, "the job asks about the existing file");
+      Board.Cancel_Running;
       Wait_For (Board, 1);
       AUnit.Assertions.Assert
         (not FS.Exists (Path ("into/dir")) and then FS.Size (Path ("into/file")) = 8,
@@ -94,21 +95,27 @@ package body Jobs_Tests is
    procedure Test_Conflict_Question (T : in out Fixture) is
       pragma Unreferenced (T);
       Board    : aliased Jobs.Board;
-      Worker   : Jobs.Worker (Board'Access);
+      Workers  : array (Jobs.Lane_Index) of Jobs.Worker (Board'Access);
       Accepted : Boolean;
    begin
       Make_Fixture;
       Write (Path ("into/file"), "existing");
 
-      Board.Submit ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into"))), Accepted);
+      Board.Submit
+        ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into")), 0),
+         Accepted);
       Wait_For (Board, 1, Jobs.Skip_One);
       AUnit.Assertions.Assert (FS.Size (Path ("into/file")) = 8, "skipped: the existing file stays");
 
-      Board.Submit ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into"))), Accepted);
+      Board.Submit
+        ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into")), 0),
+         Accepted);
       Wait_For (Board, 2, Jobs.Overwrite_One);
       AUnit.Assertions.Assert (FS.Size (Path ("into/file")) = 4, "overwritten");
 
-      Board.Submit ((Jobs.Move_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into"))), Accepted);
+      Board.Submit
+        ((Jobs.Move_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into")), 0),
+         Accepted);
       Wait_For (Board, 3, Jobs.Overwrite_All);
       AUnit.Assertions.Assert
         (not FS.Exists (Path ("file")) and then FS.Exists (Path ("into/file")), "moved over it");
@@ -118,26 +125,32 @@ package body Jobs_Tests is
    procedure Test_Copy_And_Delete (T : in out Fixture) is
       pragma Unreferenced (T);
       Board    : aliased Jobs.Board;
-      Worker   : Jobs.Worker (Board'Access);
+      Workers  : array (Jobs.Lane_Index) of Jobs.Worker (Board'Access);
       Accepted : Boolean;
    begin
       Make_Fixture;
       Board.Submit
-        ((Jobs.Copy_Job, Sources (Path ("file"), Path ("dir")), Unbounded.To_Unbounded_String (Path ("into"))),
+        ((Jobs.Copy_Job, Sources (Path ("file"), Path ("dir")), Unbounded.To_Unbounded_String (Path ("into")), 0),
          Accepted);
       AUnit.Assertions.Assert (Accepted, "queued");
       Wait_For (Board, 1);
       AUnit.Assertions.Assert
         (FS.Exists (Path ("into/file")) and then FS.Exists (Path ("into/dir/inner")), "both copied, the tree whole");
       AUnit.Assertions.Assert
-        (Board.Status.Done = 2 and then Board.Status.Total = 2 and then Board.Status.Errors = 0, "counted");
+        (Board.Status.History.Last_Element.Done = 2
+         and then Board.Status.History.Last_Element.Job.Total = 2
+         and then Board.Status.History.Last_Element.Errors = 0
+         and then Jobs."=" (Board.Status.History.Last_Element.Ended, Jobs.Succeeded),
+         "counted, and recorded as done");
 
-      Board.Submit ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Root)), Accepted);
+      Board.Submit ((Jobs.Copy_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Root), 0), Accepted);
       Wait_For (Board, 2);
       AUnit.Assertions.Assert (FS.Exists (Path ("file_1")), "a copy into its own directory gets a new name");
 
       Board.Submit ((Jobs.Delete_Job, Sources (Path ("into/file"), Path ("into/dir")), others => <>), Accepted);
-      Board.Submit ((Jobs.Link_Job, Sources (Path ("dir")), Unbounded.To_Unbounded_String (Path ("into"))), Accepted);
+      Board.Submit
+        ((Jobs.Link_Job, Sources (Path ("dir")), Unbounded.To_Unbounded_String (Path ("into")), 0),
+         Accepted);
       Wait_For (Board, 4);
       AUnit.Assertions.Assert
         (not FS.Exists (Path ("into/file")) and then FS.Is_Link (Path ("into/dir")),
@@ -160,6 +173,35 @@ package body Jobs_Tests is
       AUnit.Assertions.Assert (Jobs.Destination (Path ("file"), Root & "/") = Path ("file_2"), "the next free one");
    end Test_Destination;
 
+   procedure Test_Overlap (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Board    : aliased Jobs.Board;
+      Workers  : array (Jobs.Lane_Index) of Jobs.Worker (Board'Access);
+      Accepted : Boolean;
+
+      function Item (Kind : Jobs.Job_Kind; Source, Target : String := "") return Jobs.Job is
+        ((Kind => Kind, Sources => Sources (Source), Target => Unbounded.To_Unbounded_String (Target), Id => 0));
+   begin
+      AUnit.Assertions.Assert
+        (Jobs.Overlap (Item (Jobs.Copy_Job, "/a/f", "/b"), Item (Jobs.Delete_Job, "/b/f")),
+         "deleting what a copy writes into overlaps it");
+      AUnit.Assertions.Assert
+        (not Jobs.Overlap (Item (Jobs.Copy_Job, "/a/f", "/b"), Item (Jobs.Delete_Job, "/bc")),
+         "a path that only starts alike does not");
+      AUnit.Assertions.Assert
+        (not Jobs.Overlap (Item (Jobs.Copy_Job, "/a/f", "/b"), Item (Jobs.Delete_Job, "/c/g")), "unrelated paths");
+
+      --  The delete waits for the copy it would race, whichever worker is free.
+      Make_Fixture;
+      Board.Submit (Item (Jobs.Copy_Job, Path ("dir"), Path ("into")), Accepted);
+      Board.Submit (Item (Jobs.Delete_Job, Path ("into/dir")), Accepted);
+      Wait_For (Board, 2);
+      AUnit.Assertions.Assert
+        (not FS.Exists (Path ("into/dir")) and then FS.Exists (Path ("dir/inner")),
+         "an overlapping job runs after the one before it");
+      Board.Shut_Down;
+   end Test_Overlap;
+
    procedure Test_Queue_Bound (T : in out Fixture) is
       pragma Unreferenced (T);
       Board    : Jobs.Board;
@@ -172,7 +214,14 @@ package body Jobs_Tests is
       end loop;
 
       Board.Submit ((Jobs.Delete_Job, Sources ("/nonexistent"), others => <>), Accepted);
-      AUnit.Assertions.Assert (not Accepted and then Board.Status.Queued = Jobs.Max_Queued, "a full queue refuses");
+      AUnit.Assertions.Assert
+        (not Accepted and then Natural (Board.Status.Queued.Length) = Jobs.Max_Queued, "a full queue refuses");
+      Board.Cancel (2);
+      AUnit.Assertions.Assert
+        (Natural (Board.Status.Queued.Length) = Jobs.Max_Queued - 1
+         and then Board.Status.History.Last_Element.Job.Id = 2
+         and then Jobs."=" (Board.Status.History.Last_Element.Ended, Jobs.Cancelled),
+         "a queued job is cancelled before it starts");
       Board.Shut_Down;
    end Test_Queue_Bound;
 
@@ -185,7 +234,7 @@ package body Jobs_Tests is
       for Attempt in 1 .. 1000 loop
          exit when Board.Status.Completed >= Count;
 
-         if Board.Status.Asking then
+         if Jobs.Asking_Lane (Board.Status) > 0 then
             Board.Answer (Answer);
          end if;
 

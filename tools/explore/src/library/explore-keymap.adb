@@ -106,6 +106,8 @@ package body Explore.Keymap is
             return (Kind => Create_Entry, others => <>);
          when 'm' =>
             return (Kind => Change_Mode, others => <>);
+         when 'w' =>
+            return (Kind => Show_Jobs, others => <>);
          when 'g' =>
             Self.Waiting := Go_Prefix;
          when ',' =>

@@ -2,6 +2,7 @@ with Explore.Format;
 with Posix_Tools.File_Operations.Listing;
 
 package body Explore.Render is
+
    package Listing renames Posix_Tools.File_Operations.Listing;
    package Model renames Explore.Model;
    package Previews renames Explore.Previews;
@@ -21,8 +22,6 @@ package body Explore.Render is
    Status_Style : constant Screen.Style := (Inverse => True, others => <>);
    Alert_Style  : constant Screen.Style := (Foreground => Screen.Red, Inverse => True, others => <>);
 
-   function Image (Value : Natural) return String;
-
    --  Draw the information a file has in place of a listing.
    procedure Draw_Details
      (Into    : in out Screen.Grid;
@@ -40,12 +39,19 @@ package body Explore.Render is
       Active : Boolean;
       Text   : Labels);
 
+   procedure Draw_Panel
+     (Into    : in out Screen.Grid;
+      Context : Frame_Context;
+      Shape   : Layout);
+
    procedure Draw_Status
      (Into    : in out Screen.Grid;
       Browser : Model.Browser;
       Context : Frame_Context);
 
    function Entry_Style (Item : Listing.Listed_Entry) return Screen.Style;
+
+   function Image (Value : Natural) return String;
 
    --  Write Text at Row from Column on, clipped to Width cells.
    procedure Write
@@ -105,6 +111,10 @@ package body Explore.Render is
             end if;
          end if;
       end loop;
+
+      if Context.Panel_Open and then Shape.Height > 2 then
+         Draw_Panel (Into, Context, Shape);
+      end if;
 
       if Rows >= 2 then
          Draw_Status (Into, Browser, Context);
@@ -229,6 +239,45 @@ package body Explore.Render is
          end;
       end loop;
    end Draw_Pane;
+
+   procedure Draw_Panel
+     (Into    : in out Screen.Grid;
+      Context : Frame_Context;
+      Shape   : Layout)
+   is
+      Columns : constant Natural := Screen.Columns (Into);
+      Width   : constant Natural := Natural'Min (Columns, Natural'Max (40, Columns * 3 / 4));
+      Left    : constant Positive := (Columns - Width) / 2 + 1;
+      Lines   : constant Natural := Natural (Context.Panel_Lines.Length);
+      Height  : constant Natural := Natural'Min (Shape.Height, Lines + 1);
+      Top     : constant Positive := Shape.First_Row;
+      Panel   : constant Screen.Style := (Background => Screen.Bright_Black, others => <>);
+      First   : constant Positive :=
+        (if Context.Panel_Cursor > Height - 1 then Context.Panel_Cursor - (Height - 1) + 1 else 1);
+   begin
+      for Row in Top .. Top + Height - 1 loop
+         Screen.Fill (Into, Row, Left, Width, Panel);
+      end loop;
+
+      Write
+        (Into, Top, Left + 1, Width - 2, Unbounded.To_String (Context.Panel_Title), (Panel with delta Bold => True));
+
+      for I in 0 .. Height - 2 loop
+         exit when First + I > Lines;
+
+         declare
+            Line  : constant Positive := First + I;
+            Style : constant Screen.Style :=
+              (if Line = Context.Panel_Cursor then (Panel with delta Inverse => True) else Panel);
+         begin
+            if Line = Context.Panel_Cursor then
+               Screen.Fill (Into, Top + 1 + I, Left, Width, Style);
+            end if;
+
+            Write (Into, Top + 1 + I, Left + 1, Width - 2, Context.Panel_Lines (Line), Style);
+         end;
+      end loop;
+   end Draw_Panel;
 
    procedure Draw_Status
      (Into    : in out Screen.Grid;
@@ -361,4 +410,5 @@ package body Explore.Render is
    begin
       Screen.Put (Into, Row, Column, Text, Style, Width, Used);
    end Write;
+
 end Explore.Render;
