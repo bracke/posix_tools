@@ -57,7 +57,18 @@ package Explore.Model is
       Filter      : Ada.Strings.Unbounded.Unbounded_String;
       --  The last generation handed out.
       Last_Generation : Natural := 0;
+      --  Directories visited before the current one, the latest last, and
+      --  those gone back from, the latest last.
+      Back        : Path_Vectors.Vector;
+      Forward     : Path_Vectors.Vector;
+      --  Visual selection: the entry it started on, zero when it is off,
+      --  and the marks there were before it started.
+      Visual_Anchor : Natural := 0;
+      Visual_Base   : Name_Sets.Set;
    end record;
+
+   --  How many directories back history keeps.
+   Max_History : constant := 100;
 
    function Shown_Count (Item : Pane) return Natural is (Natural (Item.Shown.Length));
 
@@ -77,6 +88,24 @@ package Explore.Model is
 
    --  Start browsing Path afresh: every pane is reset and waits for entries.
    procedure Open (Self : in out Browser; Path : String);
+
+   --  Open Path as a visit: the directory left is remembered for Go_Back,
+   --  and what was gone back from is forgotten. Wanted names the entry to
+   --  put the cursor on once the entries arrive.
+   procedure Jump (Self : in out Browser; Path : String; Wanted : String := "");
+
+   --  Return to the directory visited before, or to the one gone back from.
+   procedure Go_Back (Self : in out Browser);
+   procedure Go_Forward (Self : in out Browser);
+
+   --  Start a visual selection at the cursor: moving then marks every entry
+   --  between it and the cursor, on top of what was marked before.
+   procedure Start_Visual (Self : in out Browser);
+
+   --  End it, keeping its marks.
+   procedure End_Visual (Self : in out Browser);
+
+   function In_Visual (Self : Browser) return Boolean is (Self.Visual_Anchor > 0);
 
    --  Ask for a pane's entries again, keeping what it shows until they come.
    procedure Reload (Self : in out Browser; Kind : Pane_Kind);

@@ -1,4 +1,5 @@
 with Ada.Containers.Ordered_Maps;
+with Ada.Containers.Vectors;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
@@ -98,7 +99,8 @@ package body Explore.Application is
       Changing_Mode,     --  Typing permissions, octal or symbolic.
       Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
       Answering,         --  A running job asks about a target that exists.
-      Viewing_Jobs);     --  The jobs panel is open.
+      Viewing_Jobs,      --  The jobs panel is open.
+      Jumping);          --  Typing a path to go to.
 
    --  Interface text for operations, looked up once.
    type Operation_Labels is record
@@ -123,6 +125,9 @@ package body Explore.Application is
       Queued        : Unbounded.Unbounded_String;
       No_Jobs       : Unbounded.Unbounded_String;
       Jobs_Title    : Unbounded.Unbounded_String;
+      Jump_Prompt   : Unbounded.Unbounded_String;
+      Bookmarked    : Unbounded.Unbounded_String;
+      No_Bookmark   : Unbounded.Unbounded_String;
    end record;
 
    --  The images the terminal holds, kept so that showing one again needs no
@@ -143,6 +148,10 @@ package body Explore.Application is
    end record;
 
    type Image_Cache is array (1 .. Image_Cache_Slots) of Cached_Image;
+
+   package Tab_Vectors is new Ada.Containers.Vectors (Positive, Model.Browser, Model."=");
+   package Bookmark_Maps is new Ada.Containers.Ordered_Maps
+     (Character, Unbounded.Unbounded_String, "<", Unbounded."=");
 
    type Session is record
       Directory : Unbounded.Unbounded_String;
@@ -192,6 +201,12 @@ package body Explore.Application is
       Cell_Height : Positive := 16;
       Images      : Image_Cache;
       Image_Clock : Natural := 0;
+
+      --  Every tab's browser but the active one's, which is Browser; the
+      --  active tab's own slot holds what it was when it was last left.
+      Tabs        : Tab_Vectors.Vector;
+      Active_Tab  : Positive := 1;
+      Bookmarks   : Bookmark_Maps.Map;
    end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
@@ -284,6 +299,14 @@ package body Explore.Application is
    --  Follow the jobs: their progress line, their questions, and what they
    --  changed.
    procedure Watch_Jobs (State : in out Session);
+
+   --  Make tab To the active one, reading its panes again.
+   procedure Switch_Tab (State : in out Session; To : Positive);
+
+   --  Go to the directory Text names: absolute, relative to the current
+   --  one, or from the home directory with a leading ~; a file is gone to
+   --  in its directory, with the cursor on it.
+   procedure Jump_To (State : in out Session; Text : String);
 
    --  Point the preview at the selected file, and take a preview that is
    --  ready.
@@ -384,6 +407,8 @@ package body Explore.Application is
                Model.Clear_Marks (State.Browser);
                Model.Reload (State.Browser, Model.Current_Pane);
             end;
+         when Jumping =>
+            Jump_To (State, Text);
          when Browsing | Confirming_Delete | Answering | Viewing_Jobs =>
             null;
       end case;
@@ -405,6 +430,23 @@ package body Explore.Application is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
    begin
       State.Frame.Prefix := Unbounded.To_Unbounded_String (Keymap.Pending (State.Keys));
+      State.Frame.Tab_Line := Unbounded.Null_Unbounded_String;
+
+      if Natural (State.Tabs.Length) > 1 then
+         for I in 1 .. Natural (State.Tabs.Length) loop
+            declare
+               Path : constant String :=
+                 Unbounded.To_String
+                   (if I = State.Active_Tab then State.Browser.Panes (Model.Current_Pane).Path
+                    else State.Tabs (I).Panes (Model.Current_Pane).Path);
+               Name : constant String := (if Path = "/" then "/" else Model.Name_Of (Path));
+               Label : constant String := Image (I) & " " & Name;
+            begin
+               Unbounded.Append
+                 (State.Frame.Tab_Line, (if I = State.Active_Tab then "[" & Label & "] " else " " & Label & "  "));
+            end;
+         end loop;
+      end if;
       State.Frame.Owner := Unbounded.Null_Unbounded_String;
 
       if Model.Has_Selection (Current) and then Model.Selected (Current).Status.Available then
@@ -578,7 +620,7 @@ package body Explore.Application is
                      Keymap.Translate (State.Keys, Item, Command);
                      Perform (State, Command);
                   end if;
-               when Renaming | Creating | Changing_Mode =>
+               when Renaming | Creating | Changing_Mode | Jumping =>
                   declare
                      Done, Abandoned : Boolean;
                   begin
@@ -762,6 +804,32 @@ package body Explore.Application is
       return Identified;
    end Identify;
 
+   procedure Jump_To (State : in out Session; Text : String) is
+      Current : constant String := Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path);
+      Home    : constant String := Unbounded.To_String (State.Home);
+      Path    : constant String :=
+        (if Text = "~" then Home
+         elsif Text'Length >= 2 and then Text (Text'First .. Text'First + 1) = "~/"
+         then Model.Child_Of (Home, Text (Text'First + 2 .. Text'Last))
+         elsif Text (Text'First) = '/' then Text
+         else Model.Child_Of (Current, Text));
+   begin
+      if FS.Kind (Path) = FS.Directory then
+         Model.Jump (State.Browser, FS.Real_Path (Path));
+      elsif FS.Exists (Path) then
+         declare
+            Real : constant String := FS.Real_Path (Path);
+         begin
+            Model.Jump (State.Browser, Model.Parent_Of (Real), Model.Name_Of (Real));
+         end;
+      else
+         Complain (State, Text, Posix_Tools.File_Operations.Not_A_Directory);
+      end if;
+   exception
+      when others =>
+         Complain (State, Text, Posix_Tools.File_Operations.Cannot_Open);
+   end Jump_To;
+
    function Lane_Line (State : Session; Lane : Explore.Jobs.Lane_View) return String is
       Percent : constant String :=
         (if Lane.Size > 0
@@ -812,7 +880,10 @@ package body Explore.Application is
          Deleted       => Word ("job.deleted", "deleted"),
          Queued        => Word ("job.queued", "waiting"),
          No_Jobs       => Word ("job.none", "no operations"),
-         Jobs_Title    => Word ("job.title", "operations: j/k move, x cancel, w close"));
+         Jobs_Title    => Word ("job.title", "operations: j/k move, x cancel, w close"),
+         Jump_Prompt   => Word ("prompt.jump", "go to"),
+         Bookmarked    => Word ("bookmarked", "bookmarked"),
+         No_Bookmark   => Word ("no_bookmark", "no such bookmark"));
    end Load_Words;
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board) is
@@ -822,6 +893,7 @@ package body Explore.Application is
       Ok    : Boolean;
    begin
       Model.Open (State.Browser, Unbounded.To_String (State.Directory));
+      State.Tabs.Append (State.Browser);
 
       while not State.Quit loop
          for Ending of Ending_Signals loop
@@ -932,6 +1004,7 @@ package body Explore.Application is
          when Keymap.Clear_Filter =>
             State.Browser.Filter := Unbounded.Null_Unbounded_String;
             Model.Apply_Filter (State.Browser);
+            Model.End_Visual (State.Browser);
             Model.Clear_Marks (State.Browser);
          when Keymap.Toggle_Mark =>
             Model.Toggle_Mark (State.Browser);
@@ -1009,6 +1082,72 @@ package body Explore.Application is
             if Explore.Jobs.Any_Running (State.Last_Job) then
                State.Operations.Cancel_Running;
                State.Frame.Message := State.Words.Cancelled;
+            end if;
+         when Keymap.New_Tab =>
+            declare
+               Fresh : Model.Browser;
+            begin
+               State.Tabs (State.Active_Tab) := State.Browser;
+               Fresh.Last_Generation := State.Browser.Last_Generation;
+               Fresh.Show_Hidden := State.Browser.Show_Hidden;
+               Fresh.Order := State.Browser.Order;
+               Model.Open (Fresh, Unbounded.To_String (Current.Path));
+               Fresh.Panes (Model.Current_Pane).Wanted := Unbounded.To_Unbounded_String (Model.Selected_Name (Current));
+               State.Tabs.Insert (State.Active_Tab + 1, Fresh);
+               State.Active_Tab := State.Active_Tab + 1;
+               State.Browser := Fresh;
+            end;
+         when Keymap.Close_Tab =>
+            if Natural (State.Tabs.Length) > 1 then
+               declare
+                  Generation : constant Natural := State.Browser.Last_Generation;
+                  Next       : constant Positive := Natural'Min (State.Active_Tab, Natural (State.Tabs.Length) - 1);
+               begin
+                  State.Tabs.Delete (State.Active_Tab);
+                  State.Active_Tab := Next;
+                  State.Browser := State.Tabs (Next);
+                  State.Browser.Last_Generation := Natural'Max (Generation, State.Browser.Last_Generation);
+                  Model.Reload_All (State.Browser);
+               end;
+            end if;
+         when Keymap.Previous_Tab =>
+            Switch_Tab
+              (State, (if State.Active_Tab = 1 then Natural (State.Tabs.Length) else State.Active_Tab - 1));
+         when Keymap.Next_Tab =>
+            Switch_Tab
+              (State, (if State.Active_Tab = Natural (State.Tabs.Length) then 1 else State.Active_Tab + 1));
+         when Keymap.Switch_Tab =>
+            if Item.Number in 1 .. Natural (State.Tabs.Length) then
+               Switch_Tab (State, Item.Number);
+            end if;
+         when Keymap.Go_Back =>
+            Model.Go_Back (State.Browser);
+         when Keymap.Go_Forward =>
+            Model.Go_Forward (State.Browser);
+         when Keymap.Jump_To_Path =>
+            State.Mode := Jumping;
+            State.Frame.Prompting := True;
+            State.Frame.Prompt_Label := State.Words.Jump_Prompt;
+            State.Frame.Prompt_Text := Unbounded.Null_Unbounded_String;
+         when Keymap.Set_Bookmark =>
+            State.Bookmarks.Include (Item.Letter, Current.Path);
+            State.Frame.Message :=
+              Unbounded.To_Unbounded_String
+                (Unbounded.To_String (State.Words.Bookmarked) & " " & Item.Letter & ": "
+                 & Unbounded.To_String (Current.Path));
+         when Keymap.Go_Bookmark =>
+            if State.Bookmarks.Contains (Item.Letter) then
+               Jump_To (State, Unbounded.To_String (State.Bookmarks.Element (Item.Letter)));
+            else
+               State.Frame.Message :=
+                 Unbounded.To_Unbounded_String (Unbounded.To_String (State.Words.No_Bookmark) & ": " & Item.Letter);
+               State.Frame.Message_Is_Error := True;
+            end if;
+         when Keymap.Visual_Mode =>
+            if Model.In_Visual (State.Browser) then
+               Model.End_Visual (State.Browser);
+            else
+               Model.Start_Visual (State.Browser);
             end if;
          when Keymap.Show_Jobs =>
             State.Mode := Viewing_Jobs;
@@ -1434,6 +1573,24 @@ package body Explore.Application is
    --  Bring the readers and the watches in line with the panes: point the
    --  preview at the selection, ask for each pane's entries that are wanted
    --  and not yet asked for, and watch the directories on screen.
+
+   procedure Switch_Tab (State : in out Session; To : Positive) is
+      Generation : constant Natural := State.Browser.Last_Generation;
+   begin
+      if To = State.Active_Tab or else To > Natural (State.Tabs.Length) then
+         return;
+      end if;
+
+      State.Tabs (State.Active_Tab) := State.Browser;
+      State.Active_Tab := To;
+      State.Browser := State.Tabs (To);
+
+      --  Generations go on from the tab left, so that nothing read for it
+      --  can pass for what this tab asks for now.
+      State.Browser.Last_Generation := Natural'Max (Generation, State.Browser.Last_Generation);
+      Model.Reload_All (State.Browser);
+   end Switch_Tab;
+
    procedure Sync (State : in out Session; Jobs : in out Explore.Tasks.Board) is
       use type Unbounded.Unbounded_String;
    begin

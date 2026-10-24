@@ -71,6 +71,7 @@ package body Model_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:enter and leave", Test_Enter_And_Leave'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:cursor and scroll", Test_Cursor_And_Scroll'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:filter", Test_Filter'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:history and visual", Test_History_And_Visual'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("keymap:bindings", Test_Keymap'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("tasks:board", Test_Board'Access));
       return Result;
@@ -201,6 +202,51 @@ package body Model_Tests is
          "the root has no parent");
    end Test_Enter_And_Leave;
 
+   procedure Test_History_And_Visual (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Browser : Model.Browser;
+   begin
+      Model.Open (Browser, "/home/user");
+      Give (Browser, Model.Current_Pane, "docs/ music/");
+      Model.Enter (Browser);
+      Give (Browser, Model.Current_Pane, "a.md");
+      Model.Jump (Browser, "/etc", Wanted => "hosts");
+      AUnit.Assertions.Assert (Path (Browser, Model.Current_Pane) = "/etc", "jumped");
+      Give (Browser, Model.Current_Pane, "fstab hosts passwd");
+      AUnit.Assertions.Assert
+        (Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "hosts", "the cursor goes to the wanted entry");
+
+      Model.Go_Back (Browser);
+      AUnit.Assertions.Assert (Path (Browser, Model.Current_Pane) = "/home/user/docs", "back to where the jump left");
+      Model.Go_Back (Browser);
+      AUnit.Assertions.Assert (Path (Browser, Model.Current_Pane) = "/home/user", "back again");
+      Give (Browser, Model.Current_Pane, "docs/ music/");
+      AUnit.Assertions.Assert
+        (Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "docs",
+         "back in a parent, on the directory left");
+      Model.Go_Forward (Browser);
+      AUnit.Assertions.Assert (Path (Browser, Model.Current_Pane) = "/home/user/docs", "forward");
+      Model.Go_Forward (Browser);
+      Model.Go_Forward (Browser);
+      AUnit.Assertions.Assert (Path (Browser, Model.Current_Pane) = "/etc", "forward to the end, and no further");
+
+      Give (Browser, Model.Current_Pane, "a b c d e");
+      Model.Move_To (Browser, 1);
+      Model.Toggle_Mark (Browser);
+      Model.Move_To (Browser, 3);
+      Model.Start_Visual (Browser);
+      Model.Move (Browser, 2);
+      AUnit.Assertions.Assert
+        (Natural (Browser.Panes (Model.Current_Pane).Marked.Length) = 4, "visual marks c to e on top of a");
+      Model.Move (Browser, -1);
+      AUnit.Assertions.Assert
+        (not Model.Is_Marked (Browser.Panes (Model.Current_Pane), "e"), "moving back unmarks what it leaves");
+      Model.End_Visual (Browser);
+      Model.Move (Browser, -3);
+      AUnit.Assertions.Assert
+        (Natural (Browser.Panes (Model.Current_Pane).Marked.Length) = 3, "ended, the marks stay put");
+   end Test_History_And_Visual;
+
    procedure Test_Filter (T : in out Fixture) is
       pragma Unreferenced (T);
       Browser : Model.Browser;
@@ -259,6 +305,17 @@ package body Model_Tests is
       Explore.Keymap.Translate
         (Keys, (Kind => Explore.Input.Key_Event, Key => Explore.Input.Left, others => <>), Command);
       AUnit.Assertions.Assert (Command.Kind = Explore.Keymap.Leave_Directory, "Left");
+      Explore.Keymap.Translate (Keys, Key ('3'), Command);
+      AUnit.Assertions.Assert
+        (Command.Kind = Explore.Keymap.Switch_Tab and then Command.Number = 3, "a digit switches to that tab");
+      Explore.Keymap.Translate (Keys, Key ('b'), Command);
+      Explore.Keymap.Translate (Keys, Key ('q'), Command);
+      AUnit.Assertions.Assert
+        (Command.Kind = Explore.Keymap.Set_Bookmark and then Command.Letter = 'q', "bq sets bookmark q, not quit");
+      Explore.Keymap.Translate (Keys, Key ('''), Command);
+      Explore.Keymap.Translate (Keys, Key ('q'), Command);
+      AUnit.Assertions.Assert
+        (Command.Kind = Explore.Keymap.Go_Bookmark and then Command.Letter = 'q', "a quote and q go to it");
    end Test_Keymap;
 
    procedure Test_Open_And_Deliver (T : in out Fixture) is

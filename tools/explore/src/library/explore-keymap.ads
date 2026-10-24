@@ -33,13 +33,28 @@ package Explore.Keymap is
       Create_Entry,
       Change_Mode,
       Cancel_Job,
-      Show_Jobs);
+      Show_Jobs,
+      New_Tab,
+      Close_Tab,
+      Previous_Tab,
+      Next_Tab,
+      Switch_Tab,
+      Go_Back,
+      Go_Forward,
+      Jump_To_Path,
+      Set_Bookmark,
+      Go_Bookmark,
+      Visual_Mode);
 
    type Command is record
       Kind       : Action := No_Action;
       --  For Sort_Entries.
       Key        : Posix_Tools.File_Operations.Listing.Sort_Key := Posix_Tools.File_Operations.Listing.By_Natural_Name;
       Descending : Boolean := False;
+      --  The tab for Switch_Tab, from 1.
+      Number     : Natural := 0;
+      --  The bookmark for Set_Bookmark and Go_Bookmark.
+      Letter     : Character := ' ';
    end record;
 
    type State is private;
@@ -50,7 +65,7 @@ package Explore.Keymap is
    function Pending (Self : State) return String;
 
 private
-   type Prefix is (No_Prefix, Go_Prefix, Sort_Prefix);
+   type Prefix is (No_Prefix, Go_Prefix, Sort_Prefix, Bookmark_Prefix, Jump_Prefix);
 
    type State is record
       Waiting : Prefix := No_Prefix;

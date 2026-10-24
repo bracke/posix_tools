@@ -22,7 +22,9 @@ package body Explore.Keymap is
      (case Self.Waiting is
         when No_Prefix => "",
         when Go_Prefix => "g",
-        when Sort_Prefix => ",");
+        when Sort_Prefix => ",",
+        when Bookmark_Prefix => "b",
+        when Jump_Prefix => "'");
 
    function Plain (Self : in out State; Item : Input.Event) return Command is
    begin
@@ -108,6 +110,29 @@ package body Explore.Keymap is
             return (Kind => Change_Mode, others => <>);
          when 'w' =>
             return (Kind => Show_Jobs, others => <>);
+         when 't' =>
+            return (Kind => New_Tab, others => <>);
+         when 'T' =>
+            return (Kind => Close_Tab, others => <>);
+         when '[' =>
+            return (Kind => Previous_Tab, others => <>);
+         when ']' =>
+            return (Kind => Next_Tab, others => <>);
+         when '1' .. '9' =>
+            return (Kind => Switch_Tab, Number => Wide_Wide_Character'Pos (Item.Code) - Character'Pos ('0'),
+                    others => <>);
+         when 'H' =>
+            return (Kind => Go_Back, others => <>);
+         when 'L' =>
+            return (Kind => Go_Forward, others => <>);
+         when ':' =>
+            return (Kind => Jump_To_Path, others => <>);
+         when 'v' =>
+            return (Kind => Visual_Mode, others => <>);
+         when 'b' =>
+            Self.Waiting := Bookmark_Prefix;
+         when ''' =>
+            Self.Waiting := Jump_Prefix;
          when 'g' =>
             Self.Waiting := Go_Prefix;
          when ',' =>
@@ -124,17 +149,17 @@ package body Explore.Keymap is
    begin
       case Code is
          when 'n' | 'N' =>
-            return (Sort_Entries, Listing.By_Natural_Name, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Natural_Name, Descending => Descending, others => <>);
          when 'a' | 'A' =>
-            return (Sort_Entries, Listing.By_Name, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Name, Descending => Descending, others => <>);
          when 'e' | 'E' =>
-            return (Sort_Entries, Listing.By_Extension, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Extension, Descending => Descending, others => <>);
          when 's' | 'S' =>
-            return (Sort_Entries, Listing.By_Size, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Size, Descending => Descending, others => <>);
          when 'm' | 'M' =>
-            return (Sort_Entries, Listing.By_Modified, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Modified, Descending => Descending, others => <>);
          when 't' | 'T' =>
-            return (Sort_Entries, Listing.By_Kind, Descending);
+            return (Kind => Sort_Entries, Key => Listing.By_Kind, Descending => Descending, others => <>);
          when others =>
             return (others => <>);
       end case;
@@ -161,6 +186,16 @@ package body Explore.Keymap is
          when Sort_Prefix =>
             if Item.Key = Input.Character_Key and then not Item.Mods.Control and then not Item.Mods.Alt then
                Result := Sort_Command (Item.Code);
+            end if;
+         when Bookmark_Prefix | Jump_Prefix =>
+            --  A bookmark is named by a letter or a digit.
+            if Item.Key = Input.Character_Key and then not Item.Mods.Control and then not Item.Mods.Alt
+              and then Item.Code in 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9'
+            then
+               Result :=
+                 (Kind   => (if Was = Bookmark_Prefix then Set_Bookmark else Go_Bookmark),
+                  Letter => Character'Val (Wide_Wide_Character'Pos (Item.Code)),
+                  others => <>);
             end if;
       end case;
    end Translate;

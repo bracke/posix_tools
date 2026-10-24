@@ -89,8 +89,13 @@ package body Explore.Render is
          return;
       end if;
 
-      Write (Into, 1, 1, Columns, " ", Title_Style);
-      Write (Into, 1, 2, Columns - 1, Unbounded.To_String (Current.Path), Path_Style);
+      declare
+         Tabs  : constant String := Unbounded.To_String (Context.Tab_Line);
+         Width : constant Natural := Natural'Min (Columns - 1, Screen.Width_Of (Tabs));
+      begin
+         Write (Into, 1, 2, Width, Tabs, Title_Style);
+         Write (Into, 1, 2 + Width, Columns - 1 - Width, Unbounded.To_String (Current.Path), Path_Style);
+      end;
 
       for Kind in Model.Pane_Kind loop
          if Shape.Places (Kind).Shown and then Shape.Height > 0 then

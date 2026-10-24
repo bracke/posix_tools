@@ -1,6 +1,7 @@
 with Ada.Strings.Fixed;
 
 package body Explore.Model is
+
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Listing.Entry_Kind;
@@ -11,10 +12,16 @@ package body Explore.Model is
 
    function Next_Generation (Self : in out Browser) return Natural;
 
+   --  Remember Path as a directory visited, for Go_Back.
+   procedure Note_Visit (Self : in out Browser; Path : String);
+
    --  Recompute Item.Shown from Item.Entries, filtered by Filter when it is
    --  not empty, and put the cursor on Keep when it is still shown or as near
    --  Near as the entries allow.
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural);
+
+   --  Mark the entries between the visual anchor and the cursor.
+   procedure Update_Visual (Self : in out Browser);
 
    function Folded (Text : String) return String is
      ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
@@ -50,7 +57,6 @@ package body Explore.Model is
 
    function Shown_Entry (Item : Pane; I : Positive) return Listing.Listed_Entry is
      (Item.Entries (Item.Shown (I)));
-
    procedure Apply_Filter (Self : in out Browser) is
       Current : Pane renames Self.Panes (Current_Pane);
    begin
@@ -89,6 +95,12 @@ package body Explore.Model is
       end;
    end Deliver;
 
+   procedure End_Visual (Self : in out Browser) is
+   begin
+      Self.Visual_Anchor := 0;
+      Self.Visual_Base.Clear;
+   end End_Visual;
+
    procedure Enter (Self : in out Browser) is
    begin
       if not Can_Enter (Self) then
@@ -96,7 +108,9 @@ package body Explore.Model is
       end if;
 
       --  Marks belong to the directory they were made in.
+      End_Visual (Self);
       Clear_Marks (Self);
+      Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
 
       declare
          Target : constant String := Selected_Path (Self.Panes (Current_Pane));
@@ -132,6 +146,57 @@ package body Explore.Model is
       return 0;
    end Find;
 
+   procedure Go_Back (Self : in out Browser) is
+   begin
+      if not Self.Back.Is_Empty then
+         declare
+            Target : constant String := Self.Back.Last_Element;
+            Left   : constant String := Unbounded.To_String (Self.Panes (Current_Pane).Path);
+         begin
+            Self.Back.Delete_Last;
+            Self.Forward.Append (Left);
+            Open (Self, Target);
+            --  Back in a parent, the cursor goes to the directory left.
+            Self.Panes (Current_Pane).Wanted :=
+              Unbounded.To_Unbounded_String (if Parent_Of (Left) = Target then Name_Of (Left) else "");
+         end;
+      end if;
+   end Go_Back;
+
+   procedure Go_Forward (Self : in out Browser) is
+   begin
+      if not Self.Forward.Is_Empty then
+         declare
+            Target : constant String := Self.Forward.Last_Element;
+         begin
+            Self.Forward.Delete_Last;
+            Self.Back.Append (Unbounded.To_String (Self.Panes (Current_Pane).Path));
+            Open (Self, Target);
+         end;
+      end if;
+   end Go_Forward;
+
+   procedure Jump (Self : in out Browser; Path : String; Wanted : String := "") is
+   begin
+      if Path /= Unbounded.To_String (Self.Panes (Current_Pane).Path) then
+         Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
+         Open (Self, Path);
+      end if;
+
+      Self.Panes (Current_Pane).Wanted := Unbounded.To_Unbounded_String (Wanted);
+
+      --  Already there: the cursor goes to Wanted at once, if it is shown.
+      if Wanted'Length > 0 and then not Self.Panes (Current_Pane).Pending then
+         declare
+            Found : constant Natural := Find (Self.Panes (Current_Pane), Wanted);
+         begin
+            if Found > 0 then
+               Self.Panes (Current_Pane).Cursor := Found;
+            end if;
+         end;
+      end if;
+   end Jump;
+
    procedure Leave (Self : in out Browser) is
    begin
       if not Can_Leave (Self) then
@@ -139,7 +204,9 @@ package body Explore.Model is
       end if;
 
       --  Marks belong to the directory they were made in.
+      End_Visual (Self);
       Clear_Marks (Self);
+      Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
 
       declare
          Left   : constant String := Unbounded.To_String (Self.Panes (Current_Pane).Path);
@@ -181,6 +248,10 @@ package body Explore.Model is
    begin
       Current.Cursor :=
         (if Shown_Count (Current) = 0 then 0 else Natural'Max (1, Natural'Min (I, Shown_Count (Current))));
+
+      if In_Visual (Self) then
+         Update_Visual (Self);
+      end if;
    end Move_To;
 
    function Name_Of (Path : String) return String is
@@ -205,8 +276,24 @@ package body Explore.Model is
       return Self.Last_Generation;
    end Next_Generation;
 
+   procedure Note_Visit (Self : in out Browser; Path : String) is
+   begin
+      if Path'Length = 0 then
+         return;
+      end if;
+
+      Self.Back.Append (Path);
+
+      if Natural (Self.Back.Length) > Max_History then
+         Self.Back.Delete_First;
+      end if;
+
+      Self.Forward.Clear;
+   end Note_Visit;
+
    procedure Open (Self : in out Browser; Path : String) is
    begin
+      End_Visual (Self);
       Self.Filter := Unbounded.Null_Unbounded_String;
       Self.Panes (Current_Pane) := New_Pane (Self, Path);
       Self.Panes (Preview_Pane) := (others => <>);
@@ -315,6 +402,16 @@ package body Explore.Model is
       end;
    end Show;
 
+   procedure Start_Visual (Self : in out Browser) is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      if Has_Selection (Current) then
+         Self.Visual_Anchor := Current.Cursor;
+         Self.Visual_Base := Current.Marked;
+         Update_Visual (Self);
+      end if;
+   end Start_Visual;
+
    function Targets (Self : Browser) return Path_Vectors.Vector is
       Current : Pane renames Self.Panes (Current_Pane);
       Result  : Path_Vectors.Vector;
@@ -347,5 +444,20 @@ package body Explore.Model is
          end;
       end if;
    end Toggle_Mark;
+
+   procedure Update_Visual (Self : in out Browser) is
+      Current : Pane renames Self.Panes (Current_Pane);
+      Anchor  : constant Natural := Natural'Min (Self.Visual_Anchor, Shown_Count (Current));
+   begin
+      Current.Marked := Self.Visual_Base;
+
+      if Anchor = 0 or else Current.Cursor = 0 then
+         return;
+      end if;
+
+      for I in Natural'Min (Anchor, Current.Cursor) .. Natural'Max (Anchor, Current.Cursor) loop
+         Current.Marked.Include (Unbounded.To_String (Shown_Entry (Current, I).Name));
+      end loop;
+   end Update_Visual;
 
 end Explore.Model;
