@@ -320,6 +320,23 @@ is
       end;
    end Parse_Permission_Mode;
 
+   function Permission_Image (Mode : Natural) return String is
+      --  Each class's execute position also shows its special bit.
+      function Execute (Execute_Bit, Special_Bit : Mode_Bit; Set, Unset : Character) return Character is
+        (if Has_Mode_Bit (Mode, Special_Bit)
+         then (if Has_Mode_Bit (Mode, Execute_Bit) then Set else Unset)
+         elsif Has_Mode_Bit (Mode, Execute_Bit) then 'x'
+         else '-');
+
+      function Flag (Bit : Mode_Bit; Letter : Character) return Character is
+        (if Has_Mode_Bit (Mode, Bit) then Letter else '-');
+   begin
+      return
+        [Flag (8#400#, 'r'), Flag (8#200#, 'w'), Execute (8#100#, 8#4000#, 's', 'S'),
+         Flag (8#040#, 'r'), Flag (8#020#, 'w'), Execute (8#010#, 8#2000#, 's', 'S'),
+         Flag (8#004#, 'r'), Flag (8#002#, 'w'), Execute (8#001#, 8#1000#, 't', 'T')];
+   end Permission_Image;
+
    function Permission_Matches
      (Actual, Expected : Natural;
       Match_All : Boolean) return Boolean is

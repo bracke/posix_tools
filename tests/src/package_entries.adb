@@ -161,6 +161,9 @@ begin
    Add_Entry ("common/src/posix_tools-host_adapters-streams.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-terminal_io.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-terminal_io.ads");
+   Add_Entry ("common/src/posix_tools-file_operations.ads");
+   Add_Entry ("common/src/posix_tools-file_operations-listing.adb");
+   Add_Entry ("common/src/posix_tools-file_operations-listing.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-terminals.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-terminals.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-temporary_storage.adb");
@@ -216,6 +219,8 @@ begin
    Add_Entry ("common/src/posix_tools-text-file_modes.ads");
    Add_Entry ("common/src/posix_tools-text-numeric_images.adb");
    Add_Entry ("common/src/posix_tools-text-numeric_images.ads");
+   Add_Entry ("common/src/posix_tools-text-natural_order.adb");
+   Add_Entry ("common/src/posix_tools-text-natural_order.ads");
    Add_Entry ("common/src/posix_tools-text-find_expressions.adb");
    Add_Entry ("common/src/posix_tools-text-find_expressions.ads");
    Add_Entry ("common/src/posix_tools-text-hex_digests.adb");
@@ -276,6 +281,8 @@ begin
    Add_Entry ("tests/src/all_suites.ads");
    Add_Entry ("tests/src/basic_tests-suite.adb");
    Add_Entry ("tests/src/basic_tests-suite.ads");
+   Add_Entry ("tests/src/file_operations_tests.adb");
+   Add_Entry ("tests/src/file_operations_tests.ads");
    Add_Entry ("tests/src/basic_tests.adb");
    Add_Entry ("tests/src/basic_tests.ads");
    Add_Entry ("tests/src/command_tests-suite.adb");

@@ -64,6 +64,7 @@ is not covered unless it appears in the target inventory below.
 - `Posix_Tools.Text.Decimal_Parsing`
 - `Posix_Tools.Text.File_Modes`
 - `Posix_Tools.Text.Numeric_Images`
+- `Posix_Tools.Text.Natural_Order`
 - `Posix_Tools.Option_Parsing`
 - `Posix_Tools.Text.Octal_Modes`
 - `Posix_Tools.Text.Octal_Parsing`
@@ -85,6 +86,8 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.arguments`
 - `posix_tools.arguments.parsing`
 - `posix_tools.commands.*`
+- `posix_tools.file_operations`
+- `posix_tools.file_operations.listing`
 - `posix_tools.help`
 - `posix_tools.host_adapters.*`
 - `posix_tools.localization`
@@ -130,6 +133,13 @@ validation. It remains a non-SPARK boundary because it carries file-name and
 diagnostic text in unbounded strings while assembling conversion settings; the
 numeric/conversion token primitives remain in proved packages, and this wrapper
 is covered by direct operand tests plus command-level `dd` tests.
+
+`Posix_Tools.File_Operations` and its children are the shared filesystem
+operations that commands and `explore` both call. They are outside SPARK because
+they work through the host adapters and carry names in unbounded strings and
+containers; the ordering they rely on is proved in
+`Posix_Tools.Text.Natural_Order`, and they are covered by direct tests plus the
+tests of the commands that use them.
 
 Command implementations remain covered primarily by tests. Pure command-local
 helpers are extracted when practical: conventional command extension option

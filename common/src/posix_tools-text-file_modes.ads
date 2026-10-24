@@ -141,4 +141,10 @@ is
        and then
          (for all I in Four_Digit_Octal_Image'Result'Range =>
             Four_Digit_Octal_Image'Result (I) in '0' .. '7');
+
+   --  The nine permission characters ls -l shows, "rwxr-x---" and the like,
+   --  with s, S, t, and T where the set-user-ID, set-group-ID, and sticky bits
+   --  are set.
+   function Permission_Image (Mode : Natural) return String
+     with Post => Permission_Image'Result'Length = 9;
 end Posix_Tools.Text.File_Modes;

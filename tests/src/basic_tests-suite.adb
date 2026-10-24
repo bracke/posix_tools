@@ -1,8 +1,10 @@
 with AUnit.Test_Caller;
 with AUnit.Test_Suites;
+with File_Operations_Tests;
 
 package body Basic_Tests.Suite is
    package Caller is new AUnit.Test_Caller (Basic_Tests.Fixture);
+   package File_Operations_Caller is new AUnit.Test_Caller (File_Operations_Tests.Fixture);
 
    function Test_Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -40,6 +42,22 @@ package body Basic_Tests.Suite is
         (Result, Caller.Create ("regression:REG-CAT-0001 binary fixture", Test_Stream_File_Fixture'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:version", Test_Version'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:natural order", File_Operations_Tests.Test_Natural_Order'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:permission image", File_Operations_Tests.Test_Permission_Image'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:directory listing", File_Operations_Tests.Test_Directory_Listing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:listing sort", File_Operations_Tests.Test_Listing_Sort'Access));
       return Result;
    end Test_Suite;
 end Basic_Tests.Suite;

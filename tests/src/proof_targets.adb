@@ -62,6 +62,7 @@ procedure Proof_Targets (Gnatprove : String) is
       (To_Unbounded_String ("posix_tools.text.decimal_parsing"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.file_modes"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.numeric_images"), To_Unbounded_String ("1")),
+      (To_Unbounded_String ("posix_tools.text.natural_order"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.option_parsing"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.octal_modes"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.octal_parsing"), To_Unbounded_String ("1")),

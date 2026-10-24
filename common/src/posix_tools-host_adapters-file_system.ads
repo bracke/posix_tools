@@ -122,6 +122,35 @@ package Posix_Tools.Host_Adapters.File_System is
          Stop      : in out Boolean);
    procedure For_Each_Directory_Entry (Path : String; Ok : out Boolean);
 
+   --  What a directory records about one of its entries, without following
+   --  a link. Listed_Unknown where the filesystem does not record it.
+   type Listed_Kind is (Listed_Regular, Listed_Directory, Listed_Link, Listed_Other, Listed_Unknown);
+
+   --  Each entry of a directory but . and .., in the order the directory gives
+   --  them, with its kind as the directory records it -- no query per entry.
+   generic
+      with procedure Action
+        (Name : String;
+         Kind : Listed_Kind;
+         Stop : in out Boolean);
+   procedure For_Each_Listed_Entry (Path : String; Ok : out Boolean);
+
+   --  An entry's own status -- a symbolic link's, not its target's -- from a
+   --  single query of the host. Fields the host does not have are zero.
+   type Entry_Status is record
+      Available        : Boolean := False;
+      Size             : Long_Long_Integer := 0;
+      --  Whole seconds since 1970-01-01 UTC.
+      Modified_Seconds : Long_Long_Integer := 0;
+      --  The host's mode word, file type bits included where the host has
+      --  them; the permission bits are Mode mod 8#10000#.
+      Mode             : Natural := 0;
+      User             : Natural := 0;
+      Group            : Natural := 0;
+   end record;
+
+   function Entry_Status_Of (Path : String) return Entry_Status;
+
    generic
       with procedure Action
         (Buffer : Ada.Streams.Stream_Element_Array;

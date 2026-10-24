@@ -6,7 +6,6 @@ package body Posix_Tools.Commands.Text_Helpers.Display is
    BS : constant Character := Character'Val (8);
    CR : constant Character := Character'Val (13);
 
-   function Display_Width (Code_Point : Long_Long_Integer) return Natural;
    function Is_Combining_Code_Point (Code_Point : Long_Long_Integer) return Boolean;
    function Is_Wide_Code_Point (Code_Point : Long_Long_Integer) return Boolean;
 

@@ -1,4 +1,5 @@
 with Hostkit.Descriptors;
+with Hostkit.Directory_Listing;
 with Hostkit.Metadata;
 with Posix_Tools.Host_Adapters.File_System.Directories;
 with Posix_Tools.Host_Adapters.File_System.IO;
@@ -355,6 +356,64 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       Iterate (Path, Ok);
    end For_Each_Directory_Entry;
+
+   function Entry_Status_Of (Path : String) return Entry_Status is
+      use type Hostkit.Metadata.Identity_Field;
+
+      Revision : constant Hostkit.Metadata.Entry_Revision := Hostkit.Metadata.Entry_Revision_Of (Path);
+      Largest  : constant Hostkit.Metadata.Identity_Field := Hostkit.Metadata.Identity_Field (Long_Long_Integer'Last);
+      Id_Limit : constant Hostkit.Metadata.Identity_Field := Hostkit.Metadata.Identity_Field (Natural'Last);
+
+      function Clamped (Value : Hostkit.Metadata.Identity_Field) return Long_Long_Integer is
+        (Long_Long_Integer (Hostkit.Metadata.Identity_Field'Min (Value, Largest)));
+
+      function Clamped_Id (Value : Hostkit.Metadata.Identity_Field) return Natural is
+        (Natural (Hostkit.Metadata.Identity_Field'Min (Value, Id_Limit)));
+   begin
+      if not Revision.Available then
+         return (others => <>);
+      end if;
+
+      return
+        (Available        => True,
+         Size             => Clamped (Revision.Size),
+         Modified_Seconds => Clamped (Revision.Modified_Seconds),
+         Mode             => Clamped_Id (Revision.Mode),
+         User             => Clamped_Id (Revision.User_Id),
+         Group            => Clamped_Id (Revision.Group_Id));
+   exception
+      when others =>
+         return (others => <>);
+   end Entry_Status_Of;
+
+   procedure For_Each_Listed_Entry (Path : String; Ok : out Boolean) is
+      Entries : Hostkit.Directory_Listing.Entry_Vectors.Vector;
+      Stop    : Boolean := False;
+   begin
+      begin
+         Ok := Hostkit.Directory_Listing.List (Path, Entries);
+      exception
+         when others =>
+            Ok := False;
+      end;
+
+      if not Ok then
+         return;
+      end if;
+
+      for Item of Entries loop
+         Action
+           (Item.Name,
+            (case Item.Kind is
+               when Hostkit.Directory_Listing.Regular_File  => Listed_Regular,
+               when Hostkit.Directory_Listing.Directory     => Listed_Directory,
+               when Hostkit.Directory_Listing.Symbolic_Link => Listed_Link,
+               when Hostkit.Directory_Listing.Other         => Listed_Other,
+               when Hostkit.Directory_Listing.Unknown       => Listed_Unknown),
+            Stop);
+         exit when Stop;
+      end loop;
+   end For_Each_Listed_Entry;
 
    function Physical_Current_Directory return String is
    begin
