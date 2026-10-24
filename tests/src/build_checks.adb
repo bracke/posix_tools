@@ -1,4 +1,5 @@
 with Ada.Directories;
+with GNAT.OS_Lib;
 with Posix_Tools.Command_Inventory;
 with Project_Tools.Files;
 with Project_Tools.Processes;
@@ -55,12 +56,16 @@ package body Build_Checks is
               (Root, "tools/" & Posix_Tools.Command_Inventory.Executable (I)),
             "build " & Posix_Tools.Command_Inventory.Executable (I));
       end loop;
-      Run_Crate_Tests
-        (Alire, Project_Tools.Files.Join (Root, "tools/explore/tests"), "bin/explore_tests", "explore tests");
-      --  explore end to end, through a pseudo-terminal into bracke-terminal's
-      --  emulator core; it runs the explore built above.
-      Run_Crate_Tests
-        (Alire, Project_Tools.Files.Join (Root, "tools/explore/e2e"), "bin/explore_e2e", "explore end-to-end tests");
+      --  explore runs only in bracke-terminal on a POSIX host: it is built
+      --  everywhere, as every command is, but tested only where it runs.
+      if GNAT.OS_Lib.Directory_Separator = '/' then
+         Run_Crate_Tests
+           (Alire, Project_Tools.Files.Join (Root, "tools/explore/tests"), "bin/explore_tests", "explore tests");
+         --  explore end to end, through a pseudo-terminal into bracke-terminal's
+         --  emulator core; it runs the explore built above.
+         Run_Crate_Tests
+           (Alire, Project_Tools.Files.Join (Root, "tools/explore/e2e"), "bin/explore_e2e", "explore end-to-end tests");
+      end if;
       Build_Crate (Alire, Project_Tools.Files.Join (Root, "tests"), "build tests crate");
    end Run;
 end Build_Checks;

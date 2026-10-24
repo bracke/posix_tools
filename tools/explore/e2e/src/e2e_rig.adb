@@ -90,6 +90,8 @@ package body E2E_Rig is
       return Path;
    end Fixture;
 
+   function First_Output (Self : Rig) return Ada.Real_Time.Time is (Self.Spoke_At);
+
    function Graphics_Count (Self : Rig) return Natural is (Self.Graphics);
 
    function Last_Graphics (Self : Rig) return String is (Unbounded.To_String (Self.Last));
@@ -121,6 +123,12 @@ package body E2E_Rig is
          loop
             PTY.Read (Self.Session, Buffer, Last, Status);
             exit when Status /= PTY.Ok or else Last < Buffer'First;
+
+            if not Self.Spoke then
+               Self.Spoke := True;
+               Self.Spoke_At := Ada.Real_Time.Clock;
+            end if;
+
             Core.Feed (Self.Core, Buffer (Buffer'First .. Last), Fed);
             Answer (Self);
          end loop;
@@ -136,13 +144,33 @@ package body E2E_Rig is
    end Pump;
 
    procedure Resize (Self : in out Rig; Rows, Columns : Positive) is
+      use type Core.Resize_Status;
+      use type PTY.Resize_Status;
+
       Sized    : Core.Resize_Status;
       Resized  : PTY.Resize_Status;
    begin
       Core.Resize (Self.Core, Rows, Columns, Sized);
+
+      if Sized /= Core.Ok then
+         raise Program_Error with "the terminal core refused the resize: " & Core.Resize_Status'Image (Sized);
+      end if;
+
       Core.Set_Window_Pixel_Size (Self.Core, Columns * Cell_Width, Rows * Cell_Height);
       PTY.Resize (Self.Session, Rows, Columns, Resized);
+
+      if Resized /= PTY.Ok then
+         raise Program_Error with "the pseudo-terminal refused the resize: " & PTY.Resize_Status'Image (Resized);
+      end if;
+
       Answer (Self);
+      Core.Snapshot (Self.Core, Self.View);
+
+      if Self.View.Rows /= Rows or else Self.View.Cols /= Columns then
+         raise Program_Error with
+           "the screen is" & Natural'Image (Self.View.Rows) & " by" & Natural'Image (Self.View.Cols)
+           & " after resizing to" & Positive'Image (Rows) & " by" & Positive'Image (Columns);
+      end if;
    end Resize;
 
    function Row (Self : Rig; N : Positive) return String is
@@ -171,7 +199,9 @@ package body E2E_Rig is
    end Row;
 
    function Screen (Self : Rig) return String is
-      Result : Unbounded.Unbounded_String;
+      Result : Unbounded.Unbounded_String :=
+        Unbounded.To_Unbounded_String
+          (" (" & Natural'Image (Self.View.Rows) & " by" & Natural'Image (Self.View.Cols) & " cells)" & LF);
    begin
       for R in 1 .. Self.View.Rows loop
          Unbounded.Append (Result, "|" & Row (Self, R) & LF);
@@ -257,6 +287,7 @@ package body E2E_Rig is
       Self.Graphics := 0;
       Self.Last := Unbounded.Null_Unbounded_String;
       Self.Clipped := Unbounded.Null_Unbounded_String;
+      Self.Spoke := False;
       Pump (Self, 5);
    end Start;
 

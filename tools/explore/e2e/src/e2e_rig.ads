@@ -1,3 +1,4 @@
+with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with Terminal.Core;
 with Terminal.PTY.Backend;
@@ -46,7 +47,13 @@ package E2E_Rig is
    procedure Send (Self : in out Rig; Keys : String);
 
    --  Resize the terminal and the pseudo-terminal, as a window resize does.
+   --  Program_Error when either refuses, or the screen is not that size
+   --  afterwards.
    procedure Resize (Self : in out Rig; Rows, Columns : Positive);
+
+   --  When explore wrote its first byte, its handshake query: the moment it
+   --  was running, after the system started it.
+   function First_Output (Self : Rig) return Ada.Real_Time.Time;
 
    function Modes (Self : Rig) return Terminal.Core.Mode_Snapshot;
 
@@ -78,5 +85,7 @@ private
       Graphics  : Natural := 0;
       Last      : Ada.Strings.Unbounded.Unbounded_String;
       Clipped   : Ada.Strings.Unbounded.Unbounded_String;
+      Spoke     : Boolean := False;
+      Spoke_At  : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
    end record;
 end E2E_Rig;
