@@ -531,6 +531,8 @@ tools/explore/src/library/explore-application.adb
 tools/explore/src/library/explore-application.ads
 tools/explore/src/library/explore-format.adb
 tools/explore/src/library/explore-format.ads
+tools/explore/src/library/explore-images.adb
+tools/explore/src/library/explore-images.ads
 tools/explore/src/library/explore-input.adb
 tools/explore/src/library/explore-input.ads
 tools/explore/src/library/explore-jobs.adb
@@ -539,6 +541,8 @@ tools/explore/src/library/explore-keymap.adb
 tools/explore/src/library/explore-keymap.ads
 tools/explore/src/library/explore-model.adb
 tools/explore/src/library/explore-model.ads
+tools/explore/src/library/explore-previews.adb
+tools/explore/src/library/explore-previews.ads
 tools/explore/src/library/explore-protocol.adb
 tools/explore/src/library/explore-protocol.ads
 tools/explore/src/library/explore-render.adb
@@ -559,6 +563,8 @@ tools/explore/tests/src/jobs_tests.adb
 tools/explore/tests/src/jobs_tests.ads
 tools/explore/tests/src/model_tests.adb
 tools/explore/tests/src/model_tests.ads
+tools/explore/tests/src/preview_tests.adb
+tools/explore/tests/src/preview_tests.ads
 tools/explore/tests/src/protocol_tests.adb
 tools/explore/tests/src/protocol_tests.ads
 tools/explore/tests/src/screen_tests.adb

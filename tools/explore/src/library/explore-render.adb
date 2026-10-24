@@ -4,12 +4,14 @@ with Posix_Tools.File_Operations.Listing;
 package body Explore.Render is
    package Listing renames Posix_Tools.File_Operations.Listing;
    package Model renames Explore.Model;
+   package Previews renames Explore.Previews;
    package Screen renames Explore.Screen;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Listing.Entry_Kind;
    use type Model.Pane_Kind;
    use type Model.Pane_State;
+   use type Previews.Preview_Kind;
    use type Unbounded.Unbounded_String;
 
    Title_Style  : constant Screen.Style := (Bold => True, others => <>);
@@ -23,11 +25,11 @@ package body Explore.Render is
 
    --  Draw the information a file has in place of a listing.
    procedure Draw_Details
-     (Into  : in out Screen.Grid;
-      Item  : Listing.Listed_Entry;
-      Place : Pane_Place;
-      First : Positive;
-      Rows  : Natural);
+     (Into    : in out Screen.Grid;
+      Item    : Listing.Listed_Entry;
+      Path    : String;
+      Context : Frame_Context;
+      Shape   : Layout);
 
    procedure Draw_Pane
      (Into   : in out Screen.Grid;
@@ -54,6 +56,17 @@ package body Explore.Render is
       Text   : String;
       Style  : Screen.Style);
 
+   function Content_Area (Shape : Layout) return Area is
+      Place : constant Pane_Place := Shape.Places (Model.Preview_Pane);
+   begin
+      if not Place.Shown or else Shape.Height < 2 or else Place.Width < 3 then
+         return (others => <>);
+      end if;
+
+      return (Row => Shape.First_Row + 1, Column => Place.Column + 1, Rows => Shape.Height - 1,
+              Columns => Place.Width - 2);
+   end Content_Area;
+
    procedure Draw
      (Into    : in out Screen.Grid;
       Browser : in out Model.Browser;
@@ -79,7 +92,7 @@ package body Explore.Render is
               and then Browser.Panes (Kind).State = Model.Empty
               and then Model.Has_Selection (Current)
             then
-               Draw_Details (Into, Model.Selected (Current), Shape.Places (Kind), Shape.First_Row, Shape.Height);
+               Draw_Details (Into, Model.Selected (Current), Model.Selected_Path (Current), Context, Shape);
             else
                Draw_Pane
                  (Into,
@@ -99,27 +112,44 @@ package body Explore.Render is
    end Draw;
 
    procedure Draw_Details
-     (Into  : in out Screen.Grid;
-      Item  : Listing.Listed_Entry;
-      Place : Pane_Place;
-      First : Positive;
-      Rows  : Natural)
+     (Into    : in out Screen.Grid;
+      Item    : Listing.Listed_Entry;
+      Path    : String;
+      Context : Frame_Context;
+      Shape   : Layout)
    is
-      Lines : constant array (1 .. 4) of Unbounded.Unbounded_String :=
-        [Unbounded.To_Unbounded_String (Format.Mode_Image (Item)),
-         Unbounded.To_Unbounded_String
-           (if Item.Status.Available
-            then Format.Size_Image (Item.Status.Size) & " (" & Format.Count_Image (Item.Status.Size) & ")"
-            else ""),
-         Unbounded.To_Unbounded_String
-           (if Item.Status.Available then Format.Time_Image (Item.Status.Modified_Seconds) else ""),
-         Unbounded.To_Unbounded_String
-           (if Item.Is_Link then "-> " & Unbounded.To_String (Item.Link_Target) else "")];
+      Place   : constant Pane_Place := Shape.Places (Model.Preview_Pane);
+      Content : constant Area := Content_Area (Shape);
+      Shown   : constant Previews.Preview := Context.Preview;
+      Current : constant Boolean := Unbounded.To_String (Shown.Path) = Path;
+      Heading : constant String :=
+        (if Item.Is_Link then "-> " & Unbounded.To_String (Item.Link_Target) & "  " else "")
+        & (if Current then Unbounded.To_String (Shown.Description) else "");
    begin
-      for I in Lines'Range loop
-         exit when I > Rows;
-         Write (Into, First + I - 1, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Lines (I)), Note_Style);
-      end loop;
+      Write (Into, Shape.First_Row, Place.Column + 1, Place.Width - 1, Heading, Note_Style);
+
+      if not Current or else Content.Rows = 0 then
+         return;
+      end if;
+
+      case Shown.Kind is
+         when Previews.Text_Preview | Previews.Binary_Preview =>
+            for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
+               Write
+                 (Into, Content.Row + I - 1, Content.Column, Content.Columns, Shown.Lines (I),
+                  (if Shown.Kind = Previews.Binary_Preview then Note_Style else Screen.Plain));
+            end loop;
+         when Previews.Image_Preview =>
+            if Context.Image_Id > 0 and then Context.Image_Columns > 0 and then Context.Image_Rows > 0 then
+               Screen.Put_Image
+                 (Into, Content.Row, Content.Column, Context.Image_Id, Context.Image_Columns, Context.Image_Rows);
+            end if;
+         when Previews.Unreadable_Preview =>
+            Write (Into, Content.Row, Content.Column, Content.Columns, Unbounded.To_String (Context.Text.Unreadable),
+                   Error_Style);
+         when Previews.No_Preview =>
+            null;
+      end case;
    end Draw_Details;
 
    procedure Draw_Pane

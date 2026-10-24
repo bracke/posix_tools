@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
+with Explore.Images;
 with Posix_Tools.Commands.Text_Helpers.Display;
 with Posix_Tools.Text.UTF_8;
 
@@ -76,7 +77,8 @@ package body Explore.Screen is
       end if;
 
       for C in Column .. Natural'Min (Self.Width, Column + Width - 1) loop
-         Self.Cells (Index (Self, Row, C)) := (Code => ' ', Item_Style => Item_Style, Continuation => False);
+         Self.Cells (Index (Self, Row, C)) :=
+           (Code => ' ', Item_Style => Item_Style, Continuation => False, others => <>);
       end loop;
    end Fill;
 
@@ -141,11 +143,12 @@ package body Explore.Screen is
             return;
          end if;
 
-         Self.Cells (Index (Self, Row, At_Column)) := (Code => Code, Item_Style => Item_Style, Continuation => False);
+         Self.Cells (Index (Self, Row, At_Column)) :=
+           (Code => Code, Item_Style => Item_Style, Continuation => False, others => <>);
 
          if Cells = 2 then
             Self.Cells (Index (Self, Row, At_Column + 1)) :=
-              (Code => ' ', Item_Style => Item_Style, Continuation => True);
+              (Code => ' ', Item_Style => Item_Style, Continuation => True, others => <>);
          end if;
 
          At_Column := At_Column + Cells;
@@ -159,6 +162,33 @@ package body Explore.Screen is
 
       Used := At_Column - Column;
    end Put;
+
+   procedure Put_Image
+     (Self    : in out Grid;
+      Row     : Positive;
+      Column  : Positive;
+      Id      : Positive;
+      Columns : Positive;
+      Rows    : Positive)
+   is
+      --  The placeholder's foreground colour names the image.
+      Style : constant Screen.Style := (Foreground => Color (Id), others => <>);
+   begin
+      for R in 0 .. Natural'Min (Rows, Explore.Images.Diacritic_Count) - 1 loop
+         exit when Row + R > Self.Height;
+
+         for C in 0 .. Natural'Min (Columns, Explore.Images.Diacritic_Count) - 1 loop
+            exit when Column + C > Self.Width;
+            Self.Cells (Index (Self, Row + R, Column + C)) :=
+              (Code         => Explore.Images.Placeholder,
+               Item_Style   => Style,
+               Continuation => False,
+               Image_Id     => Id,
+               Image_Row    => R,
+               Image_Column => C);
+         end loop;
+      end loop;
+   end Put_Image;
 
    function Render (Shown : in out Grid; Wanted : Grid; Full : Boolean := False) return String is
       Output      : Unbounded.Unbounded_String;
@@ -205,7 +235,14 @@ package body Explore.Screen is
                            Style_Known := True;
                         end if;
 
-                        if Want.Continuation then
+                        if Want.Image_Id > 0 then
+                           Unbounded.Append
+                             (Output,
+                              Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Encode
+                                ([Explore.Images.Placeholder,
+                                  Explore.Images.Diacritic (Want.Image_Row),
+                                  Explore.Images.Diacritic (Want.Image_Column)]));
+                        elsif Want.Continuation then
                            Unbounded.Append (Output, ' ');
                         else
                            Unbounded.Append

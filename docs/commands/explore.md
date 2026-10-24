@@ -17,12 +17,13 @@ shows the directory it was given (or the current directory), and hands the termi
 any terminal that does not.
 
 The screen has three panes: the parent of the current directory on the left, the current directory in the middle, and
-on the right a preview of the selected entry -- the listing of a directory, or the mode, size, time, and link target of
-anything else. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
+on the right a preview of the selected entry: the listing of a directory, or, for a file, what it is as `file`
+describes it and then its first lines when it is text, a hex dump of its first bytes when it is not, or the image when
+it is a PNG. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
 current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
 and any filter or pending prefix key.
 
-Content previews, tabs, and search follow in later milestones.
+Tabs and search follow in later milestones.
 
 ### Keys
 
@@ -104,6 +105,13 @@ are dropped. The current and parent directories are watched, and re-read when th
 the same name. Entries are sorted by natural name by default, with directories first and ASCII case ignored. Only the
 cells that changed are redrawn.
 
+A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of a PNG of up to
+16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. A PNG is sent
+to the terminal once, through Kitty graphics, and placed in the pane with Unicode placeholders, scaled down to fit
+without stretching and never enlarged, using the cell size the terminal reports with its size. Inside tmux the
+graphics commands are passed through to the outer terminal while the placeholders stay ordinary text. Every image is
+freed when the selection moves on and when `explore` ends.
+
 Copies, moves, links, and deletions run one at a time on a worker task of their own, in the order they were asked
 for, through the shared `Posix_Tools.File_Operations` that `cp`, `mv`, and `rm` use. Copies keep modes, times, and
 symbolic links; a copy into the directory it came from is named `name_1`, `name_2`, and so on; a move across
@@ -148,6 +156,7 @@ Project extension; not a POSIX utility.
 
 ## Known Limitations
 
-Only bracke-terminal is supported, by design. There is no trash: deletion is permanent. Content previews, tabs, search, bookmarks, and
+Only bracke-terminal is supported, by design. There is no trash: deletion is permanent. JPEG and GIF images
+are described but not yet shown, and previews do not scroll. Content previews of archives and documents, tabs, search, bookmarks, and
 configuration are not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
 when it changes.

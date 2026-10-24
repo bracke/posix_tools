@@ -40,6 +40,11 @@ package Explore.Screen is
       Item_Style   : Style := Plain;
       --  The right half of the wide character in the cell before it.
       Continuation : Boolean := False;
+      --  An image placeholder: which image, by its id from 1, and which of
+      --  its rows and columns this cell shows. Zero for an ordinary cell.
+      Image_Id     : Natural range 0 .. 255 := 0;
+      Image_Row    : Natural := 0;
+      Image_Column : Natural := 0;
    end record;
 
    type Grid is private;
@@ -67,6 +72,17 @@ package Explore.Screen is
       Item_Style : Style;
       Width      : Natural;
       Used       : out Natural);
+
+   --  Fill Columns by Rows cells from Row and Column with the placeholders
+   --  of image Id, as many as fit in the grid.
+   procedure Put_Image
+     (Self    : in out Grid;
+      Row     : Positive;
+      Column  : Positive;
+      Id      : Positive;
+      Columns : Positive;
+      Rows    : Positive)
+     with Pre => Id <= 255;
 
    --  Blank Width cells from Column on in Item_Style.
    procedure Fill

@@ -1,6 +1,7 @@
 with Input_Tests;
 with Jobs_Tests;
 with Model_Tests;
+with Preview_Tests;
 with Protocol_Tests;
 with Screen_Tests;
 
@@ -13,6 +14,7 @@ package body Explore_Suites is
       AUnit.Test_Suites.Add_Test (Result, Screen_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Model_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Jobs_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Preview_Tests.Suite);
       return Result;
    end Suite;
 end Explore_Suites;

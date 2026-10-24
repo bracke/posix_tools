@@ -2,10 +2,12 @@ with Ada.Containers.Ordered_Maps;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
+with Explore.Images;
 with Explore.Input;
 with Explore.Jobs;
 with Explore.Keymap;
 with Explore.Model;
+with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
 with Explore.Screen;
@@ -41,6 +43,7 @@ package body Explore.Application is
    use type Explore.Model.Pane_Kind;
    use type Explore.Jobs.Snapshot;
    use type Explore.Keymap.Action;
+   use type Explore.Previews.Preview_Kind;
    use type Terminal_IO.Read_Outcome;
 
    --  How long one read waits before the loop looks at signals, watches, and
@@ -85,6 +88,7 @@ package body Explore.Application is
    type Generation_Array is array (Model.Pane_Kind) of Natural;
 
    type Board_Access is access all Explore.Jobs.Board;
+   type Preview_Board_Access is access all Explore.Previews.Board;
 
    --  What the next key means, beyond browsing.
    type Interaction is
@@ -151,6 +155,16 @@ package body Explore.Application is
       Cutting   : Boolean := False;
       --  The entries a delete waits to be confirmed for.
       Pending   : Model.Path_Vectors.Vector;
+
+      Previewer  : Preview_Board_Access;
+      --  The file whose preview was asked for, and for which generation.
+      Previewing : Unbounded.Unbounded_String;
+      Preview_Generation : Natural := 0;
+      --  A cell's size in pixels, from the terminal's size reports.
+      Cell_Width  : Positive := 8;
+      Cell_Height : Positive := 16;
+      --  The id the last image was sent under; ids go round 1 .. 255.
+      Last_Image  : Natural := 0;
    end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
@@ -169,6 +183,9 @@ package body Explore.Application is
    procedure Complain (State : in out Session; Path : String; Error : Posix_Tools.File_Operations.Operation_Error);
 
    procedure Draw (State : in out Session; Ok : out Boolean);
+
+   --  Free the image the terminal holds for the preview, if any.
+   procedure Drop_Image (State : in out Session);
 
    procedure Edit_Filter (State : in out Session; Item : Input.Event);
 
@@ -210,6 +227,10 @@ package body Explore.Application is
 
    procedure Run_Session (State : in out Session; Outcome : out Session_Outcome);
 
+   --  Send the preview's image to the terminal, placed to fit the pane, in
+   --  place of any image sent before.
+   procedure Show_Image (State : in out Session);
+
    procedure Sync (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
    procedure Take_Signals (Saved : out Saved_Dispositions);
@@ -217,6 +238,10 @@ package body Explore.Application is
    --  Follow the jobs: their progress line, their questions, and what they
    --  changed.
    procedure Watch_Jobs (State : in out Session);
+
+   --  Point the preview at the selected file, and take a preview that is
+   --  ready.
+   procedure Watch_Preview (State : in out Session);
 
    procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board) is
       Outcome : Explore.Tasks.Result;
@@ -355,6 +380,18 @@ package body Explore.Application is
       State.Dirty := False;
       State.Repaint := False;
    end Draw;
+
+   procedure Drop_Image (State : in out Session) is
+   begin
+      if State.Frame.Image_Id > 0 then
+         if not Write (Explore.Images.Delete (State.Frame.Image_Id, State.In_Tmux)) then
+            State.Quit := True;
+         end if;
+
+         State.Frame.Image_Id := 0;
+         State.Dirty := True;
+      end if;
+   end Drop_Image;
 
    procedure Edit_Filter (State : in out Session; Item : Input.Event) is
       Filter : Unbounded.Unbounded_String renames State.Browser.Filter;
@@ -513,6 +550,11 @@ package body Explore.Application is
             Handle_Mouse (State, Item);
          when Input.Resize_Event =>
             if Item.Rows > 0 and then Item.Columns > 0 then
+               if Item.Pixel_Width >= Item.Columns and then Item.Pixel_Height >= Item.Rows then
+                  State.Cell_Width := Item.Pixel_Width / Item.Columns;
+                  State.Cell_Height := Item.Pixel_Height / Item.Rows;
+               end if;
+
                Resize (State, Item.Rows, Item.Columns);
             end if;
          when Input.Focus_Event =>
@@ -678,6 +720,7 @@ package body Explore.Application is
 
          Collect (State, Jobs);
          Watch_Jobs (State);
+         Watch_Preview (State);
          Sync (State, Jobs);
 
          if State.Dirty then
@@ -689,7 +732,10 @@ package body Explore.Application is
          end if;
 
          Read_Into_Decoder
-           (State, (if Jobs.Busy or else State.Last_Job.Running then Busy_Poll_Ms else Idle_Poll_Ms), Ended);
+           (State,
+            (if Jobs.Busy or else State.Last_Job.Running or else State.Previewer.Busy then Busy_Poll_Ms
+             else Idle_Poll_Ms),
+            Ended);
          exit when Ended;
 
          loop
@@ -893,6 +939,11 @@ package body Explore.Application is
       Explore.Screen.Resize (State.Wanted, Rows, Columns);
       State.Repaint := True;
       State.Dirty := True;
+
+      --  The pane changed size; the image is placed afresh to fit it.
+      if State.Frame.Image_Id > 0 then
+         Show_Image (State);
+      end if;
    end Resize;
 
    procedure Run
@@ -998,7 +1049,11 @@ package body Explore.Application is
             declare
                --  A terminal that no longer takes output can still have its
                --  settings restored.
-               Written : constant Boolean := Write (Explore.Protocol.Leave_Screen);
+               Written : constant Boolean :=
+                 Write
+                   ((if State.Identity.Capabilities (Explore.Protocol.Kitty_Graphics)
+                     then Explore.Images.Delete_All (State.In_Tmux) else "")
+                    & Explore.Protocol.Leave_Screen);
                pragma Unreferenced (Written);
             begin
                null;
@@ -1036,7 +1091,9 @@ package body Explore.Application is
          Workers    : array (1 .. Explore.Tasks.Worker_Count) of Explore.Tasks.Worker (Jobs'Access);
          Operations : aliased Explore.Jobs.Board;
          Operator   : Explore.Jobs.Worker (Operations'Access);
-         pragma Unreferenced (Workers, Operator);
+         Previewer  : aliased Explore.Previews.Board;
+         Builder    : Explore.Previews.Worker (Previewer'Access);
+         pragma Unreferenced (Workers, Operator, Builder);
 
          procedure Stop_Workers;
 
@@ -1045,13 +1102,16 @@ package body Explore.Application is
          procedure Stop_Workers is
          begin
             Operations.Shut_Down;
+            Previewer.Shut_Down;
             Jobs.Shut_Down;
             Release_Watches (State);
             State.Operations := null;
+            State.Previewer := null;
          end Stop_Workers;
       begin
          --  The session outlives neither board: Stop_Workers forgets it.
          State.Operations := Operations'Unchecked_Access;
+         State.Previewer := Previewer'Unchecked_Access;
          Resize (State, State.Size.Rows, State.Size.Columns);
 
          begin
@@ -1072,6 +1132,43 @@ package body Explore.Application is
          Hand_Back;
          raise;
    end Run_Session;
+
+   procedure Show_Image (State : in out Session) is
+      Preview : Explore.Previews.Preview renames State.Frame.Preview;
+      Content : constant Explore.Render.Area :=
+        Explore.Render.Content_Area (Explore.Render.Layout_For (State.Size.Rows, State.Size.Columns));
+      Columns, Rows : Positive;
+   begin
+      Drop_Image (State);
+
+      if Preview.Kind /= Explore.Previews.Image_Preview
+        or else not State.Identity.Capabilities (Explore.Protocol.Kitty_Graphics)
+        or else Content.Rows = 0
+        or else Content.Columns = 0
+      then
+         return;
+      end if;
+
+      Explore.Images.Fit
+        (Preview.Width, Preview.Height, State.Cell_Width, State.Cell_Height,
+         Natural'Min (Content.Columns, Explore.Images.Diacritic_Count),
+         Natural'Min (Content.Rows, Explore.Images.Diacritic_Count),
+         Columns, Rows);
+      State.Last_Image := State.Last_Image mod 255 + 1;
+
+      if not Write
+        (Explore.Images.Transmit_PNG
+           (State.Last_Image, Unbounded.To_String (Preview.Image), Columns, Rows, State.In_Tmux))
+      then
+         State.Quit := True;
+         return;
+      end if;
+
+      State.Frame.Image_Id := State.Last_Image;
+      State.Frame.Image_Columns := Columns;
+      State.Frame.Image_Rows := Rows;
+      State.Dirty := True;
+   end Show_Image;
 
    --  Bring the readers and the watches in line with the panes: point the
    --  preview at the selection, ask for each pane's entries that are wanted
@@ -1211,5 +1308,36 @@ package body Explore.Application is
 
       State.Last_Job := State.Operations.Status;
    end Watch_Jobs;
+
+   procedure Watch_Preview (State : in out Session) is
+      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Target  : constant String :=
+        (if Model.Has_Selection (Current) and then not Model.Can_Enter (State.Browser)
+         then Model.Selected_Path (Current) else "");
+      Ready   : Explore.Previews.Preview;
+      Found   : Boolean;
+   begin
+      if Target /= Unbounded.To_String (State.Previewing) then
+         State.Previewing := Unbounded.To_Unbounded_String (Target);
+         State.Frame.Preview := (others => <>);
+         Drop_Image (State);
+
+         if Target'Length > 0 then
+            State.Preview_Generation := State.Preview_Generation + 1;
+            State.Previewer.Submit (Target, State.Preview_Generation);
+         end if;
+      end if;
+
+      State.Previewer.Collect (Ready, Found);
+
+      if Found and then Ready.Generation = State.Preview_Generation then
+         State.Frame.Preview := Ready;
+         State.Dirty := True;
+
+         if Ready.Kind = Explore.Previews.Image_Preview then
+            Show_Image (State);
+         end if;
+      end if;
+   end Watch_Preview;
 
 end Explore.Application;

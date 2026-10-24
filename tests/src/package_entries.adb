@@ -538,6 +538,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-application.ads");
    Add_Entry ("tools/explore/src/library/explore-format.adb");
    Add_Entry ("tools/explore/src/library/explore-format.ads");
+   Add_Entry ("tools/explore/src/library/explore-images.adb");
+   Add_Entry ("tools/explore/src/library/explore-images.ads");
    Add_Entry ("tools/explore/src/library/explore-input.adb");
    Add_Entry ("tools/explore/src/library/explore-input.ads");
    Add_Entry ("tools/explore/src/library/explore-jobs.adb");
@@ -546,6 +548,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-keymap.ads");
    Add_Entry ("tools/explore/src/library/explore-model.adb");
    Add_Entry ("tools/explore/src/library/explore-model.ads");
+   Add_Entry ("tools/explore/src/library/explore-previews.adb");
+   Add_Entry ("tools/explore/src/library/explore-previews.ads");
    Add_Entry ("tools/explore/src/library/explore-protocol.adb");
    Add_Entry ("tools/explore/src/library/explore-protocol.ads");
    Add_Entry ("tools/explore/src/library/explore-render.adb");
@@ -566,6 +570,8 @@ begin
    Add_Entry ("tools/explore/tests/src/jobs_tests.ads");
    Add_Entry ("tools/explore/tests/src/model_tests.adb");
    Add_Entry ("tools/explore/tests/src/model_tests.ads");
+   Add_Entry ("tools/explore/tests/src/preview_tests.adb");
+   Add_Entry ("tools/explore/tests/src/preview_tests.ads");
    Add_Entry ("tools/explore/tests/src/protocol_tests.adb");
    Add_Entry ("tools/explore/tests/src/protocol_tests.ads");
    Add_Entry ("tools/explore/tests/src/screen_tests.adb");
