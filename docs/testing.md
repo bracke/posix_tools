@@ -83,7 +83,21 @@ conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
 `generated/man/*.1` from the compiled inventory plus `docs/commands/*.md`, then
 runs metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
-crate, every command subcrate, and the tests crate.
+crate, every command subcrate, and the tests crate. It also runs `explore`'s
+own two test crates. `tools/explore/tests` tests explore's packages directly.
+`tools/explore/e2e` runs the built `explore` end to end: in a pseudo-terminal
+from bracke-terminal's `terminal_pty`, with bracke-terminal's emulator core,
+`terminal_core`, on the other side in place of its window. The core answers
+explore's identity, device-attribute, and size queries, receives its graphics
+and clipboard requests, and keeps the screen it draws, which the tests read cell
+by cell: starting and quitting with every terminal mode restored, browsing and
+previews, a copy, a resize, the clipboard, an image placed with placeholders,
+and a shell command run on the main screen. The same crate times explore on a
+directory of 100,000 entries against its budgets: the first frame, handshake
+included, within 100 milliseconds, and every key -- moving, jumping to the
+end, typing a filter -- answered within 100 milliseconds whether or not the
+directory is still being read. It needs the `terminal` repository checked out
+beside this one.
 The release gates run selector smoke tests for `--suite cat`, `--suite cp`,
 `--suite command`, `--category unit`, `--category integration`, `--category conformance`,
 `--category regression`, `--category locale`, and `--category presentation`

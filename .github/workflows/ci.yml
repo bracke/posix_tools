@@ -117,6 +117,12 @@ jobs:
           repository: bracke/truststores
           path: truststores
 
+      - name: Check out terminal
+        uses: actions/checkout@v7
+        with:
+          repository: bracke/terminal
+          path: terminal
+
       - name: Check out terminal_styles
         uses: actions/checkout@v7
         with:

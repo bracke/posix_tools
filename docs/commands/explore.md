@@ -135,7 +135,9 @@ screen, so a large or slow directory never holds up the keyboard. Each pane has 
 replaces it, a read already running for the replaced request stops at its next entry, and entries that arrive for it
 are dropped. The current and parent directories are watched, and re-read when they change, with the selection kept on
 the same name. Entries are sorted by natural name by default, with directories first and ASCII case ignored. Only the
-cells that changed are redrawn.
+cells that changed are redrawn. On a directory of 100,000 entries the first frame appears within 100 milliseconds and
+every key is answered within 100 milliseconds while the directory is read and sorted, which takes one to three seconds;
+the end-to-end tests hold explore to these budgets.
 
 A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of an image of up to
 16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. An image is

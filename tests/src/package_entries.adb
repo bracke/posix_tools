@@ -575,6 +575,17 @@ begin
    Add_Entry ("tools/explore/src/library/explore-tasks.adb");
    Add_Entry ("tools/explore/src/library/explore-tasks.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");
+   Add_Entry ("tools/explore/e2e/alire.toml");
+   Add_Entry ("tools/explore/e2e/posix_tools_explore_e2e.gpr");
+   Add_Entry ("tools/explore/e2e/src/e2e_rig.adb");
+   Add_Entry ("tools/explore/e2e/src/e2e_rig.ads");
+   Add_Entry ("tools/explore/e2e/src/e2e_suites.adb");
+   Add_Entry ("tools/explore/e2e/src/e2e_suites.ads");
+   Add_Entry ("tools/explore/e2e/src/explore_e2e.adb");
+   Add_Entry ("tools/explore/e2e/src/performance_tests.adb");
+   Add_Entry ("tools/explore/e2e/src/performance_tests.ads");
+   Add_Entry ("tools/explore/e2e/src/session_tests.adb");
+   Add_Entry ("tools/explore/e2e/src/session_tests.ads");
    Add_Entry ("tools/explore/tests/alire.toml");
    Add_Entry ("tools/explore/tests/posix_tools_explore_tests.gpr");
    Add_Entry ("tools/explore/tests/src/explore_suites.adb");

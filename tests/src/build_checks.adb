@@ -57,6 +57,10 @@ package body Build_Checks is
       end loop;
       Run_Crate_Tests
         (Alire, Project_Tools.Files.Join (Root, "tools/explore/tests"), "bin/explore_tests", "explore tests");
+      --  explore end to end, through a pseudo-terminal into bracke-terminal's
+      --  emulator core; it runs the explore built above.
+      Run_Crate_Tests
+        (Alire, Project_Tools.Files.Join (Root, "tools/explore/e2e"), "bin/explore_e2e", "explore end-to-end tests");
       Build_Crate (Alire, Project_Tools.Files.Join (Root, "tests"), "build tests crate");
    end Run;
 end Build_Checks;

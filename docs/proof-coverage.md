@@ -143,7 +143,11 @@ operations that commands and `explore` both call. They are outside SPARK because
 they work through the host adapters and carry names in unbounded strings and
 containers; the ordering they rely on is proved in
 `Posix_Tools.Text.Natural_Order`, and they are covered by direct tests plus the
-tests of the commands that use them.
+tests of the commands that use them. `Natural_Order.Sort_Key`, the byte key
+that sorting compares instead of names, is the one part of that package outside
+SPARK; that comparing keys orders names as the proved `Less` does is checked
+for every pair of names of up to three characters over an alphabet of letters
+in both cases, digits with leading zeros, and a dot, with and without folding.
 
 Command implementations remain covered primarily by tests. Pure command-local
 helpers are extracted when practical: conventional command extension option

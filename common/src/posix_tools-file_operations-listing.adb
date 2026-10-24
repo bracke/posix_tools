@@ -1,3 +1,5 @@
+with Ada.Containers.Generic_Array_Sort;
+with Ada.Unchecked_Deallocation;
 with Posix_Tools.Text.Natural_Order;
 
 package body Posix_Tools.File_Operations.Listing is
@@ -158,70 +160,169 @@ package body Posix_Tools.File_Operations.Listing is
    end Read_Directory;
 
    procedure Sort (Entries : in out Entry_Vectors.Vector; Order : Sort_Order) is
-      function Before (Left, Right : Listed_Entry) return Boolean;
+      type Name_Access is access String;
+
+      --  What an entry is compared by, taken out of it once, so that
+      --  comparing allocates nothing and sorting moves only numbers.
+      type Sort_Key_Record is record
+         --  The name, its ASCII letters folded when Order folds case: only
+         --  ever compared, by byte.
+         Name      : Name_Access;
+         --  Natural_Order's key for the name, under Order's folding.
+         Collated  : Name_Access;
+         Extension : Natural := 0;
+         Directory : Boolean := False;
+         Kind      : Entry_Kind := Regular_Entry;
+         Size      : Long_Long_Integer := 0;
+         Modified  : Long_Long_Integer := 0;
+      end record;
+
+      type Key_Array is array (Positive range <>) of Sort_Key_Record;
+      type Key_Array_Access is access Key_Array;
+      type Index_Array is array (Positive range <>) of Positive;
+      type Index_Array_Access is access Index_Array;
+
+      procedure Free is new Ada.Unchecked_Deallocation (String, Name_Access);
+      procedure Free is new Ada.Unchecked_Deallocation (Key_Array, Key_Array_Access);
+      procedure Free is new Ada.Unchecked_Deallocation (Index_Array, Index_Array_Access);
+
+      Count : constant Natural := Natural (Entries.Length);
+
+      --  On the heap: a large directory's keys would not fit a task's stack.
+      Keys  : Key_Array_Access := new Key_Array (1 .. Count);
+      Order_Of : Index_Array_Access := new Index_Array (1 .. Count);
+
+      function Before (Left, Right : Positive) return Boolean;
 
       --  Whether Left comes before Right under Order's key alone.
-      function Key_Less (Left, Right : Listed_Entry) return Boolean;
+      function Key_Less (Left, Right : Sort_Key_Record) return Boolean;
 
-      function Name_Less (Left, Right : String) return Boolean;
+      function Name_Before (Left, Right : String) return Boolean is (Left < Right);
 
-      function Before (Left, Right : Listed_Entry) return Boolean is
-         Left_Directory  : constant Boolean := Left.Kind = Directory_Entry;
-         Right_Directory : constant Boolean := Right.Kind = Directory_Entry;
+      --  The extension of Item's name: what Extension returns, as a slice.
+      function Extension_Of (Item : Sort_Key_Record) return String is
+        (if Item.Extension = 0 then "" else Item.Name (Item.Extension .. Item.Name'Last));
+
+      function Before (Left, Right : Positive) return Boolean is
+         L : Sort_Key_Record renames Keys (Left);
+         R : Sort_Key_Record renames Keys (Right);
       begin
-         if Order.Directories_First and then Left_Directory /= Right_Directory then
-            return Left_Directory;
-         end if;
-
-         if Key_Less (Left, Right) then
+         if Order.Directories_First and then L.Directory /= R.Directory then
+            return L.Directory;
+         elsif Order.Key = By_Natural_Name then
+            --  A total order: no two names are equal under it.
+            return (if Order.Descending then R.Collated.all < L.Collated.all else L.Collated.all < R.Collated.all);
+         elsif Key_Less (L, R) then
             return not Order.Descending;
-         elsif Key_Less (Left => Right, Right => Left) then
+         elsif Key_Less (R, L) then
             return Order.Descending;
+         else
+            --  Equal under the key: a fixed order by name, whatever the direction.
+            return L.Collated.all < R.Collated.all;
          end if;
-
-         --  Equal under the key: a fixed order by name, whatever the direction.
-         return Posix_Tools.Text.Natural_Order.Less
-           (Unbounded.To_String (Left.Name), Unbounded.To_String (Right.Name), Order.Fold_Case);
       end Before;
 
-      function Key_Less (Left, Right : Listed_Entry) return Boolean is
-         Left_Name  : constant String := Unbounded.To_String (Left.Name);
-         Right_Name : constant String := Unbounded.To_String (Right.Name);
+      function Key_Less (Left, Right : Sort_Key_Record) return Boolean is
       begin
          case Order.Key is
             when By_Natural_Name =>
-               return Posix_Tools.Text.Natural_Order.Less (Left_Name, Right_Name, Order.Fold_Case);
+               return Left.Collated.all < Right.Collated.all;
             when By_Name =>
-               return Name_Less (Left_Name, Right_Name);
+               return Name_Before (Left.Name.all, Right.Name.all);
             when By_Extension =>
-               return Name_Less (Extension (Left_Name), Extension (Right_Name));
+               return Name_Before (Extension_Of (Left), Extension_Of (Right));
             when By_Size =>
-               return Left.Status.Size < Right.Status.Size;
+               return Left.Size < Right.Size;
             when By_Modified =>
-               return Left.Status.Modified_Seconds < Right.Status.Modified_Seconds;
+               return Left.Modified < Right.Modified;
             when By_Kind =>
                return Entry_Kind'Pos (Left.Kind) < Entry_Kind'Pos (Right.Kind)
-                 or else (Left.Kind = Right.Kind
-                          and then Name_Less (Extension (Left_Name), Extension (Right_Name)));
+                 or else (Left.Kind = Right.Kind and then Name_Before (Extension_Of (Left), Extension_Of (Right)));
          end case;
       end Key_Less;
 
-      function Name_Less (Left, Right : String) return Boolean is
-         --  Only ASCII letters fold: the bytes of a UTF-8 name above 127 are
-         --  parts of characters, not letters of their own.
-         function Folded (Text : String) return String is
-           ([for C of Text =>
-               (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
-      begin
-         if Order.Fold_Case then
-            return Folded (Left) < Folded (Right);
-         else
-            return Left < Right;
-         end if;
-      end Name_Less;
-
-      package Sorting is new Entry_Vectors.Generic_Sorting (Before);
+      procedure Sort_Indices is new Ada.Containers.Generic_Array_Sort (Positive, Positive, Index_Array, Before);
    begin
-      Sorting.Sort (Entries);
+      if Count < 2 then
+         Free (Keys);
+         Free (Order_Of);
+         return;
+      end if;
+
+      for I in 1 .. Count loop
+         declare
+            Item : Listed_Entry renames Entries.Constant_Reference (I).Element.all;
+            Plain : constant String := Unbounded.To_String (Item.Name);
+            Name  : constant Name_Access := new String'(Plain);
+            Dot  : Natural := 0;
+         begin
+            --  Only ASCII letters fold: the bytes of a UTF-8 name above 127
+            --  are parts of characters, not letters of their own.
+            if Order.Fold_Case then
+               for C of Name.all loop
+                  if C in 'A' .. 'Z' then
+                     C := Character'Val (Character'Pos (C) + 32);
+                  end if;
+               end loop;
+            end if;
+
+            for J in reverse Name'First + 1 .. Name'Last loop
+               if Name (J) = '.' then
+                  Dot := J + 1;
+                  exit;
+               end if;
+            end loop;
+
+            Keys (I) :=
+              (Name      => Name,
+               Collated  => new String'(Posix_Tools.Text.Natural_Order.Sort_Key (Plain, Order.Fold_Case)),
+               Extension => (if Dot > Name'Last then 0 else Dot),
+               Directory => Item.Kind = Directory_Entry,
+               Kind      => Item.Kind,
+               Size      => Item.Status.Size,
+               Modified  => Item.Status.Modified_Seconds);
+
+            --  A trailing dot leaves an empty extension, as Extension gives.
+            if Dot > Name'Last then
+               Keys (I).Extension := 0;
+            end if;
+         end;
+
+         Order_Of (I) := I;
+      end loop;
+
+      Sort_Indices (Order_Of.all);
+
+      declare
+         Sorted : Entry_Vectors.Vector;
+      begin
+         Sorted.Reserve_Capacity (Ada.Containers.Count_Type (Count));
+
+         for Index of Order_Of.all loop
+            Sorted.Append (Entries (Index));
+         end loop;
+
+         Entries.Move (Sorted);
+      end;
+
+      for Item of Keys.all loop
+         Free (Item.Name);
+         Free (Item.Collated);
+      end loop;
+
+      Free (Keys);
+      Free (Order_Of);
+   exception
+      when others =>
+         if Keys /= null then
+            for Item of Keys.all loop
+               Free (Item.Name);
+               Free (Item.Collated);
+            end loop;
+         end if;
+
+         Free (Keys);
+         Free (Order_Of);
+         raise;
    end Sort;
 end Posix_Tools.File_Operations.Listing;

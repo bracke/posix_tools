@@ -568,6 +568,17 @@ tools/explore/src/library/explore-syntax.ads
 tools/explore/src/library/explore-tasks.adb
 tools/explore/src/library/explore-tasks.ads
 tools/explore/src/library/explore.ads
+tools/explore/e2e/alire.toml
+tools/explore/e2e/posix_tools_explore_e2e.gpr
+tools/explore/e2e/src/e2e_rig.adb
+tools/explore/e2e/src/e2e_rig.ads
+tools/explore/e2e/src/e2e_suites.adb
+tools/explore/e2e/src/e2e_suites.ads
+tools/explore/e2e/src/explore_e2e.adb
+tools/explore/e2e/src/performance_tests.adb
+tools/explore/e2e/src/performance_tests.ads
+tools/explore/e2e/src/session_tests.adb
+tools/explore/e2e/src/session_tests.ads
 tools/explore/tests/alire.toml
 tools/explore/tests/posix_tools_explore_tests.gpr
 tools/explore/tests/src/explore_suites.adb

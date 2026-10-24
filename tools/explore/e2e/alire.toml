@@ -1,0 +1,33 @@
+name = "posix_tools_explore_e2e"
+description = "End-to-end tests of explore against the bracke-terminal core"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["explore_e2e"]
+project-files = ["posix_tools_explore_e2e.gpr"]
+
+[[depends-on]]
+aunit = "*"
+
+[[depends-on]]
+terminal_common = "*"
+
+[[depends-on]]
+terminal_core = "*"
+
+[[depends-on]]
+terminal_pty = "*"
+
+[[pins]]
+terminal_common = { path = "../../../../terminal/terminal_common" }
+
+[[pins]]
+terminal_core = { path = "../../../../terminal/terminal_core" }
+
+[[pins]]
+terminal_pty = { path = "../../../../terminal/terminal_pty" }
+
+[build-profiles]
+"*" = "development"

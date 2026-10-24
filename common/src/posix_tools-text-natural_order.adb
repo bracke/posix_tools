@@ -87,4 +87,70 @@ is
          return Left < Right;
       end if;
    end Less;
+
+   function Sort_Key (Text : String; Fold_Case : Boolean := False) return String
+     with SPARK_Mode => Off
+   is
+      Length_Bytes : constant := 4;
+
+      --  The key's length, then the key: the same walk twice, so that the
+      --  key is built in place without growing.
+      function Key_Length return Natural;
+
+      function Key_Length return Natural is
+         Count : Natural := 0;
+         I     : Natural := 0;
+         Significant, Last : Natural;
+      begin
+         while I < Text'Length loop
+            if Is_Digit (Text (Text'First + I)) then
+               Digit_Run (Text, I, Significant, Last);
+               Count := Count + 1 + Length_Bytes + (Last - Significant + 1);
+               I := Last + 1;
+            else
+               Count := Count + 1;
+               I := I + 1;
+            end if;
+         end loop;
+
+         return Count + 1 + Text'Length;
+      end Key_Length;
+
+      Result : String (1 .. Key_Length);
+      Next   : Positive := 1;
+      I      : Natural := 0;
+      Significant, Last : Natural;
+   begin
+      while I < Text'Length loop
+         if Is_Digit (Text (Text'First + I)) then
+            Digit_Run (Text, I, Significant, Last);
+
+            declare
+               Digits_Count : constant Natural := Last - Significant + 1;
+            begin
+               --  Any digit compares with a character that is not one as '0'
+               --  does, and a longer number is a larger one.
+               Result (Next) := '0';
+
+               for B in 1 .. Length_Bytes loop
+                  Result (Next + B) := Character'Val (Digits_Count / 256 ** (Length_Bytes - B) mod 256);
+               end loop;
+
+               Next := Next + 1 + Length_Bytes;
+               Result (Next .. Next + Digits_Count - 1) :=
+                 Text (Text'First + Significant .. Text'First + Last);
+               Next := Next + Digits_Count;
+               I := Last + 1;
+            end;
+         else
+            Result (Next) := Folded (Text (Text'First + I), Fold_Case);
+            Next := Next + 1;
+            I := I + 1;
+         end if;
+      end loop;
+
+      Result (Next) := Character'Val (0);
+      Result (Next + 1 .. Result'Last) := Text;
+      return Result;
+   end Sort_Key;
 end Posix_Tools.Text.Natural_Order;

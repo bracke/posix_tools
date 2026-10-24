@@ -235,8 +235,46 @@ package body File_Operations_Tests is
          AUnit.Assertions.Assert
            (not Posix_Tools.Text.Natural_Order.Less (Left => Right, Right => Left, Fold_Case => Fold_Case),
             "'" & Right & "' not before '" & Left & "'");
+         AUnit.Assertions.Assert
+           (Posix_Tools.Text.Natural_Order.Sort_Key (Left, Fold_Case)
+              < Posix_Tools.Text.Natural_Order.Sort_Key (Right, Fold_Case),
+            "the key of '" & Left & "' before that of '" & Right & "'");
       end Before;
+
+      --  Every name of up to three characters from an alphabet of letters
+      --  in both cases, digits with zeros, and a dot.
+      Alphabet : constant String := "aAb019.";
+
+      function Name (Number, Length : Natural) return String is
+        (if Length = 0 then ""
+         else Name (Number / Alphabet'Length, Length - 1) & Alphabet (Alphabet'First + Number mod Alphabet'Length));
    begin
+      for Fold_Case in Boolean loop
+         for Left_Length in 0 .. 3 loop
+            for Left_Number in 0 .. Alphabet'Length ** Left_Length - 1 loop
+               declare
+                  Left     : constant String := Name (Left_Number, Left_Length);
+                  Left_Key : constant String := Posix_Tools.Text.Natural_Order.Sort_Key (Left, Fold_Case);
+               begin
+                  for Right_Length in 0 .. 3 loop
+                     for Right_Number in 0 .. Alphabet'Length ** Right_Length - 1 loop
+                        declare
+                           Right : constant String := Name (Right_Number, Right_Length);
+                        begin
+                           if Posix_Tools.Text.Natural_Order.Less (Left, Right, Fold_Case)
+                             /= (Left_Key < Posix_Tools.Text.Natural_Order.Sort_Key (Right, Fold_Case))
+                           then
+                              AUnit.Assertions.Assert
+                                (False, "keys order '" & Left & "' and '" & Right & "' as Less does");
+                           end if;
+                        end;
+                     end loop;
+                  end loop;
+               end;
+            end loop;
+         end loop;
+      end loop;
+
       Before ("file9", "file10");
       Before ("file2", "file10");
       Before ("a", "b");
