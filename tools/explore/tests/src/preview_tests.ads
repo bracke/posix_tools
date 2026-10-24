@@ -10,6 +10,9 @@ package Preview_Tests is
    procedure Test_Fit (T : in out Fixture);
    procedure Test_Transmit (T : in out Fixture);
    procedure Test_Build (T : in out Fixture);
+   procedure Test_Archives (T : in out Fixture);
+   procedure Test_Syntax (T : in out Fixture);
+   procedure Test_Thumbnails (T : in out Fixture);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 end Preview_Tests;

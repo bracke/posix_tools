@@ -1,4 +1,13 @@
+with Ada.Characters.Handling;
 with Ada.Streams;
+with Explore.Archives;
+with Explore.Model;
+with Posix_Tools.Arguments;
+with Posix_Tools.File_Operations;
+with Posix_Tools.File_Operations.Removing;
+with Posix_Tools.Host_Adapters.Environment;
+with Posix_Tools.Host_Adapters.Executables;
+with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Descriptions;
 
@@ -13,9 +22,24 @@ package body Explore.Previews is
    --  At most Limit bytes from the start of the file at Path.
    procedure Read_Head (Path : String; Limit : Positive; Data : out Unbounded.Unbounded_String; Ok : out Boolean);
 
+   --  Run Tool with Arguments, which write a PNG to Output, and take it.
+   procedure Make_Thumbnail
+     (Tool      : String;
+      Arguments : Posix_Tools.Arguments.Vector;
+      Output    : String;
+      Result    : in out Preview;
+      Made      : out Boolean);
+
+   --  A directory of this process's own for thumbnails, empty if none could
+   --  be made.
+   function Make_Thumbnail_Directory return String;
+
    --  Text split into lines without their terminators, tabs expanded, at
    --  most Max_Lines of them.
    procedure Split_Lines (Text : String; Lines : out Line_Vectors.Vector);
+
+   --  Remove the thumbnail directory, if one was made.
+   procedure Remove_Thumbnails (Directory : String);
 
    protected body Board is
       function Busy return Boolean is (Waiting or else Running or else Ready);
@@ -65,7 +89,7 @@ package body Explore.Previews is
       end Take;
    end Board;
 
-   function Build (Path : String) return Preview is
+   function Build (Path : String; Thumbnail_Directory : String := "") return Preview is
       Result : Preview := (Path => Unbounded.To_Unbounded_String (Path), others => <>);
       Head   : Unbounded.Unbounded_String;
       Ok     : Boolean;
@@ -111,11 +135,84 @@ package body Explore.Previews is
             Result.Image := Unbounded.Null_Unbounded_String;
          end if;
 
+         if Explore.Archives.Is_Archive (Data) then
+            declare
+               Members : Explore.Model.Path_Vectors.Vector;
+            begin
+               Explore.Archives.List (Path, Data, Max_Lines, Members, Ok);
+
+               if Ok then
+                  for Member of Members loop
+                     Result.Lines.Append (Member);
+                  end loop;
+
+                  Result.Kind := Archive_Preview;
+                  return Result;
+               end if;
+            end;
+         end if;
+
+         if Thumbnail_Directory'Length > 0 then
+            declare
+               Output : constant String := Thumbnail_Directory & "/thumbnail.png";
+               Tool   : constant String :=
+                 Posix_Tools.Host_Adapters.Executables.Locate
+                   (if Data'Length >= 5 and then Data (Data'First .. Data'First + 4) = "%PDF-" then "pdftoppm"
+                    elsif Is_Video (Path) then "ffmpeg"
+                    else "");
+               Arguments : Posix_Tools.Arguments.Vector;
+               Made      : Boolean := False;
+            begin
+               if Tool'Length > 0 and then Data'Length >= 5 and then Data (Data'First .. Data'First + 4) = "%PDF-" then
+                  --  -singlefile writes Output without a page number.
+                  Arguments.Append ("-q");
+                  Arguments.Append ("-png");
+                  Arguments.Append ("-f");
+                  Arguments.Append ("1");
+                  Arguments.Append ("-l");
+                  Arguments.Append ("1");
+                  Arguments.Append ("-scale-to");
+                  Arguments.Append ("1024");
+                  Arguments.Append ("-singlefile");
+                  Arguments.Append (Path);
+                  Arguments.Append (Thumbnail_Directory & "/thumbnail");
+
+                  Make_Thumbnail (Tool, Arguments, Output, Result, Made);
+               elsif Tool'Length > 0 then
+                  --  Quiet, and never reading the keyboard explore reads.
+                  Arguments.Append ("-v");
+                  Arguments.Append ("quiet");
+                  Arguments.Append ("-nostdin");
+                  Arguments.Append ("-y");
+                  Arguments.Append ("-ss");
+                  Arguments.Append ("1");
+                  Arguments.Append ("-i");
+                  Arguments.Append (Path);
+                  Arguments.Append ("-frames:v");
+                  Arguments.Append ("1");
+                  Arguments.Append ("-vf");
+                  Arguments.Append ("scale=1024:-2");
+                  Arguments.Append ("-c:v");
+                  Arguments.Append ("png");
+                  Arguments.Append (Output);
+
+                  Make_Thumbnail (Tool, Arguments, Output, Result, Made);
+               end if;
+
+               if Made then
+                  return Result;
+               end if;
+            end;
+         end if;
+
          if Posix_Tools.Text.File_Descriptions.Content_Description (Data, True, "", False) in
            "text/plain" | "text/x-script" | "inode/x-empty"
          then
             Result.Kind := Text_Preview;
             Split_Lines (Data, Result.Lines);
+            Result.Language :=
+              Explore.Syntax.Language_Of
+                (Path, (if Result.Lines.Is_Empty then "" else Result.Lines.First_Element));
          else
             Result.Kind := Binary_Preview;
 
@@ -157,6 +254,91 @@ package body Explore.Previews is
       return Position & "  " & Hex & " " & Shown (1 .. Data'Length);
    end Hex_Line;
 
+   function Is_Video (Name : String) return Boolean is
+      Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
+
+      function Ends (Suffix : String) return Boolean is
+        (Lower'Length > Suffix'Length and then Lower (Lower'Last - Suffix'Length + 1 .. Lower'Last) = Suffix);
+   begin
+      return Ends (".mp4") or else Ends (".mkv") or else Ends (".webm") or else Ends (".mov") or else Ends (".avi")
+        or else Ends (".m4v") or else Ends (".wmv") or else Ends (".flv") or else Ends (".mpg")
+        or else Ends (".mpeg") or else Ends (".ogv");
+   end Is_Video;
+
+   procedure Make_Thumbnail
+     (Tool      : String;
+      Arguments : Posix_Tools.Arguments.Vector;
+      Output    : String;
+      Result    : in out Preview;
+      Made      : out Boolean)
+   is
+      Status    : Integer;
+      Timed_Out : Boolean;
+      Read      : Boolean;
+   begin
+      Made := False;
+
+      if FS.Exists (Output) then
+         FS.Delete_File (Output);
+      end if;
+
+      if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
+           (Tool, Arguments, Thumbnail_Timeout_Ms, Status, Timed_Out)
+        and then Status = 0
+        and then not Timed_Out
+        and then FS.Exists (Output)
+      then
+         Read_Head (Output, Image_Bytes, Result.Image, Read);
+
+         declare
+            Data : constant String := Unbounded.To_String (Result.Image);
+         begin
+            if Read and then Explore.Images.PNG_Size (Data, Result.Width, Result.Height) then
+               Result.Kind := Image_Preview;
+               Result.Format := Explore.Images.PNG_Format;
+               Result.Thumbnail := True;
+               Made := True;
+            else
+               Result.Image := Unbounded.Null_Unbounded_String;
+            end if;
+         end;
+      end if;
+
+      if FS.Exists (Output) then
+         FS.Delete_File (Output);
+      end if;
+   exception
+      when others =>
+         Made := False;
+         Result.Image := Unbounded.Null_Unbounded_String;
+   end Make_Thumbnail;
+
+   function Make_Thumbnail_Directory return String is
+      Base : constant String :=
+        (if Posix_Tools.Host_Adapters.Environment.Defined ("TMPDIR")
+           and then Posix_Tools.Host_Adapters.Environment.Value ("TMPDIR")'Length > 0
+         then Posix_Tools.Host_Adapters.Environment.Value ("TMPDIR") else "/tmp");
+   begin
+      --  Making a directory either succeeds or finds it taken, so the first
+      --  free name is this process's alone.
+      for N in 1 .. 1_000 loop
+         declare
+            Image     : constant String := Natural'Image (N);
+            Candidate : constant String := Base & "/explore-thumbnails-" & Image (Image'First + 1 .. Image'Last);
+         begin
+            if not FS.Exists (Candidate) then
+               FS.Create_Directory (Candidate);
+               return Candidate;
+            end if;
+         exception
+            when others =>
+               null;
+         end;
+      end loop;
+
+      return "";
+   end Make_Thumbnail_Directory;
+
    procedure Read_Head (Path : String; Limit : Positive; Data : out Unbounded.Unbounded_String; Ok : out Boolean) is
       procedure Take
         (Buffer : Ada.Streams.Stream_Element_Array;
@@ -188,6 +370,21 @@ package body Explore.Previews is
       when others =>
          Ok := False;
    end Read_Head;
+
+   procedure Remove_Thumbnails (Directory : String) is
+      type Quiet_Observer is new Posix_Tools.File_Operations.Observer with null record;
+
+      overriding procedure Report_Error
+        (Self : in out Quiet_Observer; Path : String; Error : Posix_Tools.File_Operations.Operation_Error) is null;
+
+      Watcher : Quiet_Observer;
+      Removed : Boolean;
+   begin
+      if Directory'Length > 0 then
+         Posix_Tools.File_Operations.Removing.Remove_Path
+           (Directory, (Recursive => True, others => <>), Watcher, Removed);
+      end if;
+   end Remove_Thumbnails;
 
    procedure Split_Lines (Text : String; Lines : out Line_Vectors.Vector) is
       Line : Unbounded.Unbounded_String;
@@ -229,6 +426,8 @@ package body Explore.Previews is
       Path       : Unbounded.Unbounded_String;
       Generation : Natural;
       Closed     : Boolean;
+      Thumbnails : Unbounded.Unbounded_String;
+      Made       : Boolean := False;
    begin
       loop
          Jobs.Take (Path, Generation, Closed);
@@ -238,7 +437,13 @@ package body Explore.Previews is
             Result : Preview;
          begin
             begin
-               Result := Build (Unbounded.To_String (Path));
+               --  The thumbnail directory is made when a preview first needs one.
+               if not Made then
+                  Thumbnails := Unbounded.To_Unbounded_String (Make_Thumbnail_Directory);
+                  Made := True;
+               end if;
+
+               Result := Build (Unbounded.To_String (Path), Unbounded.To_String (Thumbnails));
             exception
                when others =>
                   Result := (Kind => Unreadable_Preview, Path => Path, others => <>);
@@ -248,5 +453,7 @@ package body Explore.Previews is
             Jobs.Finish (Result);
          end;
       end loop;
+
+      Remove_Thumbnails (Unbounded.To_String (Thumbnails));
    end Worker;
 end Explore.Previews;

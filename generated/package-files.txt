@@ -535,6 +535,8 @@ tools/sed/src/library/sed-version.ads
 tools/sed/src/library/sed.ads
 tools/explore/src/library/explore-application.adb
 tools/explore/src/library/explore-application.ads
+tools/explore/src/library/explore-archives.adb
+tools/explore/src/library/explore-archives.ads
 tools/explore/src/library/explore-format.adb
 tools/explore/src/library/explore-format.ads
 tools/explore/src/library/explore-images.adb
@@ -557,6 +559,8 @@ tools/explore/src/library/explore-screen.adb
 tools/explore/src/library/explore-screen.ads
 tools/explore/src/library/explore-search.adb
 tools/explore/src/library/explore-search.ads
+tools/explore/src/library/explore-syntax.adb
+tools/explore/src/library/explore-syntax.ads
 tools/explore/src/library/explore-tasks.adb
 tools/explore/src/library/explore-tasks.ads
 tools/explore/src/library/explore.ads

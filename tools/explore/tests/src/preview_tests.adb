@@ -3,9 +3,14 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Explore.Archives;
 with Explore.Images;
+with Explore.Model;
 with Explore.Previews;
+with Explore.Syntax;
+with Posix_Tools.Host_Adapters.Executables;
 with Posix_Tools.Host_Adapters.File_System;
+with Zlib;
 
 package body Preview_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
@@ -14,12 +19,23 @@ package body Preview_Tests is
    package Previews renames Explore.Previews;
 
    use type Previews.Preview_Kind;
+   use type Explore.Syntax.Language;
+   use type Explore.Syntax.Token_Kind;
 
    ESC : constant Character := Character'Val (27);
 
    --  The start of a PNG: its signature and an IHDR chunk header for an
    --  image of Width by Height pixels.
    function PNG_Header (Width, Height : Natural) return String;
+
+   --  A ustar header for a member called Name of Size bytes and type Kind.
+   function Tar_Header (Name : String; Size : Natural; Kind : Character) return String;
+
+   --  A ZIP archive holding Name, stored, with Data as its content.
+   function Zip_Of (Name, Data : String) return String;
+
+   --  The members listed of the archive at Path, which holds Data.
+   function Lines_Of (Path, Data : String) return Explore.Model.Path_Vectors.Vector;
 
    procedure Write (Name, Text : String);
 
@@ -39,10 +55,27 @@ package body Preview_Tests is
 
    function Count (Text, Pattern : String) return Natural is (Ada.Strings.Fixed.Count (Text, Pattern));
 
+   function Little_Endian (Value, Bytes : Natural) return String is
+     ([for I in 1 .. Bytes => Character'Val (Value / 2 ** (8 * (I - 1)) mod 256)]);
+
+   function Octal (Value, Digits_Wide : Natural) return String is
+     ((if Digits_Wide > 1 then Octal (Value / 8, Digits_Wide - 1) else "") & Character'Val (48 + Value mod 8));
+
+   NUL : constant Character := Character'Val (0);
+
    function PNG_Header (Width, Height : Natural) return String is
      (Character'Val (16#89#) & "PNG" & Character'Val (13) & Character'Val (10) & Character'Val (26) & Character'Val (10)
       & Big_Endian (13) & "IHDR" & Big_Endian (Width) & Big_Endian (Height) & Character'Val (8) & Character'Val (6)
       & Character'Val (0) & Character'Val (0) & Character'Val (0));
+
+   function Lines_Of (Path, Data : String) return Explore.Model.Path_Vectors.Vector is
+      Lines : Explore.Model.Path_Vectors.Vector;
+      Ok    : Boolean;
+   begin
+      Explore.Archives.List (Path, Data, 100, Lines, Ok);
+      AUnit.Assertions.Assert (Ok, "listed: " & Path);
+      return Lines;
+   end Lines_Of;
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite := AUnit.Test_Suites.New_Suite;
@@ -53,8 +86,91 @@ package body Preview_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("images:fit", Test_Fit'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("images:transmit", Test_Transmit'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("previews:build", Test_Build'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("previews:archives", Test_Archives'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("previews:syntax", Test_Syntax'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("previews:thumbnails", Test_Thumbnails'Access));
       return Result;
    end Suite;
+
+   function Tar_Header (Name : String; Size : Natural; Kind : Character) return String is
+      Header : String (1 .. 512) := [others => NUL];
+      Sum    : Natural := 0;
+
+      procedure Put (At_Offset : Natural; Text : String);
+
+      procedure Put (At_Offset : Natural; Text : String) is
+      begin
+         Header (At_Offset + 1 .. At_Offset + Text'Length) := Text;
+      end Put;
+   begin
+      Put (0, Name);
+      Put (100, Octal (8#644#, 7));
+      Put (108, Octal (0, 7));
+      Put (116, Octal (0, 7));
+      Put (124, Octal (Size, 11));
+      Put (136, Octal (0, 11));
+      Put (148, "        ");
+      Put (156, [Kind]);
+      Put (257, "ustar" & NUL & "00");
+
+      for C of Header loop
+         Sum := Sum + Character'Pos (C);
+      end loop;
+
+      Put (148, Octal (Sum, 6) & NUL & " ");
+      return Header;
+   end Tar_Header;
+
+   procedure Test_Archives (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Explore.Model.Path_Vectors.Vector;
+
+      Root    : constant String := Ada.Directories.Current_Directory & "/obj/archive-fixture";
+      Content : constant String := "hello" & Character'Val (10);
+      Tar     : constant String :=
+        Tar_Header ("docs/", 0, '5') & Tar_Header ("docs/readme", Content'Length, '0') & Content
+        & [1 .. 512 - Content'Length => NUL] & [1 .. 1024 => NUL];
+      Packed  : Zlib.Byte_Array (0 .. Tar'Length - 1);
+      Status  : Zlib.Status_Code;
+      Wanted  : Explore.Model.Path_Vectors.Vector;
+      Item    : Previews.Preview;
+   begin
+      Ada.Directories.Create_Path (Root);
+      Wanted.Append ("        docs/");
+      Wanted.Append ("     6  docs/readme");
+
+      Write (Root & "/plain.tar", Tar);
+      AUnit.Assertions.Assert (Explore.Archives.Is_Archive (Tar), "tar is told by its ustar magic");
+      AUnit.Assertions.Assert (Lines_Of (Root & "/plain.tar", Tar) = Wanted, "tar members, sized, directories marked");
+
+      for I in Packed'Range loop
+         Packed (I) := Zlib.Byte (Character'Pos (Tar (Tar'First + I)));
+      end loop;
+
+      declare
+         Compressed : constant Zlib.Byte_Array := Zlib.GZip (Packed, Status => Status);
+         Text       : String (1 .. Compressed'Length);
+      begin
+         for I in Text'Range loop
+            Text (I) := Character'Val (Compressed (Compressed'First + I - 1));
+         end loop;
+
+         Write (Root & "/packed.tar.gz", Text);
+         AUnit.Assertions.Assert
+           (Lines_Of (Root & "/packed.tar.gz", Text) = Wanted, "a gzip compressed tar is inflated");
+      end;
+
+      Write (Root & "/stored.zip", Zip_Of ("inner.txt", Content));
+      Wanted.Clear;
+      Wanted.Append ("     6  inner.txt");
+      AUnit.Assertions.Assert (Lines_Of (Root & "/stored.zip", Zip_Of ("inner.txt", Content)) = Wanted, "zip members from its central directory");
+
+      Item := Previews.Build (Root & "/plain.tar");
+      AUnit.Assertions.Assert
+        (Item.Kind = Previews.Archive_Preview and then Natural (Item.Lines.Length) = 2, "an archive preview");
+
+      AUnit.Assertions.Assert (not Explore.Archives.Is_Archive (Content), "plain text is no archive");
+   end Test_Archives;
 
    procedure Test_Base64 (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -163,6 +279,92 @@ package body Preview_Tests is
          "GIF size, little-endian");
    end Test_PNG_Header;
 
+   procedure Test_Syntax (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Syntax renames Explore.Syntax;
+
+      State : Syntax.Line_State;
+      Spans : Syntax.Span_Vectors.Vector;
+
+      function Has (Line : String; Text : String; Kind : Syntax.Token_Kind) return Boolean is
+        (for some Run of Spans => Run.Kind = Kind and then Line (Run.First .. Run.Last) = Text);
+   begin
+      AUnit.Assertions.Assert (Syntax.Language_Of ("main.adb", "") = Syntax.Ada_Language, "Ada by extension");
+      AUnit.Assertions.Assert (Syntax.Language_Of ("x.C", "") = Syntax.C_Family, "extensions in any case");
+      AUnit.Assertions.Assert
+        (Syntax.Language_Of ("run", "#!/bin/sh") = Syntax.Hash_Commented, "a script by its #! line");
+      AUnit.Assertions.Assert (Syntax.Language_Of ("notes", "text") = Syntax.No_Language, "nothing to go by");
+
+      declare
+         Line : constant String := "   procedure Go is  --  start 42";
+      begin
+         Syntax.Tokenize (Line, Syntax.Ada_Language, State, Spans);
+         AUnit.Assertions.Assert
+           (Has (Line, "procedure", Syntax.Keyword) and then Has (Line, "is", Syntax.Keyword)
+            and then Has (Line, "--  start 42", Syntax.Comment) and then Natural (Spans.Length) = 3,
+            "Ada keywords and a comment to the end of the line, the number in it not apart");
+      end;
+
+      declare
+         Line : constant String := "int n = 0x1F; /* open";
+      begin
+         Syntax.Tokenize (Line, Syntax.C_Family, State, Spans);
+         AUnit.Assertions.Assert
+           (Has (Line, "int", Syntax.Keyword) and then Has (Line, "0x1F", Syntax.Number)
+            and then Has (Line, "/* open", Syntax.Comment) and then State.In_Block_Comment,
+            "a block comment left open");
+      end;
+
+      declare
+         Line : constant String := "still */ return ""a\""b"";";
+      begin
+         Syntax.Tokenize (Line, Syntax.C_Family, State, Spans);
+         AUnit.Assertions.Assert
+           (Has (Line, "still */", Syntax.Comment) and then not State.In_Block_Comment
+            and then Has (Line, "return", Syntax.Keyword) and then Has (Line, """a\""b""", Syntax.String_Literal),
+            "the comment closes on the next line, and an escaped quote stays in its string");
+      end;
+
+      declare
+         Line : constant String := "## Title";
+      begin
+         Syntax.Tokenize (Line, Syntax.Markdown_Language, State, Spans);
+         AUnit.Assertions.Assert (Has (Line, Line, Syntax.Heading), "a Markdown heading");
+      end;
+   end Test_Syntax;
+
+   procedure Test_Thumbnails (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root : constant String := Ada.Directories.Current_Directory & "/obj/thumbnail-fixture";
+      Item : Previews.Preview;
+   begin
+      AUnit.Assertions.Assert
+        (Previews.Is_Video ("clip.MP4") and then Previews.Is_Video ("a.mkv") and then not Previews.Is_Video ("a.mp3"),
+         "videos by extension");
+
+      if Posix_Tools.Host_Adapters.Executables.Locate ("pdftoppm") = "" then
+         return;
+      end if;
+
+      Ada.Directories.Create_Path (Root & "/out");
+      Write
+        (Root & "/page.pdf",
+         "%PDF-1.1" & Character'Val (10) & "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj" & Character'Val (10)
+         & "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj" & Character'Val (10)
+         & "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 72 36]>>endobj" & Character'Val (10)
+         & "trailer<</Root 1 0 R>>" & Character'Val (10) & "%%EOF" & Character'Val (10));
+
+      Item := Previews.Build (Root & "/page.pdf", Root & "/out");
+      AUnit.Assertions.Assert
+        (Item.Kind = Previews.Image_Preview and then Item.Thumbnail and then Item.Width = 2 * Item.Height,
+         "a PDF's first page as a PNG of its shape");
+      AUnit.Assertions.Assert
+        (not Ada.Directories.Exists (Root & "/out/thumbnail.png"), "the thumbnail file is removed once read");
+
+      Item := Previews.Build (Root & "/page.pdf");
+      AUnit.Assertions.Assert (Item.Kind /= Previews.Image_Preview, "no thumbnails without a directory for them");
+   end Test_Thumbnails;
+
    procedure Test_Transmit (T : in out Fixture) is
       pragma Unreferenced (T);
       Data   : constant String := [1 .. 5000 => 'x'];
@@ -192,4 +394,19 @@ package body Preview_Tests is
       FS.Write_File (Name, Text, Append_Mode => False, Ok => Ok);
       AUnit.Assertions.Assert (Ok, "fixture written: " & Name);
    end Write;
+
+   function Zip_Of (Name, Data : String) return String is
+      Common : constant String :=
+        Little_Endian (20, 2) & Little_Endian (0, 2) & Little_Endian (0, 2) & Little_Endian (0, 4)
+        & Little_Endian (0, 4) & Little_Endian (Data'Length, 4) & Little_Endian (Data'Length, 4)
+        & Little_Endian (Name'Length, 2) & Little_Endian (0, 2);
+      Local   : constant String := "PK" & Character'Val (3) & Character'Val (4) & Common & Name & Data;
+      Central : constant String :=
+        "PK" & Character'Val (1) & Character'Val (2) & Little_Endian (20, 2) & Common & Little_Endian (0, 2)
+        & Little_Endian (0, 2) & Little_Endian (0, 2) & Little_Endian (0, 4) & Little_Endian (0, 4) & Name;
+   begin
+      return Local & Central & "PK" & Character'Val (5) & Character'Val (6) & Little_Endian (0, 2)
+        & Little_Endian (0, 2) & Little_Endian (1, 2) & Little_Endian (1, 2) & Little_Endian (Central'Length, 4)
+        & Little_Endian (Local'Length, 4) & Little_Endian (0, 2);
+   end Zip_Of;
 end Preview_Tests;

@@ -542,6 +542,8 @@ begin
    Add_Entry ("tools/sed/src/library/sed.ads");
    Add_Entry ("tools/explore/src/library/explore-application.adb");
    Add_Entry ("tools/explore/src/library/explore-application.ads");
+   Add_Entry ("tools/explore/src/library/explore-archives.adb");
+   Add_Entry ("tools/explore/src/library/explore-archives.ads");
    Add_Entry ("tools/explore/src/library/explore-format.adb");
    Add_Entry ("tools/explore/src/library/explore-format.ads");
    Add_Entry ("tools/explore/src/library/explore-images.adb");
@@ -564,6 +566,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-screen.ads");
    Add_Entry ("tools/explore/src/library/explore-search.adb");
    Add_Entry ("tools/explore/src/library/explore-search.ads");
+   Add_Entry ("tools/explore/src/library/explore-syntax.adb");
+   Add_Entry ("tools/explore/src/library/explore-syntax.ads");
    Add_Entry ("tools/explore/src/library/explore-tasks.adb");
    Add_Entry ("tools/explore/src/library/explore-tasks.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");

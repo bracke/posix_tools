@@ -17,11 +17,23 @@ aunit = "*"
 [[depends-on]]
 greplib = "*"
 
+[[depends-on]]
+tarlib = "*"
+
+[[depends-on]]
+zlib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../../../common" }
 
 [[pins]]
 greplib = { path = "../../../../greplib" }
+
+[[pins]]
+tarlib = { path = "../../../../tarlib" }
+
+[[pins]]
+zlib = { path = "../../../../zlib" }
 
 [build-profiles]
 "*" = "development"

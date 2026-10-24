@@ -1,4 +1,5 @@
 with Explore.Format;
+with Explore.Syntax;
 with Posix_Tools.File_Operations.Listing;
 
 package body Explore.Render is
@@ -6,6 +7,7 @@ package body Explore.Render is
    package Listing renames Posix_Tools.File_Operations.Listing;
    package Model renames Explore.Model;
    package Previews renames Explore.Previews;
+   package Syntax renames Explore.Syntax;
    package Screen renames Explore.Screen;
    package Unbounded renames Ada.Strings.Unbounded;
 
@@ -21,6 +23,15 @@ package body Explore.Render is
    Error_Style  : constant Screen.Style := (Foreground => Screen.Red, others => <>);
    Status_Style : constant Screen.Style := (Inverse => True, others => <>);
    Alert_Style  : constant Screen.Style := (Foreground => Screen.Red, Inverse => True, others => <>);
+
+   function Token_Style (Kind : Syntax.Token_Kind) return Screen.Style is
+     (case Kind is
+        when Syntax.Plain => Screen.Plain,
+        when Syntax.Keyword => (Foreground => Screen.Magenta, Bold => True, others => <>),
+        when Syntax.String_Literal => (Foreground => Screen.Green, others => <>),
+        when Syntax.Comment => (Foreground => Screen.Bright_Black, others => <>),
+        when Syntax.Number => (Foreground => Screen.Yellow, others => <>),
+        when Syntax.Heading => (Foreground => Screen.Blue, Bold => True, others => <>));
 
    --  Draw the information a file has in place of a listing.
    procedure Draw_Details
@@ -148,7 +159,35 @@ package body Explore.Render is
       end if;
 
       case Shown.Kind is
-         when Previews.Text_Preview | Previews.Binary_Preview =>
+         when Previews.Text_Preview =>
+            declare
+               State : Syntax.Line_State;
+               Spans : Syntax.Span_Vectors.Vector;
+            begin
+               for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
+                  declare
+                     Line : constant String := Shown.Lines (I);
+                  begin
+                     Write (Into, Content.Row + I - 1, Content.Column, Content.Columns, Line, Screen.Plain);
+                     Syntax.Tokenize (Line, Shown.Language, State, Spans);
+
+                     --  Each coloured run is written again over the plain line,
+                     --  from the column its first byte falls in.
+                     for Run of Spans loop
+                        declare
+                           Before : constant Natural := Screen.Width_Of (Line (Line'First .. Run.First - 1));
+                        begin
+                           if Before < Content.Columns then
+                              Write
+                                (Into, Content.Row + I - 1, Content.Column + Before, Content.Columns - Before,
+                                 Line (Run.First .. Run.Last), Token_Style (Run.Kind));
+                           end if;
+                        end;
+                     end loop;
+                  end;
+               end loop;
+            end;
+         when Previews.Binary_Preview | Previews.Archive_Preview =>
             for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
                Write
                  (Into, Content.Row + I - 1, Content.Column, Content.Columns, Shown.Lines (I),

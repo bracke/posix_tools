@@ -12,8 +12,8 @@ any terminal that does not.
 
 The screen has three panes: the parent of the current directory on the left, the current directory in the middle, and
 on the right a preview of the selected entry: the listing of a directory, or, for a file, what it is as file
-describes it and then its first lines when it is text, a hex dump of its first bytes when it is not, or the image when
-it is a PNG. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
+describes it and then its first lines when it is text, coloured by its language, the members of an archive, the image
+of a PNG, JPEG, or GIF, a thumbnail of a PDF or a video, or else a hex dump of its first bytes. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
 current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
 and any filter or pending prefix key.
 
@@ -114,6 +114,17 @@ and all are freed when explore ends. Inside tmux the graphics commands are passe
 while the placeholders stay ordinary text. Images are sent directly over the terminal connection, which also works
 across ssh.
 
+An archive is listed from its own catalogue, one line per member with its size and path, at most 500 of them: ZIP, 7z,
+ar, cpio, ISO 9660, and RAR through zlib, and tar, plain or gzip compressed, through tarlib. A compressed tar is inflated
+in memory only up to 64 MiB. Nothing is extracted. Text is coloured by a light tokenizer, by the file's extension or its
+#! line: keywords, strings, comments, and numbers in Ada, the C family (C, C++, Java, JavaScript, TypeScript, Rust,
+Go, C#, Swift, Kotlin), #-commented languages (shell, Python, Ruby, Perl, TOML, YAML, make files), and JSON, and
+headings in Markdown. A block comment carries on down the lines.
+
+A PDF's first page and a frame one second into a video are made into a PNG by pdftoppm and ffmpeg, where they are
+installed, and shown as images. They are the only programs explore runs: they write into a private directory under
+$TMPDIR that is removed on exit, run for at most ten seconds, and never touch the file but to read it.
+
 Copies, moves, links, and deletions run on two worker tasks of their own, through the shared
 Posix_Tools.File_Operations that cp, mv, and rm use. They start in the order they were asked for, as far as that
 is safe: two operations of one kind never run at once, and an operation whose paths overlap an earlier one's -- the
@@ -152,8 +163,8 @@ explore ~/projects
 Project extension; not a POSIX utility.
 .SH KNOWN LIMITATIONS
 Only bracke-terminal is supported, by design. Bookmarks last as long as the session. There is no trash: deletion is permanent. JPEG and GIF images
-are shown only once the terminal advertises them, and previews do not scroll. Content previews of archives and documents, tabs, search, bookmarks, and
-configuration are not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
+are shown only once the terminal advertises them, and previews do not scroll. Syntax colouring knows only a few
+languages and is a tokenizer, not a parser. Configuration is not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
 when it changes.
 .SH SEE ALSO
 docs/commands/explore.md
