@@ -547,6 +547,8 @@ tools/explore/src/library/explore-jobs.adb
 tools/explore/src/library/explore-jobs.ads
 tools/explore/src/library/explore-keymap.adb
 tools/explore/src/library/explore-keymap.ads
+tools/explore/src/library/explore-launch.adb
+tools/explore/src/library/explore-launch.ads
 tools/explore/src/library/explore-model.adb
 tools/explore/src/library/explore-model.ads
 tools/explore/src/library/explore-previews.adb
@@ -559,6 +561,8 @@ tools/explore/src/library/explore-screen.adb
 tools/explore/src/library/explore-screen.ads
 tools/explore/src/library/explore-search.adb
 tools/explore/src/library/explore-search.ads
+tools/explore/src/library/explore-settings.adb
+tools/explore/src/library/explore-settings.ads
 tools/explore/src/library/explore-syntax.adb
 tools/explore/src/library/explore-syntax.ads
 tools/explore/src/library/explore-tasks.adb
@@ -583,6 +587,8 @@ tools/explore/tests/src/screen_tests.adb
 tools/explore/tests/src/screen_tests.ads
 tools/explore/tests/src/search_tests.adb
 tools/explore/tests/src/search_tests.ads
+tools/explore/tests/src/settings_tests.adb
+tools/explore/tests/src/settings_tests.ads
 generated/man/arch.1
 tools/arch/alire.toml
 tools/arch/posix_tools_arch.gpr

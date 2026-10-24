@@ -3,6 +3,7 @@ with "aunit.gpr";
 with "../../../../greplib/greplib.gpr";
 with "../../../../tarlib/tarlib.gpr";
 with "../../../../zlib/zlib.gpr";
+with "../../../../tomllib/tomllib.gpr";
 
 --  The explore library's sources are compiled straight into the test program:
 --  explore is an executable crate, and a test crate may not depend on it.

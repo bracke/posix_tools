@@ -23,6 +23,9 @@ tarlib = "*"
 [[depends-on]]
 zlib = "*"
 
+[[depends-on]]
+tomllib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../../../common" }
 
@@ -34,6 +37,9 @@ tarlib = { path = "../../../../tarlib" }
 
 [[pins]]
 zlib = { path = "../../../../zlib" }
+
+[[pins]]
+tomllib = { path = "../../../../tomllib" }
 
 [build-profiles]
 "*" = "development"

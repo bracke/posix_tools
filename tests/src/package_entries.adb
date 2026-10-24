@@ -554,6 +554,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-jobs.ads");
    Add_Entry ("tools/explore/src/library/explore-keymap.adb");
    Add_Entry ("tools/explore/src/library/explore-keymap.ads");
+   Add_Entry ("tools/explore/src/library/explore-launch.adb");
+   Add_Entry ("tools/explore/src/library/explore-launch.ads");
    Add_Entry ("tools/explore/src/library/explore-model.adb");
    Add_Entry ("tools/explore/src/library/explore-model.ads");
    Add_Entry ("tools/explore/src/library/explore-previews.adb");
@@ -566,6 +568,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-screen.ads");
    Add_Entry ("tools/explore/src/library/explore-search.adb");
    Add_Entry ("tools/explore/src/library/explore-search.ads");
+   Add_Entry ("tools/explore/src/library/explore-settings.adb");
+   Add_Entry ("tools/explore/src/library/explore-settings.ads");
    Add_Entry ("tools/explore/src/library/explore-syntax.adb");
    Add_Entry ("tools/explore/src/library/explore-syntax.ads");
    Add_Entry ("tools/explore/src/library/explore-tasks.adb");
@@ -590,6 +594,8 @@ begin
    Add_Entry ("tools/explore/tests/src/screen_tests.ads");
    Add_Entry ("tools/explore/tests/src/search_tests.adb");
    Add_Entry ("tools/explore/tests/src/search_tests.ads");
+   Add_Entry ("tools/explore/tests/src/settings_tests.adb");
+   Add_Entry ("tools/explore/tests/src/settings_tests.ads");
 
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");

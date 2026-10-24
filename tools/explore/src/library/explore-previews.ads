@@ -43,10 +43,42 @@ package Explore.Previews is
    Image_Bytes : constant := 16 * 1024 * 1024;
    Max_Lines   : constant := 500;
 
-   --  Build the preview of the file at Path. With a Thumbnail_Directory, a
-   --  PDF's first page and a video's first second are made into a PNG there
-   --  by pdftoppm and ffmpeg, where they are installed, and shown as images.
-   function Build (Path : String; Thumbnail_Directory : String := "") return Preview;
+   --  A previewer of the user's own: a command line for /bin/sh, run with
+   --  the file as "$1", whose output is shown as the preview of a file whose
+   --  name one of Patterns matches, case ignored.
+   type Preview_Rule is record
+      Patterns : Line_Vectors.Vector;
+      Run      : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
+   package Rule_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, Preview_Rule);
+
+   --  Build the preview of the file at Path. A file one of Rules matches is
+   --  shown as that rule's command prints it, when it prints anything. With
+   --  a Thumbnail_Directory, which rules also write their output to, and
+   --  Thumbnails, a PDF's first page and a video's first second are made
+   --  into a PNG there by pdftoppm and ffmpeg, where they are installed, and
+   --  shown as images.
+   function Build
+     (Path                : String;
+      Thumbnail_Directory : String := "";
+      Rules               : Rule_Vectors.Vector := Rule_Vectors.Empty_Vector;
+      Thumbnails          : Boolean := True) return Preview;
+
+   --  At most Limit bytes from the start of the file at Path.
+   procedure Read_Head
+     (Path  : String;
+      Limit : Positive;
+      Data  : out Ada.Strings.Unbounded.Unbounded_String;
+      Ok    : out Boolean);
+
+   --  Whether Data, the start of a file, is text: what is previewed as text,
+   --  and opened in an editor.
+   function Is_Text (Data : String) return Boolean;
+
+   --  Text a program printed, with its terminal control sequences taken out
+   --  and any other control character but tab and line feed dropped.
+   function Without_Controls (Text : String) return String;
 
    --  Whether Name has the extension of a video ffmpeg can take a frame of.
    function Is_Video (Name : String) return Boolean;
@@ -59,6 +91,12 @@ package Explore.Previews is
    function Hex_Line (Data : String; Offset : Natural) return String;
 
    protected type Board is
+      --  The previewers and whether thumbnails are made, for every preview
+      --  from now on.
+      procedure Configure (Rules : Rule_Vectors.Vector; Thumbnails : Boolean);
+      function Configured_Rules return Rule_Vectors.Vector;
+      function Thumbnails_Wanted return Boolean;
+
       --  Ask for the preview of Path, replacing any earlier request.
       procedure Submit (Path : String; Generation : Natural);
       function Is_Wanted (Generation : Natural) return Boolean;
@@ -76,6 +114,8 @@ package Explore.Previews is
       Ready       : Boolean := False;
       Done        : Preview;
       Closed      : Boolean := False;
+      Rules       : Rule_Vectors.Vector;
+      Thumbnails  : Boolean := True;
    end Board;
 
    task type Worker (Jobs : not null access Board);

@@ -93,6 +93,12 @@ jobs:
           repository: bracke/tarlib
           path: tarlib
 
+      - name: Check out tomllib
+        uses: actions/checkout@v7
+        with:
+          repository: bracke/tomllib
+          path: tomllib
+
       - name: Check out cryptolib
         uses: actions/checkout@v7
         with:

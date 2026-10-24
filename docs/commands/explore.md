@@ -6,7 +6,7 @@ explore - visual file manager for bracke-terminal
 
 ## Synopsis
 
-`explore [directory]`
+`explore [--config=file] [--cwd-file=file] [--chooser-file=file] [directory]`
 
 ## Description
 
@@ -38,7 +38,11 @@ for with greplib, line by line, and files with a NUL byte in them are taken as b
 | Key | Action |
 | --- | --- |
 | `j`, Down / `k`, Up | move down / up |
-| `l`, Right, Enter | enter the selected directory |
+| `l`, Right, Enter | enter the selected directory, or open the selected file |
+| `o` | open the entries with their opener |
+| `!` | type a shell command to run on the entries, in the current directory; the entries are its `"$@"` |
+| `S` | start a shell in the current directory |
+| `cc` / `cf` / `cd` | copy the entries' paths / names, one a line, or the current directory, to the system clipboard |
 | `h`, Left | go up to the parent directory |
 | `gg`, Home / `G`, End | first / last entry |
 | Ctrl-d / Ctrl-u | half a page down / up |
@@ -81,8 +85,18 @@ up, and in the preview pane enters the selected directory.
 
 ## Options
 
-No command options. Common project options such as `--help`, `--version`, and the internal identity option are
-recognized at the command boundary.
+Each option takes its value after `=` or as the next argument; `--` ends the options.
+
+`--config=file` reads the configuration from `file` instead of from its usual place.
+
+`--cwd-file=file` writes the directory shown when `explore` quits to `file`, without a line feed, so that a shell
+function can change to it.
+
+`--chooser-file=file` makes `explore` choose files for another program: opening entries writes their paths to `file`,
+each followed by a line feed, and quits instead of opening them. Quitting without opening any leaves `file` as it was.
+
+Common project options such as `--help`, `--version`, and the internal identity option are recognized at the command
+boundary.
 
 ## Standard Input
 
@@ -99,7 +113,7 @@ Diagnostics are localized through messages and written after the terminal has be
 
 ## Exit Status
 
-`0` when the user quits, `1` when the operand is not a directory, standard input or output is not a terminal, the
+`0` when the user quits, `1` when the operand is not a directory, the `--cwd-file` file cannot be written, standard input or output is not a terminal, the
 terminal cannot be put into raw mode, the terminal does not identify itself as bracke-terminal, or output fails, `2` for
 invalid usage, `128` plus the signal number when a terminate or hangup signal ends the session, and `125` for
 unexpected internal failures at the command boundary.
@@ -157,6 +171,90 @@ cancelled, or with how many errors and the first of them. The last sixteen that 
 panel. Renaming, creating, and changing permissions
 happen at once.
 
+### Configuration
+
+The configuration is read at start-up from `$XDG_CONFIG_HOME/explore/config.toml`, or `~/.config/explore/config.toml`
+when `XDG_CONFIG_HOME` is not set to an absolute path, through tomllib. Every part of it is optional. A part that
+cannot be read is left out and the rest is used; the status line names the first such part and how many more there
+are until the first key.
+
+```toml
+[options]
+show_hidden = true          # show entries whose names start with a dot
+sort = "natural"            # natural, name, extension, size, modified, or kind
+sort_descending = false
+thumbnails = true           # make PDF and video thumbnails
+
+[keys]
+"J" = "move_bottom"
+"ctrl-o" = "open_entries"
+"g h" = "go_home"           # two keys, separated by a space
+"x" = "none"                # unbound
+"F5" = "sort_entries:size_descending"
+
+[theme]
+directory = { fg = "bright_blue", bold = true }
+cursor = { bg = 24, fg = "white" }
+
+[[open]]
+match = ["*.pdf", "*.epub"]
+run = 'zathura "$@"'
+detach = true
+
+[[preview]]
+match = "*.md"
+run = 'glow -s dark "$1"'
+```
+
+A key is a character, `space`, or one of `enter`, `tab`, `backspace`, `esc`, `up`, `down`, `left`, `right`, `home`,
+`end`, `pageup`, `pagedown`, `insert`, `delete`, and `f1` to `f12`, after any of `ctrl-` and `alt-`. Keys bound there
+come before the defaults; a default two-key sequence still works when its first key also starts a bound one. An
+action is named in lower case: `quit`, `move_up`, `move_down`, `move_top`, `move_bottom`, `half_page_up`,
+`half_page_down`, `page_up`, `page_down`, `enter_directory`, `leave_directory`, `toggle_hidden`, `start_filter`,
+`clear_filter`, `go_home`, `toggle_mark`, `yank`, `cut`, `paste`, `paste_links`, `delete_entries`, `rename_entry`,
+`create_entry`, `change_mode`, `cancel_job`, `show_jobs`, `new_tab`, `close_tab`, `previous_tab`, `next_tab`,
+`go_back`, `go_forward`, `jump_to_path`, `visual_mode`, `search_names`, `search_contents`, `open_entries`,
+`shell_command`, `spawn_shell`, `copy_path`, `copy_directory`, `copy_name`, and with an argument after a colon
+`sort_entries:` a sort key, optionally followed by `_descending`, `switch_tab:` a digit, and `set_bookmark:` and
+`go_bookmark:` a letter or digit. `none` unbinds a key.
+
+A theme entry replaces the style of a role: `fg` and `bg` are `default`, one of `black`, `red`, `green`, `yellow`,
+`blue`, `magenta`, `cyan`, and `white`, the same after `bright_`, or a palette index from 0 to 255; `bold`, `dim`,
+`underline`, and `inverse` are booleans. The roles are `header` (the tabs), `info` (the current path), `muted`
+(notes), `error`, `warning` (special files), `success` (executable files), `status`, `alert` (an error in the status
+line), `directory`, `link`, `missing` (broken links), `marked`, `cursor`, `inactive_cursor`, `panel`, and for
+coloured text `keyword`, `string`, `comment`, `number`, and `heading`; the first six are those terminal_styles uses.
+The styles of `marked` and the cursors are laid over an entry's own.
+
+Openers are tried in order, the first whose `match` -- a glob or a list of them, compared with the file's name
+regardless of case -- fits the first entry opening all of them; one without `match` fits every file. When none fits,
+text goes to `$VISUAL`, or `$EDITOR`, or `vi`, and anything else to `xdg-open`, detached. An opener runs in the
+terminal, which `explore` hands to it and takes back when it ends; with `detach = true` it runs on its own with its
+input and output away from the terminal, for a program with a window. A previewer's output, with its terminal control
+sequences taken out, is the preview of a file its `match` fits, when it prints anything; it runs for at most ten
+seconds.
+
+### Running programs
+
+Openers, previewers, shell commands, and the shell all run through `/bin/sh` in the directory shown, with the entries
+they are for as the shell's positional parameters: a command names them as `"$@"` or `"$1"`, and no name is ever put
+into the text of a command. While a program has the terminal, `explore` leaves the alternate screen and restores the
+terminal's settings, and the keyboard's interrupt and quit signals go to the program alone; afterwards `explore` takes
+the terminal back, sends its images again, and reads the panes again. A shell command waits for Enter before
+`explore` returns, so its output can be read, and the status line reports a command that ended with a status other
+than 0. These, the thumbnailers, and the previewers are the only programs `explore` runs: file operations never run
+another program.
+
+### Bookmarks
+
+Bookmarks are kept in `$XDG_STATE_HOME/explore/bookmarks`, or `~/.local/state/explore/bookmarks`, one line each: the
+letter or digit, a space, and the directory. They are read at start-up and written whenever one is set.
+
+### Clipboard
+
+`cc`, `cf`, and `cd` put text on the system clipboard with OSC 52, which bracke-terminal advertises as `osc52`, and
+inside tmux pass it through to the outer terminal.
+
 On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --
 `explore` leaves the alternate screen, turns those reports off again, restores the saved terminal settings, and puts
 back the signal dispositions it changed. A terminate or hangup signal that was ignored when `explore` started stays
@@ -173,7 +271,8 @@ Interface text, help, and diagnostics are locale-dependent. Pathnames are shown 
 
 ## Implementation-Defined Choices
 
-The identity handshake waits at most 500 milliseconds. A lone ESC byte is taken as the Escape key after 100
+The identity handshake waits at most 500 milliseconds. Environment variables read: `HOME`, `XDG_CONFIG_HOME`,
+`XDG_STATE_HOME`, `TMPDIR`, `TMUX`, and, through the shell, `VISUAL`, `EDITOR`, and `SHELL`. A lone ESC byte is taken as the Escape key after 100
 milliseconds without further input. Terminals that do not report resizes in band are measured again when the window
 change signal arrives.
 
@@ -188,13 +287,22 @@ identity operations.
 
 `explore ~/projects`
 
+A shell function that changes to the directory `explore` quits in:
+
+```sh
+x() {
+    file=$(mktemp) && explore --cwd-file="$file" "$@" && cd -- "$(cat -- "$file")"
+    rm -f -- "$file"
+}
+```
+
 ## Conformance Status
 
 Project extension; not a POSIX utility.
 
 ## Known Limitations
 
-Only bracke-terminal is supported, by design. Bookmarks last as long as the session. There is no trash: deletion is permanent. JPEG and GIF images
-are shown only once the terminal advertises them, and previews do not scroll. Syntax colouring knows only a few
-languages and is a tokenizer, not a parser. Configuration is not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
-when it changes.
+Only bracke-terminal is supported, by design. There is no trash: deletion is permanent. JPEG and GIF images are shown
+only once the terminal advertises them, and previews do not scroll. Syntax colouring knows only a few languages and is
+a tokenizer, not a parser. A detached opener keeps running after `explore` ends, and ends with the terminal's session.
+Combining characters in names are not drawn. A watched directory is re-read whole when it changes.

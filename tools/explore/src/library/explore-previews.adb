@@ -1,5 +1,6 @@
 with Ada.Characters.Handling;
 with Ada.Streams;
+with Ada.Strings.Fixed;
 with Explore.Archives;
 with Explore.Model;
 with Posix_Tools.Arguments;
@@ -10,6 +11,7 @@ with Posix_Tools.Host_Adapters.Executables;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Descriptions;
+with Posix_Tools.Text.Glob;
 
 package body Explore.Previews is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -19,8 +21,9 @@ package body Explore.Previews is
 
    Tab_Width : constant := 4;
 
-   --  At most Limit bytes from the start of the file at Path.
-   procedure Read_Head (Path : String; Limit : Positive; Data : out Unbounded.Unbounded_String; Ok : out Boolean);
+   --  The last component of Path.
+   function Name_Of (Path : String) return String is
+     (Path (Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward) + 1 .. Path'Last));
 
    --  Run Tool with Arguments, which write a PNG to Output, and take it.
    procedure Make_Thumbnail
@@ -29,6 +32,16 @@ package body Explore.Previews is
       Output    : String;
       Result    : in out Preview;
       Made      : out Boolean);
+
+   --  Run Rule's command for the file at Path, its output going to Output,
+   --  and take what it printed as text. Made is False when it printed
+   --  nothing or could not be run.
+   procedure Run_Previewer
+     (Rule   : Preview_Rule;
+      Path   : String;
+      Output : String;
+      Result : in out Preview;
+      Made   : out Boolean);
 
    --  A directory of this process's own for thumbnails, empty if none could
    --  be made.
@@ -51,6 +64,14 @@ package body Explore.Previews is
          Ready := False;
          Done := (others => <>);
       end Collect;
+
+      procedure Configure (Rules : Rule_Vectors.Vector; Thumbnails : Boolean) is
+      begin
+         Board.Rules := Rules;
+         Board.Thumbnails := Thumbnails;
+      end Configure;
+
+      function Configured_Rules return Rule_Vectors.Vector is (Rules);
 
       procedure Finish (Result : Preview) is
       begin
@@ -87,9 +108,16 @@ package body Explore.Previews is
          Waiting := False;
          Running := not Closed;
       end Take;
+
+      function Thumbnails_Wanted return Boolean is (Thumbnails);
    end Board;
 
-   function Build (Path : String; Thumbnail_Directory : String := "") return Preview is
+   function Build
+     (Path                : String;
+      Thumbnail_Directory : String := "";
+      Rules               : Rule_Vectors.Vector := Rule_Vectors.Empty_Vector;
+      Thumbnails          : Boolean := True) return Preview
+   is
       Result : Preview := (Path => Unbounded.To_Unbounded_String (Path), others => <>);
       Head   : Unbounded.Unbounded_String;
       Ok     : Boolean;
@@ -99,6 +127,37 @@ package body Explore.Previews is
       if not Ok then
          Result.Kind := Unreadable_Preview;
          return Result;
+      end if;
+
+      if Thumbnail_Directory'Length > 0 then
+         declare
+            Name : constant String := Ada.Characters.Handling.To_Lower (Name_Of (Path));
+         begin
+            for Rule of Rules loop
+               if (for some Pattern of Rule.Patterns =>
+                     Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Name))
+               then
+                  declare
+                     Made : Boolean;
+                  begin
+                     Run_Previewer (Rule, Path, Thumbnail_Directory & "/preview.txt", Result, Made);
+
+                     if Made then
+                        declare
+                           Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
+                        begin
+                           Result.Modified := Status.Modified_Seconds;
+                           Result.File_Size := Status.Size;
+                        end;
+
+                        return Result;
+                     end if;
+                  end;
+
+                  exit;
+               end if;
+            end loop;
+         end;
       end if;
 
       declare
@@ -152,7 +211,7 @@ package body Explore.Previews is
             end;
          end if;
 
-         if Thumbnail_Directory'Length > 0 then
+         if Thumbnail_Directory'Length > 0 and then Thumbnails then
             declare
                Output : constant String := Thumbnail_Directory & "/thumbnail.png";
                Tool   : constant String :=
@@ -205,9 +264,7 @@ package body Explore.Previews is
             end;
          end if;
 
-         if Posix_Tools.Text.File_Descriptions.Content_Description (Data, True, "", False) in
-           "text/plain" | "text/x-script" | "inode/x-empty"
-         then
+         if Is_Text (Data) then
             Result.Kind := Text_Preview;
             Split_Lines (Data, Result.Lines);
             Result.Language :=
@@ -253,6 +310,10 @@ package body Explore.Previews is
 
       return Position & "  " & Hex & " " & Shown (1 .. Data'Length);
    end Hex_Line;
+
+   function Is_Text (Data : String) return Boolean is
+     (Posix_Tools.Text.File_Descriptions.Content_Description (Data, True, "", False) in
+        "text/plain" | "text/x-script" | "inode/x-empty");
 
    function Is_Video (Name : String) return Boolean is
       Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
@@ -339,7 +400,12 @@ package body Explore.Previews is
       return "";
    end Make_Thumbnail_Directory;
 
-   procedure Read_Head (Path : String; Limit : Positive; Data : out Unbounded.Unbounded_String; Ok : out Boolean) is
+   procedure Read_Head
+     (Path  : String;
+      Limit : Positive;
+      Data  : out Ada.Strings.Unbounded.Unbounded_String;
+      Ok    : out Boolean)
+   is
       procedure Take
         (Buffer : Ada.Streams.Stream_Element_Array;
          Last   : Ada.Streams.Stream_Element_Offset;
@@ -386,6 +452,51 @@ package body Explore.Previews is
       end if;
    end Remove_Thumbnails;
 
+   procedure Run_Previewer
+     (Rule   : Preview_Rule;
+      Path   : String;
+      Output : String;
+      Result : in out Preview;
+      Made   : out Boolean)
+   is
+      LF        : constant Character := Character'Val (10);
+      Arguments : Posix_Tools.Arguments.Vector;
+      Status    : Integer;
+      Timed_Out : Boolean;
+      Printed   : Unbounded.Unbounded_String;
+      Read      : Boolean;
+   begin
+      Made := False;
+
+      --  The output file is $0 and the previewed file $1, so neither is
+      --  quoted into the command.
+      Arguments.Append ("-c");
+      Arguments.Append ("exec >""$0"" 2>/dev/null </dev/null" & LF & Unbounded.To_String (Rule.Run));
+      Arguments.Append (Output);
+      Arguments.Append (Path);
+
+      if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
+           ("/bin/sh", Arguments, Thumbnail_Timeout_Ms, Status, Timed_Out)
+        and then FS.Exists (Output)
+      then
+         Read_Head (Output, Head_Bytes, Printed, Read);
+
+         if Read and then Unbounded.Length (Printed) > 0 then
+            Result.Kind := Text_Preview;
+            Result.Description := Rule.Run;
+            Split_Lines (Without_Controls (Unbounded.To_String (Printed)), Result.Lines);
+            Made := True;
+         end if;
+      end if;
+
+      if FS.Exists (Output) then
+         FS.Delete_File (Output);
+      end if;
+   exception
+      when others =>
+         Made := False;
+   end Run_Previewer;
+
    procedure Split_Lines (Text : String; Lines : out Line_Vectors.Vector) is
       Line : Unbounded.Unbounded_String;
       Column : Natural := 0;
@@ -422,6 +533,45 @@ package body Explore.Previews is
       end if;
    end Split_Lines;
 
+   function Without_Controls (Text : String) return String is
+      ESC    : constant Character := Character'Val (27);
+      BEL    : constant Character := Character'Val (7);
+      Result : Unbounded.Unbounded_String;
+      I      : Natural := Text'First;
+   begin
+      while I <= Text'Last loop
+         if Text (I) = ESC and then I < Text'Last and then Text (I + 1) = '[' then
+            --  CSI: parameters and intermediates, then a final byte.
+            I := I + 2;
+
+            while I <= Text'Last and then Text (I) not in '@' .. '~' loop
+               I := I + 1;
+            end loop;
+         elsif Text (I) = ESC and then I < Text'Last and then Text (I + 1) in ']' | 'P' | '_' then
+            --  OSC, DCS, APC: up to BEL or ST.
+            I := I + 2;
+
+            while I <= Text'Last and then Text (I) /= BEL
+              and then not (Text (I) = ESC and then I < Text'Last and then Text (I + 1) = '\')
+            loop
+               I := I + 1;
+            end loop;
+
+            if I <= Text'Last and then Text (I) = ESC then
+               I := I + 1;
+            end if;
+         elsif Text (I) = ESC then
+            I := I + 1;
+         elsif Character'Pos (Text (I)) >= 32 or else Text (I) in Character'Val (9) | Character'Val (10) then
+            Unbounded.Append (Result, Text (I));
+         end if;
+
+         I := I + 1;
+      end loop;
+
+      return Unbounded.To_String (Result);
+   end Without_Controls;
+
    task body Worker is
       Path       : Unbounded.Unbounded_String;
       Generation : Natural;
@@ -443,7 +593,10 @@ package body Explore.Previews is
                   Made := True;
                end if;
 
-               Result := Build (Unbounded.To_String (Path), Unbounded.To_String (Thumbnails));
+               Result :=
+                 Build
+                   (Unbounded.To_String (Path), Unbounded.To_String (Thumbnails), Jobs.Configured_Rules,
+                    Jobs.Thumbnails_Wanted);
             exception
                when others =>
                   Result := (Kind => Unreadable_Preview, Path => Path, others => <>);

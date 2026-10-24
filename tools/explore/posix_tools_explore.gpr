@@ -2,6 +2,7 @@ with "../../common/posix_tools_common.gpr";
 with "../../../greplib/greplib.gpr";
 with "../../../tarlib/tarlib.gpr";
 with "../../../zlib/zlib.gpr";
+with "../../../tomllib/tomllib.gpr";
 
 project Posix_Tools_Explore is
    for Source_Dirs use ("src", "src/library");

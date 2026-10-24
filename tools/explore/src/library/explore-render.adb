@@ -1,3 +1,4 @@
+with Ada.Characters.Handling;
 with Explore.Format;
 with Explore.Syntax;
 with Posix_Tools.File_Operations.Listing;
@@ -12,26 +13,30 @@ package body Explore.Render is
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Listing.Entry_Kind;
+   use type Screen.Color;
    use type Model.Pane_Kind;
    use type Model.Pane_State;
    use type Previews.Preview_Kind;
    use type Unbounded.Unbounded_String;
 
-   Title_Style  : constant Screen.Style := (Bold => True, others => <>);
-   Path_Style   : constant Screen.Style := (Foreground => Screen.Blue, Bold => True, others => <>);
-   Note_Style   : constant Screen.Style := (Dim => True, others => <>);
-   Error_Style  : constant Screen.Style := (Foreground => Screen.Red, others => <>);
-   Status_Style : constant Screen.Style := (Inverse => True, others => <>);
-   Alert_Style  : constant Screen.Style := (Foreground => Screen.Red, Inverse => True, others => <>);
-
-   function Token_Style (Kind : Syntax.Token_Kind) return Screen.Style is
+   function Token_Style (Colors : Theme; Kind : Syntax.Token_Kind) return Screen.Style is
      (case Kind is
         when Syntax.Plain => Screen.Plain,
-        when Syntax.Keyword => (Foreground => Screen.Magenta, Bold => True, others => <>),
-        when Syntax.String_Literal => (Foreground => Screen.Green, others => <>),
-        when Syntax.Comment => (Foreground => Screen.Bright_Black, others => <>),
-        when Syntax.Number => (Foreground => Screen.Yellow, others => <>),
-        when Syntax.Heading => (Foreground => Screen.Blue, Bold => True, others => <>));
+        when Syntax.Keyword => Colors (Keyword_Role),
+        when Syntax.String_Literal => Colors (String_Role),
+        when Syntax.Comment => Colors (Comment_Role),
+        when Syntax.Number => Colors (Number_Role),
+        when Syntax.Heading => Colors (Heading_Role));
+
+   --  Base with what Top sets laid over it: its colours where it has them,
+   --  and each of its attributes that is on.
+   function Overlay (Base, Top : Screen.Style) return Screen.Style is
+     ((Foreground => (if Top.Foreground = Screen.Default_Color then Base.Foreground else Top.Foreground),
+       Background => (if Top.Background = Screen.Default_Color then Base.Background else Top.Background),
+       Bold       => Base.Bold or else Top.Bold,
+       Dim        => Base.Dim or else Top.Dim,
+       Underline  => Base.Underline or else Top.Underline,
+       Inverse    => Base.Inverse or else Top.Inverse));
 
    --  Draw the information a file has in place of a listing.
    procedure Draw_Details
@@ -48,7 +53,8 @@ package body Explore.Render is
       First  : Positive;
       Rows   : Natural;
       Active : Boolean;
-      Text   : Labels);
+      Text   : Labels;
+      Colors : Theme);
 
    procedure Draw_Panel
      (Into    : in out Screen.Grid;
@@ -60,7 +66,7 @@ package body Explore.Render is
       Browser : Model.Browser;
       Context : Frame_Context);
 
-   function Entry_Style (Item : Listing.Listed_Entry) return Screen.Style;
+   function Entry_Style (Colors : Theme; Item : Listing.Listed_Entry) return Screen.Style;
 
    function Image (Value : Natural) return String;
 
@@ -104,8 +110,9 @@ package body Explore.Render is
          Tabs  : constant String := Unbounded.To_String (Context.Tab_Line);
          Width : constant Natural := Natural'Min (Columns - 1, Screen.Width_Of (Tabs));
       begin
-         Write (Into, 1, 2, Width, Tabs, Title_Style);
-         Write (Into, 1, 2 + Width, Columns - 1 - Width, Unbounded.To_String (Current.Path), Path_Style);
+         Write (Into, 1, 2, Width, Tabs, Context.Colors (Header_Role));
+         Write
+           (Into, 1, 2 + Width, Columns - 1 - Width, Unbounded.To_String (Current.Path), Context.Colors (Info_Role));
       end;
 
       for Kind in Model.Pane_Kind loop
@@ -123,7 +130,8 @@ package body Explore.Render is
                   Shape.First_Row,
                   Shape.Height,
                   Kind = Model.Current_Pane,
-                  Context.Text);
+                  Context.Text,
+                  Context.Colors);
             end if;
          end if;
       end loop;
@@ -152,7 +160,7 @@ package body Explore.Render is
         (if Item.Is_Link then "-> " & Unbounded.To_String (Item.Link_Target) & "  " else "")
         & (if Current then Unbounded.To_String (Shown.Description) else "");
    begin
-      Write (Into, Shape.First_Row, Place.Column + 1, Place.Width - 1, Heading, Note_Style);
+      Write (Into, Shape.First_Row, Place.Column + 1, Place.Width - 1, Heading, Context.Colors (Muted_Role));
 
       if not Current or else Content.Rows = 0 then
          return;
@@ -180,7 +188,7 @@ package body Explore.Render is
                            if Before < Content.Columns then
                               Write
                                 (Into, Content.Row + I - 1, Content.Column + Before, Content.Columns - Before,
-                                 Line (Run.First .. Run.Last), Token_Style (Run.Kind));
+                                 Line (Run.First .. Run.Last), Token_Style (Context.Colors, Run.Kind));
                            end if;
                         end;
                      end loop;
@@ -191,7 +199,7 @@ package body Explore.Render is
             for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
                Write
                  (Into, Content.Row + I - 1, Content.Column, Content.Columns, Shown.Lines (I),
-                  (if Shown.Kind = Previews.Binary_Preview then Note_Style else Screen.Plain));
+                  (if Shown.Kind = Previews.Binary_Preview then Context.Colors (Muted_Role) else Screen.Plain));
             end loop;
          when Previews.Image_Preview =>
             if Context.Image_Id > 0 and then Context.Image_Columns > 0 and then Context.Image_Rows > 0 then
@@ -200,7 +208,7 @@ package body Explore.Render is
             end if;
          when Previews.Unreadable_Preview =>
             Write (Into, Content.Row, Content.Column, Content.Columns, Unbounded.To_String (Context.Text.Unreadable),
-                   Error_Style);
+                   Context.Colors (Error_Role));
          when Previews.No_Preview =>
             null;
       end case;
@@ -213,7 +221,8 @@ package body Explore.Render is
       First  : Positive;
       Rows   : Natural;
       Active : Boolean;
-      Text   : Labels)
+      Text   : Labels;
+      Colors : Theme)
    is
       Count : constant Natural := Model.Shown_Count (Item);
    begin
@@ -228,12 +237,17 @@ package body Explore.Render is
             when Model.Empty =>
                null;
             when Model.Loading =>
-               Write (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Loading), Note_Style);
+               Write
+                 (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Loading),
+                  Colors (Muted_Role));
             when Model.Failed =>
                Write
-                 (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Unreadable), Error_Style);
+                 (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Unreadable),
+                  Colors (Error_Role));
             when Model.Loaded =>
-               Write (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Empty), Note_Style);
+               Write
+                 (Into, First, Place.Column + 1, Place.Width - 1, Unbounded.To_String (Text.Empty),
+                  Colors (Muted_Role));
          end case;
 
          return;
@@ -249,7 +263,7 @@ package body Explore.Render is
                Shown     : constant Listing.Listed_Entry := Model.Shown_Entry (Item, I);
                Name      : constant String :=
                  Unbounded.To_String (Shown.Name) & (if Shown.Kind = Listing.Directory_Entry then "/" else "");
-               Style     : Screen.Style := Entry_Style (Shown);
+               Style     : Screen.Style := Entry_Style (Colors, Shown);
                Size_Text : constant String :=
                  (if Active and then Shown.Kind = Listing.Regular_Entry and then Shown.Status.Available
                     and then Place.Width >= 20
@@ -260,16 +274,11 @@ package body Explore.Render is
                  (if Size_Text'Length > 0 then Place.Width - Size_Text'Length - 3 else Place.Width - 2);
             begin
                if Model.Is_Marked (Item, Unbounded.To_String (Shown.Name)) then
-                  Style.Foreground := Screen.Magenta;
-                  Style.Bold := True;
+                  Style := Overlay (Style, Colors (Marked_Role));
                end if;
 
                if I = Item.Cursor then
-                  if Active then
-                     Style.Inverse := True;
-                  else
-                     Style.Background := Screen.Bright_Black;
-                  end if;
+                  Style := Overlay (Style, Colors (if Active then Cursor_Role else Inactive_Cursor_Role));
                end if;
 
                Screen.Fill (Into, Line, Place.Column, Place.Width, (Style with delta Bold => False));
@@ -295,7 +304,7 @@ package body Explore.Render is
       Lines   : constant Natural := Natural (Context.Panel_Lines.Length);
       Height  : constant Natural := Natural'Min (Shape.Height, Lines + 1);
       Top     : constant Positive := Shape.First_Row;
-      Panel   : constant Screen.Style := (Background => Screen.Bright_Black, others => <>);
+      Panel   : constant Screen.Style := Context.Colors (Panel_Role);
       First   : constant Positive :=
         (if Context.Panel_Cursor > Height - 1 then Context.Panel_Cursor - (Height - 1) + 1 else 1);
    begin
@@ -312,7 +321,7 @@ package body Explore.Render is
          declare
             Line  : constant Positive := First + I;
             Style : constant Screen.Style :=
-              (if Line = Context.Panel_Cursor then (Panel with delta Inverse => True) else Panel);
+              (if Line = Context.Panel_Cursor then Overlay (Panel, Context.Colors (Cursor_Role)) else Panel);
          begin
             if Line = Context.Panel_Cursor then
                Screen.Fill (Into, Top + 1 + I, Left, Width, Style);
@@ -344,19 +353,19 @@ package body Explore.Render is
         & Image (Current.Cursor) & "/" & Image (Model.Shown_Count (Current))
         & "  " & Unbounded.To_String (Context.Text.Quit_Hint) & " ";
       Left    : Unbounded.Unbounded_String;
-      Style   : Screen.Style := Status_Style;
+      Style   : Screen.Style := Context.Colors (Status_Role);
    begin
       if Context.Prompting then
          Left := Unbounded.To_Unbounded_String
            (" " & Unbounded.To_String (Context.Prompt_Label) & ": " & Unbounded.To_String (Context.Prompt_Text) & "_");
       elsif Unbounded.Length (Context.Question) > 0 then
          Left := " " & Context.Question;
-         Style := Alert_Style;
+         Style := Context.Colors (Alert_Role);
       elsif Context.Editing then
          Left := Unbounded.To_Unbounded_String (" " & Unbounded.To_String (Context.Text.Filter) & ": " & Filter & "_");
       elsif Unbounded.Length (Context.Message) > 0 then
          Left := " " & Context.Message;
-         Style := (if Context.Message_Is_Error then Alert_Style else Status_Style);
+         Style := (if Context.Message_Is_Error then Context.Colors (Alert_Role) else Context.Colors (Status_Role));
       elsif Model.Has_Selection (Current) then
          declare
             Item : constant Listing.Listed_Entry := Model.Selected (Current);
@@ -373,34 +382,34 @@ package body Explore.Render is
          end;
       end if;
 
-      Screen.Fill (Into, Row, 1, Columns, Status_Style);
+      Screen.Fill (Into, Row, 1, Columns, Context.Colors (Status_Role));
       Write (Into, Row, 1, Columns, Unbounded.To_String (Left), Style);
 
       declare
          Right_Width : constant Natural := Screen.Width_Of (Right);
       begin
          if Right_Width + Screen.Width_Of (Unbounded.To_String (Left)) < Columns then
-            Write (Into, Row, Columns - Right_Width + 1, Right_Width, Right, Status_Style);
+            Write (Into, Row, Columns - Right_Width + 1, Right_Width, Right, Context.Colors (Status_Role));
          end if;
       end;
    end Draw_Status;
 
-   function Entry_Style (Item : Listing.Listed_Entry) return Screen.Style is
+   function Entry_Style (Colors : Theme; Item : Listing.Listed_Entry) return Screen.Style is
    begin
       case Item.Kind is
          when Listing.Directory_Entry =>
-            return (Foreground => Screen.Blue, Bold => True, others => <>);
+            return Colors (Directory_Role);
          when Listing.Missing_Entry =>
-            return (Foreground => Screen.Red, others => <>);
+            return Colors (Missing_Role);
          when Listing.FIFO_Entry | Listing.Character_Device_Entry | Listing.Block_Device_Entry
             | Listing.Socket_Entry | Listing.Other_Entry
          =>
-            return (Foreground => Screen.Yellow, others => <>);
+            return Colors (Warning_Role);
          when Listing.Regular_Entry =>
             if Item.Is_Link then
-               return (Foreground => Screen.Cyan, others => <>);
+               return Colors (Link_Role);
             elsif Item.Status.Available and then Item.Status.Mode mod 8#1000# / 8#100# mod 2 = 1 then
-               return (Foreground => Screen.Green, others => <>);
+               return Colors (Success_Role);
             else
                return Screen.Plain;
             end if;
@@ -442,6 +451,12 @@ package body Explore.Render is
 
       return Result;
    end Layout_For;
+
+   function Role_Name (Role : Theme_Role) return String is
+      Image : constant String := Ada.Characters.Handling.To_Lower (Theme_Role'Image (Role));
+   begin
+      return Image (Image'First .. Image'Last - 5);
+   end Role_Name;
 
    procedure Write
      (Into   : in out Screen.Grid;

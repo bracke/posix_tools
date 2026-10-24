@@ -1,24 +1,30 @@
 with Ada.Containers.Ordered_Maps;
 with Ada.Containers.Vectors;
 with Ada.Streams;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
 with Explore.Images;
 with Explore.Input;
 with Explore.Jobs;
 with Explore.Keymap;
+with Explore.Launch;
 with Explore.Model;
 with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
 with Explore.Screen;
 with Explore.Search;
+with Explore.Settings;
 with Explore.Tasks;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Arguments;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations;
+with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.File_Watches;
+with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Host_Adapters.Terminal_IO;
 with Posix_Tools.Localization;
@@ -34,6 +40,7 @@ package body Explore.Application is
    package Keymap renames Explore.Keymap;
    package Model renames Explore.Model;
 
+   use type Ada.Streams.Stream_Element;
    use type Ada.Streams.Stream_Element_Offset;
    use type FS.File_Kind;
    use type Signals.Disposition;
@@ -105,7 +112,8 @@ package body Explore.Application is
       Viewing_Jobs,      --  The jobs panel is open.
       Jumping,           --  Typing a path to go to.
       Finding_Names,     --  Typing a name or glob to search for.
-      Finding_Text);     --  Typing text to search files for.
+      Finding_Text,      --  Typing text to search files for.
+      Shelling);         --  Typing a shell command to run on the entries.
 
    --  Interface text for operations, looked up once.
    type Operation_Labels is record
@@ -138,6 +146,18 @@ package body Explore.Application is
       Too_Many      : Unbounded.Unbounded_String;
       Bookmarked    : Unbounded.Unbounded_String;
       No_Bookmark   : Unbounded.Unbounded_String;
+      Unsaved       : Unbounded.Unbounded_String;
+      Shell_Prompt  : Unbounded.Unbounded_String;
+      Press_Enter   : Unbounded.Unbounded_String;
+      Exit_Status   : Unbounded.Unbounded_String;
+      Cannot_Run    : Unbounded.Unbounded_String;
+      Clipped       : Unbounded.Unbounded_String;
+      No_Clipboard  : Unbounded.Unbounded_String;
+      Configuration : Unbounded.Unbounded_String;
+      Not_TOML      : Unbounded.Unbounded_String;
+      Unknown       : Unbounded.Unbounded_String;
+      Bad_Value     : Unbounded.Unbounded_String;
+      Unreadable    : Unbounded.Unbounded_String;
    end record;
 
    --  The images the terminal holds, kept so that showing one again needs no
@@ -160,8 +180,7 @@ package body Explore.Application is
    type Image_Cache is array (1 .. Image_Cache_Slots) of Cached_Image;
 
    package Tab_Vectors is new Ada.Containers.Vectors (Positive, Model.Browser, Model."=");
-   package Bookmark_Maps is new Ada.Containers.Ordered_Maps
-     (Character, Unbounded.Unbounded_String, "<", Unbounded."=");
+   package Bookmark_Maps renames Explore.Settings.Bookmark_Maps;
 
    type Session is record
       Directory : Unbounded.Unbounded_String;
@@ -223,6 +242,19 @@ package body Explore.Application is
       --  current pane while it shows them.
       Search_Generation : Natural := 0;
       Search_Found      : Natural := 0;
+
+      --  The terminal's settings as they were found, for handing it to
+      --  another program and back.
+      Saved_Mode   : Terminal_IO.Saved_Mode;
+      Openers      : Explore.Launch.Opener_Vectors.Vector;
+      Previewers   : Explore.Previews.Rule_Vectors.Vector;
+      Thumbnails   : Boolean := True;
+      --  Where bookmarks are kept, empty when nowhere.
+      Marks_File   : Unbounded.Unbounded_String;
+      --  Where the directory is written on quitting, and where opened
+      --  entries are written instead of being opened; empty when not asked.
+      Cwd_File     : Unbounded.Unbounded_String;
+      Chooser_File : Unbounded.Unbounded_String;
    end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
@@ -246,6 +278,9 @@ package body Explore.Application is
 
    --  Carry out what was typed for Renaming, Creating, or Changing_Mode.
    procedure Commit (State : in out Session);
+
+   --  Put Text on the system clipboard, and say so.
+   procedure Copy_Text (State : in out Session; Text : String);
 
    --  Show Error about Path in the status line.
    procedure Complain (State : in out Session; Path : String; Error : Posix_Tools.File_Operations.Operation_Error);
@@ -286,6 +321,10 @@ package body Explore.Application is
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
+   --  Open the entries the next command is for with their opener, or, when
+   --  explore chooses files for another program, write them down and quit.
+   procedure Open_Targets (State : in out Session);
+
    function Name_For (Names : in out Name_Maps.Map; Id : Natural; Group : Boolean) return String;
 
    procedure Perform (State : in out Session; Item : Keymap.Command);
@@ -298,6 +337,15 @@ package body Explore.Application is
    procedure Release_Watches (State : in out Session);
 
    procedure Resize (State : in out Session; Rows, Columns : Natural);
+
+   --  Run the shell with Arguments. Detached, it is left to run on its own;
+   --  otherwise the terminal is handed to it until it ends -- with Pause,
+   --  until Enter is pressed after that -- and then taken back and redrawn.
+   procedure Run_Program
+     (State     : in out Session;
+      Arguments : Posix_Tools.Arguments.Vector;
+      Detach    : Boolean;
+      Pause     : Boolean);
 
    --  What became of an ended job, as one line.
    function Result_Line (State : Session; Item : Explore.Jobs.Result_View) return String;
@@ -443,6 +491,12 @@ package body Explore.Application is
                    Include_Hidden => State.Browser.Show_Hidden,
                    Generation     => State.Search_Generation));
             end;
+         when Shelling =>
+            Run_Program
+              (State,
+               Explore.Launch.Shell_Arguments (Folder, Text, Model.Targets (State.Browser)),
+               Detach => False,
+               Pause  => True);
          when Browsing | Confirming_Delete | Answering | Viewing_Jobs =>
             null;
       end case;
@@ -459,6 +513,21 @@ package body Explore.Application is
                 Posix_Tools.File_Operations.Default_Message (Error)));
       State.Frame.Message_Is_Error := True;
    end Complain;
+
+   procedure Copy_Text (State : in out Session; Text : String) is
+   begin
+      if not State.Identity.Capabilities (Explore.Protocol.Clipboard) then
+         State.Frame.Message := State.Words.No_Clipboard;
+         State.Frame.Message_Is_Error := True;
+      elsif not Write (Explore.Launch.Clipboard (Text, State.In_Tmux)) then
+         State.Quit := True;
+      else
+         State.Frame.Message :=
+           Unbounded.To_Unbounded_String
+             (Unbounded.To_String (State.Words.Clipped) & ": "
+              & (if (for some C of Text => C = Character'Val (10)) then "..." else Text));
+      end if;
+   end Copy_Text;
 
    procedure Draw (State : in out Session; Ok : out Boolean) is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
@@ -660,7 +729,7 @@ package body Explore.Application is
                      Keymap.Translate (State.Keys, Item, Command);
                      Perform (State, Command);
                   end if;
-               when Renaming | Creating | Changing_Mode | Jumping | Finding_Names | Finding_Text =>
+               when Renaming | Creating | Changing_Mode | Jumping | Finding_Names | Finding_Text | Shelling =>
                   declare
                      Done, Abandoned : Boolean;
                   begin
@@ -928,7 +997,19 @@ package body Explore.Application is
          Found         => Word ("found", "found"),
          Too_Many      => Word ("too_many", "more than were kept"),
          Bookmarked    => Word ("bookmarked", "bookmarked"),
-         No_Bookmark   => Word ("no_bookmark", "no such bookmark"));
+         No_Bookmark   => Word ("no_bookmark", "no such bookmark"),
+         Unsaved       => Word ("bookmarks_unsaved", "bookmarks could not be saved"),
+         Shell_Prompt  => Word ("prompt.shell", "shell command"),
+         Press_Enter   => Word ("press_enter", "press Enter to return to explore"),
+         Exit_Status   => Word ("exit_status", "exited with status"),
+         Cannot_Run    => Word ("cannot_run", "the command did not run to its end"),
+         Clipped       => Word ("copied_text", "copied to the clipboard"),
+         No_Clipboard  => Word ("no_clipboard", "the terminal offers no clipboard"),
+         Configuration => Word ("configuration", "configuration"),
+         Not_TOML      => Word ("config.syntax", "not valid TOML at"),
+         Unknown       => Word ("config.unknown", "unknown setting"),
+         Bad_Value     => Word ("config.bad_value", "invalid value for"),
+         Unreadable    => Word ("config.unreadable", "cannot read"));
    end Load_Words;
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board) is
@@ -1013,6 +1094,58 @@ package body Explore.Application is
       end;
    end Name_For;
 
+   procedure Open_Targets (State : in out Session) is
+      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Targets : constant Model.Path_Vectors.Vector := Model.Targets (State.Browser);
+   begin
+      if Targets.Is_Empty then
+         return;
+      end if;
+
+      if Unbounded.Length (State.Chooser_File) > 0 then
+         declare
+            Text : Unbounded.Unbounded_String;
+            Ok   : Boolean;
+         begin
+            for Path of Targets loop
+               Unbounded.Append (Text, Path & Character'Val (10));
+            end loop;
+
+            FS.Write_File (Unbounded.To_String (State.Chooser_File), Unbounded.To_String (Text), False, Ok);
+
+            if Ok then
+               State.Quit := True;
+            else
+               Complain (State, Unbounded.To_String (State.Chooser_File), Posix_Tools.File_Operations.Cannot_Open);
+            end if;
+         end;
+
+         return;
+      end if;
+
+      declare
+         First  : constant String := Targets.First_Element;
+         Head   : Unbounded.Unbounded_String;
+         Read   : Boolean;
+         Opener : Explore.Launch.Opener;
+      begin
+         Explore.Previews.Read_Head (First, 4096, Head, Read);
+         Opener :=
+           Explore.Launch.Opener_For
+             (State.Openers,
+              First (Ada.Strings.Fixed.Index (First, "/", Ada.Strings.Backward) + 1 .. First'Last),
+              Read and then Explore.Previews.Is_Text (Unbounded.To_String (Head)));
+         Run_Program
+           (State,
+            Explore.Launch.Shell_Arguments
+              (Unbounded.To_String (Current.Path), Unbounded.To_String (Opener.Run), Targets, Opener.Detach),
+            Detach => Opener.Detach,
+            Pause  => False);
+      end;
+
+      Model.Clear_Marks (State.Browser);
+   end Open_Targets;
+
    procedure Perform (State : in out Session; Item : Keymap.Command) is
       Height  : constant Positive :=
         Positive'Max (1, Explore.Render.Layout_For (State.Size.Rows, State.Size.Columns).Height);
@@ -1040,7 +1173,49 @@ package body Explore.Application is
          when Keymap.Page_Down =>
             Model.Move (State.Browser, Height);
          when Keymap.Enter_Directory =>
-            Model.Enter (State.Browser);
+            if Model.Can_Enter (State.Browser) then
+               Model.Enter (State.Browser);
+            elsif Model.Has_Selection (Current)
+              and then Posix_Tools.File_Operations.Listing."="
+                         (Model.Selected (Current).Kind, Posix_Tools.File_Operations.Listing.Regular_Entry)
+            then
+               Open_Targets (State);
+            end if;
+         when Keymap.Open_Entries =>
+            Open_Targets (State);
+         when Keymap.Shell_Command =>
+            State.Mode := Shelling;
+            State.Frame.Prompting := True;
+            State.Frame.Prompt_Label := State.Words.Shell_Prompt;
+            State.Frame.Prompt_Text := Unbounded.Null_Unbounded_String;
+         when Keymap.Spawn_Shell =>
+            Run_Program
+              (State,
+               Explore.Launch.Shell_Arguments
+                 (Unbounded.To_String (Current.Path), Explore.Launch.Interactive_Shell, Model.Targets (State.Browser)),
+               Detach => False,
+               Pause  => False);
+         when Keymap.Copy_Path | Keymap.Copy_Name =>
+            declare
+               Text : Unbounded.Unbounded_String;
+            begin
+               for Path of Model.Targets (State.Browser) loop
+                  if Unbounded.Length (Text) > 0 then
+                     Unbounded.Append (Text, Character'Val (10));
+                  end if;
+
+                  Unbounded.Append
+                    (Text,
+                     (if Item.Kind = Keymap.Copy_Path then Path
+                      else Path (Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward) + 1 .. Path'Last)));
+               end loop;
+
+               if Unbounded.Length (Text) > 0 then
+                  Copy_Text (State, Unbounded.To_String (Text));
+               end if;
+            end;
+         when Keymap.Copy_Directory =>
+            Copy_Text (State, Unbounded.To_String (Current.Path));
          when Keymap.Leave_Directory =>
             Model.Leave (State.Browser);
          when Keymap.Toggle_Hidden =>
@@ -1188,6 +1363,19 @@ package body Explore.Application is
               Unbounded.To_Unbounded_String
                 (Unbounded.To_String (State.Words.Bookmarked) & " " & Item.Letter & ": "
                  & Unbounded.To_String (Current.Path));
+
+            if Unbounded.Length (State.Marks_File) > 0 then
+               declare
+                  Saved : Boolean;
+               begin
+                  Explore.Settings.Write_Bookmarks (Unbounded.To_String (State.Marks_File), State.Bookmarks, Saved);
+
+                  if not Saved then
+                     State.Frame.Message := State.Words.Unsaved;
+                     State.Frame.Message_Is_Error := True;
+                  end if;
+               end;
+            end if;
          when Keymap.Go_Bookmark =>
             if State.Bookmarks.Contains (Item.Letter) then
                Jump_To (State, Unbounded.To_String (State.Bookmarks.Element (Item.Letter)));
@@ -1300,9 +1488,10 @@ package body Explore.Application is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      State     : Session;
-      Directory : Unbounded.Unbounded_String;
-      Outcome   : Session_Outcome;
+      State       : Session;
+      Directory   : Unbounded.Unbounded_String;
+      Config_Path : Unbounded.Unbounded_String;
+      Outcome     : Session_Outcome;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -1310,21 +1499,68 @@ package body Explore.Application is
 
       Result.Status := Posix_Tools.Exit_Status.Success;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Argument : constant String := Context.Argument (I);
-         begin
-            if Argument'Length > 1 and then Argument (Argument'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '" & Argument & "'");
-               return;
-            elsif Unbounded.Length (Directory) > 0 then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Argument & "'");
-               return;
-            end if;
+      declare
+         I       : Natural := 1;
+         Options : Boolean := True;
+      begin
+         while I <= Context.Argument_Count loop
+            declare
+               Argument : constant String := Context.Argument (I);
 
-            Directory := Unbounded.To_Unbounded_String (Argument);
-         end;
-      end loop;
+               --  The value of the option Name, written "--name=value" or as
+               --  "--name value"; Taken is False when Argument is not it.
+               procedure Value_Of (Name : String; Into : in out Unbounded.Unbounded_String; Taken : out Boolean);
+
+               procedure Value_Of (Name : String; Into : in out Unbounded.Unbounded_String; Taken : out Boolean) is
+               begin
+                  Taken := False;
+
+                  if Argument = Name and then I < Context.Argument_Count then
+                     I := I + 1;
+                     Into := Unbounded.To_Unbounded_String (Context.Argument (I));
+                     Taken := True;
+                  elsif Argument'Length > Name'Length + 1
+                    and then Argument (Argument'First .. Argument'First + Name'Length) = Name & "="
+                  then
+                     Into :=
+                       Unbounded.To_Unbounded_String (Argument (Argument'First + Name'Length + 1 .. Argument'Last));
+                     Taken := True;
+                  end if;
+               end Value_Of;
+
+               Taken : Boolean := False;
+            begin
+               if Options and then Argument = "--" then
+                  Options := False;
+                  Taken := True;
+               elsif Options and then Argument'Length > 1 and then Argument (Argument'First) = '-' then
+                  Value_Of ("--config", Config_Path, Taken);
+
+                  if not Taken then
+                     Value_Of ("--cwd-file", State.Cwd_File, Taken);
+                  end if;
+
+                  if not Taken then
+                     Value_Of ("--chooser-file", State.Chooser_File, Taken);
+                  end if;
+
+                  if not Taken then
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '" & Argument & "'");
+                     return;
+                  end if;
+               elsif Unbounded.Length (Directory) > 0 then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Argument & "'");
+                  return;
+               end if;
+
+               if not Taken then
+                  Directory := Unbounded.To_Unbounded_String (Argument);
+               end if;
+            end;
+
+            I := I + 1;
+         end loop;
+      end;
 
       if Unbounded.Length (Directory) = 0 then
          Directory := Unbounded.To_Unbounded_String (Context.Physical_Current_Directory);
@@ -1358,6 +1594,53 @@ package body Explore.Application is
       State.Locale := Unbounded.To_Unbounded_String (Context.Effective_Locale);
       State.Home := Unbounded.To_Unbounded_String (Context.Environment_Value ("HOME"));
 
+      declare
+         Home     : constant String := Unbounded.To_String (State.Home);
+         Path     : constant String :=
+           (if Unbounded.Length (Config_Path) > 0 then Unbounded.To_String (Config_Path)
+            else Explore.Settings.Configuration_Path (Context.Environment_Value ("XDG_CONFIG_HOME"), Home));
+         Loaded   : Explore.Settings.Settings;
+         Problems : Explore.Settings.Problem_Vectors.Vector;
+      begin
+         Explore.Settings.Load (Path, Loaded, Problems);
+         State.Browser.Show_Hidden := Loaded.Show_Hidden;
+         State.Browser.Order.Key := Loaded.Sort_Key;
+         State.Browser.Order.Descending := Loaded.Descending;
+         State.Frame.Colors := Loaded.Colors;
+         State.Keys := Loaded.Keys;
+         State.Openers := Loaded.Openers;
+         State.Previewers := Loaded.Previewers;
+         State.Thumbnails := Loaded.Thumbnails;
+
+         --  The first problem is shown until the first key, and the
+         --  configuration is used as far as it could be read.
+         if not Problems.Is_Empty then
+            declare
+               First : constant Explore.Settings.Problem := Problems.First_Element;
+               Where : constant String := Unbounded.To_String (First.Where);
+               Words : Operation_Labels renames State.Words;
+            begin
+               State.Frame.Message :=
+                 Unbounded.To_Unbounded_String
+                   (Unbounded.To_String (Words.Configuration) & ": "
+                    & Unbounded.To_String
+                        (case First.Kind is
+                           when Explore.Settings.Unreadable_File => Words.Unreadable,
+                           when Explore.Settings.Syntax_Error => Words.Not_TOML,
+                           when Explore.Settings.Unknown_Setting => Words.Unknown,
+                           when Explore.Settings.Bad_Value => Words.Bad_Value)
+                    & " " & Where
+                    & (if Problems.Last_Index > 1 then " (+" & Image (Problems.Last_Index - 1) & ")" else ""));
+               State.Frame.Message_Is_Error := True;
+            end;
+         end if;
+
+         State.Marks_File :=
+           Unbounded.To_Unbounded_String
+             (Explore.Settings.Bookmarks_Path (Context.Environment_Value ("XDG_STATE_HOME"), Home));
+         State.Bookmarks := Explore.Settings.Read_Bookmarks (Unbounded.To_String (State.Marks_File));
+      end;
+
       if not Terminal_IO.Size (State.Size) then
          State.Size := (Rows => 24, Columns => 80);
       end if;
@@ -1366,7 +1649,23 @@ package body Explore.Application is
 
       case Outcome is
          when Session_Ended =>
-            null;
+            --  The directory last shown, for a shell to change to.
+            if Unbounded.Length (State.Cwd_File) > 0 then
+               declare
+                  Ok : Boolean;
+               begin
+                  FS.Write_File
+                    (Unbounded.To_String (State.Cwd_File),
+                     Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path), False, Ok);
+
+                  if not Ok then
+                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                       (Context, Unbounded.To_String (State.Cwd_File),
+                        "posix_tools.explore.diagnostic.cwd_file", "cannot write the directory");
+                     Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                  end if;
+               end;
+            end if;
          when Session_Signalled =>
             --  Reported the way a shell reports a program the signal ended.
             Result.Status := Posix_Tools.Exit_Status.Code (128 + Signals.Number (State.Ended_By));
@@ -1386,8 +1685,113 @@ package body Explore.Application is
       end case;
    end Run;
 
+   procedure Run_Program
+     (State     : in out Session;
+      Arguments : Posix_Tools.Arguments.Vector;
+      Detach    : Boolean;
+      Pause     : Boolean)
+   is
+      Status  : Integer;
+      Ran     : Boolean;
+      Ignored : Boolean;
+   begin
+      if Detach then
+         Ran := Posix_Tools.Host_Adapters.Processes.Run (Explore.Launch.Shell, Arguments, Status);
+      else
+         declare
+            Kept    : array (Signals.Interrupt .. Signals.Quit) of Signals.Disposition;
+            Scratch : Terminal_IO.Saved_Mode;
+         begin
+            if not Write
+                ((if State.Identity.Capabilities (Explore.Protocol.Kitty_Graphics)
+                  then Explore.Images.Delete_All (State.In_Tmux) else "")
+                 & Explore.Protocol.Leave_Screen)
+            then
+               State.Quit := True;
+               return;
+            end if;
+
+            Terminal_IO.Restore (State.Saved_Mode);
+
+            --  The keyboard's interrupt and quit are the program's: explore
+            --  notes them and carries on, and the program, whose recorded
+            --  signals start out at their defaults, gets them as usual.
+            for Item in Kept'Range loop
+               if not Signals.Current_Disposition (Item, Kept (Item)) then
+                  Kept (Item) := Signals.Unknown_Disposition;
+               elsif Signals.Can_Record (Item) then
+                  Ignored := Signals.Set_Disposition (Item, Signals.Record_Disposition);
+               end if;
+            end loop;
+
+            Ran := Posix_Tools.Host_Adapters.Processes.Run (Explore.Launch.Shell, Arguments, Status);
+
+            if Pause then
+               declare
+                  Buffer  : Ada.Streams.Stream_Element_Array (1 .. 256);
+                  Last    : Ada.Streams.Stream_Element_Offset;
+                  Outcome : Terminal_IO.Read_Outcome;
+               begin
+                  if Write
+                      (Character'Val (10) & "[" & Unbounded.To_String (State.Words.Press_Enter) & "]"
+                       & Character'Val (10))
+                  then
+                     loop
+                        Terminal_IO.Read (Buffer, Last, -1, Outcome);
+                        exit when Outcome /= Terminal_IO.Read_Data
+                          or else (for some I in Buffer'First .. Last => Buffer (I) = 10);
+                     end loop;
+                  end if;
+               end;
+            end if;
+
+            for Item in Kept'Range loop
+               Ignored := Signals.Take (Item);
+
+               if Kept (Item) /= Signals.Unknown_Disposition then
+                  Ignored := Signals.Set_Disposition (Item, Kept (Item));
+               end if;
+            end loop;
+
+            if not Terminal_IO.Enter_Raw (Scratch) or else not Write (Explore.Protocol.Enter_Screen) then
+               State.Quit := True;
+               return;
+            end if;
+
+            --  The program may have used the screen and its images; both
+            --  are made again from nothing.
+            State.Images := [others => <>];
+            Explore.Input.Flush (State.Decoder);
+
+            declare
+               Measured : Terminal_IO.Window_Size;
+            begin
+               if Terminal_IO.Size (Measured) then
+                  Resize (State, Measured.Rows, Measured.Columns);
+               else
+                  Resize (State, State.Size.Rows, State.Size.Columns);
+               end if;
+            end;
+         end;
+      end if;
+
+      --  A shell that a signal ended, or that could not be started, has no
+      --  status of its own to report.
+      if not Ran then
+         State.Frame.Message := State.Words.Cannot_Run;
+         State.Frame.Message_Is_Error := True;
+      elsif Status /= 0 then
+         State.Frame.Message :=
+           Unbounded.To_Unbounded_String
+             (Unbounded.To_String (State.Words.Exit_Status) & " " & Image (Natural'Max (0, Status)));
+         State.Frame.Message_Is_Error := True;
+      end if;
+
+      Model.Reload_All (State.Browser);
+      State.Dirty := True;
+   end Run_Program;
+
    procedure Run_Session (State : in out Session; Outcome : out Session_Outcome) is
-      Saved_Mode    : Terminal_IO.Saved_Mode;
       Saved_Signals : Saved_Dispositions;
       Entered       : Boolean := False;
 
@@ -1410,13 +1814,13 @@ package body Explore.Application is
             end;
          end if;
 
-         Terminal_IO.Restore (Saved_Mode);
+         Terminal_IO.Restore (State.Saved_Mode);
          Give_Back_Signals (Saved_Signals);
       end Hand_Back;
    begin
       Take_Signals (Saved_Signals);
 
-      if not Terminal_IO.Enter_Raw (Saved_Mode) then
+      if not Terminal_IO.Enter_Raw (State.Saved_Mode) then
          Give_Back_Signals (Saved_Signals);
          Outcome := Raw_Mode_Refused;
          return;
@@ -1467,6 +1871,7 @@ package body Explore.Application is
          State.Operations := Operations'Unchecked_Access;
          State.Previewer := Previewer'Unchecked_Access;
          State.Searcher := Searcher'Unchecked_Access;
+         Previewer.Configure (State.Previewers, State.Thumbnails);
          Resize (State, State.Size.Rows, State.Size.Columns);
 
          begin
