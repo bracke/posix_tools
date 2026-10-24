@@ -1,0 +1,21 @@
+name = "posix_tools_explore_tests"
+description = "AUnit tests for the explore visual file manager"
+version = "0.1.0"
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT"
+executables = ["explore_tests"]
+project-files = ["posix_tools_explore_tests.gpr"]
+
+[[depends-on]]
+posix_tools_common = "*"
+
+[[depends-on]]
+aunit = "*"
+
+[[pins]]
+posix_tools_common = { path = "../../../common" }
+
+[build-profiles]
+"*" = "development"

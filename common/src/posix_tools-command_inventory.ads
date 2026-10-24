@@ -1,7 +1,7 @@
 package Posix_Tools.Command_Inventory
   with SPARK_Mode => On
 is
-   Command_Count : constant Positive := 77;
+   Command_Count : constant Positive := 78;
 
    function Executable (Index : Positive) return String
      with
@@ -30,7 +30,8 @@ is
 
    --  The file name of the command's main procedure. It is the executable's
    --  name unless the command's library is rooted at a package of that same
-   --  name, in which case the main procedure cannot also carry it.
+   --  name -- Explore, Sed -- in which case the main procedure cannot also
+   --  carry it.
    function Main_Source (Index : Positive) return String
      with
        Pre  => Index <= Command_Count,

@@ -908,7 +908,9 @@ procedure Posix_Tools_Tests is
 
       function Command_Source_Path (Executable : String) return String is
       begin
-         if Executable = "false" then
+         if Executable = "explore" then
+            return "tools/explore/src/library/explore-application.adb";
+         elsif Executable = "false" then
             return "common/src/posix_tools-commands-false_command.adb";
          elsif Executable = "true" then
             return "common/src/posix_tools-commands-true_command.adb";

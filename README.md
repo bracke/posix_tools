@@ -24,6 +24,7 @@ V1 inventory:
 - `echo`
 - `env`
 - `expand`
+- `explore`
 - `expr`
 - `false`
 - `file`
@@ -85,6 +86,8 @@ V1 inventory:
 
 The normative baseline is The Open Group Base Specifications, Issue 8, IEEE Std 1003.1-2024.
 The root `posix-tools` executable is a project management command and is not part of POSIX conformance claims.
+`explore` is a visual file manager for bracke-terminal; it is a project extension and is likewise not part of
+POSIX conformance claims.
 
 Command references live in `docs/commands/`. Development and release checks are
 driven by the Ada executable `posix_tools_tests`, including metadata validation

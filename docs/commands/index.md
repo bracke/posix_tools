@@ -22,6 +22,7 @@ V1 command references:
 - [echo](echo.md)
 - [env](env.md)
 - [expand](expand.md)
+- [explore](explore.md)
 - [expr](expr.md)
 - [false](false.md)
 - [file](file.md)

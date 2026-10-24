@@ -265,6 +265,24 @@ package body Command_Tests is
          Posix_Tools.Commands.Env.Run (Context, Result);
       elsif Name = "expand" then
          Posix_Tools.Commands.Expand.Run (Context, Result);
+      elsif Name = "explore" then
+         --  explore is built in its own crate, which the test suite may not
+         --  depend on; its help, version, and identity come from the same
+         --  shared rendering it calls.
+         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
+            Posix_Tools.Help.Render_Command_Help (Context, "explore");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
+            Posix_Tools.Help.Render_Version (Context, "explore");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         elsif Context.Argument_Count = 1
+           and then Context.Argument (1) = "--posix-tools-identify"
+         then
+            Posix_Tools.Help.Render_Identity (Context, "explore");
+            Result.Status := Posix_Tools.Exit_Status.Success;
+         else
+            AUnit.Assertions.Assert (False, "explore is not linked into the test suite");
+         end if;
       elsif Name = "expr" then
          Posix_Tools.Commands.Expr.Run (Context, Result);
       elsif Name = "false" then

@@ -32,7 +32,7 @@ is
       --  Rebased to 1 so that the concatenation's bounds are evident.
       Name : constant String (1 .. Executable (Index)'Length) := Executable (Index);
    begin
-      if Name = "sed" then
+      if Name = "explore" or else Name = "sed" then
          return Name & "_main.adb";
       else
          return Name & ".adb";

@@ -510,6 +510,22 @@ begin
    Add_Entry ("tools/sed/src/library/sed-terminal.ads");
    Add_Entry ("tools/sed/src/library/sed-version.ads");
    Add_Entry ("tools/sed/src/library/sed.ads");
+   Add_Entry ("tools/explore/src/library/explore-application.adb");
+   Add_Entry ("tools/explore/src/library/explore-application.ads");
+   Add_Entry ("tools/explore/src/library/explore-input.adb");
+   Add_Entry ("tools/explore/src/library/explore-input.ads");
+   Add_Entry ("tools/explore/src/library/explore-protocol.adb");
+   Add_Entry ("tools/explore/src/library/explore-protocol.ads");
+   Add_Entry ("tools/explore/src/library/explore.ads");
+   Add_Entry ("tools/explore/tests/alire.toml");
+   Add_Entry ("tools/explore/tests/posix_tools_explore_tests.gpr");
+   Add_Entry ("tools/explore/tests/src/explore_suites.adb");
+   Add_Entry ("tools/explore/tests/src/explore_suites.ads");
+   Add_Entry ("tools/explore/tests/src/explore_tests.adb");
+   Add_Entry ("tools/explore/tests/src/input_tests.adb");
+   Add_Entry ("tools/explore/tests/src/input_tests.ads");
+   Add_Entry ("tools/explore/tests/src/protocol_tests.adb");
+   Add_Entry ("tools/explore/tests/src/protocol_tests.ads");
 
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
