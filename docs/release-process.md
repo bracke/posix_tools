@@ -25,9 +25,11 @@ Current Ada tooling entry points:
   GNATprove is installed.
 - `posix_tools_tests package` regenerates `generated/package-manifest.txt`
   with byte counts and FNV-1a checksums for packaged files.
-- `posix_tools_tests release-check` and `release` regenerate
-  `generated/release-checksums.txt` with FNV-1a checksums for the package
-  manifest, source release archive, and built executables.
+- Only `posix_tools_tests release` writes `generated/release-checksums.txt`,
+  with FNV-1a checksums for the package manifest, source release archive, and
+  built executables, and the file is committed with the release. Between
+  releases it is that release's record: no other command writes or checks it,
+  so local builds, new commands, and version bumps leave it as it is.
 - `posix_tools_tests release-check` regenerates the current generated docs and
   package manifest, builds the root crate, every command subcrate, and the
   tests crate, verifies the exact built root and command executables by internal
@@ -35,7 +37,7 @@ Current Ada tooling entry points:
   command-data smoke coverage, validates metadata, runs format checks, validates
   conformance metadata, runs the selected GNATprove targets, and
   runs the AUnit suite.
-- Metadata validation asserts that the `release-check` branch names the selector
+- Metadata validation asserts that the release branches name the selector
   smoke, staged verification, executable smoke, source archive, release checksum,
   metadata, format, conformance, proof, and AUnit steps.
 - Metadata validation asserts that the CI workflow installs GNATprove through
@@ -105,7 +107,8 @@ Current Ada tooling entry points:
   GNATprove proof mode still depends on Why3 local server processes, so the
   release proof gate must run in an execution context that permits those local
   sockets.
-- The metadata gate verifies that `generated/release-checksums.txt` contains
+- During a release, the metadata gate verifies that
+  `generated/release-checksums.txt` contains
   exactly the synchronized version header, package-manifest row, source-archive
   row, root executable row, and one row for every command executable from the
   compiled Ada inventory. When the referenced artifact exists, the gate
@@ -123,5 +126,5 @@ Current Ada tooling entry points:
   are reproducible outputs, while their checksums are recorded in generated
   metadata.
 - `posix_tools_tests release` first requires `git status --porcelain` to report
-  a clean source tree, then runs the same implemented gates as `release-check`
-  and reports completion.
+  a clean source tree, then runs the same implemented gates as `release-check`,
+  writes and checks the release checksums, and reports completion.

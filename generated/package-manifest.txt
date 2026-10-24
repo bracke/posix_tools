@@ -18,7 +18,7 @@ docs/conformance.md bytes= 4154 fnv1a64=4ec7f8d56e54caeb
 docs/development.md bytes= 3190 fnv1a64=b29304c4c691ee68
 docs/portability.md bytes= 988 fnv1a64=0e5c29e72315dc3f
 docs/proof-coverage.md bytes= 16623 fnv1a64=d71159cc286efb25
-docs/release-process.md bytes= 8210 fnv1a64=8afc65f37807c33d
+docs/release-process.md bytes= 8447 fnv1a64=fd0307ed8755bc2f
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
 docs/testing.md bytes= 7220 fnv1a64=b401d8aa9c502e88
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
@@ -319,7 +319,7 @@ tests/src/build_checks.adb bytes= 2757 fnv1a64=bda9d866d80c2cdf
 tests/src/build_checks.ads bytes= 76 fnv1a64=80078369870becde
 tests/src/format_checks.adb bytes= 3979 fnv1a64=4aa5728740551083
 tests/src/format_checks.ads bytes= 78 fnv1a64=cac3dfd61f7e3b5c
-tests/src/posix_tools_tests.adb bytes= 286193 fnv1a64=a9143540afde1e17
+tests/src/posix_tools_tests.adb bytes= 286726 fnv1a64=e35250c421813a29
 tests/src/test_contexts.adb bytes= 28934 fnv1a64=985cd676d785545b
 tests/src/test_contexts.ads bytes= 10454 fnv1a64=47277ed4f57746c5
 fixtures/invalid-da-utf8.bin bytes= 2 fnv1a64=0907e507b5a015dd

@@ -44,6 +44,12 @@ procedure Posix_Tools_Tests is
      (if Ada.Command_Line.Argument_Count = 0 then "test" else Ada.Command_Line.Argument (1));
    Invalid_Usage : exception;
 
+   --  Only a release writes generated/release-checksums.txt, from the
+   --  binaries it built; between releases the committed file is that
+   --  release's record, and every local build would make it stale. So only
+   --  a release checks what the file holds.
+   Writes_Release_Checksums : constant Boolean := Command = "release";
+
    function Root return String is
    begin
       if Project_Tools.Files.File_Exists ("alire.toml")
@@ -1294,10 +1300,12 @@ procedure Posix_Tools_Tests is
         ("generated/package-manifest.txt",
          "posix-tools package manifest " & Posix_Tools.Version.Version_String,
          "package manifest version header");
-      Require_Exact_Line
-        ("generated/release-checksums.txt",
-         "posix-tools release checksums " & Posix_Tools.Version.Version_String,
-         "release checksum version header");
+      if Writes_Release_Checksums then
+         Require_Exact_Line
+           ("generated/release-checksums.txt",
+            "posix-tools release checksums " & Posix_Tools.Version.Version_String,
+            "release checksum version header");
+      end if;
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-numbers.ads", "type Count is range 0 .. 2 ** 63 - 1;");
       Project_Tools.Release_Checks.Require_Text
@@ -3147,17 +3155,22 @@ procedure Posix_Tools_Tests is
         (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/command_inventory.csv", "docs/commands/wc.md");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      if Writes_Release_Checksums then
+         Project_Tools.Release_Checks.Require_Text
+           (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
+         Project_Tools.Release_Checks.Require_Text
+           (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
+      end if;
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "platform-aware executable artifact lookup");
       Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented;
       Require_Non_SPARK_Specs_Are_Documented_Boundaries;
-      Require_Release_Checksums_Cover_Inventory;
+      if Writes_Release_Checksums then
+         Require_Release_Checksums_Cover_Inventory;
+      end if;
+
       Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");
@@ -3231,11 +3244,13 @@ procedure Posix_Tools_Tests is
            (Check,
             "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1",
             ".TH " & Posix_Tools.Command_Inventory.Executable (I) & " 1");
-         Project_Tools.Release_Checks.Require_Text
-           (Check,
-            "generated/release-checksums.txt",
-            "executable tools/" & Posix_Tools.Command_Inventory.Executable (I)
-            & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
+         if Writes_Release_Checksums then
+            Project_Tools.Release_Checks.Require_Text
+              (Check,
+               "generated/release-checksums.txt",
+               "executable tools/" & Posix_Tools.Command_Inventory.Executable (I)
+               & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
+         end if;
       end loop;
       Project_Tools.Release_Checks.Require_Text (Check, "README.md", "posix_tools");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
@@ -5558,7 +5573,6 @@ begin
       Run_Staged_Verification;
       Run_Executable_Integration_Smoke;
       Generate_Release_Archive;
-      Generate_Release_Checksums;
       Run_Metadata_Checks;
       Run_Format_Checks;
       Run_Conformance_Checks;
@@ -5605,7 +5619,6 @@ begin
    elsif Command = "package" then
       Generate_Package_Manifest;
       Generate_Release_Archive;
-      Generate_Release_Checksums;
       Run_Metadata_Checks;
       Ada.Text_IO.Put_Line ("package: completed by Ada project_tools driver");
    else
