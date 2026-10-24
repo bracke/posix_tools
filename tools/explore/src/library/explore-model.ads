@@ -1,3 +1,5 @@
+with Ada.Containers.Indefinite_Ordered_Sets;
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Posix_Tools.File_Operations.Listing;
@@ -16,6 +18,8 @@ package Explore.Model is
       Failed);   --  Its directory could not be read.
 
    package Index_Vectors is new Ada.Containers.Vectors (Positive, Positive);
+   package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
+   package Path_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
    type Pane is record
       Path       : Ada.Strings.Unbounded.Unbounded_String;
@@ -36,6 +40,8 @@ package Explore.Model is
       Pending    : Boolean := False;
       --  The name to put the cursor on once entries arrive.
       Wanted     : Ada.Strings.Unbounded.Unbounded_String;
+      --  Names marked for an operation.
+      Marked     : Name_Sets.Set;
    end record;
 
    type Pane_Kind is (Parent_Pane, Current_Pane, Preview_Pane);
@@ -129,4 +135,16 @@ package Explore.Model is
    --  Recompute what the current pane shows after the filter changed, keeping
    --  the cursor on the same entry where it is still shown.
    procedure Apply_Filter (Self : in out Browser);
+
+   function Is_Marked (Item : Pane; Name : String) return Boolean is (Item.Marked.Contains (Name));
+
+   --  Mark the selected entry of the current pane, or unmark it if it was.
+   procedure Toggle_Mark (Self : in out Browser);
+
+   procedure Clear_Marks (Self : in out Browser);
+
+   --  What an operation acts on: the full paths of the marked entries of the
+   --  current pane that are still there, or of the selected entry when none
+   --  are marked.
+   function Targets (Self : Browser) return Path_Vectors.Vector;
 end Explore.Model;

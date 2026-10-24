@@ -22,7 +22,7 @@ anything else. Below 80 columns the parent pane is left out, and below 50 the pr
 current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
 and any filter or pending prefix key.
 
-File operations, content previews, tabs, and search follow in later milestones.
+Content previews, tabs, and search follow in later milestones.
 
 ### Keys
 
@@ -39,7 +39,19 @@ File operations, content previews, tabs, and search follow in later milestones.
 | Escape | clear the filter |
 | `,n` `,a` `,e` `,s` `,m` `,t` | sort by natural name, name, extension, size, modification time, or kind; the capital letter sorts in reverse |
 | `~` | go to the home directory |
+| Space | mark or unmark the selected entry and move down; operations act on the marked entries, or on the selected one when none are marked |
+| `y` / `x` | yank / cut the entries for pasting |
+| `p` | paste: copy what was yanked, or move what was cut, into the current directory |
+| `-` | paste symbolic links to what was yanked or cut |
+| `d` | delete, after confirming with `y` |
+| `r` | rename the selected entry |
+| `a` | create a file, or a directory when the name ends in `/` |
+| `m` | change permissions, octal or symbolic as chmod takes them |
+| Ctrl-c | cancel the running copy, move, link, or delete |
 | `q` | quit |
+
+When a pasted entry would replace one that exists, the operation waits for an answer: `o` overwrites it, `s` or
+Escape skips it, and `O` and `S` do the same for every further conflict of that operation.
 
 The mouse wheel moves the selection. A click in the current pane selects the entry under it, in the parent pane goes
 up, and in the preview pane enters the selected directory.
@@ -92,6 +104,14 @@ are dropped. The current and parent directories are watched, and re-read when th
 the same name. Entries are sorted by natural name by default, with directories first and ASCII case ignored. Only the
 cells that changed are redrawn.
 
+Copies, moves, links, and deletions run one at a time on a worker task of their own, in the order they were asked
+for, through the shared `Posix_Tools.File_Operations` that `cp`, `mv`, and `rm` use. Copies keep modes, times, and
+symbolic links; a copy into the directory it came from is named `name_1`, `name_2`, and so on; a move across
+filesystems copies and then removes the source; deletion removes links, never what they point to. The status line
+shows the running operation, its file, and how far the copy of that file is; up to sixteen operations wait their turn.
+Errors are shown when the operation ends, and the panes are read again. Renaming, creating, and changing permissions
+happen at once.
+
 On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --
 `explore` leaves the alternate screen, turns those reports off again, restores the saved terminal settings, and puts
 back the signal dispositions it changed. A terminate or hangup signal that was ignored when `explore` started stays
@@ -128,6 +148,6 @@ Project extension; not a POSIX utility.
 
 ## Known Limitations
 
-Only bracke-terminal is supported, by design. File operations, content previews, tabs, search, bookmarks, and
+Only bracke-terminal is supported, by design. There is no trash: deletion is permanent. Content previews, tabs, search, bookmarks, and
 configuration are not yet implemented. Combining characters in names are not drawn. A watched directory is re-read whole
 when it changes.

@@ -6,14 +6,8 @@ package body Explore.Model is
    use type Listing.Entry_Kind;
    use type Unbounded.Unbounded_String;
 
-   function Folded (Text : String) return String is
-     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
-
    --  The position in Item.Shown of the entry called Name, or zero.
    function Find (Item : Pane; Name : String) return Natural;
-
-   --  A pane for Path, waiting for its first entries.
-   function New_Pane (Self : in out Browser; Path : String) return Pane;
 
    function Next_Generation (Self : in out Browser) return Natural;
 
@@ -22,11 +16,8 @@ package body Explore.Model is
    --  Near as the entries allow.
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural);
 
-   procedure Apply_Filter (Self : in out Browser) is
-      Current : Pane renames Self.Panes (Current_Pane);
-   begin
-      Show (Current, Unbounded.To_String (Self.Filter), Selected_Name (Current), Current.Cursor);
-   end Apply_Filter;
+   function Folded (Text : String) return String is
+     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
 
    function Can_Enter (Self : Browser) return Boolean is
      (Has_Selection (Self.Panes (Current_Pane))
@@ -40,6 +31,36 @@ package body Explore.Model is
      (if Directory'Length > 0 and then Directory (Directory'Last) = '/'
       then Directory & Name
       else Directory & "/" & Name);
+
+   --  A pane for Path, waiting for its first entries.
+   function New_Pane (Self : in out Browser; Path : String) return Pane is
+     ((Path       => Unbounded.To_Unbounded_String (Path),
+       State      => Loading,
+       Generation => Next_Generation (Self),
+       Pending    => True,
+       others     => <>));
+
+   function Selected (Item : Pane) return Listing.Listed_Entry is (Shown_Entry (Item, Item.Cursor));
+
+   function Selected_Name (Item : Pane) return String is
+     (if Has_Selection (Item) then Unbounded.To_String (Selected (Item).Name) else "");
+
+   function Selected_Path (Item : Pane) return String is
+     (if Has_Selection (Item) then Child_Of (Unbounded.To_String (Item.Path), Selected_Name (Item)) else "");
+
+   function Shown_Entry (Item : Pane; I : Positive) return Listing.Listed_Entry is
+     (Item.Entries (Item.Shown (I)));
+
+   procedure Apply_Filter (Self : in out Browser) is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      Show (Current, Unbounded.To_String (Self.Filter), Selected_Name (Current), Current.Cursor);
+   end Apply_Filter;
+
+   procedure Clear_Marks (Self : in out Browser) is
+   begin
+      Self.Panes (Current_Pane).Marked.Clear;
+   end Clear_Marks;
 
    procedure Deliver
      (Self       : in out Browser;
@@ -73,6 +94,9 @@ package body Explore.Model is
       if not Can_Enter (Self) then
          return;
       end if;
+
+      --  Marks belong to the directory they were made in.
+      Clear_Marks (Self);
 
       declare
          Target : constant String := Selected_Path (Self.Panes (Current_Pane));
@@ -113,6 +137,9 @@ package body Explore.Model is
       if not Can_Leave (Self) then
          return;
       end if;
+
+      --  Marks belong to the directory they were made in.
+      Clear_Marks (Self);
 
       declare
          Left   : constant String := Unbounded.To_String (Self.Panes (Current_Pane).Path);
@@ -171,13 +198,6 @@ package body Explore.Model is
 
       return Path (Path'First .. Last);
    end Name_Of;
-
-   function New_Pane (Self : in out Browser; Path : String) return Pane is
-     ((Path       => Unbounded.To_Unbounded_String (Path),
-       State      => Loading,
-       Generation => Next_Generation (Self),
-       Pending    => True,
-       others     => <>));
 
    function Next_Generation (Self : in out Browser) return Natural is
    begin
@@ -269,14 +289,6 @@ package body Explore.Model is
       end if;
    end Scroll;
 
-   function Selected (Item : Pane) return Listing.Listed_Entry is (Shown_Entry (Item, Item.Cursor));
-
-   function Selected_Name (Item : Pane) return String is
-     (if Has_Selection (Item) then Unbounded.To_String (Selected (Item).Name) else "");
-
-   function Selected_Path (Item : Pane) return String is
-     (if Has_Selection (Item) then Child_Of (Unbounded.To_String (Item.Path), Selected_Name (Item)) else "");
-
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural) is
       Needle : constant String := Folded (Filter);
    begin
@@ -303,6 +315,37 @@ package body Explore.Model is
       end;
    end Show;
 
-   function Shown_Entry (Item : Pane; I : Positive) return Listing.Listed_Entry is
-     (Item.Entries (Item.Shown (I)));
+   function Targets (Self : Browser) return Path_Vectors.Vector is
+      Current : Pane renames Self.Panes (Current_Pane);
+      Result  : Path_Vectors.Vector;
+   begin
+      for Item of Current.Entries loop
+         if Current.Marked.Contains (Unbounded.To_String (Item.Name)) then
+            Result.Append (Child_Of (Unbounded.To_String (Current.Path), Unbounded.To_String (Item.Name)));
+         end if;
+      end loop;
+
+      if Result.Is_Empty and then Has_Selection (Current) then
+         Result.Append (Selected_Path (Current));
+      end if;
+
+      return Result;
+   end Targets;
+
+   procedure Toggle_Mark (Self : in out Browser) is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      if Has_Selection (Current) then
+         declare
+            Name : constant String := Selected_Name (Current);
+         begin
+            if Current.Marked.Contains (Name) then
+               Current.Marked.Delete (Name);
+            else
+               Current.Marked.Insert (Name);
+            end if;
+         end;
+      end if;
+   end Toggle_Mark;
+
 end Explore.Model;

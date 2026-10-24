@@ -63,6 +63,8 @@ package body Explore.Keymap is
          return (Kind => Page_Down, others => <>);
       elsif Control (Item, 'b') then
          return (Kind => Page_Up, others => <>);
+      elsif Control (Item, 'c') then
+         return (Kind => Cancel_Job, others => <>);
       elsif Item.Mods.Control or else Item.Mods.Alt then
          return (others => <>);
       end if;
@@ -86,6 +88,24 @@ package body Explore.Keymap is
             return (Kind => Start_Filter, others => <>);
          when '~' =>
             return (Kind => Go_Home, others => <>);
+         when ' ' =>
+            return (Kind => Toggle_Mark, others => <>);
+         when 'y' =>
+            return (Kind => Yank, others => <>);
+         when 'x' =>
+            return (Kind => Cut, others => <>);
+         when 'p' =>
+            return (Kind => Paste, others => <>);
+         when '-' =>
+            return (Kind => Paste_Links, others => <>);
+         when 'd' =>
+            return (Kind => Delete_Entries, others => <>);
+         when 'r' =>
+            return (Kind => Rename_Entry, others => <>);
+         when 'a' =>
+            return (Kind => Create_Entry, others => <>);
+         when 'm' =>
+            return (Kind => Change_Mode, others => <>);
          when 'g' =>
             Self.Waiting := Go_Prefix;
          when ',' =>

@@ -3,6 +3,7 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
 with Explore.Input;
+with Explore.Jobs;
 with Explore.Keymap;
 with Explore.Model;
 with Explore.Protocol;
@@ -11,11 +12,13 @@ with Explore.Screen;
 with Explore.Tasks;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.File_Operations;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.File_Watches;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Host_Adapters.Terminal_IO;
 with Posix_Tools.Localization;
+with Posix_Tools.Text.File_Modes;
 
 package body Explore.Application is
 
@@ -36,6 +39,8 @@ package body Explore.Application is
    use type Explore.Input.Mouse_Button;
    use type Explore.Input.Reply_Kind;
    use type Explore.Model.Pane_Kind;
+   use type Explore.Jobs.Snapshot;
+   use type Explore.Keymap.Action;
    use type Terminal_IO.Read_Outcome;
 
    --  How long one read waits before the loop looks at signals, watches, and
@@ -79,6 +84,35 @@ package body Explore.Application is
    type Path_Array is array (Watched_Pane) of Unbounded.Unbounded_String;
    type Generation_Array is array (Model.Pane_Kind) of Natural;
 
+   type Board_Access is access all Explore.Jobs.Board;
+
+   --  What the next key means, beyond browsing.
+   type Interaction is
+     (Browsing,
+      Renaming,          --  Typing a new name for the selected entry.
+      Creating,          --  Typing the name of a file, or of a directory with a slash.
+      Changing_Mode,     --  Typing permissions, octal or symbolic.
+      Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
+      Answering);        --  The running job asks about a target that exists.
+
+   --  Interface text for operations, looked up once.
+   type Operation_Labels is record
+      Rename_Prompt : Unbounded.Unbounded_String;
+      Create_Prompt : Unbounded.Unbounded_String;
+      Mode_Prompt   : Unbounded.Unbounded_String;
+      Copying       : Unbounded.Unbounded_String;
+      Moving        : Unbounded.Unbounded_String;
+      Linking       : Unbounded.Unbounded_String;
+      Deleting      : Unbounded.Unbounded_String;
+      Yanked        : Unbounded.Unbounded_String;
+      Cut           : Unbounded.Unbounded_String;
+      Queue_Full    : Unbounded.Unbounded_String;
+      Cancelled     : Unbounded.Unbounded_String;
+      Exists        : Unbounded.Unbounded_String;
+      Invalid_Mode  : Unbounded.Unbounded_String;
+      Errors        : Unbounded.Unbounded_String;
+   end record;
+
    type Session is record
       Directory : Unbounded.Unbounded_String;
       Home      : Unbounded.Unbounded_String;
@@ -106,9 +140,18 @@ package body Explore.Application is
       Watching  : Path_Array;
       Users     : Name_Maps.Map;
       Groups    : Name_Maps.Map;
-   end record;
 
-   --  Interface text, looked up once: a catalog lookup reads the catalog.
+      Locale    : Unbounded.Unbounded_String;
+      Words     : Operation_Labels;
+      Operations : Board_Access;
+      Last_Job  : Explore.Jobs.Snapshot;
+      Mode      : Interaction := Browsing;
+      --  Yanked or cut entries, waiting to be pasted.
+      Clipboard : Model.Path_Vectors.Vector;
+      Cutting   : Boolean := False;
+      --  The entries a delete waits to be confirmed for.
+      Pending   : Model.Path_Vectors.Vector;
+   end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
 
@@ -119,9 +162,23 @@ package body Explore.Application is
 
    procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
+   --  Carry out what was typed for Renaming, Creating, or Changing_Mode.
+   procedure Commit (State : in out Session);
+
+   --  Show Error about Path in the status line.
+   procedure Complain (State : in out Session; Path : String; Error : Posix_Tools.File_Operations.Operation_Error);
+
    procedure Draw (State : in out Session; Ok : out Boolean);
 
    procedure Edit_Filter (State : in out Session; Item : Input.Event);
+
+   --  Edit Text with Item: typing, Backspace, and paste. Done when Enter was
+   --  pressed, Abandoned when Escape was.
+   procedure Edit_Line
+     (Text      : in out Unbounded.Unbounded_String;
+      Item      : Input.Event;
+      Done      : out Boolean;
+      Abandoned : out Boolean);
 
    procedure Give_Back_Signals (Saved : Saved_Dispositions);
 
@@ -131,13 +188,19 @@ package body Explore.Application is
 
    function Identify (State : in out Session) return Boolean;
 
+   --  Interface text, looked up once: a catalog lookup reads the catalog.
    function Load_Labels (Locale : String) return Explore.Render.Labels;
+
+   function Load_Words (Locale : String) return Operation_Labels;
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
    function Name_For (Names : in out Name_Maps.Map; Id : Natural; Group : Boolean) return String;
 
    procedure Perform (State : in out Session; Item : Keymap.Command);
+
+   --  Queue a job; say so in the status line when the queue is full.
+   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job);
 
    procedure Read_Into_Decoder (State : in out Session; Timeout_Ms : Integer; Ended : out Boolean);
 
@@ -150,6 +213,10 @@ package body Explore.Application is
    procedure Sync (State : in out Session; Jobs : in out Explore.Tasks.Board);
 
    procedure Take_Signals (Saved : out Saved_Dispositions);
+
+   --  Follow the jobs: their progress line, their questions, and what they
+   --  changed.
+   procedure Watch_Jobs (State : in out Session);
 
    procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board) is
       Outcome : Explore.Tasks.Result;
@@ -164,6 +231,104 @@ package body Explore.Application is
          end if;
       end loop;
    end Collect;
+
+   procedure Commit (State : in out Session) is
+      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Text    : constant String := Unbounded.To_String (State.Frame.Prompt_Text);
+      Folder  : constant String := Unbounded.To_String (Current.Path);
+   begin
+      if Text'Length = 0 then
+         return;
+      end if;
+
+      case State.Mode is
+         when Renaming | Creating =>
+            declare
+               Directory : constant Boolean := State.Mode = Creating and then Text (Text'Last) = '/';
+               Name      : constant String := (if Directory then Text (Text'First .. Text'Last - 1) else Text);
+               Target    : constant String := Model.Child_Of (Folder, Name);
+               Written   : Boolean := True;
+            begin
+               if Name'Length = 0 or else Name = "." or else Name = ".."
+                 or else (for some C of Name => C = '/')
+               then
+                  Complain (State, Text, Posix_Tools.File_Operations.Cannot_Open);
+                  return;
+               elsif FS.Exists (Target) or else FS.Is_Link (Target) then
+                  State.Frame.Message :=
+                    Unbounded.To_Unbounded_String (Name & ": " & Unbounded.To_String (State.Words.Exists));
+                  State.Frame.Message_Is_Error := True;
+                  return;
+               end if;
+
+               begin
+                  if State.Mode = Renaming then
+                     FS.Rename (Model.Selected_Path (Current), Target);
+                  elsif Directory then
+                     FS.Create_Path (Target);
+                  else
+                     FS.Write_File (Target, "", Append_Mode => True, Ok => Written);
+                  end if;
+               exception
+                  when others =>
+                     Written := False;
+               end;
+
+               if not Written then
+                  Complain (State, Target, Posix_Tools.File_Operations.Cannot_Open);
+                  return;
+               end if;
+
+               --  The cursor goes to what was made once the directory is read again.
+               Model.Reload (State.Browser, Model.Current_Pane);
+               Current.Wanted := Unbounded.To_Unbounded_String (Name);
+            end;
+         when Changing_Mode =>
+            declare
+               Parsed : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
+                 Posix_Tools.Text.File_Modes.Parse_Permission_Mode (Text);
+            begin
+               for Path of Model.Targets (State.Browser) loop
+                  declare
+                     use type Posix_Tools.Text.File_Modes.Permission_Mode_Status;
+
+                     Known   : Boolean;
+                     Old     : constant Natural := FS.File_Permission_Bits (Path, Known) mod 8#10000#;
+                     Applied : constant Posix_Tools.Text.File_Modes.Symbolic_Mode_Result :=
+                       (if Parsed.Status = Posix_Tools.Text.File_Modes.Octal_Permission_Mode
+                        then (Valid => True, Mode => Parsed.Mode)
+                        else Posix_Tools.Text.File_Modes.Apply_Symbolic_Mode (Text, Old));
+                  begin
+                     if not Applied.Valid then
+                        State.Frame.Message :=
+                          Unbounded.To_Unbounded_String (Text & ": " & Unbounded.To_String (State.Words.Invalid_Mode));
+                        State.Frame.Message_Is_Error := True;
+                        return;
+                     elsif not FS.Set_Permissions (Path, Applied.Mode) then
+                        Complain (State, Path, Posix_Tools.File_Operations.Cannot_Open);
+                     end if;
+                  end;
+               end loop;
+
+               Model.Clear_Marks (State.Browser);
+               Model.Reload (State.Browser, Model.Current_Pane);
+            end;
+         when Browsing | Confirming_Delete | Answering =>
+            null;
+      end case;
+   end Commit;
+
+   procedure Complain (State : in out Session; Path : String; Error : Posix_Tools.File_Operations.Operation_Error) is
+   begin
+      State.Frame.Message :=
+        Unbounded.To_Unbounded_String
+          (Path & ": "
+           & Posix_Tools.Localization.Text
+               (Unbounded.To_String (State.Locale),
+                Posix_Tools.File_Operations.Message_Key (Error),
+                Posix_Tools.File_Operations.Default_Message (Error)));
+      State.Frame.Message_Is_Error := True;
+   end Complain;
 
    procedure Draw (State : in out Session; Ok : out Boolean) is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
@@ -230,6 +395,49 @@ package body Explore.Application is
       State.Dirty := True;
    end Edit_Filter;
 
+   procedure Edit_Line
+     (Text      : in out Unbounded.Unbounded_String;
+      Item      : Input.Event;
+      Done      : out Boolean;
+      Abandoned : out Boolean)
+   is
+   begin
+      Done := False;
+      Abandoned := False;
+
+      case Item.Kind is
+         when Input.Key_Event =>
+            case Item.Key is
+               when Input.Enter =>
+                  Done := True;
+               when Input.Escape =>
+                  Abandoned := True;
+               when Input.Backspace =>
+                  --  Drop the last character, all of its bytes.
+                  while Unbounded.Length (Text) > 0 loop
+                     declare
+                        Last : constant Character := Unbounded.Element (Text, Unbounded.Length (Text));
+                     begin
+                        Unbounded.Delete (Text, Unbounded.Length (Text), Unbounded.Length (Text));
+                        exit when Character'Pos (Last) not in 16#80# .. 16#BF#;
+                     end;
+                  end loop;
+               when Input.Character_Key =>
+                  if Item.Mods.Control and then Item.Code = 'c' then
+                     Abandoned := True;
+                  elsif not Item.Mods.Control and then not Item.Mods.Alt then
+                     Unbounded.Append (Text, Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Encode ([1 => Item.Code]));
+                  end if;
+               when others =>
+                  null;
+            end case;
+         when Input.Paste_Event =>
+            Unbounded.Append (Text, Item.Text);
+         when others =>
+            null;
+      end case;
+   end Edit_Line;
+
    procedure Give_Back_Signals (Saved : Saved_Dispositions) is
    begin
       for Item in Watched_Signal loop
@@ -251,13 +459,56 @@ package body Explore.Application is
    begin
       case Item.Kind is
          when Input.Key_Event | Input.Paste_Event =>
-            if State.Frame.Editing then
-               Edit_Filter (State, Item);
-            elsif Item.Kind = Input.Key_Event then
-               Keymap.Translate (State.Keys, Item, Command);
-               Perform (State, Command);
-               State.Dirty := True;
-            end if;
+            State.Frame.Message := Unbounded.Null_Unbounded_String;
+            State.Dirty := True;
+
+            case State.Mode is
+               when Browsing =>
+                  if State.Frame.Editing then
+                     Edit_Filter (State, Item);
+                  elsif Item.Kind = Input.Key_Event then
+                     Keymap.Translate (State.Keys, Item, Command);
+                     Perform (State, Command);
+                  end if;
+               when Renaming | Creating | Changing_Mode =>
+                  declare
+                     Done, Abandoned : Boolean;
+                  begin
+                     Edit_Line (State.Frame.Prompt_Text, Item, Done, Abandoned);
+
+                     if Done or else Abandoned then
+                        if Done then
+                           Commit (State);
+                        end if;
+
+                        State.Mode := Browsing;
+                        State.Frame.Prompting := False;
+                     end if;
+                  end;
+               when Confirming_Delete =>
+                  if Input.Is_Character (Item, 'y') or else Input.Is_Character (Item, 'Y') then
+                     Queue_Job (State, (Explore.Jobs.Delete_Job, State.Pending, others => <>));
+                     Model.Clear_Marks (State.Browser);
+                  end if;
+
+                  State.Pending.Clear;
+                  State.Frame.Question := Unbounded.Null_Unbounded_String;
+                  State.Mode := Browsing;
+               when Answering =>
+                  if Item.Kind = Input.Key_Event then
+                     if Input.Is_Character (Item, 'o') then
+                        State.Operations.Answer (Explore.Jobs.Overwrite_One);
+                     elsif Input.Is_Character (Item, 'O') then
+                        State.Operations.Answer (Explore.Jobs.Overwrite_All);
+                     elsif Input.Is_Character (Item, 's') or else Item.Key = Input.Escape then
+                        State.Operations.Answer (Explore.Jobs.Skip_One);
+                     elsif Input.Is_Character (Item, 'S') then
+                        State.Operations.Answer (Explore.Jobs.Skip_All);
+                     elsif Item.Mods.Control and then Item.Code = 'c' then
+                        State.Operations.Cancel;
+                     end if;
+                  end if;
+            end case;
          when Input.Mouse_Event =>
             Handle_Mouse (State, Item);
          when Input.Resize_Event =>
@@ -366,8 +617,31 @@ package body Explore.Application is
          Loading    => Label ("loading", "loading"),
          Unreadable => Label ("unreadable", "cannot read this directory"),
          Empty      => Label ("empty", "empty"),
-         Filter     => Label ("filter", "filter"));
+         Filter     => Label ("filter", "filter"),
+         Marked     => Label ("marked", "marked"));
    end Load_Labels;
+
+   function Load_Words (Locale : String) return Operation_Labels is
+      function Word (Key, Default : String) return Unbounded.Unbounded_String is
+        (Unbounded.To_Unbounded_String
+           (Posix_Tools.Localization.Text (Locale, "posix_tools.explore.ui." & Key, Default)));
+   begin
+      return
+        (Rename_Prompt => Word ("prompt.rename", "rename to"),
+         Create_Prompt => Word ("prompt.create", "create (end with / for a directory)"),
+         Mode_Prompt   => Word ("prompt.mode", "permissions"),
+         Copying       => Word ("job.copying", "copying"),
+         Moving        => Word ("job.moving", "moving"),
+         Linking       => Word ("job.linking", "linking"),
+         Deleting      => Word ("job.deleting", "deleting"),
+         Yanked        => Word ("yanked", "yanked"),
+         Cut           => Word ("cut", "cut"),
+         Queue_Full    => Word ("queue_full", "too many operations waiting"),
+         Cancelled     => Word ("cancelled", "cancelled"),
+         Exists        => Word ("exists", "already exists"),
+         Invalid_Mode  => Word ("invalid_mode", "not a valid permission mode"),
+         Errors        => Word ("errors", "errors"));
+   end Load_Words;
 
    procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board) is
       Item  : Input.Event;
@@ -403,6 +677,7 @@ package body Explore.Application is
          end loop;
 
          Collect (State, Jobs);
+         Watch_Jobs (State);
          Sync (State, Jobs);
 
          if State.Dirty then
@@ -413,7 +688,8 @@ package body Explore.Application is
             end if;
          end if;
 
-         Read_Into_Decoder (State, (if Jobs.Busy then Busy_Poll_Ms else Idle_Poll_Ms), Ended);
+         Read_Into_Decoder
+           (State, (if Jobs.Busy or else State.Last_Job.Running then Busy_Poll_Ms else Idle_Poll_Ms), Ended);
          exit when Ended;
 
          loop
@@ -479,6 +755,83 @@ package body Explore.Application is
          when Keymap.Clear_Filter =>
             State.Browser.Filter := Unbounded.Null_Unbounded_String;
             Model.Apply_Filter (State.Browser);
+            Model.Clear_Marks (State.Browser);
+         when Keymap.Toggle_Mark =>
+            Model.Toggle_Mark (State.Browser);
+            Model.Move (State.Browser, 1);
+         when Keymap.Yank | Keymap.Cut =>
+            State.Clipboard := Model.Targets (State.Browser);
+            State.Cutting := Item.Kind = Keymap.Cut;
+            Model.Clear_Marks (State.Browser);
+
+            if not State.Clipboard.Is_Empty then
+               State.Frame.Message :=
+                 Unbounded.To_Unbounded_String
+                   (Natural'Image (Natural (State.Clipboard.Length)) & " "
+                    & Unbounded.To_String (if State.Cutting then State.Words.Cut else State.Words.Yanked));
+            end if;
+         when Keymap.Paste | Keymap.Paste_Links =>
+            if not State.Clipboard.Is_Empty then
+               Queue_Job
+                 (State,
+                  (Kind    =>
+                     (if Item.Kind = Keymap.Paste_Links then Explore.Jobs.Link_Job
+                      elsif State.Cutting then Explore.Jobs.Move_Job
+                      else Explore.Jobs.Copy_Job),
+                   Sources => State.Clipboard,
+                   Target  => Current.Path));
+
+               --  What was cut is gone from where it was once pasted.
+               if State.Cutting and then Item.Kind = Keymap.Paste then
+                  State.Clipboard.Clear;
+                  State.Cutting := False;
+               end if;
+            end if;
+         when Keymap.Delete_Entries =>
+            State.Pending := Model.Targets (State.Browser);
+
+            if not State.Pending.Is_Empty then
+               declare
+                  Count : constant String := Natural'Image (Natural (State.Pending.Length));
+               begin
+                  State.Frame.Question :=
+                    Unbounded.To_Unbounded_String
+                      (Posix_Tools.Localization.Text_1
+                         (Unbounded.To_String (State.Locale),
+                          "posix_tools.explore.ui.confirm_delete",
+                          "count",
+                          Count (Count'First + 1 .. Count'Last),
+                          "delete " & Count (Count'First + 1 .. Count'Last) & "? y/n"));
+               end;
+               State.Mode := Confirming_Delete;
+            end if;
+         when Keymap.Rename_Entry | Keymap.Create_Entry | Keymap.Change_Mode =>
+            if Item.Kind = Keymap.Create_Entry or else Model.Has_Selection (Current) then
+               State.Mode :=
+                 (case Item.Kind is
+                    when Keymap.Rename_Entry => Renaming,
+                    when Keymap.Create_Entry => Creating,
+                    when others => Changing_Mode);
+               State.Frame.Prompting := True;
+               State.Frame.Prompt_Label :=
+                 (case State.Mode is
+                    when Renaming => State.Words.Rename_Prompt,
+                    when Creating => State.Words.Create_Prompt,
+                    when others => State.Words.Mode_Prompt);
+               State.Frame.Prompt_Text :=
+                 (case State.Mode is
+                    when Renaming => Unbounded.To_Unbounded_String (Model.Selected_Name (Current)),
+                    when Changing_Mode =>
+                      Unbounded.To_Unbounded_String
+                        (Posix_Tools.Text.File_Modes.Four_Digit_Octal_Image
+                           (Model.Selected (Current).Status.Mode mod 8#10000#)),
+                    when others => Unbounded.Null_Unbounded_String);
+            end if;
+         when Keymap.Cancel_Job =>
+            if State.Last_Job.Running then
+               State.Operations.Cancel;
+               State.Frame.Message := State.Words.Cancelled;
+            end if;
          when Keymap.Sort_Entries =>
             State.Browser.Order.Key := Item.Key;
             State.Browser.Order.Descending := Item.Descending;
@@ -491,6 +844,17 @@ package body Explore.Application is
             end if;
       end case;
    end Perform;
+
+   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job) is
+      Accepted : Boolean;
+   begin
+      State.Operations.Submit (Item, Accepted);
+
+      if not Accepted then
+         State.Frame.Message := State.Words.Queue_Full;
+         State.Frame.Message_Is_Error := True;
+      end if;
+   end Queue_Job;
 
    procedure Read_Into_Decoder (State : in out Session; Timeout_Ms : Integer; Ended : out Boolean) is
       Buffer  : Ada.Streams.Stream_Element_Array (1 .. 4096);
@@ -589,6 +953,8 @@ package body Explore.Application is
 
       State.In_Tmux := Context.Environment_Defined ("TMUX");
       State.Frame.Text := Load_Labels (Context.Effective_Locale);
+      State.Words := Load_Words (Context.Effective_Locale);
+      State.Locale := Unbounded.To_Unbounded_String (Context.Effective_Locale);
       State.Home := Unbounded.To_Unbounded_String (Context.Environment_Value ("HOME"));
 
       if not Terminal_IO.Size (State.Size) then
@@ -666,24 +1032,37 @@ package body Explore.Application is
       end if;
 
       declare
-         Jobs    : aliased Explore.Tasks.Board;
-         Workers : array (1 .. Explore.Tasks.Worker_Count) of Explore.Tasks.Worker (Jobs'Access);
-         pragma Unreferenced (Workers);
+         Jobs       : aliased Explore.Tasks.Board;
+         Workers    : array (1 .. Explore.Tasks.Worker_Count) of Explore.Tasks.Worker (Jobs'Access);
+         Operations : aliased Explore.Jobs.Board;
+         Operator   : Explore.Jobs.Worker (Operations'Access);
+         pragma Unreferenced (Workers, Operator);
+
+         procedure Stop_Workers;
+
+         --  The workers must end before this block can be left. A file
+         --  operation still running is stopped where it is.
+         procedure Stop_Workers is
+         begin
+            Operations.Shut_Down;
+            Jobs.Shut_Down;
+            Release_Watches (State);
+            State.Operations := null;
+         end Stop_Workers;
       begin
+         --  The session outlives neither board: Stop_Workers forgets it.
+         State.Operations := Operations'Unchecked_Access;
          Resize (State, State.Size.Rows, State.Size.Columns);
 
          begin
             Main_Loop (State, Jobs);
          exception
             when others =>
-               --  The readers must end before this block can be left.
-               Jobs.Shut_Down;
-               Release_Watches (State);
+               Stop_Workers;
                raise;
          end;
 
-         Jobs.Shut_Down;
-         Release_Watches (State);
+         Stop_Workers;
       end;
 
       Hand_Back;
@@ -760,5 +1139,77 @@ package body Explore.Application is
          end if;
       end loop;
    end Take_Signals;
+
+   procedure Watch_Jobs (State : in out Session) is
+      Now : constant Explore.Jobs.Snapshot := State.Operations.Status;
+
+      function Image (Value : Natural) return String is
+        (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
+   begin
+      if Now = State.Last_Job then
+         return;
+      end if;
+
+      State.Dirty := True;
+
+      if Now.Running then
+         declare
+            Verb : constant Unbounded.Unbounded_String :=
+              (case Now.Kind is
+                 when Explore.Jobs.Copy_Job => State.Words.Copying,
+                 when Explore.Jobs.Move_Job => State.Words.Moving,
+                 when Explore.Jobs.Link_Job => State.Words.Linking,
+                 when Explore.Jobs.Delete_Job => State.Words.Deleting);
+            Percent : constant String :=
+              (if Now.Size > 0
+               then " " & Image (Natural (Long_Long_Integer'Min (100, Now.Copied * 100 / Now.Size))) & "%"
+               else "");
+         begin
+            State.Frame.Job_Line :=
+              Unbounded.To_Unbounded_String
+                (Unbounded.To_String (Verb) & " " & Image (Natural'Min (Now.Done + 1, Now.Total)) & "/"
+                 & Image (Now.Total) & " " & Model.Name_Of (Unbounded.To_String (Now.Current)) & Percent
+                 & (if Now.Queued > 0 then " +" & Image (Now.Queued) else ""));
+         end;
+      else
+         State.Frame.Job_Line := Unbounded.Null_Unbounded_String;
+      end if;
+
+      if Now.Asking and then State.Mode /= Answering then
+         State.Mode := Answering;
+         State.Frame.Question :=
+           Unbounded.To_Unbounded_String
+             (Posix_Tools.Localization.Text_1
+                (Unbounded.To_String (State.Locale),
+                 "posix_tools.explore.ui.conflict",
+                 "path",
+                 Model.Name_Of (Unbounded.To_String (Now.Conflict)),
+                 Model.Name_Of (Unbounded.To_String (Now.Conflict))
+                 & " exists: o overwrite, s skip, O overwrite all, S skip all"));
+      elsif not Now.Asking and then State.Mode = Answering then
+         State.Mode := Browsing;
+         State.Frame.Question := Unbounded.Null_Unbounded_String;
+      end if;
+
+      if Now.Completed /= State.Last_Job.Completed then
+         --  Whatever the job changed is read again.
+         Model.Reload_All (State.Browser);
+      end if;
+
+      if Now.Errors > 0 and then not Now.Running then
+         Complain (State, Unbounded.To_String (Now.Error_Path), Now.Error);
+
+         if Now.Errors > 1 then
+            State.Frame.Message :=
+              Unbounded.To_Unbounded_String
+                (Image (Now.Errors) & " " & Unbounded.To_String (State.Words.Errors) & ", "
+                 & Unbounded.To_String (State.Frame.Message));
+         end if;
+
+         State.Operations.Clear_Errors;
+      end if;
+
+      State.Last_Job := State.Operations.Status;
+   end Watch_Jobs;
 
 end Explore.Application;

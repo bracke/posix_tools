@@ -10,12 +10,14 @@ package body Explore.Render is
    use type Listing.Entry_Kind;
    use type Model.Pane_Kind;
    use type Model.Pane_State;
+   use type Unbounded.Unbounded_String;
 
    Title_Style  : constant Screen.Style := (Bold => True, others => <>);
    Path_Style   : constant Screen.Style := (Foreground => Screen.Blue, Bold => True, others => <>);
    Note_Style   : constant Screen.Style := (Dim => True, others => <>);
    Error_Style  : constant Screen.Style := (Foreground => Screen.Red, others => <>);
    Status_Style : constant Screen.Style := (Inverse => True, others => <>);
+   Alert_Style  : constant Screen.Style := (Foreground => Screen.Red, Inverse => True, others => <>);
 
    function Image (Value : Natural) return String;
 
@@ -173,6 +175,11 @@ package body Explore.Render is
                Name_Room : constant Natural :=
                  (if Size_Text'Length > 0 then Place.Width - Size_Text'Length - 3 else Place.Width - 2);
             begin
+               if Model.Is_Marked (Item, Unbounded.To_String (Shown.Name)) then
+                  Style.Foreground := Screen.Magenta;
+                  Style.Bold := True;
+               end if;
+
                if I = Item.Cursor then
                   if Active then
                      Style.Inverse := True;
@@ -202,17 +209,30 @@ package body Explore.Render is
       Columns : constant Natural := Screen.Columns (Into);
       Current : Model.Pane renames Browser.Panes (Model.Current_Pane);
       Filter  : constant String := Unbounded.To_String (Browser.Filter);
+      Marked  : constant Natural := Natural (Current.Marked.Length);
       Right   : constant String :=
-        (if Context.Editing or else Filter'Length = 0 then ""
-         else Unbounded.To_String (Context.Text.Filter) & ": " & Filter & "  ")
+        (if Unbounded.Length (Context.Job_Line) = 0 then "" else Unbounded.To_String (Context.Job_Line) & "  ")
+        & (if Marked = 0 then "" else Image (Marked) & " " & Unbounded.To_String (Context.Text.Marked) & "  ")
+        & (if Context.Editing or else Filter'Length = 0 then ""
+           else Unbounded.To_String (Context.Text.Filter) & ": " & Filter & "  ")
         & Unbounded.To_String (Context.Prefix)
         & (if Unbounded.Length (Context.Prefix) > 0 then "  " else "")
         & Image (Current.Cursor) & "/" & Image (Model.Shown_Count (Current))
         & "  " & Unbounded.To_String (Context.Text.Quit_Hint) & " ";
       Left    : Unbounded.Unbounded_String;
+      Style   : Screen.Style := Status_Style;
    begin
-      if Context.Editing then
+      if Context.Prompting then
+         Left := Unbounded.To_Unbounded_String
+           (" " & Unbounded.To_String (Context.Prompt_Label) & ": " & Unbounded.To_String (Context.Prompt_Text) & "_");
+      elsif Unbounded.Length (Context.Question) > 0 then
+         Left := " " & Context.Question;
+         Style := Alert_Style;
+      elsif Context.Editing then
          Left := Unbounded.To_Unbounded_String (" " & Unbounded.To_String (Context.Text.Filter) & ": " & Filter & "_");
+      elsif Unbounded.Length (Context.Message) > 0 then
+         Left := " " & Context.Message;
+         Style := (if Context.Message_Is_Error then Alert_Style else Status_Style);
       elsif Model.Has_Selection (Current) then
          declare
             Item : constant Listing.Listed_Entry := Model.Selected (Current);
@@ -230,7 +250,7 @@ package body Explore.Render is
       end if;
 
       Screen.Fill (Into, Row, 1, Columns, Status_Style);
-      Write (Into, Row, 1, Columns, Unbounded.To_String (Left), Status_Style);
+      Write (Into, Row, 1, Columns, Unbounded.To_String (Left), Style);
 
       declare
          Right_Width : constant Natural := Screen.Width_Of (Right);

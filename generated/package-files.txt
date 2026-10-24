@@ -533,6 +533,8 @@ tools/explore/src/library/explore-format.adb
 tools/explore/src/library/explore-format.ads
 tools/explore/src/library/explore-input.adb
 tools/explore/src/library/explore-input.ads
+tools/explore/src/library/explore-jobs.adb
+tools/explore/src/library/explore-jobs.ads
 tools/explore/src/library/explore-keymap.adb
 tools/explore/src/library/explore-keymap.ads
 tools/explore/src/library/explore-model.adb
@@ -553,6 +555,8 @@ tools/explore/tests/src/explore_suites.ads
 tools/explore/tests/src/explore_tests.adb
 tools/explore/tests/src/input_tests.adb
 tools/explore/tests/src/input_tests.ads
+tools/explore/tests/src/jobs_tests.adb
+tools/explore/tests/src/jobs_tests.ads
 tools/explore/tests/src/model_tests.adb
 tools/explore/tests/src/model_tests.ads
 tools/explore/tests/src/protocol_tests.adb

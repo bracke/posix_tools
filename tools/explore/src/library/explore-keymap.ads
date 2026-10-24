@@ -22,7 +22,17 @@ package Explore.Keymap is
       Start_Filter,
       Clear_Filter,
       Sort_Entries,
-      Go_Home);
+      Go_Home,
+      Toggle_Mark,
+      Yank,
+      Cut,
+      Paste,
+      Paste_Links,
+      Delete_Entries,
+      Rename_Entry,
+      Create_Entry,
+      Change_Mode,
+      Cancel_Job);
 
    type Command is record
       Kind       : Action := No_Action;

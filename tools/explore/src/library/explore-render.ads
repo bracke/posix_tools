@@ -12,6 +12,7 @@ package Explore.Render is
       Unreadable : Ada.Strings.Unbounded.Unbounded_String;
       Empty      : Ada.Strings.Unbounded.Unbounded_String;
       Filter     : Ada.Strings.Unbounded.Unbounded_String;
+      Marked     : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    type Pane_Place is record
@@ -41,6 +42,17 @@ package Explore.Render is
       Editing : Boolean := False;
       --  The prefix key waiting for its second key.
       Prefix  : Ada.Strings.Unbounded.Unbounded_String;
+      --  A line of text being typed for an operation, under its label.
+      Prompting    : Boolean := False;
+      Prompt_Label : Ada.Strings.Unbounded.Unbounded_String;
+      Prompt_Text  : Ada.Strings.Unbounded.Unbounded_String;
+      --  A question waiting for a key, such as a confirmation.
+      Question     : Ada.Strings.Unbounded.Unbounded_String;
+      --  What the last operation had to say, shown until the next key.
+      Message      : Ada.Strings.Unbounded.Unbounded_String;
+      Message_Is_Error : Boolean := False;
+      --  The running job, as the status line shows it.
+      Job_Line     : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  Draw the whole frame for Browser into Into, scrolling each pane so its
