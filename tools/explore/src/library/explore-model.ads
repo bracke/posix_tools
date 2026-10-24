@@ -42,6 +42,9 @@ package Explore.Model is
       Wanted     : Ada.Strings.Unbounded.Unbounded_String;
       --  Names marked for an operation.
       Marked     : Name_Sets.Set;
+      --  The pane holds search results, each named by its path below Path,
+      --  instead of a directory's entries; it is never read again.
+      Is_Search  : Boolean := False;
    end record;
 
    type Pane_Kind is (Parent_Pane, Current_Pane, Preview_Pane);
@@ -65,6 +68,8 @@ package Explore.Model is
       --  and the marks there were before it started.
       Visual_Anchor : Natural := 0;
       Visual_Base   : Name_Sets.Set;
+      --  What the search the current pane shows looks for.
+      Search_Label  : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  How many directories back history keeps.
@@ -106,6 +111,21 @@ package Explore.Model is
    procedure End_Visual (Self : in out Browser);
 
    function In_Visual (Self : Browser) return Boolean is (Self.Visual_Anchor > 0);
+
+   --  Show the results of a search below Root in the current pane, as a
+   --  visit, and return the generation the results must carry. Label says
+   --  what is searched for.
+   procedure Begin_Search (Self : in out Browser; Root, Label : String; Generation : out Natural);
+
+   --  Add results found for Generation, the cursor staying on its entry;
+   --  Finished says the search has ended.
+   procedure Add_Results
+     (Self       : in out Browser;
+      Generation : Natural;
+      Found      : Listing.Entry_Vectors.Vector;
+      Finished   : Boolean);
+
+   function Is_Searching (Self : Browser) return Boolean is (Self.Panes (Current_Pane).Is_Search);
 
    --  Ask for a pane's entries again, keeping what it shows until they come.
    procedure Reload (Self : in out Browser; Kind : Pane_Kind);

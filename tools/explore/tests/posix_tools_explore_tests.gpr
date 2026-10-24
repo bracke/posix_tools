@@ -1,5 +1,6 @@
 with "../../../common/posix_tools_common.gpr";
 with "aunit.gpr";
+with "../../../../greplib/greplib.gpr";
 
 --  The explore library's sources are compiled straight into the test program:
 --  explore is an executable crate, and a test crate may not depend on it.

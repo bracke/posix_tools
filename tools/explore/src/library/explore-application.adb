@@ -12,6 +12,7 @@ with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
 with Explore.Screen;
+with Explore.Search;
 with Explore.Tasks;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
@@ -42,6 +43,7 @@ package body Explore.Application is
    use type Explore.Input.Mouse_Button;
    use type Explore.Input.Reply_Kind;
    use type Explore.Model.Pane_Kind;
+   use type Explore.Model.Pane_State;
    use type Explore.Jobs.Snapshot;
    use type Explore.Keymap.Action;
    use type Explore.Previews.Preview_Kind;
@@ -90,6 +92,7 @@ package body Explore.Application is
 
    type Board_Access is access all Explore.Jobs.Board;
    type Preview_Board_Access is access all Explore.Previews.Board;
+   type Search_Board_Access is access all Explore.Search.Board;
 
    --  What the next key means, beyond browsing.
    type Interaction is
@@ -100,7 +103,9 @@ package body Explore.Application is
       Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
       Answering,         --  A running job asks about a target that exists.
       Viewing_Jobs,      --  The jobs panel is open.
-      Jumping);          --  Typing a path to go to.
+      Jumping,           --  Typing a path to go to.
+      Finding_Names,     --  Typing a name or glob to search for.
+      Finding_Text);     --  Typing text to search files for.
 
    --  Interface text for operations, looked up once.
    type Operation_Labels is record
@@ -126,6 +131,11 @@ package body Explore.Application is
       No_Jobs       : Unbounded.Unbounded_String;
       Jobs_Title    : Unbounded.Unbounded_String;
       Jump_Prompt   : Unbounded.Unbounded_String;
+      Names_Prompt  : Unbounded.Unbounded_String;
+      Text_Prompt   : Unbounded.Unbounded_String;
+      Searching     : Unbounded.Unbounded_String;
+      Found         : Unbounded.Unbounded_String;
+      Too_Many      : Unbounded.Unbounded_String;
       Bookmarked    : Unbounded.Unbounded_String;
       No_Bookmark   : Unbounded.Unbounded_String;
    end record;
@@ -207,6 +217,12 @@ package body Explore.Application is
       Tabs        : Tab_Vectors.Vector;
       Active_Tab  : Positive := 1;
       Bookmarks   : Bookmark_Maps.Map;
+
+      Searcher          : Search_Board_Access;
+      --  The generation of the search last started; its results go to the
+      --  current pane while it shows them.
+      Search_Generation : Natural := 0;
+      Search_Found      : Natural := 0;
    end record;
 
    function Write (Text : String) return Boolean renames Terminal_IO.Write;
@@ -299,6 +315,10 @@ package body Explore.Application is
    --  Follow the jobs: their progress line, their questions, and what they
    --  changed.
    procedure Watch_Jobs (State : in out Session);
+
+   --  Take the results the search has found, and stop it once the current
+   --  pane no longer shows it.
+   procedure Watch_Search (State : in out Session);
 
    --  Make tab To the active one, reading its panes again.
    procedure Switch_Tab (State : in out Session; To : Positive);
@@ -409,6 +429,20 @@ package body Explore.Application is
             end;
          when Jumping =>
             Jump_To (State, Text);
+         when Finding_Names | Finding_Text =>
+            declare
+               Root : constant String := Unbounded.To_String (Current.Path);
+            begin
+               Model.Begin_Search (State.Browser, Root, Text, State.Search_Generation);
+               State.Search_Found := 0;
+               State.Searcher.Submit
+                 ((Root           => Unbounded.To_Unbounded_String (Root),
+                   Pattern        => Unbounded.To_Unbounded_String (Text),
+                   Kind           =>
+                     (if State.Mode = Finding_Names then Explore.Search.By_Name else Explore.Search.By_Content),
+                   Include_Hidden => State.Browser.Show_Hidden,
+                   Generation     => State.Search_Generation));
+            end;
          when Browsing | Confirming_Delete | Answering | Viewing_Jobs =>
             null;
       end case;
@@ -431,6 +465,12 @@ package body Explore.Application is
    begin
       State.Frame.Prefix := Unbounded.To_Unbounded_String (Keymap.Pending (State.Keys));
       State.Frame.Tab_Line := Unbounded.Null_Unbounded_String;
+      State.Frame.Search_Line :=
+        (if Model.Is_Searching (State.Browser)
+         then Unbounded.To_Unbounded_String
+                ((if Current.State = Model.Loading then Unbounded.To_String (State.Words.Searching) & " " else "")
+                 & "'" & Unbounded.To_String (State.Browser.Search_Label) & "'")
+         else Unbounded.Null_Unbounded_String);
 
       if Natural (State.Tabs.Length) > 1 then
          for I in 1 .. Natural (State.Tabs.Length) loop
@@ -620,7 +660,7 @@ package body Explore.Application is
                      Keymap.Translate (State.Keys, Item, Command);
                      Perform (State, Command);
                   end if;
-               when Renaming | Creating | Changing_Mode | Jumping =>
+               when Renaming | Creating | Changing_Mode | Jumping | Finding_Names | Finding_Text =>
                   declare
                      Done, Abandoned : Boolean;
                   begin
@@ -882,6 +922,11 @@ package body Explore.Application is
          No_Jobs       => Word ("job.none", "no operations"),
          Jobs_Title    => Word ("job.title", "operations: j/k move, x cancel, w close"),
          Jump_Prompt   => Word ("prompt.jump", "go to"),
+         Names_Prompt  => Word ("prompt.find_names", "find names (globs with * ? [ ])"),
+         Text_Prompt   => Word ("prompt.find_text", "find text in files"),
+         Searching     => Word ("searching", "searching"),
+         Found         => Word ("found", "found"),
+         Too_Many      => Word ("too_many", "more than were kept"),
          Bookmarked    => Word ("bookmarked", "bookmarked"),
          No_Bookmark   => Word ("no_bookmark", "no such bookmark"));
    end Load_Words;
@@ -922,6 +967,7 @@ package body Explore.Application is
 
          Collect (State, Jobs);
          Watch_Jobs (State);
+         Watch_Search (State);
          Watch_Preview (State);
          Sync (State, Jobs);
 
@@ -936,6 +982,7 @@ package body Explore.Application is
          Read_Into_Decoder
            (State,
             (if Jobs.Busy or else Explore.Jobs.Any_Running (State.Last_Job) or else State.Previewer.Busy
+               or else State.Searcher.Busy
              then Busy_Poll_Ms
              else Idle_Poll_Ms),
             Ended);
@@ -1124,6 +1171,12 @@ package body Explore.Application is
             Model.Go_Back (State.Browser);
          when Keymap.Go_Forward =>
             Model.Go_Forward (State.Browser);
+         when Keymap.Search_Names | Keymap.Search_Contents =>
+            State.Mode := (if Item.Kind = Keymap.Search_Names then Finding_Names else Finding_Text);
+            State.Frame.Prompting := True;
+            State.Frame.Prompt_Label :=
+              (if Item.Kind = Keymap.Search_Names then State.Words.Names_Prompt else State.Words.Text_Prompt);
+            State.Frame.Prompt_Text := Unbounded.Null_Unbounded_String;
          when Keymap.Jump_To_Path =>
             State.Mode := Jumping;
             State.Frame.Prompting := True;
@@ -1390,7 +1443,9 @@ package body Explore.Application is
          Operators  : array (Explore.Jobs.Lane_Index) of Explore.Jobs.Worker (Operations'Access);
          Previewer  : aliased Explore.Previews.Board;
          Builder    : Explore.Previews.Worker (Previewer'Access);
-         pragma Unreferenced (Workers, Operators, Builder);
+         Searcher   : aliased Explore.Search.Board;
+         Finder     : Explore.Search.Worker (Searcher'Access);
+         pragma Unreferenced (Workers, Operators, Builder, Finder);
 
          procedure Stop_Workers;
 
@@ -1400,15 +1455,18 @@ package body Explore.Application is
          begin
             Operations.Shut_Down;
             Previewer.Shut_Down;
+            Searcher.Shut_Down;
             Jobs.Shut_Down;
             Release_Watches (State);
             State.Operations := null;
             State.Previewer := null;
+            State.Searcher := null;
          end Stop_Workers;
       begin
          --  The session outlives neither board: Stop_Workers forgets it.
          State.Operations := Operations'Unchecked_Access;
          State.Previewer := Previewer'Unchecked_Access;
+         State.Searcher := Searcher'Unchecked_Access;
          Resize (State, State.Size.Rows, State.Size.Columns);
 
          begin
@@ -1767,4 +1825,34 @@ package body Explore.Application is
       end if;
    end Watch_Preview;
 
+   procedure Watch_Search (State : in out Session) is
+      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Results : Explore.Search.Progress;
+      Found   : Boolean;
+   begin
+      if not Current.Is_Search or else Current.Generation /= State.Search_Generation then
+         --  Gone elsewhere: what the search would find has nowhere to go.
+         if State.Searcher.Busy then
+            State.Searcher.Stop;
+         end if;
+
+         return;
+      end if;
+
+      State.Searcher.Collect (Results, Found);
+
+      if Found and then Results.Generation = State.Search_Generation then
+         State.Search_Found := State.Search_Found + Natural (Results.Found.Length);
+         Model.Add_Results (State.Browser, Results.Generation, Results.Found, Results.Finished);
+         State.Dirty := True;
+
+         if Results.Finished then
+            State.Frame.Message :=
+              Unbounded.To_Unbounded_String
+                (Image (State.Search_Found) & " " & Unbounded.To_String (State.Words.Found)
+                 & (if Results.Truncated then ", " & Unbounded.To_String (State.Words.Too_Many) else ""));
+            State.Frame.Message_Is_Error := False;
+         end if;
+      end if;
+   end Watch_Search;
 end Explore.Application;

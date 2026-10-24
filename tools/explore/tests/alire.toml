@@ -14,8 +14,14 @@ posix_tools_common = "*"
 [[depends-on]]
 aunit = "*"
 
+[[depends-on]]
+greplib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../../../common" }
+
+[[pins]]
+greplib = { path = "../../../../greplib" }
 
 [build-profiles]
 "*" = "development"

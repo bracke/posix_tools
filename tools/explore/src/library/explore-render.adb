@@ -297,6 +297,7 @@ package body Explore.Render is
       Right   : constant String :=
         (if Unbounded.Length (Context.Job_Line) = 0 then "" else Unbounded.To_String (Context.Job_Line) & "  ")
         & (if Marked = 0 then "" else Image (Marked) & " " & Unbounded.To_String (Context.Text.Marked) & "  ")
+        & (if Unbounded.Length (Context.Search_Line) = 0 then "" else Unbounded.To_String (Context.Search_Line) & "  ")
         & (if Context.Editing or else Filter'Length = 0 then ""
            else Unbounded.To_String (Context.Text.Filter) & ": " & Filter & "  ")
         & Unbounded.To_String (Context.Prefix)

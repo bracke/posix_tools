@@ -129,6 +129,10 @@ package body Explore.Keymap is
             return (Kind => Jump_To_Path, others => <>);
          when 'v' =>
             return (Kind => Visual_Mode, others => <>);
+         when '/' =>
+            return (Kind => Search_Names, others => <>);
+         when '?' =>
+            return (Kind => Search_Contents, others => <>);
          when 'b' =>
             Self.Waiting := Bookmark_Prefix;
          when ''' =>

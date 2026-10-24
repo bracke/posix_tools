@@ -57,11 +57,50 @@ package body Explore.Model is
 
    function Shown_Entry (Item : Pane; I : Positive) return Listing.Listed_Entry is
      (Item.Entries (Item.Shown (I)));
+   procedure Add_Results
+     (Self       : in out Browser;
+      Generation : Natural;
+      Found      : Listing.Entry_Vectors.Vector;
+      Finished   : Boolean)
+   is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      if not Current.Is_Search or else Current.Generation /= Generation then
+         return;
+      end if;
+
+      Current.Entries.Append (Found);
+      Show (Current, Unbounded.To_String (Self.Filter), Selected_Name (Current), Current.Cursor);
+
+      if Finished then
+         Current.State := Loaded;
+      end if;
+   end Add_Results;
+
    procedure Apply_Filter (Self : in out Browser) is
       Current : Pane renames Self.Panes (Current_Pane);
    begin
       Show (Current, Unbounded.To_String (Self.Filter), Selected_Name (Current), Current.Cursor);
    end Apply_Filter;
+
+   procedure Begin_Search (Self : in out Browser; Root, Label : String; Generation : out Natural) is
+   begin
+      End_Visual (Self);
+      Clear_Marks (Self);
+      Self.Filter := Unbounded.Null_Unbounded_String;
+      Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
+      Generation := Next_Generation (Self);
+      Self.Panes (Current_Pane) :=
+        (Path       => Unbounded.To_Unbounded_String (Root),
+         State      => Loading,
+         Generation => Generation,
+         Is_Search  => True,
+         others     => <>);
+      Self.Search_Label := Unbounded.To_Unbounded_String (Label);
+      --  Beside the results, the directory they were found in.
+      Self.Panes (Parent_Pane) := New_Pane (Self, Root);
+      Self.Panes (Preview_Pane) := (others => <>);
+   end Begin_Search;
 
    procedure Clear_Marks (Self : in out Browser) is
    begin
@@ -208,6 +247,12 @@ package body Explore.Model is
       Clear_Marks (Self);
       Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
 
+      --  Leaving search results goes back to the directory searched.
+      if Self.Panes (Current_Pane).Is_Search then
+         Open (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
+         return;
+      end if;
+
       declare
          Left   : constant String := Unbounded.To_String (Self.Panes (Current_Pane).Path);
          Parent : constant String := Parent_Of (Left);
@@ -341,7 +386,7 @@ package body Explore.Model is
    procedure Reload (Self : in out Browser; Kind : Pane_Kind) is
       Item : Pane renames Self.Panes (Kind);
    begin
-      if Item.State /= Empty then
+      if Item.State /= Empty and then not Item.Is_Search then
          Item.Generation := Next_Generation (Self);
          Item.Pending := True;
       end if;

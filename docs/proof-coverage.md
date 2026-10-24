@@ -104,6 +104,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.text.expr_expressions`
 - `posix_tools.text.expr_regex`
 - `posix_tools.text.file_descriptions`
+- `posix_tools.text.glob`
 - `posix_tools.text.printf_formats`
 - `posix_tools.text.printf_formats.number_images`
 - `posix_tools.text.printf_formats.number_images.float_images`

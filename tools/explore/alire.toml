@@ -11,8 +11,14 @@ project-files = ["posix_tools_explore.gpr"]
 [[depends-on]]
 posix_tools_common = "*"
 
+[[depends-on]]
+greplib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../../common" }
+
+[[pins]]
+greplib = { path = "../../../greplib" }
 
 [build-profiles]
 "*" = "development"

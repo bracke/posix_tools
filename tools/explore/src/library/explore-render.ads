@@ -57,6 +57,9 @@ package Explore.Render is
       Editing : Boolean := False;
       --  The prefix key waiting for its second key.
       Prefix  : Ada.Strings.Unbounded.Unbounded_String;
+      --  What the search shown in the current pane looks for, empty when it
+      --  shows a directory, and whether it is still looking.
+      Search_Line : Ada.Strings.Unbounded.Unbounded_String;
       --  The tabs, when there is more than one, the active one bracketed.
       Tab_Line : Ada.Strings.Unbounded.Unbounded_String;
       --  A line of text being typed for an operation, under its label.

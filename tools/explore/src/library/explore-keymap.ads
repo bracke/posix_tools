@@ -44,7 +44,9 @@ package Explore.Keymap is
       Jump_To_Path,
       Set_Bookmark,
       Go_Bookmark,
-      Visual_Mode);
+      Visual_Mode,
+      Search_Names,
+      Search_Contents);
 
    type Command is record
       Kind       : Action := No_Action;
