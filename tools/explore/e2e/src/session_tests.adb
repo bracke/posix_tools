@@ -35,6 +35,10 @@ package body Session_Tests is
    --  Quit, and check that the terminal was handed back as it was found.
    procedure Quit (Session : in out E2E_Rig.Rig);
 
+   --  Pump until there is a file at Path, at most about five seconds;
+   --  whether there is.
+   function Wait_For_File (Session : in out E2E_Rig.Rig; Path : String) return Boolean;
+
    procedure Open (Session : in out E2E_Rig.Rig; Directory : String; Columns : Positive := 100) is
    begin
       E2E_Rig.Start (Session, Directory, Columns => Columns);
@@ -234,9 +238,8 @@ package body Session_Tests is
       E2E_Rig.Send (Session, ESC & "[<0;5;5M" & ESC & "[<0;5;5m");
       E2E_Rig.Pump (Session, 100);
       E2E_Rig.Send (Session, [1 .. 9 => DEL] & "moved.txt" & CR);
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "moved.txt"), "renamed");
       AUnit.Assertions.Assert
-        (Ada.Directories.Exists (Root & "/moved.txt") and then not Ada.Directories.Exists (Root & "/plain.txt"),
+        (Wait_For_File (Session, Root & "/moved.txt") and then not Ada.Directories.Exists (Root & "/plain.txt"),
          "renamed where it was, not in the directory clicked");
 
       --  A search result is renamed in its own directory, from its own name.
@@ -247,9 +250,8 @@ package body Session_Tests is
       E2E_Rig.Send (Session, "r");
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "rename to"), "the rename prompt");
       E2E_Rig.Send (Session, [1 .. 9 => DEL] & "kept.txt" & CR);
-      E2E_Rig.Pump (Session, 200);
       AUnit.Assertions.Assert
-        (Ada.Directories.Exists (Root & "/sub/kept.txt") and then not Ada.Directories.Exists (Root & "/kept.txt"),
+        (Wait_For_File (Session, Root & "/sub/kept.txt") and then not Ada.Directories.Exists (Root & "/kept.txt"),
          "renamed in sub, not at the search's root");
       Quit (Session);
    end Test_Rename;
@@ -343,4 +345,13 @@ package body Session_Tests is
 
       E2E_Rig.Stop (Session);
    end Test_Start_And_Quit;
+   function Wait_For_File (Session : in out E2E_Rig.Rig; Path : String) return Boolean is
+   begin
+      for Step in 1 .. 500 loop
+         exit when Ada.Directories.Exists (Path);
+         E2E_Rig.Pump (Session, 10);
+      end loop;
+
+      return Ada.Directories.Exists (Path);
+   end Wait_For_File;
 end Session_Tests;
