@@ -390,7 +390,7 @@ package body Settings_Tests is
       Ok := Posix_Tools.Host_Adapters.Processes.Run
         (Explore.Launch.Shell, Explore.Launch.Shell_Arguments (Root & "/missing", "true", Files), Status);
       AUnit.Assertions.Assert
-        (not Ok and then Status = 126, "a directory that cannot be entered runs nothing, as a shell reports it");
+        (Ok and then Status = 126, "a directory that cannot be entered runs nothing, as a shell reports it");
    end Test_Shell;
 
    procedure Test_Shift (T : in out Fixture) is

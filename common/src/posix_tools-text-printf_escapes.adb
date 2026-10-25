@@ -24,17 +24,21 @@ is
    function Lead (Text : String; Processed : Natural) return Natural is
      (if Text (Text'First + Processed + 1) = '0' then 1 else 0)
      with
-       Pre => Processed + 1 < Text'Length,
+       Pre => Processed < Text'Length - 1,
        Post => Lead'Result <= 1;
 
+   --  A \0 at the very end has no digits after it; say so rather than
+   --  index past a string that may end at Positive'Last.
    function Octal_Escape
      (Text      : String;
       Processed : Natural) return Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix
    is
-     (Posix_Tools.Text.Octal_Parsing.Prefix_Value
+     (if Processed + 1 + Lead (Text, Processed) >= Text'Length
+      then (Count => 0, Value => 0)
+      else Posix_Tools.Text.Octal_Parsing.Prefix_Value
         (Text (Text'First + Processed + 1 + Lead (Text, Processed) .. Text'Last), 3))
      with
-       Pre => Processed + 1 < Text'Length;
+       Pre => Processed < Text'Length - 1;
 
    function Stop_Decoding (Text : String) return Boolean is
       Processed : Natural := 0;
