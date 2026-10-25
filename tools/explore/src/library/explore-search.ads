@@ -1,4 +1,5 @@
 with Ada.Strings.Unbounded;
+with Greplib.Cancellation;
 with Posix_Tools.File_Operations.Listing;
 
 --  Finding entries below a directory: by name, as a glob when the pattern has
@@ -40,6 +41,9 @@ package Explore.Search is
    --  Whether Name matches Pattern as a name search takes it.
    function Name_Matches (Pattern, Name : String) return Boolean;
 
+   --  How a search that reads a file is stopped in the middle of it.
+   type Source_Access is access all Greplib.Cancellation.Cancellation_Source;
+
    protected type Board is
       procedure Submit (Item : Request);
       --  Stop the search running, if any, without starting another.
@@ -51,6 +55,11 @@ package Explore.Search is
 
       entry Take (Item : out Request; Closed : out Boolean);
       function Is_Wanted (Generation : Natural) return Boolean;
+      --  The search for Generation is stopped through Source, even inside a
+      --  file, once it is no longer wanted -- at once if it already is not --
+      --  until it is forgotten.
+      procedure Watch (Source : Source_Access; Generation : Natural);
+      procedure Forget;
       procedure Deliver (Batch : Listing.Entry_Vectors.Vector; Generation : Natural; Scanned : Natural);
       procedure Finish (Generation : Natural; Truncated : Boolean);
    private
@@ -60,6 +69,11 @@ package Explore.Search is
       Pending : Progress;
       Ready   : Boolean := False;
       Closed  : Boolean := False;
+      --  The source of the search running, while it runs.
+      Watched : Source_Access;
+
+      --  Stop the search running, inside a file too.
+      procedure Stop_Watched;
    end Board;
 
    task type Worker (Jobs : not null access Board);

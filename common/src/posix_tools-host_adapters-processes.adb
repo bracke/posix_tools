@@ -140,7 +140,8 @@ package body Posix_Tools.Host_Adapters.Processes is
       Arguments   : Posix_Tools.Arguments.Vector;
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
-      Timed_Out   : out Boolean) return Boolean
+      Timed_Out   : out Boolean;
+      Cancelled   : Cancel_Check := null) return Boolean
    is
       Program : constant String := Hostkit.Process.Locate (Utility);
       Host_Arguments : constant Hostkit.String_Vectors.Vector := To_Host_Arguments (Arguments);
@@ -157,7 +158,8 @@ package body Posix_Tools.Host_Adapters.Processes is
         Hostkit.Process.Run_Captured
           (Program    => Program,
            Arguments  => Host_Arguments,
-           Timeout_Ms => Timeout_Ms);
+           Timeout_Ms => Timeout_Ms,
+           Cancelled  => Hostkit.Process.Cancel_Check (Cancelled));
 
       Timed_Out := Outcome.Timed_Out;
       Exit_Status := Outcome.Exit_Status;

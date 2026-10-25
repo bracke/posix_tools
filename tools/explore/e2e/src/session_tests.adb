@@ -1,8 +1,11 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Ada.Directories;
+with Ada.Environment_Variables;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with E2E_Rig;
+with GNAT.OS_Lib;
 with Terminal.Core;
 
 package body Session_Tests is
@@ -67,6 +70,8 @@ package body Session_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:shell command", Test_Shell_Command'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:conflicts", Test_Conflicts'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:rename", Test_Rename'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("session:quit while previewing", Test_Quit_While_Previewing'Access));
       return Result;
    end Suite;
 
@@ -218,6 +223,65 @@ package body Session_Tests is
         (E2E_Rig.Placeholder_Cells (Session) > 0, "and placed in the preview pane with placeholders");
       Quit (Session);
    end Test_Image;
+
+   procedure Test_Quit_While_Previewing (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Ada.Real_Time.Time_Span;
+
+      LF       : constant Character := Character'Val (10);
+      Root     : constant String := E2E_Rig.Fixture ("quit-previewing");
+      Scratch  : constant String := Root & "/tmp";
+      Taken    : constant String := Scratch & "/explore-thumbnails-1";
+      Made     : constant String := Scratch & "/explore-thumbnails-2";
+      Session  : E2E_Rig.Rig;
+      Ended    : Boolean;
+      Code     : Integer;
+      Private_Mode : Boolean;
+   begin
+      Ada.Directories.Create_Path (Root & "/files");
+      Ada.Directories.Create_Path (Taken);
+      E2E_Rig.Write_File (Root & "/files/x.slow", "");
+      E2E_Rig.Write_File
+        (Root & "/explore.toml", "[[preview]]" & LF & "match = ""*.slow""" & LF & "run = 'sleep 30'" & LF);
+
+      --  Thumbnails, and what previewers print, go to a directory made below
+      --  TMPDIR, whose first name is taken.
+      Ada.Environment_Variables.Set ("TMPDIR", Scratch);
+      E2E_Rig.Start (Session, Root & "/files", Options => "--config '" & Root & "/explore.toml'");
+      Ada.Environment_Variables.Clear ("TMPDIR");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "x.slow"), "listed, and its previewer running");
+
+      for Step in 1 .. 300 loop
+         exit when Ada.Directories.Exists (Made);
+         E2E_Rig.Pump (Session, 10);
+      end loop;
+
+      E2E_Rig.Write_File (Root & "/mode.sh", "test ""$(stat -c %a ""$1"")"" = 700" & LF);
+
+      declare
+         Script    : aliased String := Root & "/mode.sh";
+         Directory : aliased String := Made;
+      begin
+         Private_Mode :=
+           GNAT.OS_Lib.Spawn ("/bin/sh", [Script'Unchecked_Access, Directory'Unchecked_Access]) = 0;
+      end;
+
+      AUnit.Assertions.Assert
+        (Ada.Directories.Exists (Made) and then Private_Mode,
+         "a directory of its own, closed to everyone else, not the one whose name was taken");
+
+      --  The previewer is stopped: quitting does not wait for it.
+      declare
+         Asked : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      begin
+         E2E_Rig.Send (Session, "q");
+         E2E_Rig.Wait_Exit (Session, Ended, Code, Timeout_Ms => 10_000);
+         E2E_Rig.Stop (Session);
+         AUnit.Assertions.Assert
+           (Ended and then Code = 0 and then Ada.Real_Time.Clock - Asked < Ada.Real_Time.Seconds (3),
+            "quit at once, with status 0");
+      end;
+   end Test_Quit_While_Previewing;
 
    procedure Test_Rename (T : in out Fixture) is
       pragma Unreferenced (T);

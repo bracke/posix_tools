@@ -30,12 +30,17 @@ package Posix_Tools.Host_Adapters.Processes is
        (if not Run_With_Nice_Adjustment'Result then
           Exit_Status in 125 .. 127);
 
+   --  Asked while a program runs under Run_With_Timeout; True stops it as
+   --  its deadline would.
+   type Cancel_Check is access function return Boolean;
+
    function Run_With_Timeout
      (Utility     : String;
       Arguments   : Posix_Tools.Arguments.Vector;
       Timeout_Ms  : Natural;
       Exit_Status : out Integer;
-      Timed_Out   : out Boolean) return Boolean
+      Timed_Out   : out Boolean;
+      Cancelled   : Cancel_Check := null) return Boolean
    with
      Post =>
        (if not Run_With_Timeout'Result then
