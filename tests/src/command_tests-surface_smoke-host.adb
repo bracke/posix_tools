@@ -38,7 +38,7 @@ package body Command_Tests.Surface_Smoke.Host is
       Posix_Tools.Commands.Arch.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) /= "",
+         and then Test_Contexts.Output (Context) = "test-machine" & EOL,
          "arch reports machine class");
    end Test_Arch;
 
@@ -657,13 +657,13 @@ package body Command_Tests.Surface_Smoke.Host is
       Context.Initialize ("id", One_Arg ("-u"));
       Posix_Tools.Commands.Id.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "50000" & EOL,
          "id -u writes identity");
 
       Context.Initialize ("id", One_Arg ("-G"));
       Posix_Tools.Commands.Id.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "60000 60001" & EOL,
          "id -G writes group list");
    end Test_Id;
 
@@ -720,7 +720,7 @@ package body Command_Tests.Surface_Smoke.Host is
       Posix_Tools.Commands.Logname.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context)'Length > 1,
+         and then Test_Contexts.Output (Context) = "session-user" & EOL,
          "logname falls back to host login database");
    end Test_Logname;
 
@@ -805,64 +805,98 @@ package body Command_Tests.Surface_Smoke.Host is
    begin
       Context.Initialize ("sleep", One_Arg ("0"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep zero status");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sleep zero status");
 
       Context.Initialize ("sleep", One_Arg ("0s"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep seconds suffix status");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sleep seconds suffix status");
 
       Context.Initialize ("sleep", One_Arg ("0m"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep minutes suffix status");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sleep minutes suffix status");
 
       Context.Initialize ("sleep", One_Arg ("0h"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep hours suffix status");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sleep hours suffix status");
 
       Context.Initialize ("sleep", One_Arg ("0d"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "sleep days suffix status");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sleep days suffix status");
 
       Context.Initialize ("sleep", Two_Args ("0.0", "0.00s"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success,
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
          "sleep accepts fractional zero durations");
 
       Context.Initialize ("sleep", No_Args);
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: missing operand" & EOL,
          "sleep rejects missing operands");
 
       Context.Initialize ("sleep", One_Arg ("-1"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '-1'" & EOL,
          "sleep rejects negative durations");
 
       Context.Initialize ("sleep", Two_Args ("31622400", "1"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '31622400'" & EOL,
          "sleep rejects duration sums above the implementation limit");
 
       Context.Initialize ("sleep", One_Arg ("31622400d"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '31622400d'" & EOL,
          "sleep rejects suffixed durations above the implementation limit");
 
       Context.Initialize ("sleep", One_Arg ("999999999999999999999999999999999999999"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '999999999999999999999999999999999999999'" & EOL,
          "sleep rejects overflowing duration");
 
       Context.Initialize ("sleep", One_Arg ("0x"));
       Posix_Tools.Commands.Sleep.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '0x'" & EOL,
          "sleep rejects unknown suffix");
    end Test_Sleep;
 
@@ -874,15 +908,17 @@ package body Command_Tests.Surface_Smoke.Host is
       Context.Initialize ("uname", No_Args);
       Posix_Tools.Commands.Uname.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "TestOS" & EOL
+         and then Test_Contexts.Error_Output (Context) = "",
          "uname writes system name");
 
       Context.Initialize ("uname", One_Arg ("-a"));
       Posix_Tools.Commands.Uname.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Contains (Test_Contexts.Output (Context), " ")
-         and then not Contains (Test_Contexts.Output (Context), "unknown"),
+         and then Test_Contexts.Output (Context) = "TestOS test-node 1.2.3 test-version test-machine" & EOL
+         and then Test_Contexts.Error_Output (Context) = "",
          "uname -a writes multiple system fields");
    end Test_Uname;
 
@@ -907,7 +943,7 @@ package body Command_Tests.Surface_Smoke.Host is
       Context.Initialize ("whoami", No_Args);
       Posix_Tools.Commands.Whoami.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context)'Length > 1,
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "test-user" & EOL,
          "whoami writes name");
    end Test_Whoami;
 

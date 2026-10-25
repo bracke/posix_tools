@@ -29,7 +29,7 @@ package body Command_Tests.Surface_Smoke.Data is
       Posix_Tools.Commands.Cksum.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Contains (Test_Contexts.Output (Context), " 3 " & Cksum_File),
+         and then Test_Contexts.Output (Context) = "1219131554 3 " & Cksum_File & EOL,
          "cksum prints checksum length and operand");
 
       Context.Initialize ("cksum", No_Args);
@@ -246,8 +246,7 @@ package body Command_Tests.Surface_Smoke.Data is
       Posix_Tools.Commands.Od.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Contains (Test_Contexts.Output (Context), "0000000 000101")
-         and then Contains (Test_Contexts.Output (Context), "0000001"),
+         and then Test_Contexts.Output (Context) = "0000000 000101" & EOL & "0000001" & EOL,
          "od emits octal byte dump");
 
       Context.Initialize ("od", Two_Args ("-An", Od_File));
