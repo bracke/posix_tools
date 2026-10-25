@@ -107,8 +107,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.text.glob`
 - `posix_tools.text.printf_arguments`
 - `posix_tools.text.printf_formats`
-- `posix_tools.text.printf_formats.number_images`
-- `posix_tools.text.printf_formats.number_images.float_images`
+- `posix_tools.text.printf_formats.float_images`
 - `posix_tools.text.stat_formats`
 - `posix_tools.text.sort_numeric`
 - `posix_tools.text.xargs_parsing`
