@@ -113,8 +113,6 @@ common/src/posix_tools-commands-tee.adb
 common/src/posix_tools-commands-tee.ads
 common/src/posix_tools-commands-test_command.adb
 common/src/posix_tools-commands-test_command.ads
-common/src/posix_tools-commands-text_helpers-collation-locale_rules.adb
-common/src/posix_tools-commands-text_helpers-collation-locale_rules.ads
 common/src/posix_tools-commands-text_helpers-collation.adb
 common/src/posix_tools-commands-text_helpers-collation.ads
 common/src/posix_tools-commands-text_helpers-display.adb
@@ -262,10 +260,8 @@ common/src/posix_tools-text-printf_arguments.adb
 common/src/posix_tools-text-printf_arguments.ads
 common/src/posix_tools-text-printf_escapes.adb
 common/src/posix_tools-text-printf_escapes.ads
-common/src/posix_tools-text-printf_formats-number_images-float_images.adb
-common/src/posix_tools-text-printf_formats-number_images-float_images.ads
-common/src/posix_tools-text-printf_formats-number_images.adb
-common/src/posix_tools-text-printf_formats-number_images.ads
+common/src/posix_tools-text-printf_formats-float_images.adb
+common/src/posix_tools-text-printf_formats-float_images.ads
 common/src/posix_tools-text-printf_formats.adb
 common/src/posix_tools-text-printf_formats.ads
 common/src/posix_tools-text-seq_formats.adb
@@ -598,6 +594,8 @@ tools/explore/src/library/explore-themes.adb
 tools/explore/src/library/explore-themes.ads
 tools/explore/src/library/explore-words.adb
 tools/explore/src/library/explore-words.ads
+tools/explore/src/library/explore-work_boards.adb
+tools/explore/src/library/explore-work_boards.ads
 tools/explore/src/library/explore.ads
 tools/explore/e2e/alire.toml
 tools/explore/e2e/posix_tools_explore_e2e.gpr
@@ -639,6 +637,8 @@ tools/explore/tests/src/tabs_tests.adb
 tools/explore/tests/src/tabs_tests.ads
 tools/explore/tests/src/words_tests.adb
 tools/explore/tests/src/words_tests.ads
+tools/explore/tests/src/work_boards_tests.adb
+tools/explore/tests/src/work_boards_tests.ads
 generated/man/arch.1
 tools/arch/alire.toml
 tools/arch/posix_tools_arch.gpr
@@ -1029,16 +1029,6 @@ tools/yes/alire.toml
 tools/yes/posix_tools_yes.gpr
 tools/yes/src/yes.adb
 docs/commands/yes.md
-common/src/posix_tools-host_adapters-file_system-directories.adb
-common/src/posix_tools-host_adapters-file_system-directories.ads
-common/src/posix_tools-host_adapters-file_system-io.adb
-common/src/posix_tools-host_adapters-file_system-io.ads
-common/src/posix_tools-host_adapters-file_system-metadata.adb
-common/src/posix_tools-host_adapters-file_system-metadata.ads
-common/src/posix_tools-host_adapters-file_system-paths.adb
-common/src/posix_tools-host_adapters-file_system-paths.ads
-common/src/posix_tools-host_adapters-file_system-times.adb
-common/src/posix_tools-host_adapters-file_system-times.ads
 tests/src/package_entries.adb
 tests/src/package_entries.ads
 tests/src/proof_targets.adb
