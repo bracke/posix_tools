@@ -63,12 +63,19 @@ package Explore.Model is
       --  those gone back from, the latest last.
       Back        : Explore.String_Vectors.Vector;
       Forward     : Explore.String_Vectors.Vector;
-      --  Visual selection: the entry it started on, zero when it is off,
-      --  and the marks there were before it started.
-      Visual_Anchor : Natural := 0;
+      --  Visual selection: whether it is on, the name of the entry it started
+      --  on, and the marks there were before it started. The entry is kept by
+      --  name: a reload or the filter can move it, or leave it out.
+      Visual        : Boolean := False;
+      Visual_Anchor : Ada.Strings.Unbounded.Unbounded_String;
       Visual_Base   : Name_Sets.Set;
-      --  What the search the current pane shows looks for.
-      Search_Label  : Ada.Strings.Unbounded.Unbounded_String;
+      --  What the search the current pane shows looks for, and whether it
+      --  looks into files rather than at their names.
+      Search_Label    : Ada.Strings.Unbounded.Unbounded_String;
+      Search_Contents : Boolean := False;
+      --  The search is yet to be handed to the searcher: it was just begun,
+      --  or is to begin again.
+      Search_Wanted   : Boolean := False;
    end record;
 
    --  How many directories back history keeps.
@@ -109,12 +116,23 @@ package Explore.Model is
    --  End it, keeping its marks.
    procedure End_Visual (Self : in out Browser);
 
-   function In_Visual (Self : Browser) return Boolean is (Self.Visual_Anchor > 0);
+   function In_Visual (Self : Browser) return Boolean is (Self.Visual);
 
    --  Show the results of a search below Root in the current pane, as a
    --  visit, and return the generation the results must carry. Label says
-   --  what is searched for.
-   procedure Begin_Search (Self : in out Browser; Root, Label : String; Generation : out Natural);
+   --  what is searched for, and Contents whether in files' contents. The
+   --  search is then wanted.
+   procedure Begin_Search
+     (Self       : in out Browser;
+      Root       : String;
+      Label      : String;
+      Contents   : Boolean;
+      Generation : out Natural);
+
+   --  Begin the search the current pane shows again, with a new generation,
+   --  when it had not finished: what it found after it was stopped -- as when
+   --  its tab was left -- went nowhere.
+   procedure Resume_Search (Self : in out Browser);
 
    --  Add results found for Generation, the cursor staying on its entry;
    --  Finished says the search has ended.
@@ -167,7 +185,8 @@ package Explore.Model is
    --  current. Panes that changed are left Loading for their entries.
    procedure Enter (Self : in out Browser);
 
-   --  Whether the current directory has a parent to go up to.
+   --  Whether the current directory has a parent to go up to, or the current
+   --  pane holds search results to go back from.
    function Can_Leave (Self : Browser) return Boolean;
 
    --  Go up to the parent: the parent pane becomes the current one, with the

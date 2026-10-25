@@ -152,9 +152,12 @@ package body Explore.Application.Display is
               State.Terminal.In_Tmux,
               Id);
       begin
-         if Output'Length > 0 and then not Write (Output) then
-            Lose_Terminal (State);
-            return;
+         if Output'Length > 0 then
+            Send (State, Output);
+
+            if State.Terminal_Lost then
+               return;
+            end if;
          end if;
       end;
 

@@ -246,6 +246,20 @@ package body Model_Tests is
       Model.Move (Browser, -3);
       AUnit.Assertions.Assert
         (Natural (Browser.Panes (Model.Current_Pane).Marked.Length) = 3, "ended, the marks stay put");
+
+      --  The anchor is its entry, wherever a reload puts it.
+      Model.Clear_Marks (Browser);
+      Model.Move_To (Browser, 2);
+      Model.Start_Visual (Browser);
+      Model.Reload (Browser, Model.Current_Pane);
+      Give (Browser, Model.Current_Pane, "0 a b c d e");
+      Model.Move (Browser, 1);
+      AUnit.Assertions.Assert
+        (Model.Is_Marked (Browser.Panes (Model.Current_Pane), "b")
+         and then Model.Is_Marked (Browser.Panes (Model.Current_Pane), "c")
+         and then not Model.Is_Marked (Browser.Panes (Model.Current_Pane), "a"),
+         "visual still runs from b once an entry came before it");
+      Model.End_Visual (Browser);
    end Test_History_And_Visual;
 
    procedure Test_Filter (T : in out Fixture) is

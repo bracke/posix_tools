@@ -121,6 +121,17 @@ package body Jobs_Tests is
       Wait_For (Board, 3, Jobs.Overwrite_All);
       AUnit.Assertions.Assert
         (not FS.Exists (Path ("file")) and then FS.Exists (Path ("into/file")), "moved over it");
+
+      Write (Path ("file"), "again");
+      Board.Submit
+        ((Jobs.Link_Job, Sources (Path ("file")), Unbounded.To_Unbounded_String (Path ("into")), 0),
+         Accepted);
+      Wait_For (Board, 4, Jobs.Overwrite_One);
+      AUnit.Assertions.Assert
+        (FS.Is_Link (Path ("into/file")) and then Board.Status.History.Last_Element.Errors = 0,
+         "a link takes the place of the file it overwrites");
+      --  Deleting the fixture's tree does not take a link whose file went first.
+      AUnit.Assertions.Assert (FS.Delete_Link (Path ("into/file")), "the link removed");
       Board.Shut_Down;
    end Test_Conflict_Question;
 

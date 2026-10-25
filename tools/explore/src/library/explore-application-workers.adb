@@ -122,15 +122,26 @@ package body Explore.Application.Workers is
          --  with: the job it is about waits for its answer meanwhile. The
          --  filter, which is typed as the panes are browsed, does not keep it
          --  waiting.
-         State.Workers.Question_Waiting := Lane > 0 and then not Can_Ask;
+         State.Workers.Question_Waiting := Lane > 0 and then not Can_Ask and then Mode /= Answering;
 
-         if Lane > 0 and then Can_Ask then
-            Ask
-              (State,
-               Answering,
-               Explore.Words.Conflict_Question
-                 (Unbounded.To_String (State.Config.Locale),
-                  Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict))));
+         if Lane > 0 and then (Can_Ask or else Mode = Answering) then
+            declare
+               Question : constant String :=
+                 Explore.Words.Conflict_Question
+                   (Unbounded.To_String (State.Config.Locale),
+                    Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)));
+            begin
+               --  Already answering: the job was answered and has asked again
+               --  before the last question was taken down, so the new one
+               --  takes its place.
+               if Mode = Answering then
+                  State.Frame.Question := Unbounded.To_Unbounded_String (Question);
+               else
+                  Ask (State, Answering, Question);
+               end if;
+
+               State.Workers.Asked_About := Now.Lanes (Lane).Conflict;
+            end;
          elsif Lane = 0 and then Mode = Answering then
             Leave_Mode (State);
          end if;
@@ -206,6 +217,19 @@ package body Explore.Application.Workers is
       Results : Explore.Search.Progress;
       Found   : Boolean;
    begin
+      if Current.Is_Search and then State.Browser.Search_Wanted then
+         State.Browser.Search_Wanted := False;
+         State.Workers.Search_Generation := Current.Generation;
+         State.Workers.Search_Found := 0;
+         State.Workers.Searcher.Submit
+           ((Root           => Current.Path,
+             Pattern        => State.Browser.Search_Label,
+             Kind           =>
+               (if State.Browser.Search_Contents then Explore.Search.By_Content else Explore.Search.By_Name),
+             Include_Hidden => State.Browser.Show_Hidden,
+             Generation     => Current.Generation));
+      end if;
+
       if not Current.Is_Search or else Current.Generation /= State.Workers.Search_Generation then
          --  Gone elsewhere: what the search would find has nowhere to go.
          if State.Workers.Searcher.Busy then

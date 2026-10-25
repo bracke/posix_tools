@@ -11,6 +11,7 @@ package body Explore.Jobs is
    package Paths renames Explore.Paths;
    package Unbounded renames Ada.Strings.Unbounded;
 
+   use type FS.File_Kind;
    use type Ops.Conflict_Choice;
 
    --  How a job's operations reach the board.
@@ -28,6 +29,10 @@ package body Explore.Jobs is
    overriding procedure Progress (Self : in out Job_Observer; Path : String; Copied : Long_Long_Integer);
    overriding function Resolve_Conflict
      (Self : in out Job_Observer; Source, Target : String) return Ops.Conflict_Choice;
+
+   --  Make way at Target for a link that overwrites what is there: a link or
+   --  a file is removed, a directory never is. True when the way is clear.
+   function Clear_For_Link (Target : String) return Boolean;
 
    --  Run one entry of a job.
    procedure Run_Item (Item : Job; Source : String; Watcher : in out Job_Observer'Class);
@@ -213,9 +218,14 @@ package body Explore.Jobs is
          Item := (others => <>);
          Lane := Lane_Index'First;
 
-         if Closed or else Index = 0 then
-            Closed := True;
+         if Closed then
             return;
+         elsif Index = 0 then
+            --  The barrier said a job could start and none can: the count is
+            --  put right and the worker waits on, rather than being told the
+            --  board is closed.
+            Recount;
+            requeue Take;
          end if;
 
          for Free in Lanes'Range loop
@@ -251,6 +261,23 @@ package body Explore.Jobs is
 
    overriding function Cancelled (Self : in out Job_Observer) return Boolean is
      (Self.Jobs.Cancel_Requested (Self.Lane));
+
+   function Clear_For_Link (Target : String) return Boolean is
+   begin
+      if FS.Is_Link (Target) then
+         return FS.Delete_Link (Target);
+      elsif not FS.Exists (Target) then
+         return True;
+      elsif FS.Kind (Target) = FS.Directory then
+         return False;
+      end if;
+
+      FS.Delete_File (Target);
+      return True;
+   exception
+      when others =>
+         return False;
+   end Clear_For_Link;
 
    function Destination (Source, Directory : String) return String is
       Wanted : constant String := Paths.Child_Of (Directory, Paths.Name_Of (Source));
@@ -363,9 +390,7 @@ package body Explore.Jobs is
                  and then Watcher.Resolve_Conflict (Source, Target) = Ops.Skip
                then
                   null;
-               elsif (FS.Is_Link (Target) and then not FS.Delete_Link (Target))
-                 or else not FS.Create_Link (Source, Target)
-               then
+               elsif not Clear_For_Link (Target) or else not FS.Create_Link (Source, Target) then
                   Watcher.Report_Error (Target, Ops.Cannot_Open);
                end if;
             end;

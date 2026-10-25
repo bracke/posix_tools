@@ -10,7 +10,6 @@ with Explore.Paths;
 with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
-with Explore.Search;
 with Explore.Settings.Storage;
 with Explore.String_Vectors;
 with Explore.Tabs;
@@ -93,7 +92,7 @@ package body Explore.Application.Controller is
      with Pre => Item.Kind in Input.Key_Event | Input.Paste_Event;
 
    --  The wheel moves the cursor; a click on an entry selects it, and one on
-   --  the parent or the preview goes there.
+   --  the parent or the preview goes there, unless the filter is being typed.
    procedure Handle_Mouse (State : in out Session; Item : Input.Event)
      with Pre => Item.Kind = Input.Mouse_Event;
 
@@ -115,8 +114,9 @@ package body Explore.Application.Controller is
    --  Run the command Item, as browsing does.
    procedure Perform (State : in out Session; Item : Keymap.Command);
 
-   --  Queue a job; say so in the status line when the queue is full.
-   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job);
+   --  Queue a job; say so in the status line when the queue is full, and
+   --  Queued False.
+   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job; Queued : out Boolean);
 
    --  Run the shell with Arguments. Detached, it is left to run on its own;
    --  otherwise the terminal is handed to it until it ends -- with Pause,
@@ -144,8 +144,18 @@ package body Explore.Application.Controller is
    procedure Write_Choice (State : in out Session; Targets : Explore.String_Vectors.Vector);
 
    procedure Answer_Conflict (State : in out Session; Item : Input.Event) is
+      use type Unbounded.Unbounded_String;
+
       Operations : Explore.Jobs.Board renames State.Workers.Operations.all;
+      Now        : constant Explore.Jobs.Snapshot := Operations.Status;
+      Lane       : constant Natural := Explore.Jobs.Asking_Lane (Now);
    begin
+      --  The job asking now is not about what the screen asks: the question
+      --  is shown afresh first, and this key answers nothing.
+      if Lane = 0 or else Now.Lanes (Lane).Conflict /= State.Workers.Asked_About then
+         return;
+      end if;
+
       if Input.Is_Character (Item, 'o') then
          Operations.Answer (Explore.Jobs.Overwrite_One);
       elsif Input.Is_Character (Item, 'O') then
@@ -155,14 +165,7 @@ package body Explore.Application.Controller is
       elsif Input.Is_Character (Item, 'S') then
          Operations.Answer (Explore.Jobs.Skip_All);
       elsif Item.Mods.Control and then Item.Code = 'c' then
-         declare
-            Now  : constant Explore.Jobs.Snapshot := Operations.Status;
-            Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
-         begin
-            if Lane > 0 then
-               Operations.Cancel (Now.Lanes (Lane).Job.Id);
-            end if;
-         end;
+         Operations.Cancel (Now.Lanes (Lane).Job.Id);
       end if;
    end Answer_Conflict;
 
@@ -180,7 +183,9 @@ package body Explore.Application.Controller is
          else Model.Targets (State.Browser));
 
       if Kind = Keymap.Rename_Entry then
-         Open_Prompt (State, Renaming, Words.Rename_Prompt, Model.Selected_Name (Current));
+         --  A search result is named by its path below the search's root; it
+         --  is renamed in its own directory, so the prompt starts at its name.
+         Open_Prompt (State, Renaming, Words.Rename_Prompt, Explore.Paths.Name_Of (Model.Selected_Name (Current)));
       elsif Kind = Keymap.Create_Entry then
          Open_Prompt (State, Creating, Words.Create_Prompt);
       else
@@ -263,9 +268,15 @@ package body Explore.Application.Controller is
 
    procedure Commit_Name (State : in out Session; Text : String) is
       Current   : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Is_Rename : constant Boolean := State.Interaction.Mode = Renaming;
       Directory : constant Boolean := State.Interaction.Mode = Creating and then Text (Text'Last) = '/';
       Name      : constant String := (if Directory then Text (Text'First .. Text'Last - 1) else Text);
-      Target    : constant String := Explore.Paths.Child_Of (Unbounded.To_String (Current.Path), Name);
+      --  A rename stays in the directory of what it renames, which in search
+      --  results is not the directory shown.
+      Folder    : constant String :=
+        (if Is_Rename then Explore.Paths.Parent_Of (State.Interaction.Pending.First_Element)
+         else Unbounded.To_String (Current.Path));
+      Target    : constant String := Explore.Paths.Child_Of (Folder, Name);
       Written   : Boolean := True;
    begin
       if Name'Length = 0 or else Name = "." or else Name = ".." or else (for some C of Name => C = '/') then
@@ -277,7 +288,7 @@ package body Explore.Application.Controller is
       end if;
 
       begin
-         if State.Interaction.Mode = Renaming then
+         if Is_Rename then
             FS.Rename (State.Interaction.Pending.First_Element, Target);
          elsif Directory then
             FS.Create_Path (Target);
@@ -296,14 +307,22 @@ package body Explore.Application.Controller is
 
       --  The cursor goes to what was made once the directory is read again.
       Model.Reload (State.Browser, Model.Current_Pane);
-      Current.Wanted := Unbounded.To_Unbounded_String (Name);
+
+      if Folder = Unbounded.To_String (Current.Path) then
+         Current.Wanted := Unbounded.To_Unbounded_String (Name);
+      end if;
    end Commit_Name;
 
    procedure Confirm_Delete (State : in out Session; Item : Input.Event) is
+      Queued : Boolean;
    begin
       if Input.Is_Character (Item, 'y') or else Input.Is_Character (Item, 'Y') then
-         Queue_Job (State, (Explore.Jobs.Delete_Job, State.Interaction.Pending, others => <>));
-         Model.Clear_Marks (State.Browser);
+         Queue_Job (State, (Explore.Jobs.Delete_Job, State.Interaction.Pending, others => <>), Queued);
+
+         --  A delete the queue had no room for leaves the marks to try again with.
+         if Queued then
+            Model.Clear_Marks (State.Browser);
+         end if;
       end if;
 
       State.Interaction.Pending.Clear;
@@ -330,9 +349,8 @@ package body Explore.Application.Controller is
    begin
       if not State.Terminal.Identity.Capabilities (Explore.Protocol.Clipboard) then
          Warn (State, Unbounded.To_String (State.Config.Words.No_Clipboard));
-      elsif not Write (Explore.Launch.Clipboard (Text, State.Terminal.In_Tmux)) then
-         Lose_Terminal (State);
       else
+         Send (State, Explore.Launch.Clipboard (Text, State.Terminal.In_Tmux));
          Say
            (State,
             Unbounded.To_String (State.Config.Words.Clipped) & ": "
@@ -415,7 +433,11 @@ package body Explore.Application.Controller is
             State.Dirty := True;
             Handle_Key (State, Item);
          when Input.Mouse_Event =>
-            Handle_Mouse (State, Item);
+            --  A prompt, a question or the jobs panel acts on what it was
+            --  opened for: a click must not move the panes from under it.
+            if State.Interaction.Mode in Browsing | Filtering then
+               Handle_Mouse (State, Item);
+            end if;
          when Input.Resize_Event =>
             if Item.Rows > 0 and then Item.Columns > 0 then
                if Item.Pixel_Width >= Item.Columns and then Item.Pixel_Height >= Item.Rows then
@@ -488,10 +510,15 @@ package body Explore.Application.Controller is
                            Model.Move_To
                              (State.Browser,
                               State.Browser.Panes (Model.Current_Pane).Top + Item.Row - Shape.First_Row);
+                        --  Going elsewhere would drop the filter being typed.
                         when Model.Parent_Pane =>
-                           Model.Leave (State.Browser);
+                           if State.Interaction.Mode = Browsing then
+                              Model.Leave (State.Browser);
+                           end if;
                         when Model.Preview_Pane =>
-                           Model.Enter (State.Browser);
+                           if State.Interaction.Mode = Browsing then
+                              Model.Enter (State.Browser);
+                           end if;
                      end case;
                   end if;
                end;
@@ -596,7 +623,8 @@ package body Explore.Application.Controller is
    end Open_Targets;
 
    procedure Paste (State : in out Session; Links : Boolean) is
-      Held : Interaction_State renames State.Interaction;
+      Held   : Interaction_State renames State.Interaction;
+      Queued : Boolean;
    begin
       if Held.Clipboard.Is_Empty then
          return;
@@ -610,10 +638,12 @@ package body Explore.Application.Controller is
              else Explore.Jobs.Copy_Job),
           Sources => Held.Clipboard,
           Target  => State.Browser.Panes (Model.Current_Pane).Path,
-          Id      => 0));
+          Id      => 0),
+         Queued);
 
-      --  What was cut is gone from where it was once pasted.
-      if Held.Cutting and then not Links then
+      --  What was cut is gone from where it was once pasted; a paste the
+      --  queue had no room for keeps it, to paste again.
+      if Queued and then Held.Cutting and then not Links then
          Held.Clipboard.Clear;
          Held.Cutting := False;
       end if;
@@ -726,12 +756,11 @@ package body Explore.Application.Controller is
       end case;
    end Perform;
 
-   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job) is
-      Accepted : Boolean;
+   procedure Queue_Job (State : in out Session; Item : Explore.Jobs.Job; Queued : out Boolean) is
    begin
-      State.Workers.Operations.Submit (Item, Accepted);
+      State.Workers.Operations.Submit (Item, Queued);
 
-      if not Accepted then
+      if not Queued then
          Warn (State, Unbounded.To_String (State.Config.Words.Queue_Full));
       end if;
    end Queue_Job;
@@ -804,17 +833,15 @@ package body Explore.Application.Controller is
    end Set_Bookmark;
 
    procedure Start_Search (State : in out Session; Text : String) is
-      Root : constant String := Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path);
+      Generation : Natural;
    begin
-      Model.Begin_Search (State.Browser, Root, Text, State.Workers.Search_Generation);
-      State.Workers.Search_Found := 0;
-      State.Workers.Searcher.Submit
-        ((Root           => Unbounded.To_Unbounded_String (Root),
-          Pattern        => Unbounded.To_Unbounded_String (Text),
-          Kind           =>
-            (if State.Interaction.Mode = Finding_Names then Explore.Search.By_Name else Explore.Search.By_Content),
-          Include_Hidden => State.Browser.Show_Hidden,
-          Generation     => State.Workers.Search_Generation));
+      --  The searcher is handed it with the workers, as a search begun again is.
+      Model.Begin_Search
+        (State.Browser,
+         Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path),
+         Text,
+         Contents   => State.Interaction.Mode = Finding_Text,
+         Generation => Generation);
    end Start_Search;
 
    procedure Take_Clipboard (State : in out Session; Cutting : Boolean) is

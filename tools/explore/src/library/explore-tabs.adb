@@ -9,7 +9,7 @@ package body Explore.Tabs is
    function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    --  Make Next the browser shown in place of Browser, its generations going
-   --  on from Browser's, and read its panes again.
+   --  on from Browser's, and read its panes again, or search again.
    procedure Take_Over (Browser : in out Model.Browser; Next : Model.Browser);
 
    procedure Close_Tab (Self : in out Tab_Set; Browser : in out Model.Browser) is
@@ -83,5 +83,8 @@ package body Explore.Tabs is
       Browser := Next;
       Browser.Last_Generation := Natural'Max (Generation, Browser.Last_Generation);
       Model.Reload_All (Browser);
+      --  A search is stopped once its tab is left; one that had not finished
+      --  begins again.
+      Model.Resume_Search (Browser);
    end Take_Over;
 end Explore.Tabs;

@@ -3,7 +3,8 @@ with Posix_Tools.Localization;
 package body Explore.Application.Sessions is
    procedure Ask (State : in out Session; Mode : Question_Mode; Question : String) is
    begin
-      State.Interaction.Resume := (if State.Interaction.Mode = Filtering then Filtering else Browsing);
+      State.Interaction.Resume :=
+        (if State.Interaction.Mode in Filtering | Viewing_Jobs then State.Interaction.Mode else Browsing);
       State.Interaction.Mode := Mode;
       State.Frame.Question := Unbounded.To_Unbounded_String (Question);
    end Ask;
@@ -62,7 +63,8 @@ package body Explore.Application.Sessions is
       Mode : constant Interaction_Mode := State.Interaction.Mode;
    begin
       State.Frame.Prompting := Mode in Prompt_Mode;
-      State.Frame.Panel_Open := Mode = Viewing_Jobs;
+      State.Frame.Panel_Open :=
+        Mode = Viewing_Jobs or else (Mode in Question_Mode and then State.Interaction.Resume = Viewing_Jobs);
       --  A question that interrupted the filter leaves it open beneath.
       State.Frame.Editing :=
         Mode = Filtering or else (Mode in Question_Mode and then State.Interaction.Resume = Filtering);

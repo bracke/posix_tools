@@ -116,6 +116,21 @@ package body Tabs_Tests is
            (Set.Active = 2 and then Browser.Last_Generation = Before,
             "switching to the active tab, or to none, changes nothing");
       end;
+
+      --  A search the tab was left in the middle of was stopped; coming back
+      --  begins it again, under a generation of its own.
+      declare
+         Searched : Natural;
+      begin
+         Model.Begin_Search (Browser, "/srv/b", "x", Contents => False, Generation => Searched);
+         Browser.Search_Wanted := False;
+         Tabs.Switch_To (Set, Browser, 1);
+         Tabs.Switch_To (Set, Browser, 2);
+         AUnit.Assertions.Assert
+           (Model.Is_Searching (Browser) and then Browser.Search_Wanted
+            and then Browser.Panes (Model.Current_Pane).Generation /= Searched,
+            "an unfinished search begins again when its tab comes back");
+      end;
    end Test_Switch;
 
    procedure Two_Tabs (Set : out Tabs.Tab_Set; Browser : out Model.Browser) is

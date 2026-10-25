@@ -88,7 +88,7 @@ package body Search_Tests is
       Model.Open (Browser, "/home/user");
       Model.Deliver
         (Browser, Model.Current_Pane, Browser.Panes (Model.Current_Pane).Generation, Found, Readable => True);
-      Model.Begin_Search (Browser, "/home/user", "*.md", Generation);
+      Model.Begin_Search (Browser, "/home/user", "*.md", Contents => False, Generation => Generation);
       AUnit.Assertions.Assert
         (Model.Is_Searching (Browser) and then Browser.Panes (Model.Current_Pane).State = Model.Loading
          and then not Browser.Panes (Model.Current_Pane).Pending,
@@ -105,14 +105,37 @@ package body Search_Tests is
 
       Model.Reload (Browser, Model.Current_Pane);
       AUnit.Assertions.Assert (not Browser.Panes (Model.Current_Pane).Pending, "results are never read again");
+
+      --  Handed to the searcher, as the workers do; then stopped unfinished.
+      Browser.Search_Wanted := False;
+      Model.Resume_Search (Browser);
+      AUnit.Assertions.Assert
+        (Browser.Search_Wanted and then Browser.Panes (Model.Current_Pane).Generation /= Generation
+         and then Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 0,
+         "an unfinished search begins again, afresh");
+      Generation := Browser.Panes (Model.Current_Pane).Generation;
+      Browser.Search_Wanted := False;
+
       Model.Add_Results (Browser, Generation, Found, Finished => True);
       AUnit.Assertions.Assert (Browser.Panes (Model.Current_Pane).State = Model.Loaded, "finished");
+      Model.Resume_Search (Browser);
+      AUnit.Assertions.Assert
+        (not Browser.Search_Wanted and then Browser.Panes (Model.Current_Pane).Generation = Generation,
+         "a finished search is not begun again");
 
       Model.Leave (Browser);
       AUnit.Assertions.Assert
         (not Model.Is_Searching (Browser)
          and then Ada.Strings.Unbounded.To_String (Browser.Panes (Model.Current_Pane).Path) = "/home/user",
          "leaving results goes back to the directory searched");
+
+      Model.Open (Browser, "/");
+      Model.Begin_Search (Browser, "/", "*.md", Contents => False, Generation => Generation);
+      Model.Leave (Browser);
+      AUnit.Assertions.Assert
+        (not Model.Is_Searching (Browser)
+         and then Ada.Strings.Unbounded.To_String (Browser.Panes (Model.Current_Pane).Path) = "/",
+         "results found below the root are left too");
    end Test_Search_Pane;
 
    procedure Test_Walk (T : in out Fixture) is

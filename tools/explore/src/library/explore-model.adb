@@ -30,8 +30,9 @@ package body Explore.Model is
       and then Selected (Self.Panes (Current_Pane)).Kind = Listing.Directory_Entry);
 
    function Can_Leave (Self : Browser) return Boolean is
-     (Unbounded.Length (Self.Panes (Current_Pane).Path) > 0
-      and then Unbounded.To_String (Self.Panes (Current_Pane).Path) /= "/");
+     (Self.Panes (Current_Pane).Is_Search
+      or else (Unbounded.Length (Self.Panes (Current_Pane).Path) > 0
+               and then Unbounded.To_String (Self.Panes (Current_Pane).Path) /= "/"));
 
    --  A pane for Path, waiting for its first entries.
    function New_Pane (Self : in out Browser; Path : String) return Pane is
@@ -77,7 +78,13 @@ package body Explore.Model is
       Show (Current, Unbounded.To_String (Self.Filter), Selected_Name (Current), Current.Cursor);
    end Apply_Filter;
 
-   procedure Begin_Search (Self : in out Browser; Root, Label : String; Generation : out Natural) is
+   procedure Begin_Search
+     (Self       : in out Browser;
+      Root       : String;
+      Label      : String;
+      Contents   : Boolean;
+      Generation : out Natural)
+   is
    begin
       End_Visual (Self);
       Clear_Marks (Self);
@@ -91,6 +98,8 @@ package body Explore.Model is
          Is_Search  => True,
          others     => <>);
       Self.Search_Label := Unbounded.To_Unbounded_String (Label);
+      Self.Search_Contents := Contents;
+      Self.Search_Wanted := True;
       --  Beside the results, the directory they were found in.
       Self.Panes (Parent_Pane) := New_Pane (Self, Root);
       Self.Panes (Preview_Pane) := (others => <>);
@@ -130,7 +139,8 @@ package body Explore.Model is
 
    procedure End_Visual (Self : in out Browser) is
    begin
-      Self.Visual_Anchor := 0;
+      Self.Visual := False;
+      Self.Visual_Anchor := Unbounded.Null_Unbounded_String;
       Self.Visual_Base.Clear;
    end End_Visual;
 
@@ -361,6 +371,21 @@ package body Explore.Model is
       end loop;
    end Reload_All;
 
+   procedure Resume_Search (Self : in out Browser) is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      if Current.Is_Search and then Current.State = Loading then
+         End_Visual (Self);
+         Current.Entries.Clear;
+         Current.Shown.Clear;
+         Current.Marked.Clear;
+         Current.Cursor := 0;
+         Current.Top := 1;
+         Current.Generation := Next_Generation (Self);
+         Self.Search_Wanted := True;
+      end if;
+   end Resume_Search;
+
    procedure Scroll (Item : in out Pane; Height : Positive) is
       Count : constant Natural := Shown_Count (Item);
    begin
@@ -422,7 +447,8 @@ package body Explore.Model is
       Current : Pane renames Self.Panes (Current_Pane);
    begin
       if Has_Selection (Current) then
-         Self.Visual_Anchor := Current.Cursor;
+         Self.Visual := True;
+         Self.Visual_Anchor := Unbounded.To_Unbounded_String (Selected_Name (Current));
          Self.Visual_Base := Current.Marked;
          Update_Visual (Self);
       end if;
@@ -463,11 +489,14 @@ package body Explore.Model is
 
    procedure Update_Visual (Self : in out Browser) is
       Current : Pane renames Self.Panes (Current_Pane);
-      Anchor  : constant Natural := Natural'Min (Self.Visual_Anchor, Shown_Count (Current));
+      --  The anchor's entry where it is now; left out by the filter, or gone,
+      --  the selection runs from the cursor alone.
+      Found   : constant Natural := Find (Current, Unbounded.To_String (Self.Visual_Anchor));
+      Anchor  : constant Natural := (if Found > 0 then Found else Current.Cursor);
    begin
       Current.Marked := Self.Visual_Base;
 
-      if Anchor = 0 or else Current.Cursor = 0 then
+      if Current.Cursor = 0 then
          return;
       end if;
 
