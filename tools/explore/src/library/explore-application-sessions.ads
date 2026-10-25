@@ -100,6 +100,10 @@ private package Explore.Application.Sessions is
       --  A job's question that waits for a prompt to be done with: once it
       --  is, the question is asked, though nothing on the board changed.
       Question_Waiting : Boolean := False;
+      --  The target the question on screen is about. A job that was answered
+      --  can ask again before the screen shows it; a key meant for the old
+      --  question must not answer the new one.
+      Asked_About : Unbounded.Unbounded_String;
       --  The generation last handed to the readers, per pane.
       Submitted  : Generation_Array := [others => 0];
       Watches    : Watch_Array;
@@ -193,7 +197,8 @@ private package Explore.Application.Sessions is
       Initial : String := "");
 
    --  Ask Question, waiting for a key in Mode. Once it is answered, the
-   --  filter is typed on if it was being typed; otherwise browsing resumes.
+   --  filter is typed on if it was being typed, and the jobs panel stays
+   --  open if it was open; otherwise browsing resumes.
    procedure Ask (State : in out Session; Mode : Question_Mode; Question : String);
 
    --  Go back from the mode the session is in: from a question to what it
@@ -201,6 +206,7 @@ private package Explore.Application.Sessions is
    procedure Leave_Mode (State : in out Session);
 
    --  Set the frame's flags for what the mode shows: a prompt, the filter
-   --  being typed, or the jobs panel.
+   --  being typed, or the jobs panel -- the last two also beneath a question
+   --  that interrupted them.
    procedure Show_Mode (State : in out Session);
 end Explore.Application.Sessions;

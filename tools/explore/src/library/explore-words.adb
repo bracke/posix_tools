@@ -1,4 +1,5 @@
-with Explore.Model;
+with Ada.Strings.Fixed;
+with Explore.Paths;
 with Posix_Tools.Localization;
 with Posix_Tools.Text.Numeric_Images;
 
@@ -8,6 +9,18 @@ package body Explore.Words is
    use type Explore.Settings.Problem_Kind;
 
    function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
+
+   --  Pattern with each placeholder "{Name_N}" given its Value_N, in one
+   --  pass: a value is never looked into for placeholders of its own, and a
+   --  placeholder not named is left as it is.
+   function Fill
+     (Pattern : Unbounded.Unbounded_String;
+      Name_1  : String;
+      Value_1 : String;
+      Name_2  : String := "";
+      Value_2 : String := "";
+      Name_3  : String := "";
+      Value_3 : String := "") return String;
 
    --  Which job, by its first entry, and how many more it has.
    function What_Of (Item : Explore.Jobs.Job_View) return String is
@@ -48,7 +61,46 @@ package body Explore.Words is
    end Conflict_Question;
 
    function Error_Count (Words : Word_Set; Count : Natural) return String is
-     (Image (Count) & " " & Unbounded.To_String (Words.Errors));
+     (Fill (Words.Errors, "count", Image (Count)));
+
+   function Errors_With_First (Words : Word_Set; Count : Natural; Message : String) return String is
+     (Fill (Words.Errors_First, "count", Image (Count), "message", Message));
+
+   function Exit_Line (Words : Word_Set; Status : Natural) return String is
+     (Fill (Words.Exit_Status, "status", Image (Status)));
+
+   function Fill
+     (Pattern : Unbounded.Unbounded_String;
+      Name_1  : String;
+      Value_1 : String;
+      Name_2  : String := "";
+      Value_2 : String := "";
+      Name_3  : String := "";
+      Value_3 : String := "") return String
+   is
+      Text   : constant String := Unbounded.To_String (Pattern);
+      Result : Unbounded.Unbounded_String;
+      I      : Positive := Text'First;
+   begin
+      while I <= Text'Last loop
+         declare
+            Close : constant Natural :=
+              (if Text (I) = '{' then Ada.Strings.Fixed.Index (Text (I .. Text'Last), "}") else 0);
+            Name  : constant String := (if Close > 0 then Text (I + 1 .. Close - 1) else "");
+         begin
+            if Close > 0 and then Name'Length > 0 and then Name in Name_1 | Name_2 | Name_3 then
+               Unbounded.Append
+                 (Result, (if Name = Name_1 then Value_1 elsif Name = Name_2 then Value_2 else Value_3));
+               I := Close + 1;
+            else
+               Unbounded.Append (Result, Text (I));
+               I := I + 1;
+            end if;
+         end;
+      end loop;
+
+      return Unbounded.To_String (Result);
+   end Fill;
 
    function Job_Line (Words : Word_Set; Now : Explore.Jobs.Snapshot) return String is
       Running : Natural := 0;
@@ -79,13 +131,18 @@ package body Explore.Words is
          else "");
    begin
       return Verb_Of (Words, Lane.Job.Kind) & " " & Image (Natural'Min (Lane.Done + 1, Lane.Job.Total)) & "/"
-        & Image (Lane.Job.Total) & " " & Explore.Model.Name_Of (Unbounded.To_String (Lane.Current)) & Percent;
+        & Image (Lane.Job.Total) & " " & Explore.Paths.Name_Of (Unbounded.To_String (Lane.Current)) & Percent;
    end Lane_Line;
 
    function Load (Locale : String) return Word_Set is
       function Word (Key, Default : String) return Unbounded.Unbounded_String is
         (Unbounded.To_Unbounded_String
            (Posix_Tools.Localization.Text (Locale, "posix_tools.explore.ui." & Key, Default)));
+
+      --  A text with the placeholders Names in it, to fill in later.
+      function Pattern (Key, Names, Default : String) return Unbounded.Unbounded_String is
+        (Unbounded.To_Unbounded_String
+           (Posix_Tools.Localization.Pattern (Locale, "posix_tools.explore.ui." & Key, Names, Default)));
    begin
       return
         (Rename_Prompt => Word ("prompt.rename", "rename to"),
@@ -95,13 +152,17 @@ package body Explore.Words is
          Moving        => Word ("job.moving", "moving"),
          Linking       => Word ("job.linking", "linking"),
          Deleting      => Word ("job.deleting", "deleting"),
-         Yanked        => Word ("yanked", "yanked"),
-         Cut           => Word ("cut", "cut"),
+         Yanked        => Pattern ("yanked", "count", "{count} yanked"),
+         Cut           => Pattern ("cut", "count", "{count} cut"),
          Queue_Full    => Word ("queue_full", "too many operations waiting"),
          Cancelled     => Word ("cancelled", "cancelled"),
          Exists        => Word ("exists", "already exists"),
          Invalid_Mode  => Word ("invalid_mode", "not a valid permission mode"),
-         Errors        => Word ("errors", "errors"),
+         Errors        => Pattern ("errors", "count", "{count} errors"),
+         Done_Line     => Pattern ("job.done", "done what", "{done} {what}"),
+         Cancel_Line   => Pattern ("job.cancelled", "verb what", "{verb} {what}: cancelled"),
+         Failed_Line   => Pattern ("job.failed", "verb what count", "{verb} {what}: {count} errors"),
+         Errors_First  => Pattern ("job.errors_first", "count message", "{count} errors, {message}"),
          Copied        => Word ("job.copied", "copied"),
          Moved         => Word ("job.moved", "moved"),
          Linked        => Word ("job.linked", "linked"),
@@ -113,14 +174,14 @@ package body Explore.Words is
          Names_Prompt  => Word ("prompt.find_names", "find names (globs with * ? [ ])"),
          Text_Prompt   => Word ("prompt.find_text", "find text in files"),
          Searching     => Word ("searching", "searching"),
-         Found         => Word ("found", "found"),
-         Too_Many      => Word ("too_many", "more than were kept"),
+         Found         => Pattern ("found", "count", "{count} found"),
+         Too_Many      => Pattern ("too_many", "count", "{count} found, more than were kept"),
          Bookmarked    => Word ("bookmarked", "bookmarked"),
          No_Bookmark   => Word ("no_bookmark", "no such bookmark"),
          Unsaved       => Word ("bookmarks_unsaved", "bookmarks could not be saved"),
          Shell_Prompt  => Word ("prompt.shell", "shell command"),
          Press_Enter   => Word ("press_enter", "press Enter to return to explore"),
-         Exit_Status   => Word ("exit_status", "exited with status"),
+         Exit_Status   => Pattern ("exit_status", "status", "exited with status {status}"),
          Cannot_Run    => Word ("cannot_run", "the command did not run to its end"),
          Clipped       => Word ("copied_text", "copied to the clipboard"),
          No_Clipboard  => Word ("no_clipboard", "the terminal offers no clipboard"),
@@ -192,17 +253,20 @@ package body Explore.Words is
    begin
       case Item.Ended is
          when Explore.Jobs.Succeeded =>
-            return Done & " " & What;
+            return Fill (Words.Done_Line, "done", Done, "what", What);
          when Explore.Jobs.Cancelled =>
-            return Verb_Of (Words, Item.Job.Kind) & " " & What & ": " & Unbounded.To_String (Words.Cancelled);
+            return Fill (Words.Cancel_Line, "verb", Verb_Of (Words, Item.Job.Kind), "what", What);
          when Explore.Jobs.Failed =>
-            return Verb_Of (Words, Item.Job.Kind) & " " & What & ": " & Error_Count (Words, Item.Errors);
+            return Fill
+              (Words.Failed_Line, "verb", Verb_Of (Words, Item.Job.Kind), "what", What, "count", Image (Item.Errors));
       end case;
    end Result_Line;
 
    function Search_Result (Words : Word_Set; Found : Natural; Truncated : Boolean) return String is
-     (Image (Found) & " " & Unbounded.To_String (Words.Found)
-      & (if Truncated then ", " & Unbounded.To_String (Words.Too_Many) else ""));
+     (Fill ((if Truncated then Words.Too_Many else Words.Found), "count", Image (Found)));
+
+   function Taken (Words : Word_Set; Count : Natural; Cutting : Boolean) return String is
+     (Fill ((if Cutting then Words.Cut else Words.Yanked), "count", Image (Count)));
 
    function Verb_Of (Words : Word_Set; Kind : Explore.Jobs.Job_Kind) return String is
      (Unbounded.To_String

@@ -32,7 +32,8 @@ package Explore.Tabs is
    --  when it was the last. The only tab is not closed.
    procedure Close_Tab (Self : in out Tab_Set; Browser : in out Explore.Model.Browser);
 
-   --  Make tab To the active one, reading its panes again. Nothing happens
+   --  Make tab To the active one, reading its panes again, and searching
+   --  again for search results that were not all found. Nothing happens
    --  when it already is, or when there is no such tab.
    procedure Switch_To (Self : in out Tab_Set; Browser : in out Explore.Model.Browser; To : Positive);
 

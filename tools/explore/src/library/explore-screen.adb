@@ -31,6 +31,12 @@ package body Explore.Screen is
 
    function SGR (Item : Style) return String;
 
+   --  Ready cells First .. Last of Row to be written: a wide character they
+   --  would cover only half of is blanked whole, so that no half of one is
+   --  left behind for the terminal to draw the rest of over its neighbour.
+   procedure Unsplit (Self : in out Grid; Row, First, Last : Positive)
+     with Pre => First <= Last and then Last <= Self.Width and then Row <= Self.Height;
+
    function Cell_At (Self : Grid; Row, Column : Positive) return Cell is
      (Self.Cells (Index (Self, Row, Column)));
 
@@ -40,32 +46,6 @@ package body Explore.Screen is
          Item := (others => <>);
       end loop;
    end Clear;
-
-   function Clipped (Text : String; Width : Natural) return String is
-      Decoder : Posix_Tools.Text.UTF_8.Decoder;
-      Status  : Posix_Tools.Text.UTF_8.Decode_Status;
-      Code    : Long_Long_Integer;
-      Taken   : Natural := 0;
-      Last    : Natural := Text'First - 1;
-   begin
-      for I in Text'Range loop
-         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (I)), Status, Code);
-
-         if Status /= Posix_Tools.Text.UTF_8.Need_More then
-            declare
-               Cells : constant Natural :=
-                 (if Status = Posix_Tools.Text.UTF_8.Invalid or else Is_Control (Code) then 1
-                  else Posix_Tools.Commands.Text_Helpers.Display.Display_Width (Code));
-            begin
-               exit when Taken + Cells > Width;
-               Taken := Taken + Cells;
-               Last := I;
-            end;
-         end if;
-      end loop;
-
-      return Text (Text'First .. Last);
-   end Clipped;
 
    function Columns (Self : Grid) return Natural is (Self.Width);
 
@@ -155,9 +135,11 @@ package body Explore.Screen is
       Item_Style : Style)
    is
    begin
-      if Row > Self.Height then
+      if Row > Self.Height or else Width = 0 or else Column > Self.Width then
          return;
       end if;
+
+      Unsplit (Self, Row, Column, Natural'Min (Self.Width, Column + Width - 1));
 
       for C in Column .. Natural'Min (Self.Width, Column + Width - 1) loop
          Self.Cells (Index (Self, Row, C)) :=
@@ -220,6 +202,8 @@ package body Explore.Screen is
             return;
          end if;
 
+         Unsplit (Self, Row, At_Column, At_Column + Cells - 1);
+
          Self.Cells (Index (Self, Row, At_Column)) :=
            (Code => Code, Item_Style => Item_Style, Continuation => False, others => <>);
 
@@ -252,7 +236,11 @@ package body Explore.Screen is
       Style : constant Screen.Style := (Foreground => Color (Id), others => <>);
    begin
       for R in 0 .. Natural'Min (Rows, Explore.Images.Diacritic_Count) - 1 loop
-         exit when Row + R > Self.Height;
+         exit when Row + R > Self.Height or else Column > Self.Width;
+
+         Unsplit
+           (Self, Row + R, Column,
+            Natural'Min (Self.Width, Column + Natural'Min (Columns, Explore.Images.Diacritic_Count) - 1));
 
          for C in 0 .. Natural'Min (Columns, Explore.Images.Diacritic_Count) - 1 loop
             exit when Column + C > Self.Width;
@@ -310,6 +298,19 @@ package body Explore.Screen is
 
       return ESC & "[" & Unbounded.To_String (Codes) & "m";
    end SGR;
+
+   procedure Unsplit (Self : in out Grid; Row, First, Last : Positive) is
+      Before : constant Positive := Index (Self, Row, First);
+   begin
+      if First > 1 and then Self.Cells (Before).Continuation then
+         Self.Cells (Before - 1).Code := ' ';
+      end if;
+
+      if Last < Self.Width and then Self.Cells (Index (Self, Row, Last + 1)).Continuation then
+         Self.Cells (Index (Self, Row, Last + 1)).Code := ' ';
+         Self.Cells (Index (Self, Row, Last + 1)).Continuation := False;
+      end if;
+   end Unsplit;
 
    function Width_Of (Text : String) return Natural is
       Total : Natural := 0;

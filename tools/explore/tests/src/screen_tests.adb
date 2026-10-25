@@ -79,10 +79,6 @@ package body Screen_Tests is
       AUnit.Assertions.Assert (Used = 0, "rows beyond the grid are not written");
 
       AUnit.Assertions.Assert (Screen.Width_Of ("caf" & Character'Val (16#C3#) & Character'Val (16#A9#)) = 4, "é");
-      AUnit.Assertions.Assert
-        (Screen.Clipped ("ab" & Character'Val (16#C3#) & Character'Val (16#A9#) & "cd", 3)
-         = "ab" & Character'Val (16#C3#) & Character'Val (16#A9#),
-         "clipping never cuts a character");
    end Test_Put_And_Clip;
 
    procedure Test_Render_Writes_Only_Changes (T : in out Fixture) is
@@ -133,5 +129,24 @@ package body Screen_Tests is
         (Screen.Cell_At (Grid, 1, 2).Continuation and then not Screen.Cell_At (Grid, 1, 3).Continuation,
          "a wide character takes its cell and the next");
       AUnit.Assertions.Assert (Screen.Width_Of (Wide & Wide) = 4, "width of wide characters");
+
+      --  Overwriting either half of a wide character blanks the other.
+      Screen.Resize (Grid, 1, 6);
+      Screen.Put (Grid, 1, 1, Wide & Wide & Wide, Screen.Plain, 6, Used);
+      Screen.Put (Grid, 1, 2, "x", Screen.Plain, 1, Used);
+      Screen.Put (Grid, 1, 3, "y", Screen.Plain, 1, Used);
+      Screen.Fill (Grid, 1, 6, 1, Screen.Plain);
+      AUnit.Assertions.Assert
+        (Row_Text (Grid, 1) = " xy   "
+         and then (for all Column in 1 .. 6 => not Screen.Cell_At (Grid, 1, Column).Continuation),
+         "no half of a wide character is left: " & Row_Text (Grid, 1)'Length'Image);
+
+      declare
+         Shown : Screen.Grid;
+         Output : constant String := Screen.Diff_Output (Shown, Grid);
+      begin
+         AUnit.Assertions.Assert
+           (Ada.Strings.Fixed.Index (Output, Wide) = 0, "and none is sent to the terminal");
+      end;
    end Test_Wide_Characters;
 end Screen_Tests;

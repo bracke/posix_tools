@@ -95,9 +95,20 @@ package Explore.Input is
 
    function Has_Pending (Self : Decoder) return Boolean;
 
+   --  The most of a paste that is held waiting for its end. A paste longer
+   --  than this is handed over cut short, and the rest of it dropped up to
+   --  its end, or up to a pause past it: a terminal that never ends a paste
+   --  neither holds the keyboard up nor fills memory.
+   Paste_Limit : constant := 1024 * 1024;
+
 private
    type Decoder is record
-      Buffer  : Ada.Strings.Unbounded.Unbounded_String;
-      Flushed : Boolean := False;
+      Buffer   : Ada.Strings.Unbounded.Unbounded_String;
+      Flushed  : Boolean := False;
+      --  How much of the paste Buffer starts with was looked through for its
+      --  end: the next look starts from there, not from the beginning.
+      Searched : Natural := 0;
+      --  A paste cut short at Paste_Limit: what follows is the rest of it.
+      Dropping : Boolean := False;
    end record;
 end Explore.Input;

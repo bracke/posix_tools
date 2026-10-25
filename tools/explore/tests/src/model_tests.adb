@@ -1,10 +1,11 @@
+with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with Ada.Strings.Unbounded;
+with Explore.Directory_Readers;
 with Explore.Input;
 with Explore.Keymap;
 with Explore.Model;
-with Explore.Directory_Readers;
+with Explore.Paths;
 with Posix_Tools.File_Operations.Listing;
 
 package body Model_Tests is
@@ -245,6 +246,20 @@ package body Model_Tests is
       Model.Move (Browser, -3);
       AUnit.Assertions.Assert
         (Natural (Browser.Panes (Model.Current_Pane).Marked.Length) = 3, "ended, the marks stay put");
+
+      --  The anchor is its entry, wherever a reload puts it.
+      Model.Clear_Marks (Browser);
+      Model.Move_To (Browser, 2);
+      Model.Start_Visual (Browser);
+      Model.Reload (Browser, Model.Current_Pane);
+      Give (Browser, Model.Current_Pane, "0 a b c d e");
+      Model.Move (Browser, 1);
+      AUnit.Assertions.Assert
+        (Model.Is_Marked (Browser.Panes (Model.Current_Pane), "b")
+         and then Model.Is_Marked (Browser.Panes (Model.Current_Pane), "c")
+         and then not Model.Is_Marked (Browser.Panes (Model.Current_Pane), "a"),
+         "visual still runs from b once an entry came before it");
+      Model.End_Visual (Browser);
    end Test_History_And_Visual;
 
    procedure Test_Filter (T : in out Fixture) is
@@ -345,20 +360,20 @@ package body Model_Tests is
    procedure Test_Paths (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
-      AUnit.Assertions.Assert (Model.Parent_Of ("/a/b") = "/a", "parent");
-      AUnit.Assertions.Assert (Model.Parent_Of ("/a") = "/", "parent of a top directory");
-      AUnit.Assertions.Assert (Model.Parent_Of ("/") = "/", "the root is its own parent");
-      AUnit.Assertions.Assert (Model.Name_Of ("/a/b") = "b", "name");
-      AUnit.Assertions.Assert (Model.Name_Of ("/a/b/") = "b", "name, trailing slash");
-      AUnit.Assertions.Assert (Model.Name_Of ("/") = "", "the root has no name");
-      AUnit.Assertions.Assert (Model.Name_Of ("//") = "", "nor has the root written twice");
-      AUnit.Assertions.Assert (Model.Name_Of ("/a//") = "a", "name, trailing slashes");
-      AUnit.Assertions.Assert (Model.Name_Of ("b") = "b", "a name alone");
-      AUnit.Assertions.Assert (Model.Child_Of ("/", "a") = "/a", "child of the root");
-      AUnit.Assertions.Assert (Model.Child_Of ("/a", "b") = "/a/b", "child");
-      AUnit.Assertions.Assert (Model.Child_Of ("/a/", "b") = "/a/b", "child of a path with a trailing slash");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a/b") = "/a", "parent");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a") = "/", "parent of a top directory");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/") = "/", "the root is its own parent");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b") = "b", "name");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b/") = "b", "name, trailing slash");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/") = "", "the root has no name");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("//") = "", "nor has the root written twice");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a//") = "a", "name, trailing slashes");
+      AUnit.Assertions.Assert (Explore.Paths.Name_Of ("b") = "b", "a name alone");
+      AUnit.Assertions.Assert (Explore.Paths.Child_Of ("/", "a") = "/a", "child of the root");
+      AUnit.Assertions.Assert (Explore.Paths.Child_Of ("/a", "b") = "/a/b", "child");
+      AUnit.Assertions.Assert (Explore.Paths.Child_Of ("/a/", "b") = "/a/b", "child of a path with a trailing slash");
       AUnit.Assertions.Assert
-        (Model.Folded ("ReadMe" & Character'Val (16#C3#) & Character'Val (16#84#))
+        (Explore.Paths.Folded ("ReadMe" & Character'Val (16#C3#) & Character'Val (16#84#))
          = "readme" & Character'Val (16#C3#) & Character'Val (16#84#),
          "ASCII folded, UTF-8 bytes left alone");
    end Test_Paths;

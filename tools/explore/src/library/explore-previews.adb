@@ -1,16 +1,16 @@
-with Ada.Characters.Handling;
+with Ada.Task_Attributes;
 with Explore.Archives;
 with Explore.Files;
-with Explore.Model;
+with Explore.Paths;
 with Posix_Tools.Arguments;
 with Posix_Tools.File_Operations;
 with Posix_Tools.File_Operations.Removing;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.Executables;
-with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Host;
+with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Text.File_Descriptions;
-with Posix_Tools.Text.Glob;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Previews is
@@ -31,6 +31,26 @@ package body Explore.Previews is
      (No_Thumbnail,
       PDF_Page,      --  The first page, by pdftoppm.
       Video_Frame);  --  The frame a second in, by ffmpeg.
+
+   type Board_Access is access all Board;
+
+   --  The preview the worker of this task is building, and for which board:
+   --  a command run for it is stopped once it is no longer wanted, so that a
+   --  slow previewer holds up neither the next preview nor quitting.
+   type Building is record
+      Jobs       : Board_Access;
+      Generation : Natural := 0;
+   end record;
+
+   package Being_Built is new Ada.Task_Attributes (Building, (Jobs => null, Generation => 0));
+
+   --  Whether the preview this task is building is no longer wanted: another
+   --  was asked for, or the board was shut down. False outside a worker.
+   function Unwanted return Boolean;
+
+   --  Whether Path, just made, is a directory and not a link, owned by this
+   --  process's user, and closed to everyone else: made so, if it can be.
+   function Made_Private (Path : String) return Boolean;
 
    --  What Data, the start of a file, is, as Result's description; and when
    --  it is an image explore can show, its format and size into Result, with
@@ -277,7 +297,7 @@ package body Explore.Previews is
         "text/plain" | "text/x-script" | "inode/x-empty");
 
    function Is_Video (Name : String) return Boolean is
-      Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
+      Lower : constant String := Explore.Paths.Folded (Name);
 
       function Ends (Suffix : String) return Boolean is
         (Lower'Length > Suffix'Length and then Lower (Lower'Last - Suffix'Length + 1 .. Lower'Last) = Suffix);
@@ -286,6 +306,27 @@ package body Explore.Previews is
         or else Ends (".m4v") or else Ends (".wmv") or else Ends (".flv") or else Ends (".mpg")
         or else Ends (".mpeg") or else Ends (".ogv");
    end Is_Video;
+
+   function Made_Private (Path : String) return Boolean is
+      Me, Owner, Group : Natural;
+      Known_Owner      : Boolean;
+      Known_Mode       : Boolean;
+   begin
+      if FS.Is_Link (Path) or else FS.Kind (Path) /= FS.Directory or else not FS.Set_Permissions (Path, 8#700#) then
+         return False;
+      end if;
+
+      FS.File_Ownership (Path, Owner, Group, Known_Owner);
+      return Known_Owner
+        and then Posix_Tools.Host_Adapters.Host.Current_User_Id (Me)
+        and then Owner = Me
+        and then FS.File_Permission_Bits (Path, Known_Mode) mod 8#1000# = 8#700#
+        and then Known_Mode
+        and then not FS.Is_Link (Path);
+   exception
+      when others =>
+         return False;
+   end Made_Private;
 
    procedure Make_Thumbnail
      (Tool      : String;
@@ -305,7 +346,7 @@ package body Explore.Previews is
       end if;
 
       if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
-           (Tool, Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out)
+           (Tool, Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out, Unwanted'Access)
         and then Status = 0
         and then not Timed_Out
         and then FS.Exists (Output)
@@ -341,20 +382,28 @@ package body Explore.Previews is
            and then Posix_Tools.Host_Adapters.Environment.Value ("TMPDIR")'Length > 0
          then Posix_Tools.Host_Adapters.Environment.Value ("TMPDIR") else "/tmp");
    begin
-      --  Making a directory either succeeds or finds it taken, so the first
-      --  free name is this process's alone.
+      --  Making a directory either succeeds or finds the name taken, so the
+      --  one made is this process's alone; a name taken, by whoever, is
+      --  passed over, never used. The name is easily guessed: the directory
+      --  is closed to everyone else before anything is written to it, and
+      --  not used at all when it cannot be.
       for N in 1 .. 1_000 loop
          declare
             Candidate : constant String :=
               Base & "/explore-thumbnails-" & Posix_Tools.Text.Numeric_Images.Natural_Image (N);
+            Made      : Boolean := False;
          begin
-            if not FS.Exists (Candidate) then
+            begin
                FS.Create_Directory (Candidate);
-               return Candidate;
+               Made := True;
+            exception
+               when others =>
+                  null;
+            end;
+
+            if Made then
+               return (if Made_Private (Candidate) then Candidate else "");
             end if;
-         exception
-            when others =>
-               null;
          end;
       end loop;
 
@@ -418,7 +467,7 @@ package body Explore.Previews is
       Arguments.Append (Path);
 
       if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
-           ("/bin/sh", Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out)
+           ("/bin/sh", Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out, Unwanted'Access)
         and then FS.Exists (Output)
       then
          Explore.Files.Read_Head (Output, Head_Bytes, Printed, Read);
@@ -446,14 +495,12 @@ package body Explore.Previews is
       Result    : in out Preview;
       Made      : out Boolean)
    is
-      Name : constant String := Ada.Characters.Handling.To_Lower (Explore.Model.Name_Of (Path));
+      Name : constant String := Explore.Paths.Name_Of (Path);
    begin
       Made := False;
 
       for Rule of Rules loop
-         if (for some Pattern of Rule.Patterns =>
-               Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Name))
-         then
+         if (for some Pattern of Rule.Patterns => Explore.Paths.Glob_Matches (Pattern, Name)) then
             Run_Previewer (Rule, Path, Directory & "/preview.txt", Result, Made);
             return;
          end if;
@@ -580,6 +627,12 @@ package body Explore.Previews is
       elsif Is_Video (Path) then Video_Frame
       else No_Thumbnail);
 
+   function Unwanted return Boolean is
+      Now : constant Building := Being_Built.Value;
+   begin
+      return Now.Jobs /= null and then not Now.Jobs.Is_Wanted (Now.Generation);
+   end Unwanted;
+
    function Video_Arguments (Path, Output : String) return Posix_Tools.Arguments.Vector is
       Result : Posix_Tools.Arguments.Vector;
    begin
@@ -655,6 +708,8 @@ package body Explore.Previews is
          declare
             Result : Preview;
          begin
+            Being_Built.Set_Value ((Jobs => Jobs.all'Unchecked_Access, Generation => Generation));
+
             begin
                --  The thumbnail directory is made when a preview first needs one.
                if not Made then

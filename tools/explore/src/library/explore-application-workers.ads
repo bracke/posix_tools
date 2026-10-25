@@ -34,7 +34,7 @@ private package Explore.Application.Workers is
    --  ready.
    procedure Watch_Preview (State : in out Session);
 
-   --  Take the results the search has found, and stop it once the current
-   --  pane no longer shows it.
+   --  Start the search the current pane wants, take the results it has
+   --  found, and stop it once the current pane no longer shows it.
    procedure Watch_Search (State : in out Session);
 end Explore.Application.Workers;
