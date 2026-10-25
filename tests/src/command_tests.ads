@@ -64,6 +64,14 @@ package Command_Tests is
    procedure Test_Nl (T : in out Fixture);
    procedure Test_Pathchk (T : in out Fixture);
    procedure Test_Seq (T : in out Fixture);
+   procedure Test_Seq_Empty_Range (T : in out Fixture);
+   procedure Test_Sort_Large_Input (T : in out Fixture);
+   procedure Test_Sort_Ordering_Rules (T : in out Fixture);
+   procedure Test_Cut_Characters (T : in out Fixture);
+   procedure Test_Tee_Opens_Each_File_Once (T : in out Fixture);
+   procedure Test_Tr_Streams_Characters (T : in out Fixture);
+   procedure Test_Uniq_Filters (T : in out Fixture);
+   procedure Test_Xargs_Continues_After_Failure (T : in out Fixture);
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture);
    procedure Test_Tail_Compact_Counts (T : in out Fixture);
    procedure Test_Tail_Follow_Live (T : in out Fixture);

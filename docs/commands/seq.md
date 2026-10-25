@@ -44,7 +44,7 @@ Not read.
 
 ## Standard Output
 
-Generated values are written as locale-dependent decimal data. A final LF is always written after the sequence.
+Generated values are written as locale-dependent decimal data. A final LF is written after a nonempty sequence; an empty sequence, such as `seq 2 1`, writes nothing and exits 0.
 
 ## Standard Error
 

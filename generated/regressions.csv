@@ -53,3 +53,20 @@ REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identi
 REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls
 REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,regression:REG-RM-0001 rm keeps link targets
 REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,regression:REG-CP-0005 cp keeps broken links
+REG-SORT-0003,sort,sort large inputs with a stable O(n log n) merge sort that builds each line's keys once,command:sort large input
+REG-SORT-0004,sort,order lines whose keys compare equal by all bytes of the whole line unless -s or -u is given,command:sort ordering rules
+REG-SORT-0005,sort,let ordering options attached to a key override all global ordering options for that key including -r,command:sort ordering rules
+REG-SORT-0006,sort,apply -r inside the comparison so -s keeps equal lines in input order and -u keeps the first of them,command:sort ordering rules
+REG-SORT-0007,sort,decide -u duplicates with the ordering comparison of the keys so -nu merges numerically equal keys,command:sort ordering rules
+REG-SORT-0008,sort,report an -o output file that cannot be written,command:sort ordering rules
+REG-SORT-0009,sort,use byte order in the C and POSIX locales whatever the letter case of the locale name,command:sort ordering rules
+REG-UNIQ-0002,uniq,write nothing when -d and -u are both given,command:uniq filters
+REG-UNIQ-0003,uniq,report an output operand that cannot be written,command:uniq filters
+REG-UNIQ-0004,uniq,compare lines as bytes in the C locale,command:uniq filters
+REG-CUT-0002,cut,select characters rather than bytes for -c in UTF-8 locales and keep characters whole for -n with -b,command:cut characters
+REG-TR-0002,tr,translate standard input chunk by chunk as it arrives and report a standard input read error,command:tr streams characters
+REG-TR-0003,tr,treat set operands and input as characters in UTF-8 locales instead of corrupting multibyte characters,command:tr streams characters
+REG-TR-0004,tr,squeeze by the complemented SET1 for -c -s without SET2,command:tr streams characters
+REG-XARGS-0002,xargs,continue after an invocation exits 1 through 125 and stop with accurate diagnostics for status 255 signals and missing utilities,command:xargs continues after failure
+REG-SEQ-0001,seq,write nothing for an empty sequence,command:seq empty range
+REG-TEE-0001,tee,open each output file once and write every chunk through it,command:tee opens each file once

@@ -6,6 +6,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with GNAT.OS_Lib;
+with Hostkit.Descriptors;
 with Hostkit.Fs;
 with Hostkit.Metadata;
 with Posix_Tools.Arguments;
@@ -3864,6 +3865,355 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "seq reports output failure");
    end Test_Seq;
+
+   procedure Test_Seq_Empty_Range (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+   begin
+      Context.Initialize ("seq", Two_Args ("2", "1"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
+         "seq with an empty range writes nothing");
+
+      Context.Initialize ("seq", Three_Args ("5", "-1", "6"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
+         "seq with an empty descending range writes nothing");
+
+      Context.Initialize ("seq", Two_Args ("9223372036854775807", "9223372036854775807"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "9223372036854775807" & LF,
+         "seq ends the last number with a newline at the overflow limit");
+   end Test_Seq_Empty_Range;
+
+   procedure Test_Sort_Large_Input (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Ada.Calendar.Time;
+      Context  : Test_Contexts.Capturing_Context;
+      Result   : Posix_Tools.Commands.Results.Result;
+      LF       : constant Character := Character'Val (10);
+      Count    : constant := 50_000;
+      Input    : Unbounded_String;
+      Expected : Unbounded_String;
+      Started  : Ada.Calendar.Time;
+
+      function Image (Value : Natural) return String is
+         Raw : constant String := Natural'Image (Value);
+      begin
+         return [1 .. 6 - (Raw'Length - 1) => '0'] & Raw (Raw'First + 1 .. Raw'Last);
+      end Image;
+   begin
+      --  A permutation of 0 .. Count - 1: 7919 is prime to Count.
+      for I in 0 .. Count - 1 loop
+         Append (Input, Image ((I * 7919) mod Count) & LF);
+         Append (Expected, Image (I) & LF);
+      end loop;
+
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Locale (Context, "C");
+      Test_Contexts.Set_Standard_Input (Context, To_String (Input));
+      Started := Ada.Calendar.Clock;
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = To_String (Expected),
+         "sort orders 50000 lines");
+      AUnit.Assertions.Assert
+        (Ada.Calendar.Clock - Started < 2.0, "sort orders 50000 lines in under two seconds");
+   end Test_Sort_Large_Input;
+
+   procedure Test_Sort_Ordering_Rules (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Input, Expected, Label : String);
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Input, Expected, Label : String) is
+      begin
+         Context.Initialize ("sort", Arguments);
+         Test_Contexts.Set_Locale (Context, "C");
+         Test_Contexts.Set_Standard_Input (Context, Input);
+         Posix_Tools.Commands.Sort.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = Expected,
+            Label);
+      end Check;
+   begin
+      Check (One_Arg ("-k1,1"), "a b" & LF & "a a" & LF, "a a" & LF & "a b" & LF,
+             "sort orders equal keys by the whole line as a last resort");
+      Check (Two_Args ("-r", "-k1,1"), "a a" & LF & "a b" & LF, "a b" & LF & "a a" & LF,
+             "sort reverses the last-resort comparison under -r");
+      Check (Two_Args ("-s", "-k1,1"), "a b" & LF & "a a" & LF, "a b" & LF & "a a" & LF,
+             "sort -s keeps equal keys in input order");
+      Check (Three_Args ("-s", "-r", "-k1,1"), "b 1" & LF & "a 2" & LF & "b 3" & LF,
+             "b 1" & LF & "b 3" & LF & "a 2" & LF,
+             "sort -s -r keeps equal keys in input order");
+      Check (Two_Args ("-u", "-r"), "a" & LF & "b" & LF & "a" & LF, "b" & LF & "a" & LF,
+             "sort -u -r keeps one of each line");
+      Check (Three_Args ("-u", "-r", "-k1,1"), "b 1" & LF & "a 2" & LF & "b 3" & LF,
+             "b 1" & LF & "a 2" & LF,
+             "sort -u -r keeps the first of lines with equal keys");
+      Check (One_Arg ("-nu"), "1" & LF & "01" & LF, "1" & LF,
+             "sort -nu treats numerically equal keys as duplicates");
+      Check (One_Arg ("-n"), "1" & LF & "01" & LF, "01" & LF & "1" & LF,
+             "sort -n orders numerically equal lines by bytes");
+      Check (Two_Args ("-r", "-k2n"), "x 2" & LF & "x 10" & LF & "y 1" & LF,
+             "y 1" & LF & "x 2" & LF & "x 10" & LF,
+             "sort key modifiers override the global -r");
+      Check (Two_Args ("-f", "-k1,1r"), "b" & LF & "A" & LF & "a" & LF & "B" & LF,
+             "b" & LF & "a" & LF & "B" & LF & "A" & LF,
+             "sort key modifiers override the global -f");
+      Check (No_Args, "b" & LF & "B" & LF & "a" & LF & "A" & LF, "A" & LF & "B" & LF & "a" & LF & "b" & LF,
+             "sort uses byte order in the C locale");
+
+      Context.Initialize ("sort", Two_Args ("-cu", "-n"));
+      Test_Contexts.Set_Standard_Input (Context, "1" & LF & "01" & LF);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "sort -c -u -n rejects numerically equal adjacent keys");
+
+      Context.Initialize ("sort", Three_Args ("-o", "/nonexistent-directory/sorted", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & LF);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context)
+           = "sort: '/nonexistent-directory/sorted': cannot write file" & LF,
+         "sort reports an -o file it cannot write");
+   end Test_Sort_Ordering_Rules;
+
+   procedure Test_Cut_Characters (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+      E_Acute : constant String := Character'Val (16#C3#) & Character'Val (16#A9#);
+      Line    : constant String := "h" & E_Acute & "llo" & LF;
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Locale, Input, Expected, Label : String);
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Locale, Input, Expected, Label : String) is
+      begin
+         Context.Initialize ("cut", Arguments);
+         Test_Contexts.Set_Locale (Context, Locale);
+         Test_Contexts.Set_Standard_Input (Context, Input);
+         Posix_Tools.Commands.Cut.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = Expected,
+            Label);
+      end Check;
+   begin
+      Check (One_Arg ("-c2-3"), "en_US.UTF-8", Line, E_Acute & "l" & LF, "cut -c selects UTF-8 characters");
+      Check (One_Arg ("-c2"), "C", Line, Character'Val (16#C3#) & LF, "cut -c selects bytes in the C locale");
+      Check (One_Arg ("-b2"), "en_US.UTF-8", Line, Character'Val (16#C3#) & LF, "cut -b selects bytes");
+      Check (One_Arg ("-c3"), "en_US.UTF-8", "a" & Character'Val (16#FF#) & "b" & LF, "b" & LF,
+             "cut -c counts an invalid byte as one character");
+      Check (Two_Args ("-n", "-b2"), "en_US.UTF-8", Line, "" & LF, "cut -n -b drops a range that splits a character");
+      Check (Two_Args ("-n", "-b3"), "en_US.UTF-8", Line, E_Acute & LF,
+             "cut -n -b moves a low end back to the start of its character");
+      Check (Two_Args ("-n", "-b1-2"), "en_US.UTF-8", Line, "h" & LF,
+             "cut -n -b moves a high end back before a split character");
+      Check (Two_Args ("-n", "-b2-"), "en_US.UTF-8", Line, E_Acute & "llo" & LF, "cut -n -b keeps whole characters");
+   end Test_Cut_Characters;
+
+   procedure Test_Tee_Opens_Each_File_Once (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Ada.Calendar.Time;
+      Context    : Test_Contexts.Capturing_Context;
+      Result     : Posix_Tools.Commands.Results.Result;
+      FIFO       : constant String := Work_Path ("tee-once.fifo");
+      Data       : constant String (1 .. 40_000) := [others => 'x'];
+      Read_Total : Natural := 0 with Atomic;
+      Removed    : Boolean;
+
+      --  Reads the FIFO to end of file. A writer that closed and reopened it
+      --  between chunks would end the reading after the first chunk.
+      task type Reader_Task;
+
+      task body Reader_Task is
+         use type Ada.Streams.Stream_Element_Offset;
+         Input  : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+         Buffer : Ada.Streams.Stream_Element_Array (1 .. 4096);
+         Last   : Ada.Streams.Stream_Element_Offset;
+      begin
+         if Hostkit.Descriptors.Open_File (FIFO, Hostkit.Descriptors.Open_Read, Input) then
+            loop
+               case Hostkit.Descriptors.Read (Input, Buffer, Last) is
+                  when Hostkit.Descriptors.Transfer_Ok =>
+                     Read_Total := Read_Total + Natural (Last - Buffer'First + 1);
+                  when Hostkit.Descriptors.Transfer_Interrupted =>
+                     null;
+                  when others =>
+                     exit;
+               end case;
+            end loop;
+            Hostkit.Descriptors.Close (Input);
+         end if;
+      end Reader_Task;
+   begin
+      Ada.Directories.Create_Path (Work_Path (""));
+      GNAT.OS_Lib.Delete_File (FIFO, Removed);
+      if not Hostkit.Fs.Create_FIFO (FIFO, 8#600#) then
+         return;
+      end if;
+
+      declare
+         Reader   : Reader_Task;
+         Deadline : constant Ada.Calendar.Time := Ada.Calendar.Clock + 5.0;
+         Unblock  : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+      begin
+         Context.Initialize ("tee", One_Arg (FIFO));
+         Test_Contexts.Set_Standard_Input (Context, Data);
+         Posix_Tools.Commands.Tee.Run (Context, Result);
+         while not Reader'Terminated and then Ada.Calendar.Clock < Deadline loop
+            delay 0.01;
+         end loop;
+         --  A reader still waiting is released by a writer of our own.
+         if not Reader'Terminated
+           and then Hostkit.Descriptors.Open_File (FIFO, Hostkit.Descriptors.Open_Write_Append, Unblock)
+         then
+            Hostkit.Descriptors.Close (Unblock);
+         end if;
+      end;
+      GNAT.OS_Lib.Delete_File (FIFO, Removed);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = Data,
+         "tee copies standard input");
+      AUnit.Assertions.Assert
+        (Read_Total = Data'Length, "tee writes all input through one open of a FIFO");
+   end Test_Tee_Opens_Each_File_Once;
+
+   procedure Test_Tr_Streams_Characters (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+      E_Acute : constant String := Character'Val (16#C3#) & Character'Val (16#A9#);
+      Upper_E_Acute : constant String := Character'Val (16#C3#) & Character'Val (16#89#);
+      Alpha   : constant String := Character'Val (16#CE#) & Character'Val (16#B1#);
+      Gamma   : constant String := Character'Val (16#CE#) & Character'Val (16#B3#);
+      Long    : constant String (1 .. 40_000) := [others => 'y'];
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Locale, Input, Expected, Label : String);
+
+      procedure Check (Arguments : Posix_Tools.Arguments.Vector; Locale, Input, Expected, Label : String) is
+      begin
+         Context.Initialize ("tr", Arguments);
+         Test_Contexts.Set_Locale (Context, Locale);
+         Test_Contexts.Set_Standard_Input (Context, Input);
+         Posix_Tools.Commands.Tr.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = Expected,
+            Label);
+      end Check;
+   begin
+      Check (Two_Args (E_Acute, "E"), "en_US.UTF-8", "h" & E_Acute & "llo", "hEllo",
+             "tr translates a multibyte character");
+      Check (Two_Args ("a-z" & E_Acute, "A-Z" & Upper_E_Acute), "en_US.UTF-8", "h" & E_Acute & "llo",
+             "H" & Upper_E_Acute & "LLO", "tr maps multibyte characters by position");
+      Check (Two_Args (Alpha & "-" & Gamma, "abc"), "en_US.UTF-8", Gamma & Alpha, "ca",
+             "tr ranges run over code points");
+      Check (Two_Args ("-d", E_Acute), "en_US.UTF-8", "a" & E_Acute & "b", "ab", "tr deletes a multibyte character");
+      Check (Three_Args ("-c", "a" & LF, "X"), "en_US.UTF-8", "a" & E_Acute & "b" & LF, "aXX" & LF,
+             "tr complements by character");
+      Check (Two_Args (E_Acute, "XY"), "C", E_Acute, "XY", "tr works on bytes in the C locale");
+      Check (Two_Args ("-cs", "a"), "C", "aabbccdd" & LF, "aabcd" & LF,
+             "tr -c -s squeezes the complement of SET1");
+      Check (Three_Args ("-cs", "a", "x"), "C", "aabbcc", "aax", "tr -c -s squeezes SET2");
+      Check (Two_Args ("y", "n"), "C", Long, [1 .. Long'Length => 'n'], "tr translates input of several chunks");
+
+      Context.Initialize ("tr", Two_Args ("y", "n"));
+      Test_Contexts.Set_Standard_Input (Context, Long);
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 20_000);
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context)'Length >= 16_384
+         and then Test_Contexts.Error_Output (Context) = "tr: 'standard input': cannot read file" & LF,
+         "tr writes as it reads and reports a read error");
+   end Test_Tr_Streams_Characters;
+
+   procedure Test_Uniq_Filters (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+      Composed   : constant String := Character'Val (16#C3#) & Character'Val (16#A9#);
+      Decomposed : constant String := "e" & Character'Val (16#CC#) & Character'Val (16#81#);
+   begin
+      Context.Initialize ("uniq", Two_Args ("-d", "-u"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & LF & "a" & LF & "b" & LF);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
+         "uniq -d -u writes nothing");
+
+      Context.Initialize ("uniq", No_Args);
+      Test_Contexts.Set_Locale (Context, "C");
+      Test_Contexts.Set_Standard_Input (Context, Composed & LF & Decomposed & LF);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = Composed & LF & Decomposed & LF,
+         "uniq compares bytes in the C locale");
+
+      Context.Initialize ("uniq", Two_Args ("-", "/nonexistent-directory/unique"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & LF);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context)
+           = "uniq: '/nonexistent-directory/unique': cannot write file" & LF,
+         "uniq reports an output file it cannot write");
+   end Test_Uniq_Filters;
+
+   procedure Test_Xargs_Continues_After_Failure (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+   begin
+      Context.Initialize ("xargs", Three_Args ("-t", "-n1", "false"));
+      Test_Contexts.Set_Standard_Input (Context, "a b");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Xargs_Utility_Failed
+         and then Test_Contexts.Error_Output (Context) = "false a" & LF & "false b" & LF,
+         "xargs runs every invocation after one exits 1-125 and then exits 123");
+
+      Context.Initialize ("xargs", Three_Args ("-t", "-n1", "xargs-status-255"));
+      Test_Contexts.Set_Standard_Input (Context, "a b");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Xargs_Utility_Requested_Stop
+         and then Test_Contexts.Error_Output (Context)
+           = "xargs-status-255 a" & LF & "xargs: 'xargs-status-255': command exited with status 255" & LF,
+         "xargs stops after an invocation exits 255");
+
+      Context.Initialize ("xargs", One_Arg ("xargs-signal-9"));
+      Test_Contexts.Set_Standard_Input (Context, "a");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Internal_Failure
+         and then Test_Contexts.Error_Output (Context)
+           = "xargs: 'xargs-signal-9': command terminated by a signal" & LF,
+         "xargs stops and exits 125 when a signal ends an invocation");
+
+      Context.Initialize ("xargs", One_Arg ("missing-utility"));
+      Test_Contexts.Set_Standard_Input (Context, "a");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Utility_Not_Found
+         and then Test_Contexts.Error_Output (Context) = "xargs: 'missing-utility': command not found" & LF,
+         "xargs reports a utility it cannot find");
+   end Test_Xargs_Continues_After_Failure;
 
    procedure Test_Unlink (T : in out Fixture) is
       pragma Unreferenced (T);

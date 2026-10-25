@@ -16,24 +16,29 @@ numeric repeated-output forms, and common backslash byte escapes are expanded.
 i18n-backed locale equivalence classes, collating-symbol forms, numeric repeated-output forms, and backslash escapes.
 
 ## Options
-`-c` and `-C` complement `set1`. `-d` deletes matching bytes. `-s` squeezes repeated output bytes from the selected
-squeeze set. With translation mode, complemented bytes use the locale collation order when the selected locale has one,
-with deterministic byte-order fallback. Project extensions are recognized.
+`-c` and `-C` complement `set1`. `-d` deletes matching characters. `-s` squeezes repeated output characters that are
+in the last operand: `set2` when it is given, otherwise `set1`, complemented under `-c`. With translation mode,
+complemented characters use the locale collation order when the selected locale has one, with deterministic byte-order
+fallback. Project extensions are recognized.
 
 ## Standard Input
-Input bytes to transform.
+Input to transform. It is read and written chunk by chunk, so `tr` works on endless input such as `yes | tr y n`.
 
 ## Standard Output
 Transformed bytes.
 
 ## Standard Error
-Diagnostics for invalid usage.
+Diagnostics for invalid usage and standard input read failures.
 
 ## Exit Status
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Sets are interpreted as byte strings with simple ascending range expansion. Backslash escapes `\a`, `\b`, `\f`, `\n`,
+In the `C` and `POSIX` locales without a UTF-8 codeset, sets and input are bytes. In every other locale they are UTF-8
+characters: a multibyte character in a set is one element, ranges run over code points, `[c*n]` repeats a character, and
+an input byte that does not start a valid UTF-8 sequence is a character of its own. Complemented translation in those
+locales places ASCII characters in the locale collation order and other characters after them in code point order.
+Otherwise sets are interpreted as byte strings with simple ascending range expansion. Backslash escapes `\a`, `\b`, `\f`, `\n`,
 `\r`, `\t`, `\v`, `\\`, and one- to three-digit octal byte escapes are expanded. The byte-oriented classes
 `[:alnum:]`, `[:alpha:]`, `[:blank:]`, `[:cntrl:]`, `[:digit:]`, `[:graph:]`, `[:lower:]`, `[:print:]`, `[:punct:]`,
 `[:space:]`, `[:upper:]`, and `[:xdigit:]` are expanded. Complement mode and squeeze mode are byte-oriented; complement

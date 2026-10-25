@@ -3258,8 +3258,8 @@ package body Command_Tests.Surface_Smoke is
       Test_Contexts.Set_Standard_Input (Context, "a" & Character'Val (16#C3#) & Character'Val (16#A1#) & "b");
       Posix_Tools.Commands.Tr.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "XXXb",
-         "tr locale equivalence expands accented UTF-8 bytes");
+        (Test_Contexts.Output (Context) = "XXb",
+         "tr locale equivalence translates accented UTF-8 characters");
 
       Context.Initialize ("tr", Two_Args ("[.ab.][=cd=]", "XY"));
       Test_Contexts.Set_Standard_Input (Context, "abcd");

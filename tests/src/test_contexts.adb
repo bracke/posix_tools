@@ -519,6 +519,10 @@ package body Test_Contexts is
       elsif Utility = "xargs-status-255" then
          Exit_Status := 255;
          return True;
+      elsif Utility = "xargs-signal-9" then
+         --  128 plus the signal number, as the host adapter reports it.
+         Exit_Status := 137;
+         return True;
       else
          Exit_Status := 127;
          return False;

@@ -272,6 +272,23 @@ package body Command_Tests.Suite_Entries is
         (Result, Caller.Create ("regression:REG-ROOT-0002 root output failure", Test_Root_Output_Failure'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl", Test_Nl'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:seq", Test_Seq'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:seq empty range", Test_Seq_Empty_Range'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:sort large input", Test_Sort_Large_Input'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:sort ordering rules", Test_Sort_Ordering_Rules'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:cut characters", Test_Cut_Characters'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:tee opens each file once", Test_Tee_Opens_Each_File_Once'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:tr streams characters", Test_Tr_Streams_Characters'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:uniq filters", Test_Uniq_Filters'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create ("command:xargs continues after failure", Test_Xargs_Continues_After_Failure'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink", Test_Unlink'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail byte mode edges", Test_Tail_Byte_Mode_Edges'Access));

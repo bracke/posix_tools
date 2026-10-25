@@ -2,14 +2,17 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Cut_Fields;
+with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Cut is
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Text.Cut_Fields.Range_Item;
+   use type Posix_Tools.Text.UTF_8.Decode_Status;
 
    LF : constant Character := Character'Val (10);
 
@@ -17,8 +20,36 @@ package body Posix_Tools.Commands.Cut is
    package Range_Vectors is new Ada.Containers.Vectors
      (Positive, Posix_Tools.Text.Cut_Fields.Range_Item);
 
+   --  The number of bytes of the UTF-8 character starting at Index; an
+   --  invalid or truncated sequence counts as a one-byte character.
+   function Character_Width (Text : String; Index : Positive) return Positive;
+
    function Parse_List (Text : String; Ranges : in out Range_Vectors.Vector) return Boolean;
    function Selected (Ranges : Range_Vectors.Vector; Position : Positive) return Boolean;
+
+   --  -b with -n: the selected bytes after POSIX moves each range's low end
+   --  back to the start of its character and its high end back before a
+   --  character it would split; a range left empty is dropped.
+   function Whole_Character_Bytes (Ranges : Range_Vectors.Vector; Line : String) return String;
+
+   --  -c: the selected characters.
+   function Selected_Characters (Ranges : Range_Vectors.Vector; Line : String) return String;
+
+   function Character_Width (Text : String; Index : Positive) return Positive is
+      Decoder    : Posix_Tools.Text.UTF_8.Decoder;
+      Status     : Posix_Tools.Text.UTF_8.Decode_Status;
+      Code_Point : Long_Long_Integer;
+   begin
+      for I in Index .. Text'Last loop
+         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (I)), Status, Code_Point);
+         if Status = Posix_Tools.Text.UTF_8.Complete then
+            return I - Index + 1;
+         elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+            return 1;
+         end if;
+      end loop;
+      return 1;
+   end Character_Width;
 
    function Parse_List (Text : String; Ranges : in out Range_Vectors.Vector) return Boolean is
       Index : Positive := Text'First;
@@ -73,6 +104,8 @@ package body Posix_Tools.Commands.Cut is
       No_Split   : Boolean := False;
       First_File : Positive := 1;
       All_Ok     : Boolean := True;
+      Characters : constant Boolean :=
+        Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale (Context.Effective_Locale);
 
       procedure Cut_File (Name : String; Ok : out Boolean);
       procedure Emit_Line (Line : String);
@@ -105,7 +138,11 @@ package body Posix_Tools.Commands.Cut is
          Start  : Positive := Clean'First;
          Seen_Delimiter : Boolean := False;
       begin
-         if Mode = 'b' or else Mode = 'c' then
+         if Mode = 'c' and then Characters then
+            Context.Put_Line (Selected_Characters (Ranges, Clean));
+         elsif Mode = 'b' and then No_Split and then Characters then
+            Context.Put_Line (Whole_Character_Bytes (Ranges, Clean));
+         elsif Mode = 'b' or else Mode = 'c' then
             for I in Clean'Range loop
                if Selected (Ranges, I - Clean'First + 1) then
                   Append (Output, Clean (I));
@@ -253,4 +290,68 @@ package body Posix_Tools.Commands.Cut is
       end loop;
       return False;
    end Selected;
+
+   function Selected_Characters (Ranges : Range_Vectors.Vector; Line : String) return String is
+      Output   : Unbounded_String;
+      Index    : Positive := Line'First;
+      Position : Positive := 1;
+   begin
+      while Index <= Line'Last loop
+         declare
+            Width : constant Positive := Character_Width (Line, Index);
+         begin
+            if Selected (Ranges, Position) then
+               Append (Output, Line (Index .. Index + Width - 1));
+            end if;
+            Index := Index + Width;
+            Position := Position + 1;
+         end;
+      end loop;
+      return To_String (Output);
+   end Selected_Characters;
+
+   function Whole_Character_Bytes (Ranges : Range_Vectors.Vector; Line : String) return String is
+      Length : constant Natural := Line'Length;
+      --  Offsets are one-based byte positions within Line.
+      Starts : array (1 .. Length) of Positive;
+      Ends   : array (1 .. Length) of Positive;
+      Keep   : array (1 .. Length) of Boolean := [others => False];
+      Output : Unbounded_String;
+      Offset : Positive := 1;
+   begin
+      while Offset <= Length loop
+         declare
+            Width : constant Positive := Character_Width (Line, Line'First + Offset - 1);
+         begin
+            for I in Offset .. Offset + Width - 1 loop
+               Starts (I) := Offset;
+               Ends (I) := Offset + Width - 1;
+            end loop;
+            Offset := Offset + Width;
+         end;
+      end loop;
+
+      for Item of Ranges loop
+         if Item.First <= Length then
+            declare
+               Low  : constant Positive := Starts (Item.First);
+               High : Natural := (if Item.Last = 0 then Length else Natural'Min (Item.Last, Length));
+            begin
+               if Ends (High) /= High then
+                  High := Starts (High) - 1;
+               end if;
+               for I in Low .. High loop
+                  Keep (I) := True;
+               end loop;
+            end;
+         end if;
+      end loop;
+
+      for I in Keep'Range loop
+         if Keep (I) then
+            Append (Output, Line (Line'First + I - 1));
+         end if;
+      end loop;
+      return To_String (Output);
+   end Whole_Character_Bytes;
 end Posix_Tools.Commands.Cut;

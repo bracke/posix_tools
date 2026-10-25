@@ -159,9 +159,7 @@ package body Posix_Tools.Commands.Text_Helpers.Collation.Locale_Rules is
       function Key (Ch : Character) return String is
       begin
          if I18N.Collation.Available
-           and then Family /= ""
-           and then Family /= "C"
-           and then Family /= "POSIX"
+           and then not Posix_Tools.Commands.Text_Helpers.Is_Byte_Collation_Locale (Locale)
            and then Family /= "en"
          then
             return I18N.Collation.Sort_Key ([1 => Ch], Locale, I18N.Collation.Primary);

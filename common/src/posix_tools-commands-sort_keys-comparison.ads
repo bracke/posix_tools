@@ -1,30 +1,30 @@
 private package Posix_Tools.Commands.Sort_Keys.Comparison is
-   function Line_Greater
-     (Left, Right : String;
-      Fold_Case,
-      Numeric_Sort,
-      Ignore_Leading_Blanks,
-      Stable_Sort,
-      Dictionary_Order,
-      Ignore_Nonprinting : Boolean;
-      Field_Start : Positive := 1;
-      Field_End : Natural := 0;
-      Character_Start : Positive := 1;
-      Character_End : Natural := 0;
-      Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False;
-      Locale : String := "")
-      return Boolean;
+   --  The rules a key is compared by. POSIX sort: "When ordering options
+   --  appear independent of key field specifications, the requested field
+   --  ordering rules are applied globally to all sort keys. When attached to a
+   --  specific key, the specified ordering options override all global
+   --  ordering options for that key."
+   function Effective_Rules
+     (Key    : Sort_Key_Definition;
+      Global : Ordering_Rules) return Ordering_Rules;
 
-   function Sort_Key_Comparison
+   --  The text a key is compared by, built once per line: the canonical
+   --  numeric field for -n, otherwise the selected bytes after -b -d -f -i,
+   --  turned into a collation key for the locale when no -d -f -i applies.
+   --  Whole_Line selects the entire line, which is the key without -k.
+   function Key_Text
+     (Line       : String;
+      Key        : Sort_Key_Definition;
+      Rules      : Ordering_Rules;
+      Options    : Sort_Options;
+      Whole_Line : Boolean) return String;
+
+   --  Compares two texts built by Key_Text with the same Rules: negative,
+   --  zero or positive, already reversed for -r.
+   function Compare_Key_Texts
      (Left, Right : String;
-      Key : Sort_Key_Definition;
-      Fold_Case,
-      Numeric_Sort,
-      Ignore_Leading_Blanks,
-      Dictionary_Order,
-      Ignore_Nonprinting : Boolean;
-      Field_Separator : Character;
-      Has_Field_Separator : Boolean;
-      Locale : String := "") return Integer;
+      Rules       : Ordering_Rules) return Integer;
+
+   --  Byte order: negative, zero or positive.
+   function Compare_Bytes (Left, Right : String) return Integer;
 end Posix_Tools.Commands.Sort_Keys.Comparison;

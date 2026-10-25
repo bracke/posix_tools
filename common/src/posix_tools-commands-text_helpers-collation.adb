@@ -313,9 +313,7 @@ package body Posix_Tools.Commands.Text_Helpers.Collation is
          Append (Output, Secondary);
       end Append_Collation;
    begin
-      if Family /= ""
-        and then Family /= "c"
-        and then Family /= "posix"
+      if not Posix_Tools.Commands.Text_Helpers.Is_Byte_Collation_Locale (Locale)
         and then Family /= "da"
         and then Family /= "es"
         and then I18N.Collation.Available

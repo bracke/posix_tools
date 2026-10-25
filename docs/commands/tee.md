@@ -31,8 +31,10 @@ Diagnostics for invalid usage and output failures.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Options are validated before standard input is read. Input is copied in bounded chunks to standard output and each
-active file operand. File-output failures are reported once per failed operand while standard output still receives
+Options are validated before standard input is read. Each file operand is opened once, before input is read, and kept
+open until end of input, so FIFOs and devices see one writer. Input is copied in bounded chunks to standard output and
+each open file operand. A file that cannot be opened is reported as such; a file whose write fails is reported once and closed. File-output
+failures are reported once per failed operand while standard output still receives
 readable input data when it can be written. A standard-input read failure returns operational failure after any readable
 prefix has been copied.
 

@@ -9,6 +9,14 @@ package Posix_Tools.Commands.Text_Helpers is
 
    function Folded_Sort_Text (Text : String) return String;
 
+   --  True for the C and POSIX locales (any letter case, any codeset), whose
+   --  collation order is byte order.
+   function Is_Byte_Collation_Locale (Locale : String) return Boolean;
+
+   --  True when text in Locale is decoded as UTF-8 characters: every locale
+   --  except C and POSIX, which are single-byte unless their codeset is UTF-8.
+   function Is_Multibyte_Locale (Locale : String) return Boolean;
+
    function Locale_Collation_Order (Locale, Set1 : String) return String;
 
    function Locale_Family (Locale : String) return String;

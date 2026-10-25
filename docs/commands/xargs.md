@@ -29,12 +29,13 @@ Input text to append.
 Utility standard output.
 
 ## Standard Error
-Diagnostics for execution-boundary failures.
+Diagnostics for execution-boundary failures: `command not found`, `cannot run command`, `command exited with status
+255`, and `command terminated by a signal`.
 
 ## Exit Status
-`0` success, `1` operational failure, `2` invalid usage, `123` invoked utility exited with status `1` through `125`,
-`124` invoked utility exited with status `255`, `125` internal failure, `126` utility found but could not be invoked,
-`127` utility not found.
+`0` success, `1` operational failure, `2` invalid usage, `123` an invoked utility exited with status `1` through `125`,
+`124` an invoked utility exited with status `255`, `125` an invoked utility was terminated by a signal, or internal
+failure, `126` utility found but could not be invoked, `127` utility not found.
 
 ## Behavioral Details
 Without `-0`, input is split on spaces, tabs, and LF before batching. Single quotes, double quotes, and
@@ -46,8 +47,12 @@ The first non-option operand selects the utility; later words are fixed utility 
 with only fixed operands; `-r` suppresses that invocation. The default composed invocation size limit is 131072 bytes,
 counted as the
 sum of utility and argument byte lengths plus one separator byte per argument vector element. `-s` replaces that limit.
-A single utility invocation that cannot fit within the selected limit fails without invoking the utility. Non-zero
-utility results are classified into the documented `xargs` exit-status bands. With `-x`, a batch selected by `-n` or by
+A single utility invocation that cannot fit within the selected limit fails without invoking the utility. An invocation
+that exits `1` through `125` does not stop `xargs`: the remaining invocations run and `xargs` exits `123` at the end.
+As POSIX requires, an invocation that exits `255` or is terminated by a signal, or a utility that cannot be found or
+invoked, stops `xargs` with a diagnostic naming the cause, without processing the remaining input. A signal is
+recognised from the exit status the host reports, 128 plus the signal number, so a utility that itself exits `129`
+through `254` is treated as terminated by a signal. With `-x`, a batch selected by `-n` or by
 all remaining input operands fails when its composed size exceeds `-s`; without `-x`, xargs reduces the batch when a
 smaller nonempty batch can fit.
 

@@ -8,7 +8,7 @@ package Posix_Tools.Host_Adapters.Processes is
    with
      Post =>
        (if not Run'Result then
-          Exit_Status in 126 .. 127);
+          Exit_Status in 125 .. 127);
 
    function Run_With_Environment
      (Utility     : String;

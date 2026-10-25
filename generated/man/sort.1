@@ -15,10 +15,10 @@ comparisons. -i ignores nonprinting bytes in comparison keys. -k
 keydef selects a field range
 for comparison; this increment accepts positive field numbers with optional one-based byte character offsets and
 per-key b, d, f, i, n, and r modifiers as start[.char][opts][,end[.char][opts]]. -n compares the first signed decimal or exponent decimal field in the selected key after leading blanks, using the effective locale's decimal separator, signs, and digit glyphs where available through i18n. -m accepts presorted input
-for merge-mode use and emits the sorted merge result through the same in-memory ordering path. -r reverses output
-order. -t char selects a single-byte field separator for -k. -u suppresses duplicate sorted lines and makes check
-mode reject adjacent equal sort keys. -s preserves input order for otherwise equal sort keys, including equal numeric
-keys. -o output writes results to a file. Project extensions --help, --version, and
+for merge-mode use and emits the sorted merge result through the same in-memory ordering path. -r reverses the comparison. -t char selects a single-byte field separator for -k. -u keeps only the first of each set of lines whose keys compare equal, using the same comparison as the ordering
+(so sort -nu treats 1 and 01 as duplicates), and makes check mode reject adjacent equal sort keys. -s preserves
+input order for lines whose keys compare equal. -o output writes results to a file and reports a file it cannot
+write. Project extensions --help, --version, and
 --posix-tools-identify are recognized. Options are recognized before the first file operand; later option-like words
 are file operands. The end-of-options marker -- is accepted.
 .SH STANDARD INPUT
@@ -30,7 +30,8 @@ Diagnostics for invalid usage and input failures.
 .SH EXIT STATUS
 0 success, 1 operational failure, 2 invalid usage, 125 internal failure.
 .SH BEHAVIORAL DETAILS
-The current implementation performs an in-memory sort. -b removes leading spaces and horizontal tabs from comparison
+The current implementation performs an in-memory, stable merge sort in O(n log n) comparisons; each line's comparison
+keys are built once before sorting. -b removes leading spaces and horizontal tabs from comparison
 keys without changing emitted line bytes. Check mode uses the same comparison rules as output mode. -d drops
 nonblank, nonalphanumeric ASCII bytes from comparison keys without changing emitted line bytes. -f applies
 deterministic UTF-8 Unicode case folding, including compatibility mappings such as Kelvin sign, Angstrom sign, sharp-s,
@@ -38,15 +39,18 @@ final sigma, and Latin ligatures, before comparisons. -i drops bytes outside ASC
 through 0x7e from
 comparison keys without changing emitted line bytes. -n implements signed decimal integer, fractional, and exponent
 comparison for the selected key, canonicalizing localized numeric signs, decimal separators, and digit glyphs through
-the shared i18n CLDR data before comparison. It falls back to lexical order for equal numeric values. Without -t, sort fields are
+the shared i18n CLDR data before comparison. Numerically equal keys compare equal. Without -t, sort fields are
 blank-delimited after leading blanks; with -t, consecutive separators create empty fields. Multiple -k operands are
 applied as priority keys in command-line order. Per-key modifiers map to the same deterministic comparison policies as
-the corresponding global options. -s disables the lexical
-fallback for equal numeric values and preserves their input order. An operand exactly equal to - reads standard input.
+the corresponding global options. As POSIX specifies, global ordering options apply to every key that has none of its
+own, and a key with any modifier (b, d, f, i, n, or r) uses only its own, so sort -r -k2n does not
+reverse that key. When all keys compare equal, lines are ordered as if no -d, -f, -i, -n, or -k were given,
+with all bytes significant and -r still in effect: first by the locale collation of the whole line, then by bytes.
+-s and -u disable that last-resort comparison. -r is part of the comparison rather than a reversal of the sorted
+output, so lines with equal keys keep their input order under -s -r. An operand exactly equal to - reads standard input.
 .SH LOCALE BEHAVIOR
 Sorted data uses deterministic i18n collation keys for supported non-default locales, with project release-locale
-tailoring preserved where the command conformance data defines it. C, POSIX, and unknown locales fall back to
-bytewise Ada string ordering. Help and diagnostics are localized.
+tailoring preserved where the command conformance data defines it. C and POSIX, in any letter case and with any codeset, and unknown locales use bytewise ordering. Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
 Dictionary order and nonprinting classification are ASCII-only. Key definitions support field numbers, one-based byte
 character offsets, multiple key priority levels, and per-key comparison modifiers. Numeric sorting accepts signed

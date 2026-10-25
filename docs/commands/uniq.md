@@ -17,7 +17,8 @@ selected reporting mode.
 `-c` prefixes each emitted line with a seven-column count field followed by one space. `-d` emits only repeated groups.
 `-i` compares ASCII plus selected UTF-8 Latin-1, Latin Extended-A, Latin Extended-B, Greek, Cyrillic, Armenian, Cherokee, Georgian,
 Deseret, and Fullwidth Latin uppercase pairs without case significance before applying the project release-locale
-collation key. `-u` emits only unrepeated groups. `-f fields` skips leading
+collation key. `-u` emits only unrepeated groups; with both `-d` and `-u`
+nothing is written, since POSIX has `-d` suppress unrepeated lines and `-u` suppress repeated ones. `-f fields` skips leading
 blank-separated fields before comparison. `-s chars` skips characters after field skipping. Project extensions `--help`,
 `--version`, and `--posix-tools-identify` are recognized. Options are recognized before the first input operand; later
 option-like words are operands. The end-of-options marker `--` is accepted.
@@ -29,7 +30,7 @@ Used when no file operand is supplied.
 Filtered lines.
 
 ## Standard Error
-Diagnostics for invalid usage and input failures.
+Diagnostics for invalid usage, input failures, and an output operand that cannot be written.
 
 ## Exit Status
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
@@ -44,7 +45,10 @@ Deseret, and Fullwidth Latin uppercase pairs for the comparison key only;
 emitted lines preserve their original bytes.
 
 ## Locale Behavior
-Duplicate detection uses the effective locale through the project release-locale collation data. Filtered output keeps
+Duplicate detection uses the effective locale through the project release-locale collation data. In the `C` and
+`POSIX` locales lines are repeats only when their compared bytes are identical. In other locales lines are repeats when
+they collate equal, that is when their tertiary collation keys are identical (for example Danish `å` and the Angstrom
+sign); lines that differ only in characters the collation ignores are then also treated as repeats. Filtered output keeps
 the original input bytes. Help and diagnostics are localized.
 
 ## Implementation-Defined Choices

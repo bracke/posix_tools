@@ -1,3 +1,4 @@
+with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with Hostkit;
@@ -56,24 +57,28 @@ package body Posix_Tools.Host_Adapters.Processes is
       end loop;
    end Set_Pairs;
 
+   --  Runs Utility to completion. True when it started: Exit_Status is then
+   --  its exit status, or 128 plus the signal number when a signal ended it.
+   --  False when it could not be started: 127 when it was not found, 126 when
+   --  it exists but cannot be executed, 125 when the host failed otherwise.
    function Run
      (Utility     : String;
       Arguments   : Posix_Tools.Arguments.Vector;
       Exit_Status : out Integer) return Boolean
    is
-      Program : constant String := Hostkit.Process.Locate (Utility);
-      Host_Arguments : constant Hostkit.String_Vectors.Vector := To_Host_Arguments (Arguments);
    begin
-      if Program = "" then
-         Exit_Status := 127;
+      if Hostkit.Process.Locate (Utility) = ""
+        and then (for some Ch of Utility => Ch = '/')
+        and then Ada.Directories.Exists (Utility)
+      then
+         Exit_Status := 126;
          return False;
       end if;
-      if Hostkit.Process.Run (Program, Host_Arguments, Exit_Status) then
-         return True;
-      end if;
-
-      Exit_Status := 126;
-      return False;
+      return Run_With_Redirected_Output (Utility, Arguments, "", False, False, Exit_Status);
+   exception
+      when others =>
+         Exit_Status := 125;
+         return False;
    end Run;
 
    function Run_With_Environment

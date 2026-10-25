@@ -246,6 +246,7 @@ package body Posix_Tools.Commands.Seq is
                exit when Context.Output_Failed;
             end if;
             Context.Put ((if Has_Format then Format_Image (Current) else Default_Image (Current, Width)));
+            First_Output := False;
             exit when Context.Output_Failed;
             if Posix_Tools.Text.Decimal_Parsing.Long_Long_Addition_Overflows
               (Current, Increment)
@@ -253,9 +254,9 @@ package body Posix_Tools.Commands.Seq is
                exit;
             end if;
             Current := Current + Increment;
-            First_Output := False;
          end loop;
-         if not Context.Output_Failed then
+         --  An empty sequence, such as seq 2 1, writes nothing at all.
+         if not First_Output and then not Context.Output_Failed then
             Context.Put ("" & LF);
          end if;
       end;

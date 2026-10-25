@@ -1,16 +1,11 @@
-with Ada.Containers.Indefinite_Vectors;
 with Ada.Streams;
 
-with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
 
 package body Posix_Tools.Commands.Tee is
-   package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
-
    use type Ada.Streams.Stream_Element_Offset;
 
    procedure Run
@@ -22,7 +17,6 @@ package body Posix_Tools.Commands.Tee is
       First       : Positive := 1;
       Ok          : Boolean := True;
       Written     : Boolean;
-      Failed_Files : String_Vectors.Vector;
       Previous_Disposition : Posix_Tools.Host_Adapters.Signals.Disposition :=
         Posix_Tools.Host_Adapters.Signals.Default_Disposition;
       Restore_Interrupt    : Boolean := False;
@@ -31,9 +25,9 @@ package body Posix_Tools.Commands.Tee is
         (Buffer : Ada.Streams.Stream_Element_Array;
          Last   : Ada.Streams.Stream_Element_Offset) return String;
 
-      function Is_Failed_File (Path : String) return Boolean;
-
-      procedure Mark_File_Failed (Path : String);
+      --  Reports a file that could not be opened, or written once open, and
+      --  sets the failure status; tee goes on with the other files.
+      procedure Mark_File_Failed (Path : String; Opening : Boolean);
 
       procedure Restore_Interrupt_Disposition;
 
@@ -51,22 +45,14 @@ package body Posix_Tools.Commands.Tee is
          return Text;
       end Buffer_Text;
 
-      function Is_Failed_File (Path : String) return Boolean is
+      procedure Mark_File_Failed (Path : String; Opening : Boolean) is
       begin
-         for I in 1 .. Natural (Failed_Files.Length) loop
-            if Failed_Files.Element (I) = Path then
-               return True;
-            end if;
-         end loop;
-         return False;
-      end Is_Failed_File;
-
-      procedure Mark_File_Failed (Path : String) is
-      begin
-         if not Is_Failed_File (Path) then
-            Failed_Files.Append (Path);
+         if Opening then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         else
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.write_failed", "cannot write file");
          end if;
          Ok := False;
       end Mark_File_Failed;
@@ -130,19 +116,21 @@ package body Posix_Tools.Commands.Tee is
       declare
          Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
          Last   : Ada.Streams.Stream_Element_Offset;
+         Files  : array (First .. Context.Argument_Count) of Posix_Tools.Host_Adapters.Output_Files.Output_File;
+         Closed : Boolean;
       begin
-         for I in First .. Context.Argument_Count loop
-            if not Append_Mode then
-               Posix_Tools.Commands.File_Helpers.Write_File
-                 (Context.Argument (I), "", False, Written);
-               if not Written then
-                  Mark_File_Failed (Context.Argument (I));
-               end if;
+         --  Each file is opened once and written as input arrives.
+         for I in Files'Range loop
+            Posix_Tools.Host_Adapters.Output_Files.Open (Files (I), Context.Argument (I), Append_Mode, Written);
+            if not Written then
+               Mark_File_Failed (Context.Argument (I), Opening => True);
             end if;
          end loop;
 
          loop
             if not Context.Try_Read_Standard_Input (Buffer, Last) then
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
                Ok := False;
                exit;
             end if;
@@ -152,16 +140,25 @@ package body Posix_Tools.Commands.Tee is
                Data : constant String := Buffer_Text (Buffer, Last);
             begin
                Context.Put (Data);
-               for I in First .. Context.Argument_Count loop
-                  if not Is_Failed_File (Context.Argument (I)) then
-                     Posix_Tools.Commands.File_Helpers.Write_File
-                       (Context.Argument (I), Data, True, Written);
+               for I in Files'Range loop
+                  if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
+                     Posix_Tools.Host_Adapters.Output_Files.Write (Files (I), Data, Written);
                      if not Written then
-                        Mark_File_Failed (Context.Argument (I));
+                        Posix_Tools.Host_Adapters.Output_Files.Close (Files (I), Closed);
+                        Mark_File_Failed (Context.Argument (I), Opening => False);
                      end if;
                   end if;
                end loop;
             end;
+         end loop;
+
+         for I in Files'Range loop
+            if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
+               Posix_Tools.Host_Adapters.Output_Files.Close (Files (I), Closed);
+               if not Closed then
+                  Mark_File_Failed (Context.Argument (I), Opening => False);
+               end if;
+            end if;
          end loop;
 
          Restore_Interrupt_Disposition;

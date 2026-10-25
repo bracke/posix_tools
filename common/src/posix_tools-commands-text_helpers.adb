@@ -1,3 +1,5 @@
+with Ada.Characters.Handling;
+with Ada.Strings.Fixed;
 with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Text_Helpers.Display;
 with Posix_Tools.Commands.Text_Helpers.Folding;
@@ -25,6 +27,21 @@ package body Posix_Tools.Commands.Text_Helpers is
    begin
       return Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text (Text);
    end Folded_Sort_Text;
+
+   function Is_Byte_Collation_Locale (Locale : String) return Boolean is
+      Family : constant String :=
+        Ada.Characters.Handling.To_Lower (Locale_Family (Locale));
+   begin
+      return Family in "" | "c" | "posix";
+   end Is_Byte_Collation_Locale;
+
+   function Is_Multibyte_Locale (Locale : String) return Boolean is
+      Lower : constant String := Ada.Characters.Handling.To_Lower (Locale);
+   begin
+      return not Is_Byte_Collation_Locale (Locale)
+        or else Ada.Strings.Fixed.Index (Lower, ".utf-8") > 0
+        or else Ada.Strings.Fixed.Index (Lower, ".utf8") > 0;
+   end Is_Multibyte_Locale;
 
    function Locale_Sort_Text (Locale, Text : String) return String is
    begin

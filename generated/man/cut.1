@@ -10,8 +10,9 @@ Writes selected portions of each input line.
 .SH OPERANDS
 file: input file path. - reads standard input.
 .SH OPTIONS
--b list selects byte positions. -n is accepted with byte mode and is a no-op under the V1 byte-preserving policy.
--c list selects character positions under the byte-preserving V1 policy. -f list selects delimiter-separated
+-b list selects byte positions. -n with -b does not split characters: as POSIX specifies, the low end of each
+range moves back to the first byte of its character, the high end moves back to the last byte of the character before
+one it would split, and a range left empty is dropped. -c list selects character positions. -f list selects delimiter-separated
 fields. -d char selects the field delimiter. -s suppresses lines without delimiters in field mode. Project
 extensions --help, --version, and --posix-tools-identify are recognized. The end-of-options marker -- is
 accepted.
@@ -28,10 +29,12 @@ Lists accept one-based numbers, open-ended ranges, and closed ranges separated b
 Exactly one of -b, -c, or -f may be selected. Supplying more than one list mode is invalid usage.
 The delimiter option -d and suppression option -s are valid only with field mode -f.
 .SH LOCALE BEHAVIOR
+The locale (LC_ALL, then LC_MESSAGES, then LANG) selects whether -c and -n see UTF-8 characters or bytes.
 Data output is not localized. Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
-Character mode currently selects byte positions to preserve deterministic behavior for arbitrary input bytes. -n
-therefore has no additional effect when used with -b.
+Characters are UTF-8 in every locale except C and POSIX without a UTF-8 codeset, where each byte is a character, so
+-c equals -b and -n has no effect there. A byte that does not start a valid UTF-8 sequence counts as one
+character. Selected bytes are written unchanged.
 .SH EXTENSIONS
 --help, --version, --posix-tools-identify.
 .SH EXAMPLES
