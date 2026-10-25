@@ -1,10 +1,14 @@
-with Ada.Strings.Unbounded;
 with Ada.Characters.Handling;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
+with Ada.Text_IO;
+with Package_Entries;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Text.Line_Breaks;
 with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Project_Tools.Files;
+with Project_Tools.Processes;
 with Project_Tools.Release_Checks;
 with Project_Tools.Text;
 with Tooling_Support;
@@ -338,6 +342,103 @@ package body Metadata_Checks.Packaging is
          Require_Packaged ("generated/package-files.txt");
       end Require_Package_File_List_Covers_Release_Metadata;
 
+      --  Package_Entries computes the package from the source trees; git
+      --  says which files the repository holds. Each must account for the
+      --  other, apart from the tracked files the package leaves out on
+      --  purpose: agent state, the ignore file, and what the package step
+      --  or a release writes. Every mismatch is listed in one failure.
+      procedure Require_Package_Entries_Match_Tracked_Files is
+         Git : constant String := Project_Tools.Processes.Locate_Command ("git");
+
+         function Is_Deliberately_Unpackaged (Path : String) return Boolean is
+           (Path = ".codex/state.md" or else Path = ".gitignore"
+            or else Path = "generated/package-files.txt" or else Path = "generated/package-manifest.txt"
+            or else Path = "generated/release-checksums.txt");
+
+         Entries    : Ada.Strings.Unbounded.Unbounded_String;
+         Mismatches : Ada.Strings.Unbounded.Unbounded_String;
+
+         procedure Add_Entry (Relative_Path : String) is
+         begin
+            Ada.Strings.Unbounded.Append (Entries, Character'Val (0) & Relative_Path & Character'Val (0));
+         end Add_Entry;
+
+         procedure Collect is new Package_Entries (Add_Entry);
+      begin
+         if Git = "" or else not Project_Tools.Files.Exists (Project_Tools.Files.Join (Root, ".git")) then
+            Ada.Text_IO.Put_Line ("package entries not compared with git: no git checkout here");
+            return;
+         end if;
+
+         Collect;
+
+         declare
+            Listed : constant Project_Tools.Processes.Captured_Process :=
+              Project_Tools.Processes.Capture
+                (Label   => "list tracked files",
+                 Dir     => Root,
+                 Program => Git,
+                 Args    => Project_Tools.Processes.Arguments
+                   ([Project_Tools.Processes.Argument ("ls-files"),
+                     Project_Tools.Processes.Argument ("-z")]),
+                 Quiet   => True);
+            Tracked : constant String := Ada.Strings.Unbounded.To_String (Listed.Output);
+            Wrapped : constant String := Character'Val (0) & Tracked;
+            Start   : Positive := Tracked'First;
+         begin
+            if Listed.Status /= 0 then
+               Project_Tools.Release_Checks.Fail ("git ls-files failed with status" & Integer'Image (Listed.Status));
+            end if;
+
+            --  Tracked files the entries miss.
+            for I in Tracked'Range loop
+               if Tracked (I) = Character'Val (0) then
+                  declare
+                     Path : constant String := Tracked (Start .. I - 1);
+                  begin
+                     if Path /= ""
+                       and then not Is_Deliberately_Unpackaged (Path)
+                       and then Ada.Strings.Unbounded.Index
+                         (Entries, Character'Val (0) & Path & Character'Val (0)) = 0
+                     then
+                        Ada.Strings.Unbounded.Append
+                          (Mismatches, "  tracked but not packaged: " & Path & Character'Val (10));
+                     end if;
+                  end;
+                  Start := I + 1;
+               end if;
+            end loop;
+
+            --  Entries git does not track.
+            declare
+               Text  : constant String := Ada.Strings.Unbounded.To_String (Entries);
+               First : Positive := Text'First;
+            begin
+               for I in Text'Range loop
+                  if Text (I) = Character'Val (0) then
+                     if I > First then
+                        declare
+                           Path : constant String := Text (First .. I - 1);
+                        begin
+                           if Ada.Strings.Fixed.Index (Wrapped, Character'Val (0) & Path & Character'Val (0)) = 0 then
+                              Ada.Strings.Unbounded.Append
+                                (Mismatches, "  packaged but not tracked: " & Path & Character'Val (10));
+                           end if;
+                        end;
+                     end if;
+                     First := I + 1;
+                  end if;
+               end loop;
+            end;
+         end;
+
+         if Ada.Strings.Unbounded.Length (Mismatches) > 0 then
+            Project_Tools.Release_Checks.Fail
+              ("package entries differ from the files git tracks:" & Character'Val (10)
+               & Ada.Strings.Unbounded.To_String (Mismatches));
+         end if;
+      end Require_Package_Entries_Match_Tracked_Files;
+
       procedure Require_Release_Checksums_Cover_Inventory is
          Path      : constant String := "generated/release-checksums.txt";
          Checksums : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -502,6 +603,7 @@ package body Metadata_Checks.Packaging is
       Require_Package_File_List_Matches_Manifest;
       Require_Package_File_List_Covers_Fixtures;
       Require_Package_File_List_Covers_Release_Metadata;
+      Require_Package_Entries_Match_Tracked_Files;
       Project_Tools.Release_Checks.Require_Manifest_Entry
         (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
          Root,
