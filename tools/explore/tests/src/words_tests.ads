@@ -6,6 +6,7 @@ package Words_Tests is
 
    procedure Test_Lane_Line (T : in out Fixture);
    procedure Test_Result_Line (T : in out Fixture);
+   procedure Test_Catalog (T : in out Fixture);
    procedure Test_Job_Line (T : in out Fixture);
    procedure Test_Panel (T : in out Fixture);
    procedure Test_Configuration_Problem (T : in out Fixture);

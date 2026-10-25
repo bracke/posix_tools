@@ -20,7 +20,6 @@ with Posix_Tools.File_Operations;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Text.File_Modes;
-with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Application.Controller is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -39,8 +38,6 @@ package body Explore.Application.Controller is
 
    --  The commands that move the cursor.
    subtype Movement is Keymap.Action range Keymap.Move_Up .. Keymap.Page_Down;
-
-   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    --  Answer the question of the job that asks, or cancel it, with Item.
    procedure Answer_Conflict (State : in out Session; Item : Input.Event);
@@ -806,7 +803,7 @@ package body Explore.Application.Controller is
       if not Ran then
          Warn (State, Unbounded.To_String (State.Config.Words.Cannot_Run));
       elsif Status /= 0 then
-         Warn (State, Unbounded.To_String (State.Config.Words.Exit_Status) & " " & Image (Natural'Max (0, Status)));
+         Warn (State, Explore.Words.Exit_Line (State.Config.Words, Natural'Max (0, Status)));
       end if;
 
       Model.Reload_All (State.Browser);
@@ -852,10 +849,7 @@ package body Explore.Application.Controller is
       Model.Clear_Marks (State.Browser);
 
       if not Held.Clipboard.Is_Empty then
-         Say
-           (State,
-            Image (Natural (Held.Clipboard.Length)) & " "
-            & Unbounded.To_String (if Cutting then State.Config.Words.Cut else State.Config.Words.Yanked));
+         Say (State, Explore.Words.Taken (State.Config.Words, Natural (Held.Clipboard.Length), Cutting));
       end if;
    end Take_Clipboard;
 

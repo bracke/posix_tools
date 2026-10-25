@@ -576,6 +576,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-line_editor.ads");
    Add_Entry ("tools/explore/src/library/explore-model.adb");
    Add_Entry ("tools/explore/src/library/explore-model.ads");
+   Add_Entry ("tools/explore/src/library/explore-paths.adb");
+   Add_Entry ("tools/explore/src/library/explore-paths.ads");
    Add_Entry ("tools/explore/src/library/explore-previews.adb");
    Add_Entry ("tools/explore/src/library/explore-previews.ads");
    Add_Entry ("tools/explore/src/library/explore-protocol.adb");

@@ -9,7 +9,8 @@ with Explore.String_Vectors;
 --  catalog lookup reads the catalog; everything here after that is plain
 --  formatting.
 package Explore.Words is
-   --  Interface text for operations.
+   --  Interface text for operations. A field said to be a pattern holds its
+   --  placeholders, as "{count}", for the functions below to fill in.
    type Word_Set is record
       Rename_Prompt : Ada.Strings.Unbounded.Unbounded_String;
       Create_Prompt : Ada.Strings.Unbounded.Unbounded_String;
@@ -18,13 +19,20 @@ package Explore.Words is
       Moving        : Ada.Strings.Unbounded.Unbounded_String;
       Linking       : Ada.Strings.Unbounded.Unbounded_String;
       Deleting      : Ada.Strings.Unbounded.Unbounded_String;
+      --  Patterns of {count}.
       Yanked        : Ada.Strings.Unbounded.Unbounded_String;
       Cut           : Ada.Strings.Unbounded.Unbounded_String;
       Queue_Full    : Ada.Strings.Unbounded.Unbounded_String;
       Cancelled     : Ada.Strings.Unbounded.Unbounded_String;
       Exists        : Ada.Strings.Unbounded.Unbounded_String;
       Invalid_Mode  : Ada.Strings.Unbounded.Unbounded_String;
+      --  Patterns: of {count}; of {done} and {what}; of {verb} and {what},
+      --  and {count} too; and of {count} and the {message} of the first.
       Errors        : Ada.Strings.Unbounded.Unbounded_String;
+      Done_Line     : Ada.Strings.Unbounded.Unbounded_String;
+      Cancel_Line   : Ada.Strings.Unbounded.Unbounded_String;
+      Failed_Line   : Ada.Strings.Unbounded.Unbounded_String;
+      Errors_First  : Ada.Strings.Unbounded.Unbounded_String;
       Copied        : Ada.Strings.Unbounded.Unbounded_String;
       Moved         : Ada.Strings.Unbounded.Unbounded_String;
       Linked        : Ada.Strings.Unbounded.Unbounded_String;
@@ -36,6 +44,7 @@ package Explore.Words is
       Names_Prompt  : Ada.Strings.Unbounded.Unbounded_String;
       Text_Prompt   : Ada.Strings.Unbounded.Unbounded_String;
       Searching     : Ada.Strings.Unbounded.Unbounded_String;
+      --  Patterns of {count}.
       Found         : Ada.Strings.Unbounded.Unbounded_String;
       Too_Many      : Ada.Strings.Unbounded.Unbounded_String;
       Bookmarked    : Ada.Strings.Unbounded.Unbounded_String;
@@ -43,6 +52,7 @@ package Explore.Words is
       Unsaved       : Ada.Strings.Unbounded.Unbounded_String;
       Shell_Prompt  : Ada.Strings.Unbounded.Unbounded_String;
       Press_Enter   : Ada.Strings.Unbounded.Unbounded_String;
+      --  A pattern of {status}.
       Exit_Status   : Ada.Strings.Unbounded.Unbounded_String;
       Cannot_Run    : Ada.Strings.Unbounded.Unbounded_String;
       Clipped       : Ada.Strings.Unbounded.Unbounded_String;
@@ -71,6 +81,15 @@ package Explore.Words is
 
    --  How many errors a job met, as "3 errors".
    function Error_Count (Words : Word_Set; Count : Natural) return String;
+
+   --  How many errors a job met, and Message about the first of them.
+   function Errors_With_First (Words : Word_Set; Count : Natural; Message : String) return String;
+
+   --  How many entries were yanked, or cut.
+   function Taken (Words : Word_Set; Count : Natural; Cutting : Boolean) return String;
+
+   --  What a program that ended with Status is said to have done.
+   function Exit_Line (Words : Word_Set; Status : Natural) return String;
 
    --  The jobs as the status line shows them: the first running one in full,
    --  and how many more run or wait. Empty when none runs.

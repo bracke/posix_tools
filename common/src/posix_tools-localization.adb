@@ -18,6 +18,47 @@ package body Posix_Tools.Localization is
            Posix_Tools.Host_Adapters.File_System.Exists ("../../common/messages/posix_tools.catalog"));
    end Catalog_Path;
 
+   function Pattern
+     (Locale  : String;
+      Key     : String;
+      Names   : String;
+      Default : String) return String
+   is
+      Runtime : Messages.Runtime.Instance;
+      Args    : Messages.Arguments.Arguments;
+      First   : Positive := Names'First;
+   begin
+      Messages.Runtime.Initialize (Runtime, Catalog_Path);
+      if not Messages.Runtime.Is_Valid (Runtime) then
+         return Default;
+      end if;
+
+      for I in Names'First .. Names'Last + 1 loop
+         if I > Names'Last or else Names (I) = ' ' then
+            if I > First then
+               Messages.Arguments.Set (Args, Names (First .. I - 1), "{" & Names (First .. I - 1) & "}");
+            end if;
+
+            First := I + 1;
+         end if;
+      end loop;
+
+      declare
+         Rendered : constant Messages.Result.Render_Result :=
+           Messages.Runtime.Render
+             (Item      => Runtime,
+              Locale    => Posix_Tools.Text.Locale_Fields.Effective_Locale (Locale),
+              Key       => Key,
+              Arguments => Args);
+      begin
+         if Rendered.Status = Messages.Result.Success then
+            return Messages.Result.Output_Text (Rendered.Text);
+         else
+            return Default;
+         end if;
+      end;
+   end Pattern;
+
    function Text
      (Locale  : String;
       Key     : String;

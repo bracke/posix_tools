@@ -163,8 +163,8 @@ package body Explore.Application.Workers is
                      if Latest.Errors > 1 then
                         Warn
                           (State,
-                           Explore.Words.Error_Count (State.Config.Words, Latest.Errors)
-                           & ", " & Unbounded.To_String (State.Frame.Message));
+                           Explore.Words.Errors_With_First
+                             (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
                      end if;
                   else
                      Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));

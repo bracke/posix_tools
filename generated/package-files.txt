@@ -569,6 +569,8 @@ tools/explore/src/library/explore-line_editor.adb
 tools/explore/src/library/explore-line_editor.ads
 tools/explore/src/library/explore-model.adb
 tools/explore/src/library/explore-model.ads
+tools/explore/src/library/explore-paths.adb
+tools/explore/src/library/explore-paths.ads
 tools/explore/src/library/explore-previews.adb
 tools/explore/src/library/explore-previews.ads
 tools/explore/src/library/explore-protocol.adb

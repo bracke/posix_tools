@@ -1,5 +1,6 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
+with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Explore.Jobs;
 with Explore.Render;
@@ -20,7 +21,13 @@ package body Words_Tests is
       Copied        => +"copied",
       Deleted       => +"deleted",
       Cancelled     => +"cancelled",
-      Errors        => +"errors",
+      Errors        => +"{count} errors",
+      Done_Line     => +"{done} {what}",
+      Cancel_Line   => +"{verb} {what}: cancelled",
+      Failed_Line   => +"{verb} {what}: {count} errors",
+      Errors_First  => +"{count} errors, {message}",
+      Found         => +"{count} found",
+      Too_Many      => +"{count} found, more than were kept",
       Queued        => +"waiting",
       No_Jobs       => +"no operations",
       Configuration => +"configuration",
@@ -44,12 +51,47 @@ package body Words_Tests is
    begin
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:lane line", Test_Lane_Line'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:result line", Test_Result_Line'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:catalog", Test_Catalog'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:job line", Test_Job_Line'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:panel", Test_Panel'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("words:configuration problem", Test_Configuration_Problem'Access));
       return Result;
    end Suite;
+
+   procedure Test_Catalog (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Here : constant String := Ada.Directories.Current_Directory;
+   begin
+      --  The catalog is found from the repository's root.
+      Ada.Directories.Set_Directory ("../../..");
+
+      declare
+         Danish  : constant Explore.Words.Word_Set := Explore.Words.Load ("da");
+         Spanish : constant Explore.Words.Word_Set := Explore.Words.Load ("es");
+         English : constant Explore.Words.Word_Set := Explore.Words.Load ("en");
+      begin
+         Ada.Directories.Set_Directory (Here);
+         AUnit.Assertions.Assert (Explore.Words.Error_Count (Danish, 3) = "3 fejl", "Danish errors");
+         AUnit.Assertions.Assert
+           (Explore.Words.Exit_Line (Spanish, 2) = "terminó con estado 2", "Spanish exit status");
+         AUnit.Assertions.Assert
+           (Explore.Words.Taken (English, 4, Cutting => True) = "4 cut"
+            and then Explore.Words.Search_Result (English, 1, Truncated => False) = "1 found",
+            "English counts");
+         AUnit.Assertions.Assert
+           (Explore.Words.Result_Line
+              (Danish,
+               (Job   => (Id => 1, Kind => Jobs.Copy_Job, First => +"a", Total => 1),
+                Ended => Jobs.Failed, Errors => 2, others => <>))
+            = Unbounded.To_String (Danish.Copying) & " a: 2 fejl",
+            "a Danish result line");
+      end;
+   exception
+      when others =>
+         Ada.Directories.Set_Directory (Here);
+         raise;
+   end Test_Catalog;
 
    procedure Test_Configuration_Problem (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -143,5 +185,11 @@ package body Words_Tests is
         (Explore.Words.Result_Line (Words, (Job => Job, Ended => Jobs.Failed, Errors => 4, others => <>))
          = "deleting a +2: 4 errors",
          "failed");
+      AUnit.Assertions.Assert
+        (Explore.Words.Errors_With_First (Words, 2, "x: {count}") = "2 errors, x: {count}",
+         "a value filled in is not filled in again");
+      AUnit.Assertions.Assert
+        (Explore.Words.Search_Result (Words, 7, Truncated => True) = "7 found, more than were kept",
+         "a search cut short");
    end Test_Result_Line;
 end Words_Tests;
