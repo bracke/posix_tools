@@ -1,6 +1,6 @@
 with Ada.Streams;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
@@ -29,7 +29,7 @@ package body Posix_Tools.Commands.File is
          Magic_Ok   : Boolean := False;
          Magic_Text : constant String :=
            (if Has_Magic
-            then Posix_Tools.Commands.File_Helpers.Read_File
+            then Posix_Tools.Commands.File_Helpers.Streaming.Read_File
               (Context, To_String (Magic_Path), Magic_Ok)
             else "");
       begin
@@ -65,7 +65,7 @@ package body Posix_Tools.Commands.File is
       begin
          if Path = "-" then
             return Content_Description
-              (Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context));
+              (Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
          end if;
 
          case FS.Kind (Path) is

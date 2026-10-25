@@ -1,6 +1,6 @@
 with Ada.Strings.Unbounded;
 with I18N.Collation;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
@@ -363,7 +363,7 @@ package body Posix_Tools.Commands.Test_Command is
             declare
                Ok      : Boolean := False;
                Ignored : constant String :=
-                 Posix_Tools.Commands.File_Helpers.Read_File (Context, Operand, Ok);
+                 Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Operand, Ok);
             begin
                return Ok;
             end;

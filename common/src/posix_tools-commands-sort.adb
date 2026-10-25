@@ -1,8 +1,9 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Sort_Keys;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Sort_Modifiers;
 
@@ -177,15 +178,15 @@ package body Posix_Tools.Commands.Sort is
       Text := Null_Unbounded_String;
       Ok := True;
       if Options.Files.Is_Empty then
-         Text := To_Unbounded_String (Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context));
+         Text := To_Unbounded_String (Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
          return;
       end if;
 
       for Name of Options.Files loop
          if Name = "-" then
-            Append (Text, Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context));
+            Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
          else
-            Append (Text, Posix_Tools.Commands.File_Helpers.Read_File (Context, Name, Ok));
+            Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok));
             exit when not Ok;
          end if;
       end loop;
@@ -249,7 +250,7 @@ package body Posix_Tools.Commands.Sort is
       if Length (Options.Output_Path) = 0 then
          Context.Put (To_String (Output));
       else
-         Posix_Tools.Commands.File_Helpers.Write_File
+         Posix_Tools.Host_Adapters.File_System.Write_File
            (To_String (Options.Output_Path), To_String (Output), False, Ok);
          if not Ok then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error

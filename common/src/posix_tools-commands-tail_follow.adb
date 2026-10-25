@@ -1,5 +1,5 @@
 with Ada.Streams;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
 
@@ -107,7 +107,7 @@ package body Posix_Tools.Commands.Tail_Follow is
          for I in First_File .. Last_File loop
             exit when Context.Output_Failed;
             if Context.Argument (I) = "-" then
-               Posix_Tools.Commands.File_Helpers.Copy_Standard_Input (Context, Ok);
+               Posix_Tools.Commands.File_Helpers.Streaming.Copy_Standard_Input (Context, Ok);
                All_Ok := All_Ok and Ok;
             else
                declare
@@ -179,7 +179,7 @@ package body Posix_Tools.Commands.Tail_Follow is
          exit when Limit /= 0 and then Polls >= Limit;
          Context.Tail_Follow_Wait;
          Polls := Polls + 1;
-         Posix_Tools.Commands.File_Helpers.Copy_Standard_Input (Context, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Copy_Standard_Input (Context, Ok);
          All_Ok := All_Ok and Ok;
          exit when Context.Output_Failed or else not Ok;
       end loop;

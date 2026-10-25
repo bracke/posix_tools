@@ -1,4 +1,4 @@
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Nl_Numbering is
@@ -85,7 +85,7 @@ package body Posix_Tools.Commands.Nl_Numbering is
    is
       Data : Unbounded_String;
    begin
-      Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+      Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
       if Ok then
          declare
             Current : Unbounded_String;

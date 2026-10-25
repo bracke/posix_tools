@@ -3,7 +3,7 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Streams;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
@@ -459,7 +459,7 @@ package body Posix_Tools.Commands.Tr is
             end;
          end Translate;
 
-         procedure Each_Chunk is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk (Process_Chunk);
+         procedure Each_Chunk is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk (Process_Chunk);
       begin
          for I in 1 .. Natural (Set1.Length) loop
             Positions1.Include (Set1 (I), I);

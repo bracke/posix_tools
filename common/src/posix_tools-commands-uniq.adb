@@ -1,9 +1,10 @@
 with Ada.Containers;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Classification;
@@ -293,8 +294,8 @@ package body Posix_Tools.Commands.Uniq is
       declare
          Text : constant String :=
            (if Options.Files.Is_Empty or else Options.Files.Element (1) = "-"
-            then Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context)
-            else Posix_Tools.Commands.File_Helpers.Read_File (Context, Options.Files.Element (1), Ok));
+            then Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context)
+            else Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Options.Files.Element (1), Ok));
       begin
          if not Ok then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
@@ -307,7 +308,7 @@ package body Posix_Tools.Commands.Uniq is
                 (Options, Context.Effective_Locale, Posix_Tools.Streams.Lines.Split_LF_Records (Text));
          begin
             if Options.Files.Length = 2 then
-               Posix_Tools.Commands.File_Helpers.Write_File (Options.Files.Element (2), Output, False, Ok);
+               Posix_Tools.Host_Adapters.File_System.Write_File (Options.Files.Element (2), Output, False, Ok);
                if not Ok then
                   Posix_Tools.Commands.Helpers.Subject_Operational_Error
                     (Context, Options.Files.Element (2),

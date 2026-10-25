@@ -1,7 +1,7 @@
 with Ada.Containers;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Xargs_Fields;
@@ -288,7 +288,7 @@ package body Posix_Tools.Commands.Xargs is
       declare
          Parsed_Input : constant Posix_Tools.Text.Xargs_Parsing.Parse_Result :=
            Posix_Tools.Text.Xargs_Parsing.Parse_Input
-             (Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context),
+             (Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context),
               Options.Null_Delimited,
               Options.Replacement_Mode,
               Options.Has_Eof_Marker,

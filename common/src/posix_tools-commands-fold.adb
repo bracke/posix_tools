@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
@@ -135,7 +135,7 @@ package body Posix_Tools.Commands.Fold is
       procedure Fold_File (Name : String; Ok : out Boolean) is
          Data : Unbounded_String;
       begin
-         Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
          if Ok then
             Fold_Text (To_String (Data), Ok);
          end if;

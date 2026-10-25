@@ -36,10 +36,4 @@ package Posix_Tools.Commands.File_Helpers.Streaming is
    procedure Copy_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Ok      : out Boolean);
-
-   procedure Write_File
-     (Path        : String;
-      Text        : String;
-      Append_Mode : Boolean;
-      Ok          : out Boolean);
 end Posix_Tools.Commands.File_Helpers.Streaming;

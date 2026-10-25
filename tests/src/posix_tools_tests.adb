@@ -2614,6 +2614,14 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-file_helpers.adb",
          "Ada.Streams.Stream_IO",
          "file helpers must use project filesystem adapters for file operands");
+      Forbid_Text
+        ("common/src/posix_tools-commands-file_helpers-streaming.adb",
+         "Ada.Text_IO.Standard_Input",
+         "file helpers must read standard input through command context");
+      Forbid_Text
+        ("common/src/posix_tools-commands-file_helpers-streaming.adb",
+         "Ada.Streams.Stream_IO",
+         "file helpers must use project filesystem adapters for file operands");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "if File_Name = ""-"" then");
       Project_Tools.Release_Checks.Require_Text
@@ -2651,19 +2659,19 @@ procedure Posix_Tools_Tests is
          "Ada.Streams.Stream_IO",
          "wc command must use shared file helpers for file chunk iteration");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-file_helpers.adb", "procedure For_Each_Chunk");
+        (Check, "common/src/posix_tools-commands-file_helpers-streaming.adb", "procedure For_Each_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-file_helpers.adb", "Action (Context, Buffer, Last)");
+        (Check, "common/src/posix_tools-commands-file_helpers-streaming.adb", "Action (Context, Buffer, Last)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "For_Each_File_Chunk");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "File_Helpers.For_Each_Chunk");
+        (Check, "common/src/posix_tools-commands-tail_bytes.adb", "File_Helpers.Streaming.For_Each_Chunk");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Action => Retain_Chunk");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail_bytes.adb", "Action => Emit_From_Start");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-wc.adb", "File_Helpers.For_Each_Chunk");
+        (Check, "common/src/posix_tools-commands-wc.adb", "File_Helpers.Streaming.For_Each_Chunk");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-wc.adb", "Action => Count_Chunk");
       Project_Tools.Release_Checks.Require_Text

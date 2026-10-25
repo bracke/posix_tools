@@ -1,4 +1,4 @@
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Tailing;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Tail_Bytes;
 with Posix_Tools.Commands.Tail_Follow;
@@ -109,9 +109,9 @@ package body Posix_Tools.Commands.Tail is
          if Current_Mode = Byte_Mode then
             Posix_Tools.Commands.Tail_Bytes.Copy (Context, "-", Requested, Origin, Ok);
          elsif Origin = From_Start then
-            Posix_Tools.Commands.File_Helpers.Copy_Lines_From (Context, "-", Requested, Ok);
+            Posix_Tools.Commands.File_Helpers.Tailing.Copy_Lines_From (Context, "-", Requested, Ok);
          else
-            Posix_Tools.Commands.File_Helpers.Copy_Line_Suffix (Context, "-", Requested, Ok);
+            Posix_Tools.Commands.File_Helpers.Tailing.Copy_Line_Suffix (Context, "-", Requested, Ok);
          end if;
          All_Ok := Ok;
       else
@@ -141,10 +141,10 @@ package body Posix_Tools.Commands.Tail is
                   Posix_Tools.Commands.Tail_Bytes.Copy
                     (Context, Context.Argument (I), Requested, Origin, Ok);
                elsif Origin = From_Start then
-                  Posix_Tools.Commands.File_Helpers.Copy_Lines_From
+                  Posix_Tools.Commands.File_Helpers.Tailing.Copy_Lines_From
                     (Context, Context.Argument (I), Requested, Ok);
                else
-                  Posix_Tools.Commands.File_Helpers.Copy_Line_Suffix
+                  Posix_Tools.Commands.File_Helpers.Tailing.Copy_Line_Suffix
                     (Context, Context.Argument (I), Requested, Ok);
                end if;
                All_Ok := All_Ok and Ok;
