@@ -53,3 +53,23 @@ REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identi
 REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls
 REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,regression:REG-RM-0001 rm keeps link targets
 REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,regression:REG-CP-0005 cp keeps broken links
+REG-RM-0002,rm,refuse an operand whose last component is . or .. and the root directory with a diagnostic instead of emptying it,command:rm refuses dot and root operands
+REG-RM-0003,rm,keep -f quiet only about missing operands and diagnose every other failure with operational failure status,command:rm force reports failures
+REG-RM-0004,rm,prompt under -i before descending into and removing each directory and before removing each entry inside a tree,command:rm interactive per entry
+REG-RM-0005,rm mv,localize and escape the rm and mv interactive prompts and the rm verbose message through the message catalog,command:rm and mv prompts localized
+REG-LN-0001,ln,refuse ln -f when the target is the source itself instead of removing it and then failing,command:ln same file
+REG-MV-0001,mv,replace a non-directory target before a cross-device copy and refuse to merge into a non-empty directory as rename would,command:mv move by copying
+REG-MV-0002,mv ln mkdir rm,report each failed entry with its reason such as no such file or directory not empty file exists or not a directory instead of cannot open file,command:mv diagnostics; command:mkdir mode and diagnostics; command:ln same file; command:rm force reports failures
+REG-CP-0006,cp,diagnose a symbolic link back to a directory being copied as a file system loop and copy the rest instead of recursing without end,command:cp link loop
+REG-CP-0007,cp,follow only command-line symbolic links under -H and keep links as links by default with -R,command:cp link options
+REG-CP-0008,cp,refuse to copy a directory into itself when the target reaches it through a symbolic link,command:cp into itself through a link
+REG-CP-0009,cp,copy a special file's contents into a regular file without -R instead of recreating the special file,command:cp
+REG-CP-0010,cp,keep all twelve permission bits under -p and treat an owner that cannot be kept as no failure while clearing the set-ID bits,command:cp preserves mode bits
+REG-CP-0011,cp,remove a target that cannot be opened for writing under -f and copy afresh,command:cp force replaces unwritable target
+REG-CP-0012,cp,prompt under -i for each existing non-directory target inside a tree and never for a directory that is merged,command:cp interactive inside a tree
+REG-CP-0013,cp,leave the source's times and status-change time alone when copying,command:cp leaves the source alone
+REG-LS-0002,ls,list a symbolic link to nothing given as an operand and list non-directory operands before directories,command:ls operands
+REG-CHMOD-0001,chmod,apply X only to directories and files with an execute bit and accept several actions per clause,command:chmod symbolic grammar
+REG-MKDIR-0001,mkdir,take symbolic -m modes relative to a=rwx instead of the umask-applied mode,command:mkdir mode and diagnostics
+REG-FIND-0001,find,match POSIX bracket character classes and collating elements and treat [] and [!] at the end of a pattern as literal,command:find glob brackets
+REG-WC-0008,wc,reprocess the byte that ends an invalid UTF-8 sequence instead of losing it,command:wc utf-8 resynchronises

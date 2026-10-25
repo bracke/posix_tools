@@ -4,8 +4,9 @@ package body Posix_Tools.Text.File_Modes
   with SPARK_Mode => On
 is
    function Apply_Symbolic_Mode
-     (Text : String;
-      Base : Natural) return Symbolic_Mode_Result is
+     (Text         : String;
+      Base         : Natural;
+      Is_Directory : Boolean := False) return Symbolic_Mode_Result is
    begin
       if Text = "" then
          return (Valid => False, Mode => Base);
@@ -14,7 +15,12 @@ is
       declare
          Result_Mode : Natural := Base;
          Index       : Positive := Text'First;
+         --  X: execute for a directory, or for a file that some execute bit
+         --  is already set on in Base, the mode before any clause.
+         Conditional_Execute : constant Boolean := Is_Directory or else Has_Any_Mode_Bit (Base, 8#111#);
       begin
+         --  clause [, clause]..., each who... followed by one action or more,
+         --  each an op followed by perms, none, or one of u, g, and o.
          for Step in Text'Range loop
             pragma Unreferenced (Step);
             pragma Loop_Invariant
@@ -25,8 +31,6 @@ is
 
             declare
                Who_Mask : Natural := 0;
-               Perms    : Natural := 0;
-               Op       : Character := Character'Val (0);
             begin
                while Index <= Text'Last and then Text (Index) in 'a' | 'u' | 'g' | 'o' loop
                   pragma Loop_Invariant
@@ -46,43 +50,62 @@ is
                   return (Valid => False, Mode => Base);
                end if;
 
-               Op := Text (Index);
-               Index := Index + 1;
-               if (Index > Text'Last or else Text (Index) = ',') and then Op /= '=' then
-                  return (Valid => False, Mode => Base);
-               end if;
-
-               while Index <= Text'Last and then Text (Index) /= ',' loop
+               while Index <= Text'Last and then Text (Index) in '+' | '-' | '=' loop
                   pragma Loop_Invariant
                     (Result_Mode <= 8#7777#
                      and then Who_Mask <= 8#7777#
-                     and then Perms <= 8#7777#
-                     and then Index in Text'First .. Text'Last + 1);
+                     and then Index in Text'First .. Text'Last);
                   pragma Loop_Variant (Decreases => Text'Last - Index + 1);
 
                   declare
-                     Parsed : constant Symbolic_Permission_Bits_Result :=
-                       Symbolic_Permission_Bits
-                         (Who_Mask, Result_Mode, Text (Index));
+                     Op     : constant Character := Text (Index);
+                     --  What u, g, and o copy: the mode as it is before
+                     --  this action.
+                     Before : constant Natural := Result_Mode;
+                     Perms  : Natural := 0;
                   begin
-                     if not Parsed.Valid then
-                        return (Valid => False, Mode => Base);
-                     end if;
-                     Perms := Set_Mode_Mask (Perms, Parsed.Bits);
-                  end;
-                  Index := Index + 1;
-               end loop;
+                     Index := Index + 1;
 
-               declare
-                  Applied : constant Symbolic_Permission_Operation_Result :=
-                    Apply_Symbolic_Permission_Operation
-                      (Result_Mode, Who_Mask, Perms, Op);
-               begin
-                  if not Applied.Valid then
-                     return (Valid => False, Mode => Base);
-                  end if;
-                  Result_Mode := Applied.Mode;
-               end;
+                     while Index <= Text'Last and then Text (Index) not in ',' | '+' | '-' | '=' loop
+                        pragma Loop_Invariant
+                          (Result_Mode <= 8#7777#
+                           and then Before <= 8#7777#
+                           and then Who_Mask <= 8#7777#
+                           and then Perms <= 8#7777#
+                           and then Index in Text'First .. Text'Last
+                           and then Index >= Index'Loop_Entry);
+                        pragma Loop_Variant (Decreases => Text'Last - Index + 1);
+
+                        declare
+                           Parsed : constant Symbolic_Permission_Bits_Result :=
+                             (if Text (Index) = 'X'
+                              then (if Conditional_Execute
+                                    then Symbolic_Permission_Bits (Who_Mask, Before, 'x')
+                                    else (Valid => True, Bits => 0))
+                              else Symbolic_Permission_Bits (Who_Mask, Before, Text (Index)));
+                        begin
+                           if not Parsed.Valid then
+                              return (Valid => False, Mode => Base);
+                           end if;
+                           Perms := Set_Mode_Mask (Perms, Parsed.Bits);
+                        end;
+                        Index := Index + 1;
+                     end loop;
+
+                     declare
+                        Applied : constant Symbolic_Permission_Operation_Result :=
+                          Apply_Symbolic_Permission_Operation
+                            (Result_Mode, Who_Mask, Perms, Op);
+                     begin
+                        if not Applied.Valid then
+                           return (Valid => False, Mode => Base);
+                        end if;
+                        Result_Mode := Applied.Mode;
+                     end;
+                  end;
+
+                  exit when Index > Text'Last;
+               end loop;
 
                if Index <= Text'Last then
                   if Text (Index) /= ',' or else Index = Text'Last then

@@ -16,7 +16,12 @@ package Posix_Tools.File_Operations is
       Not_A_Directory,
       Same_File,
       Cannot_Read_Directory,
-      Unsupported_Type);
+      Unsupported_Type,
+      No_Such_File,
+      Directory_Not_Empty,
+      File_Exists,
+      --  A directory that, links being followed, holds itself.
+      File_System_Loop);
 
    --  The message catalog key that describes Error, and the text to show
    --  where the catalog has none.
@@ -61,6 +66,16 @@ package Posix_Tools.File_Operations is
    --  replaces it, as the commands do once any prompt of theirs has been
    --  answered.
    function Resolve_Conflict (Self : in out Observer; Source, Target : String) return Conflict_Choice;
+
+   --  What a removal asks before it removes Path, or goes into it.
+   type Removal_Question is
+     (Remove_Entry,      --  Remove the file or link Path.
+      Descend_Into,      --  Go into the directory Path, which holds entries.
+      Remove_Directory); --  Remove the directory Path, now empty.
+
+   --  Whether Path is to be dealt with as Question asks. A No leaves Path
+   --  alone, and a directory around it too. The default always answers Yes.
+   function Confirm_Removal (Self : in out Observer; Path : String; Question : Removal_Question) return Boolean;
 
 private
    --  How a whole tree ended so far as Whole, given that one of its entries

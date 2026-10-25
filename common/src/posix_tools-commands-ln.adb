@@ -2,9 +2,12 @@ with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Ln is
    package FS renames Posix_Tools.Host_Adapters.File_System;
+
+   use type FS.File_Kind;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -27,15 +30,66 @@ package body Posix_Tools.Commands.Ln is
          Ok          : in out Boolean;
          Created_One : out Boolean)
       is
+         Present : constant Boolean := FS.Exists (Target) or else FS.Is_Link (Target);
          Created : Boolean;
+
+         procedure Fail (Key, Default : String);
+
+         --  Whether Target is, itself, the file the link would lead to, as
+         --  the same name or the same file reached through a symbolic link:
+         --  then removing it under -f would leave nothing to link to. Another
+         --  hard link to the source is not; its name can go. A symbolic
+         --  link's text is read from the directory the link goes in.
+         function Is_Source_Itself return Boolean;
+
+         procedure Fail (Key, Default : String) is
+         begin
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error (Context, Target, Key, Default);
+         end Fail;
+
+         function Is_Source_Itself return Boolean is
+            Linked : constant String :=
+              (if Symbolic and then (Source = "" or else Source (Source'First) /= '/')
+               then FS.Child_Path (Posix_Tools.Paths.Dirname (Target), Source)
+               else Source);
+         begin
+            return Present
+              and then not FS.Is_Link (Target)
+              and then FS.Exists (Linked)
+              and then FS.Same_File (Linked, Target)
+              and then (FS.Is_Link (Linked)
+                        or else (Posix_Tools.Paths.Basename (Linked) = Posix_Tools.Paths.Basename (Target)
+                                 and then FS.Real_Path (Posix_Tools.Paths.Dirname (Linked))
+                                   = FS.Real_Path (Posix_Tools.Paths.Dirname (Target))));
+         end Is_Source_Itself;
       begin
          Created_One := False;
-         if Force
-           and then not Posix_Tools.Commands.File_Helpers.Remove_Non_Directory_Target (Target)
-         then
+
+         if Is_Source_Itself then
+            Fail ("posix_tools.diagnostic.file.same_file", "source and destination are the same file");
+            return;
+         elsif not Symbolic and then not FS.Exists (Source) then
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Source, "posix_tools.diagnostic.file.missing", "no such file or directory");
+            return;
+         elsif not Symbolic and then FS.Kind (Source) = FS.Directory then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Source, "posix_tools.diagnostic.file.is_directory", "is a directory");
+            return;
+         elsif Present and then not Force then
+            Fail ("posix_tools.diagnostic.file.exists", "file exists");
+            return;
+         elsif Present
+           and then not Posix_Tools.Commands.File_Helpers.Remove_Non_Directory_Target (Target)
+         then
+            if not FS.Is_Link (Target) and then FS.Kind (Target) = FS.Directory then
+               Fail ("posix_tools.diagnostic.file.is_directory", "is a directory");
+            else
+               Fail ("posix_tools.diagnostic.file.remove_failed", "cannot remove");
+            end if;
             return;
          end if;
 
@@ -43,19 +97,15 @@ package body Posix_Tools.Commands.Ln is
            (if Symbolic
             then FS.Create_Link (Source, Target)
             else FS.Create_Hard_Link (Source, Target));
-         if not Created then
-            Ok := False;
-            Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
-         else
+         if Created then
             Created_One := True;
+         else
+            Fail ("posix_tools.diagnostic.file.link_failed", "cannot create link");
          end if;
       exception
          when others =>
             Created_One := False;
-            Ok := False;
-            Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            Fail ("posix_tools.diagnostic.file.link_failed", "cannot create link");
       end Create_Link;
 
    begin
@@ -101,7 +151,7 @@ package body Posix_Tools.Commands.Ln is
       begin
          if Operand_Count > 2 and then not Target_Is_Dir then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Target, "posix_tools.diagnostic.file.not_directory", "not a directory");
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             return;
          end if;
@@ -129,7 +179,7 @@ package body Posix_Tools.Commands.Ln is
       when others =>
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context, Context.Argument (Context.Argument_Count),
-            "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            "posix_tools.diagnostic.file.link_failed", "cannot create link");
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
    end Run;
 end Posix_Tools.Commands.Ln;

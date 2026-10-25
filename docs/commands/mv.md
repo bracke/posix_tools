@@ -37,10 +37,13 @@ Overwrite prompts and diagnostics for invalid usage and move failures.
 The implementation renames through the host in one step, replacing an existing file at the target as rename(2)
 does. Only a move the host cannot make in one step, as across filesystems, is made by copying: the shared
 `Posix_Tools.File_Operations.Moving` copies the operand, keeping modes, owners, times, and symbolic links as links, and
-removes the source only once all of it has been copied. A rename the host refuses, such as a directory onto one that is
-not empty, is a move failure, reported once for the operand. Interactive overwrite prompts accept an initial `y`
-or `Y` byte as confirmation; any other response, including end-of-input, skips that operand without treating the skip
-as a move failure.
+removes the source only once all of it has been copied. That copy replaces the target as rename(2) would: a target that
+is not a directory is removed first, so that the copy is a new file rather than one written through a symbolic link or
+into another hard link of the old one, and a directory target must be empty, never merged into. A rename the host
+refuses, such as a directory onto one that is not empty, is a move failure, reported with its reason (`directory not
+empty`, `is a directory`, `not a directory`, `no such file or directory`). Interactive overwrite prompts are localized
+through `messages`, escape untrusted path text, and accept an answer line beginning with `y` or `Y` as confirmation;
+any other response, including end-of-input, skips that operand without treating the skip as a move failure.
 
 ## Locale Behavior
 Help and diagnostics are localized.

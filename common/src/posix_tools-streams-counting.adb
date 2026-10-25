@@ -102,12 +102,24 @@ is
    is
       Status     : Posix_Tools.Text.UTF_8.Decode_Status;
       Code_Point : Long_Long_Integer;
+      Consumed   : Boolean;
    begin
-      Posix_Tools.Text.UTF_8.Decode (Self.Decoder, Byte, Status, Code_Point);
+      Posix_Tools.Text.UTF_8.Decode (Self.Decoder, Byte, Status, Code_Point, Consumed);
       if Status = Posix_Tools.Text.UTF_8.Complete then
          Note_Code_Point (Self, Code_Point);
       elsif Status = Posix_Tools.Text.UTF_8.Invalid then
          Note_Invalid (Self);
+      end if;
+
+      --  A byte that ended a sequence it could not carry on is counted
+      --  again for what it is: "\xC3A" is an invalid byte and an A.
+      if not Consumed then
+         Posix_Tools.Text.UTF_8.Decode (Self.Decoder, Byte, Status, Code_Point);
+         if Status = Posix_Tools.Text.UTF_8.Complete then
+            Note_Code_Point (Self, Code_Point);
+         elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+            Note_Invalid (Self);
+         end if;
       end if;
    end Decode_Byte;
 

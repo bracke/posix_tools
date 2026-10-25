@@ -9,6 +9,7 @@ with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Mv is
    use type Ada.Containers.Count_Type;
+   use type Posix_Tools.File_Operations.Operation_Outcome;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -28,14 +29,16 @@ package body Posix_Tools.Commands.Mv is
       Interactive : Boolean := False;
       Parsing_Operands : Boolean := False;
 
+      function Confirm_Overwrite (Path : String) return Boolean;
+
       function Confirm_Overwrite (Path : String) return Boolean is
       begin
-         if not Interactive or else Force or else not FS.Exists (Path) then
+         if not Interactive or else Force or else not (FS.Exists (Path) or else FS.Is_Link (Path)) then
             return True;
          end if;
 
-         Context.Put_Error_Line ("mv: overwrite '" & Path & "'?");
-         return Posix_Tools.Commands.Helpers.Read_Affirmative_Response (Context);
+         return Posix_Tools.Commands.Operation_Reports.Ask
+           (Context, "posix_tools.mv.overwrite.prompt", "mv: overwrite '{path}'?", Path);
       end Confirm_Overwrite;
 
    begin
@@ -91,7 +94,7 @@ package body Posix_Tools.Commands.Mv is
            and then not Into_Directory
          then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Target, "posix_tools.diagnostic.file.not_directory", "not a directory");
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             return;
          end if;
@@ -104,25 +107,17 @@ package body Posix_Tools.Commands.Mv is
                   else FS.Child_Path
                     (Target,
                      Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I))));
-               Overwrite_Accepted : constant Boolean := Confirm_Overwrite (Destination);
+               --  Each entry that could not be moved is reported for itself,
+               --  with why.
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
                Moved   : Posix_Tools.File_Operations.Operation_Outcome;
             begin
-               --  One diagnostic per operand, as for rm, rather than one for
-               --  each entry a move by copying could not make.
-               Reports.Quiet := True;
-
-               if Overwrite_Accepted then
+               if Confirm_Overwrite (Destination) then
                   Posix_Tools.File_Operations.Moving.Move_Path (Operands.Element (I), Destination, Reports, Moved);
 
                   if not Posix_Tools.File_Operations.Succeeded (Moved) then
                      Ok := False;
-                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                       (Context,
-                        Operands.Element (I),
-                        "posix_tools.diagnostic.file.open_failed",
-                        "cannot open file");
-                  elsif Verbose then
+                  elsif Verbose and then Moved = Posix_Tools.File_Operations.Done then
                      Context.Put_Line ("'" & Operands.Element (I) & "' -> '" & Destination & "'");
                   end if;
                end if;

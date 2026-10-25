@@ -33,7 +33,9 @@ Diagnostics for invalid usage and link failures.
 
 ## Behavioral Details
 Hard links are created through hostkit. If the target operand names an existing directory, each source is linked inside
-that directory using its lexical basename. Symbolic links are attempted through hostkit and may fail as an ordinary
+that directory using its lexical basename. Under `-f`, a target that is the source itself (the same name, or the same
+file reached through a symbolic link) is refused with `source and destination are the same file` and left in place;
+another hard link to the source is replaced. Without `-f`, an existing target is reported as `file exists`. Symbolic links are attempted through hostkit and may fail as an ordinary
 operational failure on hosts that deny the required capability.
 
 ## Locale Behavior

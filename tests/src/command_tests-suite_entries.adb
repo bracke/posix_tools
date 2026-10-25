@@ -1,11 +1,59 @@
 with AUnit.Test_Caller;
 with AUnit.Test_Suites;
+with File_Command_Tests;
 
 package body Command_Tests.Suite_Entries is
    package Caller is new AUnit.Test_Caller (Command_Tests.Fixture);
+   package File_Caller is new AUnit.Test_Caller (File_Command_Tests.Fixture);
+
+   --  The file commands' tests, each under the command it holds to POSIX.
+   procedure Register_File_Commands (Result : AUnit.Test_Suites.Access_Test_Suite);
+
+   procedure Register_File_Commands (Result : AUnit.Test_Suites.Access_Test_Suite) is
+   begin
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:rm refuses dot and root operands", File_Command_Tests.Test_Rm_Refuses_Dot_And_Root'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:rm force reports failures", File_Command_Tests.Test_Rm_Force_Reports_Failures'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:rm interactive per entry", File_Command_Tests.Test_Rm_Interactive_Per_Entry'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:rm and mv prompts localized", File_Command_Tests.Test_Rm_Mv_Prompts_Localized'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:ln same file", File_Command_Tests.Test_Ln_Same_File'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:mv move by copying", File_Command_Tests.Test_Move_By_Copying'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:mv diagnostics", File_Command_Tests.Test_Mv_Diagnostics'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp link loop", File_Command_Tests.Test_Cp_Link_Loop'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp link options", File_Command_Tests.Test_Cp_Link_Options'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp into itself through a link", File_Command_Tests.Test_Cp_Into_Itself_Through_Link'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp preserves mode bits", File_Command_Tests.Test_Cp_Preserves_Mode_Bits'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp force replaces unwritable target", File_Command_Tests.Test_Cp_Force_Replaces_Unwritable'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp interactive inside a tree", File_Command_Tests.Test_Cp_Interactive_Inside_Tree'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:cp leaves the source alone", File_Command_Tests.Test_Cp_Leaves_Source_Alone'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:ls operands", File_Command_Tests.Test_Ls_Operands'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:chmod symbolic grammar", File_Command_Tests.Test_Chmod_Symbolic_Grammar'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:mkdir mode and diagnostics", File_Command_Tests.Test_Mkdir_Mode_And_Diagnostics'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:find glob brackets", File_Command_Tests.Test_Glob_Brackets'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, File_Caller.Create ("command:wc utf-8 resynchronises", File_Command_Tests.Test_UTF_8_Resynchronises'Access));
+   end Register_File_Commands;
 
    procedure Register (Result : AUnit.Test_Suites.Access_Test_Suite) is
    begin
+      Register_File_Commands (Result);
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:basename", Test_Basename'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:basename edge cases", Test_Basename_Edge_Cases'Access));

@@ -424,15 +424,20 @@ package body Command_Tests.Surface_Smoke is
       if Ada.Directories.Exists ("/dev/null")
         and then Ada.Directories.Kind ("/dev/null") = Ada.Directories.Special_File
       then
+         --  Without -R a special file is read for what it holds, as POSIX
+         --  has it, and its copy is a regular file.
+         Remove_Any (Target);
          Context.Initialize ("cp", Two_Args ("/dev/null", Target));
          Posix_Tools.Commands.Cp.Run (Context, Result);
          AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-            "cp reports portable special file creation failure");
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Ada.Directories.Kind (Target) = Ada.Directories.Ordinary_File
+            and then Ada.Directories.Size (Target) = 0,
+            "cp copies a special file's contents without -R");
       end if;
 
       if Hostkit.Fs.Create_FIFO (Cp_FIFO_Source, 8#600#) then
-         Context.Initialize ("cp", Two_Args (Cp_FIFO_Source, Cp_FIFO_Target));
+         Context.Initialize ("cp", Three_Args ("-R", Cp_FIFO_Source, Cp_FIFO_Target));
          Posix_Tools.Commands.Cp.Run (Context, Result);
          declare
             Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Target);
@@ -446,7 +451,7 @@ package body Command_Tests.Surface_Smoke is
       end if;
 
       if Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#) then
-         Context.Initialize ("cp", Two_Args (Cp_Socket_Source, Cp_Socket_Target));
+         Context.Initialize ("cp", Three_Args ("-R", Cp_Socket_Source, Cp_Socket_Target));
          Posix_Tools.Commands.Cp.Run (Context, Result);
          declare
             Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Target);
@@ -676,10 +681,16 @@ package body Command_Tests.Surface_Smoke is
          (if Hostkit.Fs.Executable_Suffix = "" then 8#555# else 8#444#),
          "chmod applies symbolic copy mode");
 
+      --  POSIX's grammar lets an op stand without perms: "u+" adds nothing.
       Context.Initialize ("chmod", Two_Args ("u+", Chmod_Target));
       Posix_Tools.Commands.Chmod.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects incomplete symbolic mode");
+        (Result.Status = Posix_Tools.Exit_Status.Success, "chmod accepts an op without perms");
+
+      Context.Initialize ("chmod", Two_Args ("u+q", Chmod_Target));
+      Posix_Tools.Commands.Chmod.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects an unknown perm");
 
       declare
          User      : Natural;

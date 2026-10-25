@@ -14,9 +14,24 @@ is
       Status     : out Decode_Status;
       Code_Point : out Long_Long_Integer)
    is
+      Consumed : Boolean;
+      pragma Warnings (GNATprove, Off, """Consumed"" is set by ""Decode"" but not used after the call",
+                       Reason => "this form is for callers that start again past an invalid byte themselves");
+   begin
+      Decode (Self, Byte, Status, Code_Point, Consumed);
+   end Decode;
+
+   procedure Decode
+     (Self       : in out Decoder;
+      Byte       : Natural;
+      Status     : out Decode_Status;
+      Code_Point : out Long_Long_Integer;
+      Consumed   : out Boolean)
+   is
    begin
       Status := Need_More;
       Code_Point := 0;
+      Consumed := True;
 
       if Self.Expected_Continuations = 0 then
          if Byte <= 16#7F# then
@@ -39,8 +54,10 @@ is
             Status := Invalid;
          end if;
       elsif Byte not in 16#80# .. 16#BF# then
+         --  The sequence ends here, and Byte is the start of what follows.
          Reset (Self);
          Status := Invalid;
+         Consumed := False;
       else
          pragma Assert (Self.Accumulator >= 0);
          Self.Accumulator :=

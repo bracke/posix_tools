@@ -103,9 +103,15 @@ is
               (if not Apply_Symbolic_Permission_Operation'Result.Valid then
                  Apply_Symbolic_Permission_Operation'Result.Mode = Current_Mode);
 
+   --  Base changed by the symbolic mode Text, POSIX chmod's grammar: one
+   --  clause or more, comma-separated, each a who list (u, g, o, a; none
+   --  meaning all) and one action or more, each an op (+, -, =) and its
+   --  perms (r, w, x, X, s, t) or one of u, g, and o to copy. X is x for a
+   --  directory, or where Base has an execute bit set, and nothing else.
    function Apply_Symbolic_Mode
-     (Text : String;
-      Base : Natural) return Symbolic_Mode_Result
+     (Text         : String;
+      Base         : Natural;
+      Is_Directory : Boolean := False) return Symbolic_Mode_Result
      with Pre =>
             Base <= 8#7777#
             and Text'First in Positive

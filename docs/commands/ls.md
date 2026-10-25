@@ -32,7 +32,9 @@ Diagnostics for invalid usage and filesystem failures.
 
 ## Behavioral Details
 Directory entries are sorted deterministically before output. Directories are read through the shared
-`Posix_Tools.File_Operations.Listing`, and a symbolic link is listed whether or not its target exists.
+`Posix_Tools.File_Operations.Listing`, and a symbolic link is listed whether or not its target exists, an operand that
+is a link to nothing included. As POSIX orders them, operands that are not directories are listed first, sorted, and
+then each directory operand, sorted, with its contents; operands that do not exist are reported first.
 
 ## Locale Behavior
 Data output is not localized. Help and diagnostics are localized.

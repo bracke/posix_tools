@@ -182,10 +182,21 @@ package body Posix_Tools.File_Operations.Listing is
       Count : constant Natural := Natural (Entries.Length);
 
       --  On the heap: a large directory's keys would not fit a task's stack.
-      Keys  : Key_Array_Access := new Key_Array (1 .. Count);
-      Order_Of : Index_Array_Access := new Index_Array (1 .. Count);
+      --  Made in the body, not here, so that the handler there frees the
+      --  one made should making the other raise.
+      Keys     : Key_Array_Access;
+      Order_Of : Index_Array_Access;
 
       function Before (Left, Right : Positive) return Boolean;
+
+      --  Take each entry's key out of it into Keys, and number Order_Of.
+      procedure Build_Keys;
+
+      --  Free the keys' strings, and Keys and Order_Of themselves.
+      procedure Free_Keys;
+
+      --  Put Entries in the order Order_Of gives.
+      procedure Reorder;
 
       --  Whether Left comes before Right under Order's key alone.
       function Key_Less (Left, Right : Sort_Key_Record) return Boolean;
@@ -215,6 +226,63 @@ package body Posix_Tools.File_Operations.Listing is
          end if;
       end Before;
 
+      procedure Build_Keys is
+      begin
+         for I in 1 .. Count loop
+            declare
+               Item  : Listed_Entry renames Entries.Constant_Reference (I).Element.all;
+               Plain : constant String := Unbounded.To_String (Item.Name);
+               Key   : Sort_Key_Record renames Keys (I);
+            begin
+               Key.Directory := Item.Kind = Directory_Entry;
+               Key.Kind := Item.Kind;
+               Key.Size := Item.Status.Size;
+               Key.Modified := Item.Status.Modified_Seconds;
+
+               --  Each string goes into Keys as it is made, so that Sort's
+               --  handler frees it should making the next one raise.
+               Key.Collated := new String'(Posix_Tools.Text.Natural_Order.Sort_Key (Plain, Order.Fold_Case));
+
+               if Order.Key in By_Name | By_Extension | By_Kind then
+                  Key.Name := new String'(Plain);
+
+                  --  Only ASCII letters fold: the bytes of a UTF-8 name above
+                  --  127 are parts of characters, not letters of their own.
+                  if Order.Fold_Case then
+                     for C of Key.Name.all loop
+                        if C in 'A' .. 'Z' then
+                           C := Character'Val (Character'Pos (C) + 32);
+                        end if;
+                     end loop;
+                  end if;
+
+                  declare
+                     Suffix : constant String := Extension (Key.Name.all);
+                  begin
+                     if Suffix'Length > 0 then
+                        Key.Extension := Key.Name'Last - Suffix'Length + 1;
+                     end if;
+                  end;
+               end if;
+            end;
+
+            Order_Of (I) := I;
+         end loop;
+      end Build_Keys;
+
+      procedure Free_Keys is
+      begin
+         if Keys /= null then
+            for Item of Keys.all loop
+               Free (Item.Name);
+               Free (Item.Collated);
+            end loop;
+         end if;
+
+         Free (Keys);
+         Free (Order_Of);
+      end Free_Keys;
+
       function Key_Less (Left, Right : Sort_Key_Record) return Boolean is
       begin
          case Order.Key is
@@ -235,57 +303,8 @@ package body Posix_Tools.File_Operations.Listing is
       end Key_Less;
 
       procedure Sort_Indices is new Ada.Containers.Generic_Array_Sort (Positive, Positive, Index_Array, Before);
-   begin
-      if Count < 2 then
-         Free (Keys);
-         Free (Order_Of);
-         return;
-      end if;
 
-      for I in 1 .. Count loop
-         declare
-            Item  : Listed_Entry renames Entries.Constant_Reference (I).Element.all;
-            Plain : constant String := Unbounded.To_String (Item.Name);
-            Key   : Sort_Key_Record renames Keys (I);
-         begin
-            Key.Directory := Item.Kind = Directory_Entry;
-            Key.Kind := Item.Kind;
-            Key.Size := Item.Status.Size;
-            Key.Modified := Item.Status.Modified_Seconds;
-
-            --  Each string goes into Keys as it is made, so that the handler
-            --  below frees it should making the next one raise.
-            Key.Collated := new String'(Posix_Tools.Text.Natural_Order.Sort_Key (Plain, Order.Fold_Case));
-
-            if Order.Key in By_Name | By_Extension | By_Kind then
-               Key.Name := new String'(Plain);
-
-               --  Only ASCII letters fold: the bytes of a UTF-8 name above
-               --  127 are parts of characters, not letters of their own.
-               if Order.Fold_Case then
-                  for C of Key.Name.all loop
-                     if C in 'A' .. 'Z' then
-                        C := Character'Val (Character'Pos (C) + 32);
-                     end if;
-                  end loop;
-               end if;
-
-               declare
-                  Suffix : constant String := Extension (Key.Name.all);
-               begin
-                  if Suffix'Length > 0 then
-                     Key.Extension := Key.Name'Last - Suffix'Length + 1;
-                  end if;
-               end;
-            end if;
-         end;
-
-         Order_Of (I) := I;
-      end loop;
-
-      Sort_Indices (Order_Of.all);
-
-      declare
+      procedure Reorder is
          Sorted : Entry_Vectors.Vector;
       begin
          Sorted.Reserve_Capacity (Ada.Containers.Count_Type (Count));
@@ -295,26 +314,21 @@ package body Posix_Tools.File_Operations.Listing is
          end loop;
 
          Entries.Move (Sorted);
-      end;
+      end Reorder;
+   begin
+      if Count < 2 then
+         return;
+      end if;
 
-      for Item of Keys.all loop
-         Free (Item.Name);
-         Free (Item.Collated);
-      end loop;
-
-      Free (Keys);
-      Free (Order_Of);
+      Keys := new Key_Array (1 .. Count);
+      Order_Of := new Index_Array (1 .. Count);
+      Build_Keys;
+      Sort_Indices (Order_Of.all);
+      Reorder;
+      Free_Keys;
    exception
       when others =>
-         if Keys /= null then
-            for Item of Keys.all loop
-               Free (Item.Name);
-               Free (Item.Collated);
-            end loop;
-         end if;
-
-         Free (Keys);
-         Free (Order_Of);
+         Free_Keys;
          raise;
    end Sort;
 end Posix_Tools.File_Operations.Listing;

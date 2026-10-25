@@ -7,6 +7,53 @@ is
 
    function Is_Initial (Self : Decoder) return Boolean;
 
+   --  Take Byte as the next of a UTF-8 sequence. A byte that cannot carry
+   --  on the sequence begun before it ends that sequence as Invalid without
+   --  being taken: Consumed is then False, and Byte must be given again, to
+   --  a decoder now back in its initial state, for what it is itself.
+   procedure Decode
+     (Self       : in out Decoder;
+      Byte       : Natural;
+      Status     : out Decode_Status;
+      Code_Point : out Long_Long_Integer;
+      Consumed   : out Boolean)
+     with
+       Post =>
+         (if Status /= Complete then Code_Point = 0)
+         and then
+           (if Status /= Need_More then Is_Initial (Self))
+         and then
+           (if Status = Need_More then not Is_Initial (Self))
+         and then
+           (if Status = Complete then
+              Code_Point in 0 .. 16#10FFFF#
+              and then not (Code_Point in 16#D800# .. 16#DFFF#))
+         and then
+           (if Is_Initial (Self'Old) and then Byte <= 16#7F# then
+              Status = Complete
+              and then Code_Point = Long_Long_Integer (Byte)
+              and then Is_Initial (Self))
+         and then
+           (if Is_Initial (Self'Old)
+             and then not (Byte <= 16#7F#)
+             and then not (Byte in 16#C2# .. 16#F4#)
+            then
+              Status = Invalid
+              and then Is_Initial (Self))
+         and then
+           (if Is_Initial (Self'Old) and then Byte in 16#C2# .. 16#F4# then
+              Status = Need_More
+              and then Code_Point = 0
+              and then not Is_Initial (Self))
+         and then
+           (if not Consumed then
+              Status = Invalid
+              and then Is_Initial (Self)
+              and then not Is_Initial (Self'Old))
+         and then (if Is_Initial (Self'Old) then Consumed);
+
+   --  Decode without Consumed, for a caller that starts again after the
+   --  first byte of whatever came back Invalid.
    procedure Decode
      (Self       : in out Decoder;
       Byte       : Natural;

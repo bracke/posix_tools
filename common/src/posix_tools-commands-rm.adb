@@ -2,8 +2,14 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Removing;
+with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Localization;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Rm is
+   package FS renames Posix_Tools.Host_Adapters.File_System;
+
+   use type Posix_Tools.File_Operations.Operation_Outcome;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -17,17 +23,64 @@ package body Posix_Tools.Commands.Rm is
       First       : Positive := 1;
       Ok          : Boolean := True;
 
-      function Confirm_Removal (Path : String) return Boolean;
+      --  Whether Path is to be left alone before anything is done to it, and
+      --  said so: POSIX rm refuses an operand whose last component is . or
+      --  .., and one that is the root directory.
+      function Refused (Path : String) return Boolean;
 
-      function Confirm_Removal (Path : String) return Boolean is
+      --  Remove the operand Path, writing a diagnostic for each entry that
+      --  could not go.
+      procedure Remove (Path : String);
+
+      function Refused (Path : String) return Boolean is
+         Last_Component : constant String := Posix_Tools.Paths.Basename (Path);
       begin
-         if not Interactive then
+         if Last_Component in "." | ".." then
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.rm.dot_operand", "refusing to remove '.' or '..'");
+            return True;
+         elsif Posix_Tools.Paths.Is_All_Slashes (Path)
+           or else (not FS.Is_Link (Path) and then FS.Exists (Path) and then FS.Real_Path (Path) = "/")
+         then
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.rm.root_operand", "refusing to remove the root directory");
             return True;
          end if;
 
-         Context.Put_Error_Line ("rm: remove '" & Path & "'?");
-         return Posix_Tools.Commands.Helpers.Read_Affirmative_Response (Context);
-      end Confirm_Removal;
+         return False;
+      end Refused;
+
+      procedure Remove (Path : String) is
+         Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
+         Removed : Posix_Tools.File_Operations.Operation_Outcome;
+      begin
+         --  -f is quiet only about what is not there to remove.
+         if Force and then not FS.Exists (Path) and then not FS.Is_Link (Path) then
+            return;
+         elsif Refused (Path) then
+            Ok := False;
+            return;
+         end if;
+
+         if Interactive then
+            Reports.Prompt := Posix_Tools.Commands.Operation_Reports.Removal;
+         end if;
+
+         Posix_Tools.File_Operations.Removing.Remove_Path
+           (Path, (Recursive => Recursive, Empty_Directories => Directory), Reports, Removed);
+
+         if not Posix_Tools.File_Operations.Succeeded (Removed) then
+            Ok := False;
+         elsif Verbose and then Removed = Posix_Tools.File_Operations.Done then
+            Context.Put_Line
+              (Posix_Tools.Localization.Text_1
+                 (Context.Effective_Locale,
+                  "posix_tools.rm.removed",
+                  "path",
+                  Posix_Tools.Commands.Helpers.Escape_Untrusted (Path),
+                  "removed '" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Path) & "'"));
+         end if;
+      end Remove;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -70,34 +123,7 @@ package body Posix_Tools.Commands.Rm is
       end if;
 
       for I in First .. Context.Argument_Count loop
-         if Confirm_Removal (Context.Argument (I)) then
-            declare
-               --  One diagnostic per operand, as rm has always given, rather
-               --  than one for each entry inside it that could not go.
-               Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
-               Removed : Posix_Tools.File_Operations.Operation_Outcome;
-            begin
-               Reports.Quiet := True;
-               Posix_Tools.File_Operations.Removing.Remove_Path
-                 (Context.Argument (I),
-                  (Recursive => Recursive, Empty_Directories => Directory),
-                  Reports,
-                  Removed);
-
-               if Posix_Tools.File_Operations.Succeeded (Removed) then
-                  if Verbose then
-                     Context.Put_Line ("removed '" & Context.Argument (I) & "'");
-                  end if;
-               elsif not Force then
-                  Ok := False;
-                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                    (Context,
-                     Context.Argument (I),
-                     "posix_tools.diagnostic.file.open_failed",
-                     "cannot open file");
-               end if;
-            end;
-         end if;
+         Remove (Context.Argument (I));
       end loop;
 
       Result.Status :=
