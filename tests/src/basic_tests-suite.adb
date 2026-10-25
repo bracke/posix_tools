@@ -71,6 +71,11 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:move", Operation_Tests.Test_Move'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Operation_Caller.Create ("basic:mv into a directory", Operation_Tests.Test_Mv_Into_Directory'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Operation_Caller.Create ("basic:copy kept and stopped", Operation_Tests.Test_Copy_Kept_And_Stopped'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("regression:REG-RM-0001 rm keeps link targets", Operation_Tests.Test_Rm_Keeps_Link_Targets'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("regression:REG-CP-0005 cp keeps broken links", Operation_Tests.Test_Cp_Keeps_Broken_Links'Access));

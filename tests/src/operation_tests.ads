@@ -10,6 +10,8 @@ package Operation_Tests is
    procedure Test_Copy_Cancel (T : in out Fixture);
    procedure Test_Remove_Tree (T : in out Fixture);
    procedure Test_Move (T : in out Fixture);
+   procedure Test_Mv_Into_Directory (T : in out Fixture);
+   procedure Test_Copy_Kept_And_Stopped (T : in out Fixture);
    procedure Test_Rm_Keeps_Link_Targets (T : in out Fixture);
    procedure Test_Cp_Keeps_Broken_Links (T : in out Fixture);
 end Operation_Tests;

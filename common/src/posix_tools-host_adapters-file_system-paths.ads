@@ -12,6 +12,7 @@ private package Posix_Tools.Host_Adapters.File_System.Paths is
    function Read_Link_Target (Path : String; Target : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
    function Real_Path (Path : String) return String;
    procedure Rename (Old_Path : String; New_Path : String);
+   function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome;
    function Same_File (Left : String; Right : String) return Boolean;
    function Simple_Name (Path : String) return String;
 end Posix_Tools.Host_Adapters.File_System.Paths;

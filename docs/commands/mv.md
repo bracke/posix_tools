@@ -7,8 +7,9 @@
 `mv [-fiv] [--] source... target`
 
 ## Description
-Renames one source path to one target path, or moves multiple source paths into
-an existing target directory.
+Renames one source path to one target path, or moves source paths into an existing
+target directory: with two operands too, a target that is a directory receives the
+source under its own name.
 
 ## Operands
 `source`: source path. `target`: target path or target directory.
@@ -33,9 +34,11 @@ Overwrite prompts and diagnostics for invalid usage and move failures.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-The implementation first renames through the host. If that fails, as across filesystems, the shared
+The implementation renames through the host in one step, replacing an existing file at the target as rename(2)
+does. Only a move the host cannot make in one step, as across filesystems, is made by copying: the shared
 `Posix_Tools.File_Operations.Moving` copies the operand, keeping modes, owners, times, and symbolic links as links, and
-removes the source only once all of it has been copied. Interactive overwrite prompts accept an initial `y`
+removes the source only once all of it has been copied. A rename the host refuses, such as a directory onto one that is
+not empty, is a move failure, reported once for the operand. Interactive overwrite prompts accept an initial `y`
 or `Y` byte as confirmation; any other response, including end-of-input, skips that operand without treating the skip
 as a move failure.
 

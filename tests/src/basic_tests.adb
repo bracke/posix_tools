@@ -37,6 +37,7 @@ with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.File_Magic_Fields;
 with Posix_Tools.Text.File_Operands;
 with Posix_Tools.Text.Find_Expressions;
+with Posix_Tools.Text.Glob;
 with Posix_Tools.Text.Glob_Fields;
 with Posix_Tools.Text.Hex_Digests;
 with Posix_Tools.Text.Line_Breaks;
@@ -2627,6 +2628,31 @@ package body Basic_Tests is
       AUnit.Assertions.Assert
         (Posix_Tools.Text.Glob_Fields.Bracket_Class_Matches ("[^a-c]", 1, 6, 'z'),
          "glob bracket helper supports caret negation");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Text.Glob_Fields.Closing_Bracket_From ("[]a]", 1) = 4
+         and then Posix_Tools.Text.Glob_Fields.Closing_Bracket_From ("[!]a]", 1) = 5,
+         "a bracket first in a class is one of its members");
+
+      declare
+         function M (Pattern, Text : String) return Boolean renames Posix_Tools.Text.Glob.Matches;
+         Long : constant String := (1 .. 60 => 'a');
+      begin
+         AUnit.Assertions.Assert
+           (M ("*.txt", "notes.txt") and then not M ("*.txt", "notes.txt~") and then M ("*", "")
+            and then M ("a*b*c", "aXbYc") and then not M ("a*b*c", "aXbY") and then M ("a?c", "abc")
+            and then not M ("a?c", "ac") and then M ("**", "x") and then M ("", "") and then not M ("", "x"),
+            "glob stars and question marks");
+         AUnit.Assertions.Assert
+           (M ("[]a]x", "]x") and then M ("[!]a]x", "bx") and then not M ("[!]a]x", "]x")
+            and then M ("a[bc", "a[bc") and then M ("[a-c]*", "cat"),
+            "glob classes, and an unclosed bracket as itself");
+         AUnit.Assertions.Assert
+           (M ("a\*", "a*") and then not M ("a\*", "ab") and then M ("\[x]", "[x]") and then M ("a\", "a\"),
+            "a backslash makes the next character stand for itself");
+         AUnit.Assertions.Assert
+           (not M ("*a*a*a*a*a*a*a*a*a*a*a*a*b", Long),
+            "many stars that cannot match end without trying every split");
+      end;
       declare
          use type Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic_Kind;
 

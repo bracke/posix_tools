@@ -38,7 +38,7 @@ package body Posix_Tools.File_Operations.Copying is
 
       procedure Apply_Source_Metadata is
          Available : Boolean;
-         Mode      : constant Natural := FS.File_Permission_Bits (Source, Available);
+         Mode      : Natural;
 
          procedure Apply_Source_Ownership;
 
@@ -66,10 +66,14 @@ package body Posix_Tools.File_Operations.Copying is
             end if;
          end Apply_Source_Ownership;
       begin
+         if not Preserve_Mode then
+            return;
+         end if;
+
+         Mode := FS.File_Permission_Bits (Source, Available);
          Apply_Source_Ownership;
 
-         if Preserve_Mode
-           and then FS.Permissions_Supported
+         if FS.Permissions_Supported
            and then Available
            and then not FS.Set_Permissions (Target, Mode mod 8#1000#)
          then
@@ -77,16 +81,14 @@ package body Posix_Tools.File_Operations.Copying is
             Watcher.Report_Error (Target, Cannot_Open);
          end if;
 
-         if Preserve_Mode then
-            if Source_Times_Available then
-               if not FS.Set_File_Times (Target, Source_Access_Time, Source_Modification_Time) then
-                  Ok := False;
-                  Watcher.Report_Error (Target, Cannot_Open);
-               end if;
-            elsif not FS.Copy_File_Times (Source, Target) then
+         if Source_Times_Available then
+            if not FS.Set_File_Times (Target, Source_Access_Time, Source_Modification_Time) then
                Ok := False;
                Watcher.Report_Error (Target, Cannot_Open);
             end if;
+         elsif not FS.Copy_File_Times (Source, Target) then
+            Ok := False;
+            Watcher.Report_Error (Target, Cannot_Open);
          end if;
       exception
          when others =>
@@ -125,22 +127,35 @@ package body Posix_Tools.File_Operations.Copying is
                return;
             end if;
 
-            if FS.Read_Link_Target (Source, Target_Text) then
-               if FS.Is_Link (Target) then
-                  Ok := FS.Delete_Link (Target);
-               elsif FS.Kind (Target) = FS.Ordinary_File
-               then
-                  FS.Delete_File (Target);
-               end if;
-
-               if Ok and then FS.Create_Link (To_String (Target_Text), Target) then
-                  Watcher.Finished (Source);
-                  return;
-               end if;
+            if not FS.Read_Link_Target (Source, Target_Text) then
+               Ok := False;
+               Watcher.Report_Error (Source, Cannot_Open);
+               return;
             end if;
 
-            Ok := False;
-            Watcher.Report_Error (Source, Cannot_Open);
+            begin
+               if FS.Is_Link (Target) then
+                  Ok := FS.Delete_Link (Target);
+               elsif FS.Kind (Target) = FS.Ordinary_File then
+                  FS.Delete_File (Target);
+               end if;
+            exception
+               when others =>
+                  Ok := False;
+            end;
+
+            if not Ok then
+               Watcher.Report_Error (Target, Cannot_Remove);
+               return;
+            end if;
+
+            if FS.Create_Link (To_String (Target_Text), Target) then
+               Watcher.Finished (Source);
+            else
+               Ok := False;
+               Watcher.Report_Error (Target, Cannot_Open);
+            end if;
+
             return;
          exception
             when others =>
@@ -172,7 +187,6 @@ package body Posix_Tools.File_Operations.Copying is
                Watcher.Report_Error (Target, Not_A_Directory);
                return;
             end if;
-            Apply_Source_Metadata;
 
             declare
                Iteration_Ok : Boolean;
@@ -197,8 +211,14 @@ package body Posix_Tools.File_Operations.Copying is
                   Watcher.Report_Error (Source, Cannot_Read_Directory);
                elsif Watcher.Cancelled then
                   Ok := False;
-               elsif Ok then
-                  Watcher.Finished (Source);
+               else
+                  --  Only once the children are in: a read-only mode would
+                  --  keep them out, and making them would change the times.
+                  Apply_Source_Metadata;
+
+                  if Ok then
+                     Watcher.Finished (Source);
+                  end if;
                end if;
             end;
             return;
@@ -224,7 +244,7 @@ package body Posix_Tools.File_Operations.Copying is
               and then Watcher.Resolve_Conflict (Source, Target) = Skip
             then
                return;
-            elsif FS.Exists (Target) then
+            elsif FS.Is_Link (Target) or else FS.Exists (Target) then
                if FS.Is_Link (Target) then
                   Ok := FS.Delete_Link (Target);
                else
@@ -238,7 +258,7 @@ package body Posix_Tools.File_Operations.Copying is
                end if;
 
                if not Ok then
-                  Watcher.Report_Error (Target, Cannot_Open);
+                  Watcher.Report_Error (Target, Cannot_Remove);
                   return;
                end if;
             end if;
@@ -304,7 +324,14 @@ package body Posix_Tools.File_Operations.Copying is
                end if;
 
             when FS.Copy_Stopped =>
-               null;
+               --  What a stopped copy left is neither the old file nor the
+               --  new one; nothing is better than a cut-off copy.
+               begin
+                  FS.Delete_File (Target);
+               exception
+                  when others =>
+                     Watcher.Report_Error (Target, Cannot_Remove);
+               end;
 
             when FS.Source_Open_Failed | FS.Source_Read_Failed =>
                Watcher.Report_Error (Source, Cannot_Read);

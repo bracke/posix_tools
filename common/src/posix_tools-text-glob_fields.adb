@@ -37,6 +37,16 @@ is
    function Closing_Bracket_From (Pattern : String; Open : Positive) return Natural is
       Index : Positive := Open + 1;
    begin
+      --  A ']' first in the class, after any negation, is one of its
+      --  members rather than its end, as in "[]a]" and "[!]a]".
+      if Index < Pattern'Last and then Pattern (Index) in '!' | '^' then
+         Index := Index + 1;
+      end if;
+
+      if Index < Pattern'Last and then Pattern (Index) = ']' then
+         Index := Index + 1;
+      end if;
+
       while Index <= Pattern'Last loop
          pragma Loop_Invariant (Index in Open + 1 .. Pattern'Last);
          pragma Loop_Variant (Increases => Index);

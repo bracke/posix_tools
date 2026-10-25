@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Cp;
+with Posix_Tools.Commands.Mv;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
 with Posix_Tools.Exit_Status;
@@ -31,8 +32,10 @@ package body Operation_Tests is
       Progressed   : Natural := 0;
       Asked        : Natural := 0;
       Answer       : Ops.Conflict_Choice := Ops.Overwrite;
-      --  Ask to stop once this many entries are done.
+      --  Ask to stop once this many entries are done, or this many pieces
+      --  of a file copied.
       Stop_After   : Natural := Natural'Last;
+      Stop_After_Progress : Natural := Natural'Last;
    end record;
 
    overriding procedure Report_Error (Self : in out Recorder; Path : String; Error : Ops.Operation_Error);
@@ -74,7 +77,8 @@ package body Operation_Tests is
       return Result;
    end Args;
 
-   overriding function Cancelled (Self : in out Recorder) return Boolean is (Self.Done >= Self.Stop_After);
+   overriding function Cancelled (Self : in out Recorder) return Boolean is
+     (Self.Done >= Self.Stop_After or else Self.Progressed >= Self.Stop_After_Progress);
 
    overriding procedure Finished (Self : in out Recorder; Path : String) is
       pragma Unreferenced (Path);
@@ -145,6 +149,7 @@ package body Operation_Tests is
       Self.Asked := 0;
       Self.Answer := Ops.Overwrite;
       Self.Stop_After := Stop_After;
+      Self.Stop_After_Progress := Natural'Last;
    end Reset;
 
    overriding procedure Report_Error (Self : in out Recorder; Path : String; Error : Ops.Operation_Error) is
@@ -209,6 +214,57 @@ package body Operation_Tests is
         (not Ok and then Watcher.Last_Error = Ops.Same_File, "a file is not copied onto itself");
       Remove (Root);
    end Test_Copy_Conflicts;
+
+   procedure Test_Copy_Kept_And_Stopped (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root    : constant String := Root_For ("kept");
+      Watcher : Recorder;
+      Ok      : Boolean;
+      Known   : Boolean;
+   begin
+      Make_Tree (Root);
+
+      --  A read-only directory keeps its mode, set once what is in it is in.
+      if FS.Permissions_Supported and then FS.Set_Permissions (Path (Root, "src/sub"), 8#555#) then
+         Ops.Copying.Copy_Path
+           (Path (Root, "src/sub"), Path (Root, "sub"), (Recursive => True, Preserve_Mode => True, others => <>),
+            Watcher, Ok);
+         AUnit.Assertions.Assert
+           (Ok and then Watcher.Errors = 0 and then Read (Path (Root, "sub/b")) = "beta"
+            and then FS.File_Permission_Bits (Path (Root, "sub"), Known) mod 8#1000# = 8#555#,
+            "a read-only directory is copied whole, and read-only");
+         AUnit.Assertions.Assert
+           (FS.Set_Permissions (Path (Root, "src/sub"), 8#755#) and then FS.Set_Permissions (Path (Root, "sub"), 8#755#),
+            "fixture made writable again");
+      end if;
+
+      --  A copy stopped part of the way through a file leaves no part of it.
+      Write (Path (Root, "large"), (1 .. 4_000_000 => 'x'));
+      Reset (Watcher);
+      Watcher.Stop_After_Progress := 1;
+      Ops.Copying.Copy_Path (Path (Root, "large"), Path (Root, "large-copy"), (others => <>), Watcher, Ok);
+      AUnit.Assertions.Assert
+        (not Ok and then Watcher.Errors = 0 and then not FS.Exists (Path (Root, "large-copy")),
+         "a copy stopped in the middle of a file leaves none of it");
+
+      --  A special file replaces a link to nothing at its target.
+      if FS.Create_FIFO (Path (Root, "fifo"), 8#644#) then
+         Reset (Watcher);
+         Ops.Copying.Copy_Path (Path (Root, "fifo"), Path (Root, "src/broken"), (others => <>), Watcher, Ok);
+         AUnit.Assertions.Assert
+           (Ok and then not FS.Is_Link (Path (Root, "src/broken"))
+            and then FS.Kind (Path (Root, "src/broken")) = FS.Special_File,
+            "a special file is copied over a link to nothing");
+      end if;
+
+      Remove (Root);
+   exception
+      when others =>
+         if FS.Set_Permissions (Path (Root, "src/sub"), 8#755#) then
+            null;
+         end if;
+         raise;
+   end Test_Copy_Kept_And_Stopped;
 
    procedure Test_Copy_Tree (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -291,8 +347,38 @@ package body Operation_Tests is
          and then Read (Path (Root, "moved/sub/b")) = "beta",
          "a tree moves whole");
       AUnit.Assertions.Assert (Watcher.Done = 1, "and is reported once");
+
+      Reset (Watcher);
+      Ops.Moving.Move_Path (Path (Root, "moved/a"), Path (Root, "existing"), Watcher, Ok);
+      AUnit.Assertions.Assert
+        (Ok and then Read (Path (Root, "existing")) = "alpha" and then not FS.Exists (Path (Root, "moved/a"))
+         and then Watcher.Progressed = 0,
+         "a file moves over another in one step, not by copying");
+
+      Reset (Watcher);
+      Ops.Moving.Move_Path (Path (Root, "moved"), Path (Root, "outside"), Watcher, Ok);
+      AUnit.Assertions.Assert
+        (not Ok and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Move
+         and then FS.Exists (Path (Root, "moved/sub/b")) and then Read (Path (Root, "outside/keep")) = "keep",
+         "a directory is not moved onto one that is not empty, nor merged into it");
       Remove (Root);
    end Test_Move;
+
+   procedure Test_Mv_Into_Directory (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root    : constant String := Root_For ("mv");
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Make_Tree (Root);
+      Context.Initialize ("mv", Args (Path (Root, "src/a"), Path (Root, "outside")));
+      Posix_Tools.Commands.Mv.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Read (Path (Root, "outside/a")) = "alpha"
+         and then Read (Path (Root, "outside/keep")) = "keep" and then not FS.Exists (Path (Root, "src/a")),
+         "mv with two operands moves into a directory named last");
+      Remove (Root);
+   end Test_Mv_Into_Directory;
 
    procedure Test_Remove_Tree (T : in out Fixture) is
       pragma Unreferenced (T);

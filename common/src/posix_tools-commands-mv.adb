@@ -83,9 +83,12 @@ package body Posix_Tools.Commands.Mv is
       declare
          Count  : constant Natural := Natural (Operands.Length);
          Target : constant String := Operands.Element (Count);
+         --  A directory as the last operand is where the others go, two
+         --  operands or more, as POSIX has it.
+         Into_Directory : constant Boolean := FS.Kind (Target) = FS.Directory;
       begin
          if Count > 2
-           and then FS.Kind (Target) /= FS.Directory
+           and then not Into_Directory
          then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Target, "posix_tools.diagnostic.file.open_failed", "cannot open file");
@@ -96,7 +99,7 @@ package body Posix_Tools.Commands.Mv is
          for I in 1 .. Count - 1 loop
             declare
                Destination : constant String :=
-                 (if Count = 2
+                 (if not Into_Directory
                   then Target
                   else Posix_Tools.Commands.File_Helpers.Join_Path
                     (Target,
@@ -105,6 +108,10 @@ package body Posix_Tools.Commands.Mv is
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
                Moved   : Boolean;
             begin
+               --  One diagnostic per operand, as for rm, rather than one for
+               --  each entry a move by copying could not make.
+               Reports.Quiet := True;
+
                if Overwrite_Accepted then
                   Posix_Tools.File_Operations.Moving.Move_Path (Operands.Element (I), Destination, Reports, Moved);
 

@@ -454,6 +454,11 @@ package body Posix_Tools.Host_Adapters.File_System is
       Posix_Tools.Host_Adapters.File_System.Paths.Rename (Old_Path, New_Path);
    end Rename;
 
+   function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome is
+   begin
+      return Posix_Tools.Host_Adapters.File_System.Paths.Move_Entry (Old_Path, New_Path);
+   end Move_Entry;
+
    function Child_Path (Parent : String; Name : String) return String is
       Joined : constant Boolean :=
         Parent'Length > 0

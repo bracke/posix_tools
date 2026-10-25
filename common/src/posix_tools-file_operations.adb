@@ -14,6 +14,8 @@ package body Posix_Tools.File_Operations is
             return "cannot open file";
          when Cannot_Remove =>
             return "cannot remove";
+         when Cannot_Move =>
+            return "cannot move";
          when Is_A_Directory =>
             return "is a directory";
          when Not_A_Directory =>
@@ -36,6 +38,8 @@ package body Posix_Tools.File_Operations is
             return "posix_tools.diagnostic.file.open_failed";
          when Cannot_Remove =>
             return "posix_tools.diagnostic.file.remove_failed";
+         when Cannot_Move =>
+            return "posix_tools.diagnostic.file.move_failed";
          when Is_A_Directory =>
             return "posix_tools.diagnostic.file.is_directory";
          when Not_A_Directory =>

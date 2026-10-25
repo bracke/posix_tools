@@ -98,30 +98,59 @@ package body Posix_Tools.Host_Adapters.Terminal_IO is
 
    function Write (Data : String) return Boolean is
       Output : constant Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Standard_Output;
-      Bytes  : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Data'Length));
-      First  : Ada.Streams.Stream_Element_Offset := Bytes'First;
-      Last   : Ada.Streams.Stream_Element_Offset;
-   begin
-      for I in Data'Range loop
-         Bytes (Ada.Streams.Stream_Element_Offset (I - Data'First + 1)) := Character'Pos (Data (I));
-      end loop;
 
-      while First <= Bytes'Last loop
-         case Hostkit.Descriptors.Write (Output, Bytes (First .. Bytes'Last), Last) is
-            when Hostkit.Descriptors.Transfer_Ok =>
-               First := Last + 1;
-            when Hostkit.Descriptors.Transfer_Interrupted =>
-               null;
-            when Hostkit.Descriptors.Transfer_Would_Block =>
-               --  A terminal that would block takes its output once its
-               --  reader catches up; give it a moment and try again.
-               delay 0.001;
-            when Hostkit.Descriptors.Transfer_End_Of_File
-               | Hostkit.Descriptors.Transfer_Broken_Pipe
-               | Hostkit.Descriptors.Transfer_Error
-            =>
-               return False;
-         end case;
+      --  Written a piece at a time, so a large image never needs a copy of
+      --  its own on the stack.
+      Piece_Size : constant := 65_536;
+
+      --  How long a terminal may take nothing before it is taken to have
+      --  stopped accepting output, in waits of a millisecond.
+      Patience : constant := 5_000;
+
+      Done : Natural := 0;
+   begin
+      while Done < Data'Length loop
+         declare
+            Count : constant Natural := Natural'Min (Piece_Size, Data'Length - Done);
+            Bytes : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Count));
+            First : Ada.Streams.Stream_Element_Offset := Bytes'First;
+            Last  : Ada.Streams.Stream_Element_Offset;
+            Idle  : Natural := 0;
+         begin
+            for I in Bytes'Range loop
+               Bytes (I) := Character'Pos (Data (Data'First + Done + Natural (I) - 1));
+            end loop;
+
+            while First <= Bytes'Last loop
+               case Hostkit.Descriptors.Write (Output, Bytes (First .. Bytes'Last), Last) is
+                  when Hostkit.Descriptors.Transfer_Ok =>
+                     if Last >= First then
+                        First := Last + 1;
+                        Idle := 0;
+                     else
+                        Idle := Idle + 1;
+                     end if;
+                  when Hostkit.Descriptors.Transfer_Interrupted =>
+                     null;
+                  when Hostkit.Descriptors.Transfer_Would_Block =>
+                     --  A terminal that would block takes its output once its
+                     --  reader catches up; give it a moment and try again.
+                     Idle := Idle + 1;
+                     delay 0.001;
+                  when Hostkit.Descriptors.Transfer_End_Of_File
+                     | Hostkit.Descriptors.Transfer_Broken_Pipe
+                     | Hostkit.Descriptors.Transfer_Error
+                  =>
+                     return False;
+               end case;
+
+               if Idle > Patience then
+                  return False;
+               end if;
+            end loop;
+
+            Done := Done + Count;
+         end;
       end loop;
 
       return True;

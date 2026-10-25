@@ -8,6 +8,36 @@ package body Posix_Tools.Host_Adapters.File_System.Paths is
       return Ada.Directories.Containing_Directory (Path);
    end Containing_Directory;
 
+   function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome is
+   begin
+      if Ada.Directories.Exists (New_Path) or else Hostkit.Fs.Is_Link (New_Path) then
+         if Hostkit.Fs.Replace_File (Old_Path, New_Path) then
+            return Moved;
+         end if;
+
+         --  The host says only that the replacing rename failed; whether a
+         --  copy could stand in for it is told by the file systems.
+         declare
+            Old_Known, New_Known : Boolean;
+            Old_Device : constant Long_Long_Integer := Hostkit.Metadata.Device_Id (Old_Path, Old_Known);
+            New_Device : constant Long_Long_Integer := Hostkit.Metadata.Device_Id (New_Path, New_Known);
+         begin
+            return
+              (if Old_Known and then New_Known and then Old_Device /= New_Device then Move_Needs_Copy
+               else Move_Refused);
+         end;
+      end if;
+
+      case Hostkit.Fs.Move_No_Replace_Outcome (Old_Path, New_Path) is
+         when Hostkit.Fs.Moved =>
+            return Moved;
+         when Hostkit.Fs.Move_Cross_Device | Hostkit.Fs.Move_Unsupported =>
+            return Move_Needs_Copy;
+         when Hostkit.Fs.Move_Refused =>
+            return Move_Refused;
+      end case;
+   end Move_Entry;
+
    function Path_Name_Limit (Path : String; Available : out Boolean) return Natural is
       pragma Unreferenced (Path);
    begin

@@ -53,15 +53,20 @@ package body Posix_Tools.File_Operations.Moving is
          return;
       end if;
 
-      begin
-         FS.Rename (Source, Target);
-         Watcher.Finished (Source);
-         return;
-      exception
-         when others =>
-            --  Not a move the host can make in one step; copy it instead.
+      --  Only a move the host cannot make in one step, as between two file
+      --  systems, is made by copying and removing; a refused one is an error,
+      --  as rename(2)'s refusal is for mv.
+      case FS.Move_Entry (Source, Target) is
+         when FS.Moved =>
+            Watcher.Finished (Source);
+            return;
+         when FS.Move_Refused =>
+            Ok := False;
+            Watcher.Report_Error (Source, Cannot_Move);
+            return;
+         when FS.Move_Needs_Copy =>
             null;
-      end;
+      end case;
 
       declare
          Settled : Settled_Observer (Watcher'Access, Target'Length);

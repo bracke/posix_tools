@@ -32,6 +32,9 @@ package Posix_Tools.Host_Adapters.File_System is
       Target_Write_Failed,
       --  The caller asked the copy to stop; the target holds what was copied.
       Copy_Stopped);
+   --  How a move in one step went: made, refused, or one the host can only
+   --  make by copying and removing, as between two file systems.
+   type Move_Outcome is (Moved, Move_Needs_Copy, Move_Refused);
    type File_Time is private;
 
    function Can_Open_For_Read (Path : String) return Boolean;
@@ -108,6 +111,9 @@ package Posix_Tools.Host_Adapters.File_System is
    function Read_Link_Target (Path : String; Target : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
    function Real_Path (Path : String) return String;
    procedure Rename (Old_Path : String; New_Path : String);
+   --  Move Old_Path to New_Path in one step, replacing what New_Path names
+   --  as rename(2) does: a file, or an empty directory with a directory.
+   function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome;
    function Same_File (Left : String; Right : String) return Boolean;
    function Set_Modification_Time (Path : String; Time : File_Time) return Boolean;
    function Set_Access_Time (Path : String; Time : File_Time) return Boolean;

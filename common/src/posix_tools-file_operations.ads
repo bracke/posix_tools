@@ -11,6 +11,7 @@ package Posix_Tools.File_Operations is
      (Cannot_Read,
       Cannot_Open,
       Cannot_Remove,
+      Cannot_Move,
       Is_A_Directory,
       Not_A_Directory,
       Same_File,
