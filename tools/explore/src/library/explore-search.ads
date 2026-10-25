@@ -1,4 +1,5 @@
 with Ada.Strings.Unbounded;
+with Explore.Work_Boards;
 with Greplib.Cancellation;
 with Posix_Tools.File_Operations.Listing;
 
@@ -44,37 +45,31 @@ package Explore.Search is
    --  How a search that reads a file is stopped in the middle of it.
    type Source_Access is access all Greplib.Cancellation.Cancellation_Source;
 
-   protected type Board is
-      procedure Submit (Item : Request);
-      --  Stop the search running, if any, without starting another.
-      procedure Stop;
-      --  Take what was found since the last collection.
-      procedure Collect (Outcome : out Progress; Found : out Boolean);
-      function Busy return Boolean;
-      procedure Shut_Down;
+   --  Stop the search reading from Source, inside a file too.
+   procedure Stop_Source (Source : Source_Access);
 
-      entry Take (Item : out Request; Closed : out Boolean);
-      function Is_Wanted (Generation : Natural) return Boolean;
-      --  The search for Generation is stopped through Source, even inside a
-      --  file, once it is no longer wanted -- at once if it already is not --
-      --  until it is forgotten.
-      procedure Watch (Source : Source_Access; Generation : Natural);
-      procedure Forget;
-      procedure Deliver (Batch : Listing.Entry_Vectors.Vector; Generation : Natural; Scanned : Natural);
-      procedure Finish (Generation : Natural; Truncated : Boolean);
-   private
-      Wanted  : Request;
-      Waiting : Boolean := False;
-      Running : Boolean := False;
-      Pending : Progress;
-      Ready   : Boolean := False;
-      Closed  : Boolean := False;
-      --  The source of the search running, while it runs.
-      Watched : Source_Access;
+   --  The board has one slot: the search of the current pane.
+   type Slot is (Only);
 
-      --  Stop the search running, inside a file too.
-      procedure Stop_Watched;
-   end Board;
+   function Request_Generation (Work : Request) return Natural is (Work.Generation);
+   function Result_Generation (Outcome : Progress) return Natural is (Outcome.Generation);
+   --  What a batch adds to what was found before it.
+   procedure Merge (Held : in out Progress; Outcome : Progress);
+
+   --  A search no longer wanted is stopped through its source, even inside a
+   --  file. Cancel stops the search running without starting another.
+   package Boards is new Explore.Work_Boards
+     (Slot               => Slot,
+      Request            => Request,
+      Result             => Progress,
+      Request_Generation => Request_Generation,
+      Result_Generation  => Result_Generation,
+      Merge              => Merge,
+      Stopper            => Source_Access,
+      No_Stopper         => null,
+      Stop               => Stop_Source);
+
+   subtype Board is Boards.Board;
 
    task type Worker (Jobs : not null access Board);
 end Explore.Search;

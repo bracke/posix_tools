@@ -303,7 +303,6 @@ package body Explore.Application is
          State.Workers.Operations := Operations'Unchecked_Access;
          State.Workers.Previewer := Previewer'Unchecked_Access;
          State.Workers.Searcher := Searcher'Unchecked_Access;
-         Previewer.Configure (State.Config.Previewers, State.Config.Thumbnails);
          Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
 
          begin

@@ -605,6 +605,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-themes.ads");
    Add_Entry ("tools/explore/src/library/explore-words.adb");
    Add_Entry ("tools/explore/src/library/explore-words.ads");
+   Add_Entry ("tools/explore/src/library/explore-work_boards.adb");
+   Add_Entry ("tools/explore/src/library/explore-work_boards.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");
    Add_Entry ("tools/explore/e2e/alire.toml");
    Add_Entry ("tools/explore/e2e/posix_tools_explore_e2e.gpr");
@@ -646,6 +648,8 @@ begin
    Add_Entry ("tools/explore/tests/src/tabs_tests.ads");
    Add_Entry ("tools/explore/tests/src/words_tests.adb");
    Add_Entry ("tools/explore/tests/src/words_tests.ads");
+   Add_Entry ("tools/explore/tests/src/work_boards_tests.adb");
+   Add_Entry ("tools/explore/tests/src/work_boards_tests.ads");
 
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");

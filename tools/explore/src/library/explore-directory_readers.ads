@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Explore.Model;
+with Explore.Work_Boards;
 with Posix_Tools.File_Operations.Listing;
 
 --  Reading directories away from the screen.
@@ -27,44 +28,25 @@ package Explore.Directory_Readers is
       Entries    : Listing.Entry_Vectors.Vector;
    end record;
 
-   type Request_Array is array (Slot) of Request;
-   type Result_Array is array (Slot) of Result;
-   type Flag_Array is array (Slot) of Boolean;
-   type Generation_Array is array (Slot) of Natural;
+   function Request_Generation (Work : Request) return Natural is (Work.Generation);
+   function Result_Generation (Outcome : Result) return Natural is (Outcome.Generation);
+   procedure Replace (Held : in out Result; Outcome : Result);
 
-   protected type Board is
-      --  Ask for a slot's directory to be read, replacing any earlier request.
-      procedure Submit (Item : Slot; Work : Request);
+   --  The current pane first: it is what the user is looking at.
+   function Before (Left, Right : Slot) return Boolean;
 
-      --  Wait for a request to work on. Closed is True, and the worker should
-      --  end, once Shut_Down has been called.
-      entry Take (Item : out Slot; Work : out Request; Closed : out Boolean);
+   package Boards is new Explore.Work_Boards
+     (Slot               => Slot,
+      Request            => Request,
+      Result             => Result,
+      Request_Generation => Request_Generation,
+      Result_Generation  => Result_Generation,
+      Merge              => Replace,
+      Before             => Before,
+      Stopper            => Boolean,
+      No_Stopper         => False);
 
-      --  Whether Generation is still what the slot was last asked for.
-      function Is_Wanted (Item : Slot; Generation : Natural) return Boolean;
-
-      --  Hand back what a request produced; dropped unless it is still wanted.
-      procedure Finish (Item : Slot; Outcome : Result);
-
-      --  Take the slot's result, if one is waiting.
-      procedure Collect (Item : Slot; Outcome : out Result; Found : out Boolean);
-
-      --  Whether any request is waiting, running, or has a result to collect.
-      function Busy return Boolean;
-
-      procedure Shut_Down;
-   private
-      Requests : Request_Array;
-      Waiting  : Flag_Array := [others => False];
-      --  How many of Waiting are set; the entry barrier reads this.
-      Queued   : Natural := 0;
-      Running  : Natural := 0;
-      --  The generation each slot was last asked for.
-      Wanted   : Generation_Array := [others => 0];
-      Results  : Result_Array;
-      Ready    : Flag_Array := [others => False];
-      Closed   : Boolean := False;
-   end Board;
+   subtype Board is Boards.Board;
 
    task type Worker (Readers : not null access Board);
 

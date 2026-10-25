@@ -3,6 +3,7 @@ with Ada.Strings.Unbounded;
 with Explore.Images;
 with Explore.String_Vectors;
 with Explore.Syntax;
+with Explore.Work_Boards;
 
 --  What the preview pane shows of a file: its first lines when it is text,
 --  coloured by its language; its members when it is an archive; the image
@@ -88,33 +89,33 @@ package Explore.Previews is
    --  sixteen bytes in hex, and those bytes as text.
    function Hex_Line (Data : String; Offset : Natural) return String;
 
-   protected type Board is
-      --  The previewers and whether thumbnails are made, for every preview
-      --  from now on.
-      procedure Configure (Rules : Rule_Vectors.Vector; Thumbnails : Boolean);
-      function Configured_Rules return Rule_Vectors.Vector;
-      function Thumbnails_Wanted return Boolean;
+   --  The board has one slot: the preview being shown.
+   type Slot is (Only);
 
-      --  Ask for the preview of Path, replacing any earlier request.
-      procedure Submit (Path : String; Generation : Natural);
-      function Is_Wanted (Generation : Natural) return Boolean;
-      procedure Collect (Result : out Preview; Found : out Boolean);
-      function Busy return Boolean;
-      procedure Shut_Down;
+   --  The preview of Path, with the previewers and whether thumbnails are
+   --  made.
+   type Request is record
+      Path       : Ada.Strings.Unbounded.Unbounded_String;
+      Rules      : Rule_Vectors.Vector;
+      Thumbnails : Boolean := True;
+      Generation : Natural := 0;
+   end record;
 
-      entry Take (Path : out Ada.Strings.Unbounded.Unbounded_String; Generation : out Natural; Closed : out Boolean);
-      procedure Finish (Result : Preview);
-   private
-      Wanted_Path : Ada.Strings.Unbounded.Unbounded_String;
-      Wanted      : Natural := 0;
-      Waiting     : Boolean := False;
-      Running     : Boolean := False;
-      Ready       : Boolean := False;
-      Done        : Preview;
-      Closed      : Boolean := False;
-      Rules       : Rule_Vectors.Vector;
-      Thumbnails  : Boolean := True;
-   end Board;
+   function Request_Generation (Work : Request) return Natural is (Work.Generation);
+   function Result_Generation (Outcome : Preview) return Natural is (Outcome.Generation);
+   procedure Replace (Held : in out Preview; Outcome : Preview);
+
+   package Boards is new Explore.Work_Boards
+     (Slot               => Slot,
+      Request            => Request,
+      Result             => Preview,
+      Request_Generation => Request_Generation,
+      Result_Generation  => Result_Generation,
+      Merge              => Replace,
+      Stopper            => Boolean,
+      No_Stopper         => False);
+
+   subtype Board is Boards.Board;
 
    task type Worker (Jobs : not null access Board);
 end Explore.Previews;

@@ -196,11 +196,16 @@ package body Explore.Application.Workers is
 
          if Target'Length > 0 then
             State.Workers.Preview_Generation := State.Workers.Preview_Generation + 1;
-            State.Workers.Previewer.Submit (Target, State.Workers.Preview_Generation);
+            State.Workers.Previewer.Submit
+              (Explore.Previews.Only,
+               (Path       => Unbounded.To_Unbounded_String (Target),
+                Rules      => State.Config.Previewers,
+                Thumbnails => State.Config.Thumbnails,
+                Generation => State.Workers.Preview_Generation));
          end if;
       end if;
 
-      State.Workers.Previewer.Collect (Ready, Found);
+      State.Workers.Previewer.Collect (Explore.Previews.Only, Ready, Found);
 
       if Found and then Ready.Generation = State.Workers.Preview_Generation then
          State.Frame.Preview := Ready;
@@ -222,7 +227,8 @@ package body Explore.Application.Workers is
          State.Workers.Search_Generation := Current.Generation;
          State.Workers.Search_Found := 0;
          State.Workers.Searcher.Submit
-           ((Root           => Current.Path,
+           (Explore.Search.Only,
+            (Root           => Current.Path,
              Pattern        => State.Browser.Search_Label,
              Kind           =>
                (if State.Browser.Search_Contents then Explore.Search.By_Content else Explore.Search.By_Name),
@@ -233,13 +239,13 @@ package body Explore.Application.Workers is
       if not Current.Is_Search or else Current.Generation /= State.Workers.Search_Generation then
          --  Gone elsewhere: what the search would find has nowhere to go.
          if State.Workers.Searcher.Busy then
-            State.Workers.Searcher.Stop;
+            State.Workers.Searcher.Cancel (Explore.Search.Only);
          end if;
 
          return;
       end if;
 
-      State.Workers.Searcher.Collect (Results, Found);
+      State.Workers.Searcher.Collect (Explore.Search.Only, Results, Found);
 
       if Found and then Results.Generation = State.Workers.Search_Generation then
          State.Workers.Search_Found := State.Workers.Search_Found + Natural (Results.Found.Length);

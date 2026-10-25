@@ -10,6 +10,7 @@ with Search_Tests;
 with Settings_Tests;
 with Tabs_Tests;
 with Words_Tests;
+with Work_Boards_Tests;
 
 package body Explore_Suites is
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -27,6 +28,7 @@ package body Explore_Suites is
       AUnit.Test_Suites.Add_Test (Result, Image_Cache_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Tabs_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Words_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Work_Boards_Tests.Suite);
       return Result;
    end Suite;
 end Explore_Suites;

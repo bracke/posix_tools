@@ -27,97 +27,6 @@ package body Explore.Search is
       Path    : String;
       Stopped : Greplib.Cancellation.Cancellation_Token) return Boolean;
 
-   protected body Board is
-      function Busy return Boolean is (Waiting or else Running or else Ready);
-
-      procedure Collect (Outcome : out Progress; Found : out Boolean) is
-      begin
-         Found := Ready;
-         Outcome := Pending;
-         Pending.Found.Clear;
-         Ready := False;
-      end Collect;
-
-      procedure Deliver (Batch : Listing.Entry_Vectors.Vector; Generation : Natural; Scanned : Natural) is
-      begin
-         if Generation = Wanted.Generation then
-            Pending.Generation := Generation;
-            Pending.Found.Append (Batch);
-            Pending.Scanned := Scanned;
-            Ready := True;
-         end if;
-      end Deliver;
-
-      procedure Finish (Generation : Natural; Truncated : Boolean) is
-      begin
-         Running := False;
-
-         if Generation = Wanted.Generation then
-            Pending.Generation := Generation;
-            Pending.Finished := True;
-            Pending.Truncated := Truncated;
-            Ready := True;
-         end if;
-      end Finish;
-
-      procedure Forget is
-      begin
-         Watched := null;
-      end Forget;
-
-      function Is_Wanted (Generation : Natural) return Boolean is
-        (not Closed and then not Waiting and then Generation = Wanted.Generation);
-
-      procedure Shut_Down is
-      begin
-         Closed := True;
-         Stop_Watched;
-      end Shut_Down;
-
-      procedure Stop is
-      begin
-         --  No generation is ever zero, so the running search is no longer wanted.
-         Wanted.Generation := 0;
-         Waiting := False;
-         Ready := False;
-         Pending := (others => <>);
-         Stop_Watched;
-      end Stop;
-
-      procedure Stop_Watched is
-      begin
-         if Watched /= null then
-            Watched.Request;
-         end if;
-      end Stop_Watched;
-
-      procedure Submit (Item : Request) is
-      begin
-         Wanted := Item;
-         Waiting := True;
-         Ready := False;
-         Pending := (Generation => Item.Generation, others => <>);
-         Stop_Watched;
-      end Submit;
-
-      entry Take (Item : out Request; Closed : out Boolean) when Board.Closed or else Waiting is
-      begin
-         Closed := Board.Closed;
-         Item := Wanted;
-         Waiting := False;
-         Running := not Closed;
-      end Take;
-
-      procedure Watch (Source : Source_Access; Generation : Natural) is
-      begin
-         Watched := Source;
-
-         if not Is_Wanted (Generation) then
-            Stop_Watched;
-         end if;
-      end Watch;
-   end Board;
-
    function Compile (Pattern : String) return Greplib.Patterns.Compiled_Pattern_Set is
       List : Greplib.Patterns.Pattern_List;
    begin
@@ -153,17 +62,32 @@ package body Explore.Search is
          return False;
    end Contains;
 
+   procedure Merge (Held : in out Progress; Outcome : Progress) is
+   begin
+      Held.Generation := Outcome.Generation;
+      Held.Found.Append (Outcome.Found);
+      Held.Scanned := Outcome.Scanned;
+      Held.Finished := Outcome.Finished;
+      Held.Truncated := Outcome.Truncated;
+   end Merge;
+
    function Name_Matches (Pattern, Name : String) return Boolean is
      (if (for some C of Pattern => C in '*' | '?' | '[')
       then Explore.Paths.Glob_Matches (Pattern, Name)
       else Ada.Strings.Fixed.Index (Explore.Paths.Folded (Name), Explore.Paths.Folded (Pattern)) > 0);
 
+   procedure Stop_Source (Source : Source_Access) is
+   begin
+      Source.Request;
+   end Stop_Source;
+
    task body Worker is
-      Item   : Request;
-      Closed : Boolean;
+      Taken      : Slot;
+      Item       : Request;
+      Closed     : Boolean;
    begin
       loop
-         Jobs.Take (Item, Closed);
+         Jobs.Take (Taken, Item, Closed);
          exit when Closed;
 
          declare
@@ -178,9 +102,18 @@ package body Explore.Search is
             Scanned   : Natural := 0;
             Truncated : Boolean := False;
 
-            function Stopped return Boolean is (not Jobs.Is_Wanted (Item.Generation) or else Truncated);
+            function Stopped return Boolean is (not Jobs.Is_Wanted (Taken, Item.Generation) or else Truncated);
+
+            --  Deliver the batch, and start the next.
+            procedure Hand_Over;
 
             procedure Walk (Directory, Below : String; Depth : Natural);
+
+            procedure Hand_Over is
+            begin
+               Jobs.Deliver (Taken, (Generation => Item.Generation, Found => Batch, Scanned => Scanned, others => <>));
+               Batch.Clear;
+            end Hand_Over;
 
             procedure Walk (Directory, Below : String; Depth : Natural) is
                Entries : Listing.Entry_Vectors.Vector;
@@ -216,8 +149,7 @@ package body Explore.Search is
                            Batch.Append ((Found with delta Name => Unbounded.To_Unbounded_String (Below & Name)));
 
                            if Natural (Batch.Length) >= Batch_Size then
-                              Jobs.Deliver (Batch, Item.Generation, Scanned);
-                              Batch.Clear;
+                              Hand_Over;
                            end if;
                         end if;
                      end if;
@@ -230,12 +162,11 @@ package body Explore.Search is
                end loop;
 
                if not Batch.Is_Empty then
-                  Jobs.Deliver (Batch, Item.Generation, Scanned);
-                  Batch.Clear;
+                  Hand_Over;
                end if;
             end Walk;
          begin
-            Jobs.Watch (Source'Unchecked_Access, Item.Generation);
+            Jobs.Watch (Taken, Source'Unchecked_Access, Item.Generation);
 
             begin
                Walk (Unbounded.To_String (Item.Root), "", 0);
@@ -246,9 +177,15 @@ package body Explore.Search is
             end;
 
             --  The source goes with this block; the board must not reach it.
-            Jobs.Forget;
+            Jobs.Forget (Taken);
 
-            Jobs.Finish (Item.Generation, Truncated);
+            Jobs.Finish
+              (Taken,
+               (Generation => Item.Generation,
+                Scanned    => Scanned,
+                Finished   => True,
+                Truncated  => Truncated,
+                others     => <>));
          end;
       end loop;
    end Worker;

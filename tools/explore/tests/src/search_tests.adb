@@ -33,10 +33,11 @@ package body Search_Tests is
       Result  : Unbounded.Unbounded_String;
    begin
       Board.Submit
-        ((Unbounded.To_Unbounded_String (Root), Unbounded.To_Unbounded_String (Pattern), Kind, Hidden, 7));
+        (Search.Only,
+         (Unbounded.To_Unbounded_String (Root), Unbounded.To_Unbounded_String (Pattern), Kind, Hidden, 7));
 
       for Attempt in 1 .. 500 loop
-         Board.Collect (Outcome, Found);
+         Board.Collect (Search.Only, Outcome, Found);
 
          if Found then
             for Item of Outcome.Found loop

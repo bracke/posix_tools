@@ -124,64 +124,6 @@ package body Explore.Previews is
    --  The thumbnail explore makes of the file at Path, whose start is Data.
    function Thumbnail_Of (Path, Data : String) return Thumbnail_Kind;
 
-   protected body Board is
-      function Busy return Boolean is (Waiting or else Running or else Ready);
-
-      procedure Collect (Result : out Preview; Found : out Boolean) is
-      begin
-         Found := Ready;
-         Result := (if Ready then Done else (others => <>));
-         Ready := False;
-         Done := (others => <>);
-      end Collect;
-
-      procedure Configure (Rules : Rule_Vectors.Vector; Thumbnails : Boolean) is
-      begin
-         Board.Rules := Rules;
-         Board.Thumbnails := Thumbnails;
-      end Configure;
-
-      function Configured_Rules return Rule_Vectors.Vector is (Rules);
-
-      procedure Finish (Result : Preview) is
-      begin
-         Running := False;
-
-         if Result.Generation = Wanted then
-            Done := Result;
-            Ready := True;
-         end if;
-      end Finish;
-
-      function Is_Wanted (Generation : Natural) return Boolean is (not Closed and then Generation = Wanted);
-
-      procedure Shut_Down is
-      begin
-         Closed := True;
-      end Shut_Down;
-
-      procedure Submit (Path : String; Generation : Natural) is
-      begin
-         Wanted_Path := Unbounded.To_Unbounded_String (Path);
-         Wanted := Generation;
-         Waiting := True;
-         Ready := False;
-      end Submit;
-
-      entry Take (Path : out Unbounded.Unbounded_String; Generation : out Natural; Closed : out Boolean)
-        when Board.Closed or else Waiting
-      is
-      begin
-         Closed := Board.Closed;
-         Path := Wanted_Path;
-         Generation := Wanted;
-         Waiting := False;
-         Running := not Closed;
-      end Take;
-
-      function Thumbnails_Wanted return Boolean is (Thumbnails);
-   end Board;
-
    function Build
      (Path                : String;
       Thumbnail_Directory : String := "";
@@ -443,6 +385,11 @@ package body Explore.Previews is
       end if;
    end Remove_Thumbnails;
 
+   procedure Replace (Held : in out Preview; Outcome : Preview) is
+   begin
+      Held := Outcome;
+   end Replace;
+
    procedure Run_Previewer
      (Rule   : Preview_Rule;
       Path   : String;
@@ -630,7 +577,7 @@ package body Explore.Previews is
    function Unwanted return Boolean is
       Now : constant Building := Being_Built.Value;
    begin
-      return Now.Jobs /= null and then not Now.Jobs.Is_Wanted (Now.Generation);
+      return Now.Jobs /= null and then not Now.Jobs.Is_Wanted (Only, Now.Generation);
    end Unwanted;
 
    function Video_Arguments (Path, Output : String) return Posix_Tools.Arguments.Vector is
@@ -695,20 +642,20 @@ package body Explore.Previews is
    end Without_Controls;
 
    task body Worker is
-      Path       : Unbounded.Unbounded_String;
-      Generation : Natural;
+      Item       : Slot;
+      Work       : Request;
       Closed     : Boolean;
       Thumbnails : Unbounded.Unbounded_String;
       Made       : Boolean := False;
    begin
       loop
-         Jobs.Take (Path, Generation, Closed);
+         Jobs.Take (Item, Work, Closed);
          exit when Closed;
 
          declare
             Result : Preview;
          begin
-            Being_Built.Set_Value ((Jobs => Jobs.all'Unchecked_Access, Generation => Generation));
+            Being_Built.Set_Value ((Jobs => Jobs.all'Unchecked_Access, Generation => Work.Generation));
 
             begin
                --  The thumbnail directory is made when a preview first needs one.
@@ -718,16 +665,14 @@ package body Explore.Previews is
                end if;
 
                Result :=
-                 Build
-                   (Unbounded.To_String (Path), Unbounded.To_String (Thumbnails), Jobs.Configured_Rules,
-                    Jobs.Thumbnails_Wanted);
+                 Build (Unbounded.To_String (Work.Path), Unbounded.To_String (Thumbnails), Work.Rules, Work.Thumbnails);
             exception
                when others =>
-                  Result := (Kind => Unreadable_Preview, Path => Path, others => <>);
+                  Result := (Kind => Unreadable_Preview, Path => Work.Path, others => <>);
             end;
 
-            Result.Generation := Generation;
-            Jobs.Finish (Result);
+            Result.Generation := Work.Generation;
+            Jobs.Finish (Item, Result);
          end;
       end loop;
 
