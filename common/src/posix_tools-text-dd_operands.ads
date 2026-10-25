@@ -17,12 +17,29 @@ package Posix_Tools.Text.DD_Operands is
       Continue_After_Read_Error : Boolean := False;
    end record;
 
+   --  Why an operand was refused; Subject is the operand, or the name of
+   --  the one whose value is missing.
+   type Operand_Error_Kind is
+     (No_Error,
+      Invalid_Block_Size,
+      Invalid_Conversion,
+      Invalid_Count,
+      Invalid_File_Count,
+      Invalid_Operand,
+      Invalid_Seek,
+      Invalid_Skip);
+
+   type Operand_Error is record
+      Kind    : Operand_Error_Kind := No_Error;
+      Subject : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
    function Parse_Argument
      (Argument : String;
       Options  : in out Settings;
-      Error    : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
+      Error    : out Operand_Error) return Boolean;
 
    function Validate
      (Options : Settings;
-      Error   : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
+      Error   : out Operand_Error) return Boolean;
 end Posix_Tools.Text.DD_Operands;

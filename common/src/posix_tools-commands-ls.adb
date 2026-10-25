@@ -2,11 +2,13 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Ls is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
@@ -113,8 +115,7 @@ package body Posix_Tools.Commands.Ls is
                      when 'd' =>
                         Directory_As_File := True;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error
-                          (Context, Result, "unknown option '-" & Ch & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                         return;
                   end case;
                end loop;

@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Printf_Execution;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Printf is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -19,7 +21,7 @@ package body Posix_Tools.Commands.Printf is
       end if;
 
       if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
@@ -27,7 +29,7 @@ package body Posix_Tools.Commands.Printf is
         (Context, Context.Argument (1), 2, Format_Ok, Arguments_Ok);
 
       if not Format_Ok then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid number");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Number);
          return;
       end if;
 

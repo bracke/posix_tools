@@ -4,10 +4,12 @@ with Ada.Calendar.Time_Zones;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Date_Parsing;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Date_Formats;
 
 package body Posix_Tools.Commands.Date is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    procedure Set_Success
@@ -64,12 +66,11 @@ package body Posix_Tools.Commands.Date is
             then
                Has_Set_Time := True;
             else
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
                return;
             end if;
          else
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Context.Argument (I) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (I));
             return;
          end if;
       end loop;

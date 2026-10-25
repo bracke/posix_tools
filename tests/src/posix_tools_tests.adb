@@ -14,6 +14,7 @@ with All_Suites;
 with Build_Checks;
 with Format_Checks;
 with Posix_Tools.Command_Inventory;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Host_Adapters.Executables;
 with Posix_Tools.Paths;
 with Posix_Tools.Text.Byte_Classes;
@@ -1008,6 +1009,140 @@ procedure Posix_Tools_Tests is
          end loop;
       end Check_No_Silent_Broad_Handlers;
 
+      --  A usage diagnostic is a catalog message named by a Usage_Message;
+      --  a string literal handed to Usage_Error as the message would be
+      --  English text the catalog never sees, and its operand would reach the
+      --  terminal unescaped.
+      procedure Check_No_Literal_Usage_Messages is
+         use Ada.Strings.Unbounded;
+         Call_Token : constant String := "Usage_" & "Error";
+         Source_Roots : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("common/src"),
+            To_Unbounded_String ("src"),
+            To_Unbounded_String ("tools")];
+
+         procedure Check_File (File_Path : String);
+
+         --  The message argument, the third, of the call whose argument list
+         --  opens at Open in Text, or "" when the call has fewer arguments.
+         function Message_Argument (Text : String; Open : Positive) return String;
+
+         procedure Check_File (File_Path : String) is
+            Text : constant String := Project_Tools.Files.Read_Raw_File (File_Path);
+            From : Positive := Text'First;
+         begin
+            loop
+               declare
+                  At_Call : constant Natural := Ada.Strings.Fixed.Index (Text (From .. Text'Last), Call_Token);
+                  Open    : Natural;
+               begin
+                  exit when At_Call = 0;
+                  Open := At_Call + Call_Token'Length;
+                  while Open <= Text'Last and then Text (Open) in ' ' | ASCII.LF | ASCII.CR loop
+                     Open := Open + 1;
+                  end loop;
+                  exit when Open > Text'Last;
+                  if Text (Open) = '(' then
+                     declare
+                        Message : constant String := Message_Argument (Text, Open);
+                     begin
+                        if Ada.Strings.Fixed.Index (Message, """") /= 0 then
+                           Project_Tools.Release_Checks.Fail
+                             ("usage diagnostic message must be a catalog Usage_Message, not a string literal, in "
+                              & File_Path & ": " & Message);
+                        end if;
+                     end;
+                  end if;
+                  From := Open;
+               end;
+            end loop;
+         end Check_File;
+
+         function Message_Argument (Text : String; Open : Positive) return String is
+            Depth     : Natural := 0;
+            Commas    : Natural := 0;
+            In_String : Boolean := False;
+            First     : Natural := 0;
+         begin
+            for I in Open .. Text'Last loop
+               if Text (I) = '"' then
+                  In_String := not In_String;
+               elsif In_String then
+                  null;
+               elsif Text (I) = '(' then
+                  Depth := Depth + 1;
+               elsif Depth = 1 and then Text (I) in ')' | ',' then
+                  if Commas = 2 then
+                     return Ada.Strings.Fixed.Trim (Text (First .. I - 1), Ada.Strings.Both);
+                  end if;
+                  exit when Text (I) = ')';
+                  Commas := Commas + 1;
+                  First := I + 1;
+               elsif Text (I) = ')' then
+                  Depth := Depth - 1;
+               end if;
+            end loop;
+            return "";
+         end Message_Argument;
+      begin
+         for Source_Root of Source_Roots loop
+            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+               declare
+                  File_Path : constant String := To_String (Path);
+               begin
+                  if Project_Tools.Text.Ends_With (File_Path, ".adb")
+                    or else Project_Tools.Text.Ends_With (File_Path, ".ads")
+                  then
+                     Check_File (File_Path);
+                  end if;
+               end;
+            end loop;
+         end loop;
+      end Check_No_Literal_Usage_Messages;
+
+      --  Every usage diagnostic has its text in each catalog locale, and the
+      --  English text it falls back to is the catalog's own.
+      procedure Require_Usage_Messages_Catalogued is
+         package Messages renames Posix_Tools.Commands.Usage_Messages;
+         Catalog : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "common/messages/posix_tools.catalog"));
+
+         --  Text with each single quote doubled, as the catalog writes it.
+         function Catalog_Text (Text : String) return String;
+         procedure Require_Translation (Message : Messages.Usage_Message; Locale : String);
+
+         function Catalog_Text (Text : String) return String is
+         begin
+            for I in Text'Range loop
+               if Text (I) = ''' then
+                  return Text (Text'First .. I) & "'" & Catalog_Text (Text (I + 1 .. Text'Last));
+               end if;
+            end loop;
+            return Text;
+         end Catalog_Text;
+
+         procedure Require_Translation (Message : Messages.Usage_Message; Locale : String) is
+         begin
+            if not Posix_Tools.Text.Matching.Contains (Catalog, ASCII.LF & Locale & "." & Messages.Key (Message) & " = ")
+            then
+               Project_Tools.Release_Checks.Fail
+                 ("usage diagnostic " & Messages.Key (Message) & " has no " & Locale & " catalog text");
+            end if;
+         end Require_Translation;
+      begin
+         for Message in Messages.Usage_Message loop
+            Require_Translation (Message, "da");
+            Require_Translation (Message, "es");
+            if not Posix_Tools.Text.Matching.Contains
+              (Catalog,
+               ASCII.LF & "en." & Messages.Key (Message) & " = " & Catalog_Text (Messages.Default (Message)) & ASCII.LF)
+            then
+               Project_Tools.Release_Checks.Fail
+                 ("usage diagnostic " & Messages.Key (Message) & " default differs from its en catalog text");
+            end if;
+         end loop;
+      end Require_Usage_Messages_Catalogued;
+
       procedure Require_Crate_Metadata
         (Path         : String;
          Name         : String;
@@ -1113,6 +1248,8 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_File (Check, ".github/workflows/ci.yml");
       Check_Ada_Only_Tooling;
       Check_No_Silent_Broad_Handlers;
+      Check_No_Literal_Usage_Messages;
+      Require_Usage_Messages_Catalogued;
       Project_Tools.Release_Checks.Require_File (Check, "docs/ai.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/architecture.md");
       Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
@@ -1549,9 +1686,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Parse_Nonnegative");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "missing option argument '-n'");
+        (Check, "common/src/posix_tools-commands-head.adb", "Missing_Option_Argument, ""-n""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "invalid line count");
+        (Check, "common/src/posix_tools-commands-head.adb", "Invalid_Line_Count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Sources := (if First_File > Count then 1");
       Project_Tools.Release_Checks.Require_Text
@@ -1673,9 +1810,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail.adb", "Posix_Tools.Tail_Counts.Parse_Count");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "missing option argument");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Missing_Option_Argument");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-tail.adb", "invalid count");
+        (Check, "common/src/posix_tools-commands-tail.adb", "Invalid_Count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail_bytes.adb", "procedure Copy");
       Project_Tools.Release_Checks.Require_Text
@@ -1901,15 +2038,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-help.adb", "posix_tools.common.option.version");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-helpers.adb", "Localized_Usage_Message");
+        (Check, "common/src/posix_tools-commands-helpers.adb", "Escape_Untrusted (Subject)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-helpers.adb", "function Escape_Untrusted");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.option.unknown");
+        (Check, "common/src/posix_tools-commands-usage_messages.adb", "posix_tools.diagnostic.option.unknown");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.extra_operand");
+        (Check, "common/src/posix_tools-commands-usage_messages.adb", "posix_tools.diagnostic.extra_operand");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-helpers.adb", "posix_tools.diagnostic.count.invalid");
+        (Check, "common/src/posix_tools-commands-usage_messages.adb", "posix_tools.diagnostic.count.invalid");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-file_helpers.adb", "posix_tools.diagnostic.file.read_failed");
       Project_Tools.Release_Checks.Require_Text
@@ -5206,7 +5343,7 @@ procedure Posix_Tools_Tests is
                 Project_Tools.Processes.Argument ("pattern")]),
             "",
             2,
-            "grep: ukendt valgmulighed -Z" & LF
+            "grep: ukendt valgmulighed '-Z'" & LF
             & "usage: grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] "
             & "[-m num] [-e pattern] [-f pattern_file] pattern [file...]",
             True);

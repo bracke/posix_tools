@@ -1,10 +1,12 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
 
 package body Posix_Tools.Commands.Comm is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
@@ -60,7 +62,7 @@ package body Posix_Tools.Commands.Comm is
                when '2' => Suppress_2 := True;
                when '3' => Suppress_3 := True;
                when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                   return;
             end case;
          end loop;
@@ -70,7 +72,7 @@ package body Posix_Tools.Commands.Comm is
          First := First + 1;
       end if;
       if Context.Argument_Count /= First + 1 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

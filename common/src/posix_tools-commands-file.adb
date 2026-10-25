@@ -2,11 +2,13 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Descriptions;
 
 package body Posix_Tools.Commands.File is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
 
@@ -107,8 +109,7 @@ package body Posix_Tools.Commands.File is
                First := First + 1;
             elsif Arg = "-m" then
                if First >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '-m'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-m");
                   return;
                end if;
                Magic_Path := To_Unbounded_String (Context.Argument (First + 1));
@@ -122,7 +123,7 @@ package body Posix_Tools.Commands.File is
                Has_Magic := True;
                First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;
@@ -131,7 +132,7 @@ package body Posix_Tools.Commands.File is
       end loop;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

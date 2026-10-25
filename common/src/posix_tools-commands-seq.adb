@@ -2,12 +2,14 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 with I18N.Number_Format;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Seq_Formats;
 
 package body Posix_Tools.Commands.Seq is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
 
@@ -119,7 +121,7 @@ package body Posix_Tools.Commands.Seq is
 
       procedure Invalid (Text : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
       end Invalid;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -144,8 +146,7 @@ package body Posix_Tools.Commands.Seq is
                   I := I + 1;
                elsif Arg = "-s" or else Arg = "-f" then
                   if I >= Context.Argument_Count then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing option argument '" & Arg & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                      return;
                   end if;
                   if Arg = "-s" then
@@ -166,7 +167,7 @@ package body Posix_Tools.Commands.Seq is
                  and then Arg (Arg'First) = '-'
                  and then not Posix_Tools.Text.Decimal_Parsing.Looks_Like_Negative_Number (Arg)
                then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                   return;
                else
                   Operands.Append (Arg);
@@ -177,7 +178,7 @@ package body Posix_Tools.Commands.Seq is
       end;
 
       if Operands.Length not in 1 .. 3 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand count");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand_Count);
          return;
       end if;
 

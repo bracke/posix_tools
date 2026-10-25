@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Locale is
@@ -51,10 +52,13 @@ package body Posix_Tools.Commands.Locale is
             exit when Context.Output_Failed;
          end loop;
       else
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result,
-            (if Context.Argument_Count > 1 then "extra operand '" & Context.Argument (2) & "'"
-             else "unknown option '" & Context.Argument (1) & "'"));
+         if Context.Argument_Count > 1 then
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, Posix_Tools.Commands.Usage_Messages.Extra_Operand, Context.Argument (2));
+         else
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, Posix_Tools.Commands.Usage_Messages.Unknown_Option, Context.Argument (1));
+         end if;
          return;
       end if;
 

@@ -1,10 +1,12 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.File_Modes;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Mkdir is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Mode_Helpers renames Posix_Tools.Commands.Text_Helpers.File_Modes;
 
@@ -69,16 +71,14 @@ package body Posix_Tools.Commands.Mkdir is
                            begin
                               Record_Mode (Arg (Position + 1 .. Arg'Last), Accepted);
                               if not Accepted then
-                                 Posix_Tools.Commands.Helpers.Usage_Error
-                                   (Context, Result, "invalid mode '" & Arg & "'");
+                                 Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Mode, Arg);
                                  return;
                               end if;
                            end;
                            Position := Arg'Last + 1;
                         else
                            if First = Context.Argument_Count then
-                              Posix_Tools.Commands.Helpers.Usage_Error
-                                (Context, Result, "missing option argument '-m'");
+                              Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-m");
                               return;
                            end if;
                            declare
@@ -87,7 +87,7 @@ package body Posix_Tools.Commands.Mkdir is
                               Record_Mode (Context.Argument (First + 1), Accepted);
                               if not Accepted then
                                  Posix_Tools.Commands.Helpers.Usage_Error
-                                   (Context, Result, "invalid mode '" & Context.Argument (First + 1) & "'");
+                                   (Context, Result, Invalid_Mode, Context.Argument (First + 1));
                                  return;
                               end if;
                            end;
@@ -96,7 +96,7 @@ package body Posix_Tools.Commands.Mkdir is
                         end if;
                      when others =>
                         Posix_Tools.Commands.Helpers.Usage_Error
-                          (Context, Result, "unknown option '-" & Arg (Position) & "'");
+                          (Context, Result, Unknown_Option, "-" & Arg (Position));
                         return;
                   end case;
                end loop;
@@ -107,7 +107,7 @@ package body Posix_Tools.Commands.Mkdir is
          end if;
       end loop;
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
       for I in First .. Context.Argument_Count loop

@@ -1,11 +1,13 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Line_Breaks;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Cmp is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    procedure Run
@@ -38,7 +40,7 @@ package body Posix_Tools.Commands.Cmp is
          end if;
       end loop;
       if Context.Argument_Count /= First + 1 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

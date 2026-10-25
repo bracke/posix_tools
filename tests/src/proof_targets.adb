@@ -35,7 +35,6 @@ procedure Proof_Targets (Gnatprove : String) is
       (To_Unbounded_String ("posix_tools.text.cut_fields"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.dd_conversions"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.duration_fields"), To_Unbounded_String ("1")),
-      (To_Unbounded_String ("posix_tools.text.diagnostic_fields"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.file_magic_fields"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.file_operands"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.glob_fields"), To_Unbounded_String ("1")),

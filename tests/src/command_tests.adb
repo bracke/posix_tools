@@ -2739,7 +2739,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Dirname.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "Danish diagnostic status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "dirname: ekstra operand second" & LF,
+        (Test_Contexts.Error_Output (Context) = "dirname: ekstra operand 'second'" & LF,
          "Danish extra operand diagnostic");
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "Danish diagnostic stdout");
 
@@ -2750,7 +2750,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Danish missing option argument status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: mangler argument til valgmulighed -n" & LF,
+        (Test_Contexts.Error_Output (Context) = "head: mangler argument til valgmulighed '-n'" & LF,
          "Danish missing option argument diagnostic");
 
       Context.Initialize ("wc", One_Arg ("-z"));
@@ -2758,7 +2758,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "Danish unknown option status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: ukendt valgmulighed -z" & LF,
+        (Test_Contexts.Error_Output (Context) = "wc: ukendt valgmulighed '-z'" & LF,
          "Danish unknown option diagnostic");
 
       Context.Initialize ("head", One_Arg ("-nabc"));
@@ -2768,7 +2768,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Danish invalid line count status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal -nabc" & LF,
+        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal '-nabc'" & LF,
          "Danish invalid line count diagnostic");
 
       Context.Initialize ("cat", One_Arg (Missing));
@@ -2820,8 +2820,40 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Spanish unknown option status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: opcion desconocida -z" & LF,
+        (Test_Contexts.Error_Output (Context) = "wc: opcion desconocida '-z'" & LF,
          "Spanish unknown option diagnostic");
+
+      Context.Initialize ("seq", Two_Args ("-q", "3"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "seq: ukendt valgmulighed '-q'" & LF,
+         "Danish seq unknown option diagnostic");
+
+      Context.Initialize ("expr", Two_Args ("(", "1"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "expr: mangler ')' i udtrykket" & LF,
+         "Danish expr missing parenthesis diagnostic");
+
+      Context.Initialize ("cut", Two_Args ("-b1", "-c1"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "cut: varias opciones de lista" & LF,
+         "Spanish cut multiple list options diagnostic");
+
+      Context.Initialize ("touch", Three_Args ("-d", "nonsense", "file"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Touch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "touch: marca de tiempo no válida 'nonsense'" & LF,
+         "Spanish touch invalid timestamp diagnostic");
    end Test_Diagnostic_Locales;
 
    procedure Test_Presentation_Styling (T : in out Fixture) is
@@ -3652,7 +3684,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "root localized unknown subcommand status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt underkommando bogus" & LF,
+        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt underkommando 'bogus'" & LF,
          "root localized unknown subcommand diagnostic");
 
       Context.Initialize ("posix-tools", Two_Args ("help", "bogus"));
@@ -3662,7 +3694,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "root localized unknown help topic status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt kommando bogus" & LF,
+        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt kommando 'bogus'" & LF,
          "root localized unknown help topic diagnostic");
 
       Context.Initialize ("posix-tools", No_Args);
@@ -4991,6 +5023,43 @@ package body Command_Tests is
       Context.Initialize ("posix-tools", One_Arg ("unknown"));
       Posix_Tools.Commands.Root.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "root unknown status");
+
+      --  An unknown option is quoted and escaped like every other operand a
+      --  usage diagnostic names, whichever command reports it.
+      Context.Initialize ("seq", Two_Args ("-" & ESC & "[31m", "3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "seq unknown option status");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "seq: unknown option '-\x1B[31m'" & LF,
+         "unknown option diagnostic escapes control characters");
+
+      Context.Initialize ("nl", One_Arg ("-q"));
+      Posix_Tools.Commands.Nl.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "nl: unknown option '-q'" & LF,
+         "nl unknown option diagnostic is quoted");
+
+      Context.Initialize ("touch", Three_Args ("-t", "bad" & LF, "file"));
+      Posix_Tools.Commands.Touch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "touch: invalid timestamp 'bad\x0A'" & LF,
+         "touch invalid timestamp diagnostic escapes its operand");
+
+      Context.Initialize ("xargs", Two_Args ("-n", "0"));
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "xargs: invalid argument count '0'" & LF,
+         "xargs zero argument count diagnostic");
+
+      Context.Initialize ("dd", One_Arg ("skip=" & ESC));
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "dd: invalid skip 'skip=\x1B'" & LF,
+         "dd invalid skip diagnostic escapes its operand");
    end Test_Usage_Errors;
 
    procedure Test_True (T : in out Fixture) is

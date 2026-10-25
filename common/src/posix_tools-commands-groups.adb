@@ -1,9 +1,11 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Host;
 
 package body Posix_Tools.Commands.Groups is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package Host renames Posix_Tools.Host_Adapters.Host;
@@ -34,7 +36,7 @@ package body Posix_Tools.Commands.Groups is
             if Context.Argument (1) = "--" then
                First := 2;
                if Context.Argument_Count = 1 then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
                   return;
                end if;
             end if;

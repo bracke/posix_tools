@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Logical_Paths;
 
 package body Posix_Tools.Commands.Pwd is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -18,8 +20,7 @@ package body Posix_Tools.Commands.Pwd is
 
       for I in 1 .. Context.Argument_Count loop
          if Stop_Options then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
             return;
          elsif Context.Argument (I) = "--" then
             Stop_Options := True;
@@ -28,8 +29,7 @@ package body Posix_Tools.Commands.Pwd is
          elsif Context.Argument (I) = "-P" then
             Logical := False;
          else
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
             return;
          end if;
       end loop;

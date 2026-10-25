@@ -1,10 +1,12 @@
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Touch_Times;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Touch is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -137,7 +139,7 @@ package body Posix_Tools.Commands.Touch is
             exit;
          elsif Context.Argument (First) = "-t" then
             if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-t'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
                return;
             end if;
             declare
@@ -146,14 +148,14 @@ package body Posix_Tools.Commands.Touch is
                Select_Explicit_Time (Context.Argument (First + 1), Selected);
                if not Selected then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid timestamp '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Timestamp, Context.Argument (First + 1));
                   return;
                end if;
             end;
             First := First + 2;
          elsif Context.Argument (First) = "-d" then
             if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-d'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-d");
                return;
             end if;
             declare
@@ -162,14 +164,14 @@ package body Posix_Tools.Commands.Touch is
                Select_Date_Time (Context.Argument (First + 1), Selected);
                if not Selected then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid timestamp '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Timestamp, Context.Argument (First + 1));
                   return;
                end if;
             end;
             First := First + 2;
          elsif Context.Argument (First) = "-r" then
             if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-r'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-r");
                return;
             end if;
             declare
@@ -209,14 +211,13 @@ package body Posix_Tools.Commands.Touch is
                         begin
                            Select_Date_Time (Timestamp, Selected);
                            if not Selected then
-                              Posix_Tools.Commands.Helpers.Usage_Error
-                                (Context, Result, "invalid timestamp '" & Timestamp & "'");
+                              Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Timestamp, Timestamp);
                               return;
                            end if;
                         end;
                         exit;
                      elsif First = Context.Argument_Count then
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-d'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-d");
                         return;
                      else
                         declare
@@ -225,7 +226,7 @@ package body Posix_Tools.Commands.Touch is
                            Select_Date_Time (Context.Argument (First + 1), Selected);
                            if not Selected then
                               Posix_Tools.Commands.Helpers.Usage_Error
-                                (Context, Result, "invalid timestamp '" & Context.Argument (First + 1) & "'");
+                                (Context, Result, Invalid_Timestamp, Context.Argument (First + 1));
                               return;
                            end if;
                         end;
@@ -248,7 +249,7 @@ package body Posix_Tools.Commands.Touch is
                         end;
                         exit;
                      elsif First = Context.Argument_Count then
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-r'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-r");
                         return;
                      else
                         declare
@@ -273,14 +274,13 @@ package body Posix_Tools.Commands.Touch is
                         begin
                            Select_Explicit_Time (Timestamp, Selected);
                            if not Selected then
-                              Posix_Tools.Commands.Helpers.Usage_Error
-                                (Context, Result, "invalid timestamp '" & Timestamp & "'");
+                              Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Timestamp, Timestamp);
                               return;
                            end if;
                         end;
                         exit;
                      elsif First = Context.Argument_Count then
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-t'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
                         return;
                      else
                         declare
@@ -289,7 +289,7 @@ package body Posix_Tools.Commands.Touch is
                            Select_Explicit_Time (Context.Argument (First + 1), Selected);
                            if not Selected then
                               Posix_Tools.Commands.Helpers.Usage_Error
-                                (Context, Result, "invalid timestamp '" & Context.Argument (First + 1) & "'");
+                                (Context, Result, Invalid_Timestamp, Context.Argument (First + 1));
                               return;
                            end if;
                         end;
@@ -297,8 +297,7 @@ package body Posix_Tools.Commands.Touch is
                         exit;
                      end if;
                   when others =>
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "unknown option '-" & Ch & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                      return;
                end case;
             end loop;
@@ -309,7 +308,7 @@ package body Posix_Tools.Commands.Touch is
       end loop;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
       for I in First .. Context.Argument_Count loop

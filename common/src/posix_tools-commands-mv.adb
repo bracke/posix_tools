@@ -2,12 +2,14 @@ with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Moving;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Mv is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Ada.Containers.Count_Type;
    use type Posix_Tools.File_Operations.Operation_Outcome;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
@@ -67,7 +69,7 @@ package body Posix_Tools.Commands.Mv is
                      when 'v' =>
                         Verbose := True;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                         return;
                   end case;
                end loop;
@@ -79,7 +81,7 @@ package body Posix_Tools.Commands.Mv is
       end loop;
 
       if Operands.Length < 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

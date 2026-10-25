@@ -1,43 +1,31 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Expr_Expressions;
 
 package body Posix_Tools.Commands.Expr is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   subtype Usage_Message is Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package Exprs renames Posix_Tools.Text.Expr_Expressions;
    use type Exprs.Evaluation_Status;
 
-   function Diagnostic_Message (Evaluation : Exprs.Evaluation_Result) return String is
-      Operand : constant String := To_String (Evaluation.Error_Operand);
-   begin
-      case Evaluation.Status is
-         when Exprs.Valid =>
-            return "";
-         when Exprs.Missing_Expression =>
-            return "missing expression";
-         when Exprs.Missing_Operand =>
-            return "missing expression operand";
-         when Exprs.Missing_Right_Parenthesis =>
-            return "missing ')' in expression";
-         when Exprs.Unexpected_Right_Parenthesis =>
-            return "unexpected ')' in expression";
-         when Exprs.Extra_Operand =>
-            return "extra operand '" & Operand & "'";
-         when Exprs.Non_Numeric_Substr_Operand =>
-            return "non-numeric substr operand";
-         when Exprs.Invalid_Regular_Expression =>
-            return "invalid regular expression '" & Operand & "'";
-         when Exprs.Non_Numeric_Arithmetic_Operand =>
-            return "non-numeric arithmetic operand";
-         when Exprs.Division_By_Zero =>
-            return "division by zero";
-         when Exprs.Numeric_Overflow =>
-            return "numeric overflow";
-      end case;
-   end Diagnostic_Message;
+   --  The usage diagnostic for an expression that did not evaluate.
+   function Diagnostic (Status : Exprs.Evaluation_Status) return Usage_Message is
+     (case Status is
+         when Exprs.Valid | Exprs.Missing_Expression => Missing_Expression,
+         when Exprs.Missing_Operand => Missing_Expression_Operand,
+         when Exprs.Missing_Right_Parenthesis => Missing_Right_Parenthesis,
+         when Exprs.Unexpected_Right_Parenthesis => Unexpected_Right_Parenthesis,
+         when Exprs.Extra_Operand => Extra_Operand,
+         when Exprs.Non_Numeric_Substr_Operand => Non_Numeric_Substr_Operand,
+         when Exprs.Invalid_Regular_Expression => Invalid_Regular_Expression,
+         when Exprs.Non_Numeric_Arithmetic_Operand => Non_Numeric_Arithmetic_Operand,
+         when Exprs.Division_By_Zero => Division_By_Zero,
+         when Exprs.Numeric_Overflow => Numeric_Overflow);
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -61,7 +49,7 @@ package body Posix_Tools.Commands.Expr is
       Evaluation := Exprs.Evaluate (Arguments);
       if Evaluation.Status /= Exprs.Valid then
          Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, Diagnostic_Message (Evaluation));
+           (Context, Result, Diagnostic (Evaluation.Status), To_String (Evaluation.Error_Operand));
          return;
       end if;
 

@@ -3,6 +3,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Numbers;
@@ -11,6 +12,8 @@ with Posix_Tools.Text.DD_Conversion_Engine;
 with Posix_Tools.Text.DD_Operands;
 
 package body Posix_Tools.Commands.Dd is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   subtype Usage_Message is Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Exit_Status.Code;
@@ -62,19 +65,36 @@ package body Posix_Tools.Commands.Dd is
       end if;
 
       declare
-         Error : Unbounded_String;
+         Error : Posix_Tools.Text.DD_Operands.Operand_Error;
+
+         procedure Refuse;
+
+         procedure Refuse is
+            Messages : constant array (Posix_Tools.Text.DD_Operands.Operand_Error_Kind) of Usage_Message :=
+              [Posix_Tools.Text.DD_Operands.No_Error           => Invalid_Operand,
+               Posix_Tools.Text.DD_Operands.Invalid_Block_Size => Invalid_Block_Size,
+               Posix_Tools.Text.DD_Operands.Invalid_Conversion => Invalid_Conversion,
+               Posix_Tools.Text.DD_Operands.Invalid_Count      => Invalid_Count,
+               Posix_Tools.Text.DD_Operands.Invalid_File_Count => Invalid_File_Count,
+               Posix_Tools.Text.DD_Operands.Invalid_Operand    => Invalid_Operand,
+               Posix_Tools.Text.DD_Operands.Invalid_Seek       => Invalid_Seek,
+               Posix_Tools.Text.DD_Operands.Invalid_Skip       => Invalid_Skip];
+         begin
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, Messages (Error.Kind), To_String (Error.Subject));
+         end Refuse;
       begin
          for I in 1 .. Context.Argument_Count loop
             if not Posix_Tools.Text.DD_Operands.Parse_Argument
               (Context.Argument (I), Options, Error)
             then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, To_String (Error));
+               Refuse;
                return;
             end if;
          end loop;
 
          if not Posix_Tools.Text.DD_Operands.Validate (Options, Error) then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, To_String (Error));
+            Refuse;
             return;
          end if;
       end;
@@ -110,12 +130,12 @@ package body Posix_Tools.Commands.Dd is
               Seek_Blocks       => Options.Seek_Blocks);
       begin
          if Transfer.Status = Posix_Tools.Text.DD_Blocks.Offset_Overflow then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "offset overflow");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Offset_Overflow);
             return;
          end if;
 
          if Transfer.Status = Posix_Tools.Text.DD_Blocks.Count_Overflow then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "count overflow");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Count_Overflow);
             return;
          end if;
 

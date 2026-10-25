@@ -1,12 +1,14 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Suffixes;
 with Posix_Tools.Text.Tab_Stops;
 
 package body Posix_Tools.Commands.Split is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    LF : constant Character := Character'Val (10);
@@ -37,7 +39,7 @@ package body Posix_Tools.Commands.Split is
             begin
                if not Parsed.Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                   return;
                end if;
                Suffix_Length := Positive (Parsed.Value);
@@ -50,7 +52,7 @@ package body Posix_Tools.Commands.Split is
             begin
                if not Parsed.Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                   return;
                end if;
                Lines_Per_File := Parsed.Value;
@@ -63,7 +65,7 @@ package body Posix_Tools.Commands.Split is
             begin
                if not Parsed.Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                   return;
                end if;
                Bytes_Per_File := Parsed.Value;
@@ -77,7 +79,7 @@ package body Posix_Tools.Commands.Split is
            or else Context.Argument (First) = "-b"
          then
             Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "missing option argument '" & Context.Argument (First) & "'");
+              (Context, Result, Missing_Option_Argument, Context.Argument (First));
             return;
          else
             exit;
@@ -88,8 +90,7 @@ package body Posix_Tools.Commands.Split is
            (if First > Context.Argument_Count then 0 else Context.Argument_Count - First + 1);
       begin
          if Remaining > 2 then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "extra operand '" & Context.Argument (First + 2) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
             return;
          elsif Remaining >= 1 then
             Input := To_Unbounded_String (Context.Argument (First));

@@ -3,11 +3,13 @@ with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Find_Validation;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Find_Expressions;
 
 package body Posix_Tools.Commands.Find is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Ada.Containers.Count_Type;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
@@ -240,8 +242,7 @@ package body Posix_Tools.Commands.Find is
               and then Context.Argument (I)'Length > 1
               and then Context.Argument (I) (Context.Argument (I)'First) = '-'
             then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "unknown option '" & Context.Argument (I) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (I));
                return;
             else
                Paths.Append (Context.Argument (I));

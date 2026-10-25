@@ -2,6 +2,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
@@ -10,6 +11,7 @@ with Posix_Tools.Text.Cut_Fields;
 with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Cut is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Text.Cut_Fields.Range_Item;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
@@ -193,12 +195,11 @@ package body Posix_Tools.Commands.Cut is
                First_File := First_File + 1;
             elsif Arg = "-d" then
                if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '-d'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-d");
                   return;
                elsif Context.Argument (First_File + 1)'Length /= 1 then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First_File + 1));
                   return;
                end if;
                Delimiter := Context.Argument (First_File + 1) (Context.Argument (First_File + 1)'First);
@@ -210,7 +211,7 @@ package body Posix_Tools.Commands.Cut is
             then
                if Arg'Length /= 3 then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
+                    (Context, Result, Invalid_Operand, Arg (Arg'First + 2 .. Arg'Last));
                   return;
                end if;
                Delimiter := Arg (Arg'First + 2);
@@ -221,8 +222,7 @@ package body Posix_Tools.Commands.Cut is
               and then Arg (Arg'First + 1) in 'b' | 'c' | 'f'
             then
                if Mode /= Character'Val (0) then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "multiple list options");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Multiple_List_Options);
                   return;
                end if;
                Mode := Arg (Arg'First + 1);
@@ -233,12 +233,11 @@ package body Posix_Tools.Commands.Cut is
                      else "");
                begin
                   if Spec = "" then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing option argument '-" & Mode & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-" & Mode);
                      return;
                   end if;
                   if not Parse_List (Spec, Ranges) then
-                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Spec & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Spec);
                      return;
                   end if;
                   First_File := First_File + (if Arg'Length > 2 then 1 else 2);
@@ -253,15 +252,15 @@ package body Posix_Tools.Commands.Cut is
       end loop;
 
       if Mode = Character'Val (0) then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
       if No_Split and then Mode /= 'b' then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '-n'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "-n");
          return;
       end if;
       if (Has_Delimiter or else Suppress) and then Mode /= 'f' then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid field option");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Field_Option);
          return;
       end if;
       if Context.Argument_Count < First_File then

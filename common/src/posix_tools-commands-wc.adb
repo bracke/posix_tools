@@ -2,11 +2,13 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Counting;
 with Posix_Tools.Wc_Fields;
 
 package body Posix_Tools.Commands.Wc is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
 
@@ -161,8 +163,7 @@ package body Posix_Tools.Commands.Wc is
                when 'w' => Show_W := True;
                when 'L' => Show_Max_Line_Length := True;
                when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "unknown option '-" & Ch & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                   return;
             end case;
          end loop;

@@ -2,6 +2,7 @@ with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Modes;
@@ -9,6 +10,7 @@ with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.Stat_Formats;
 
 package body Posix_Tools.Commands.Stat is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Calendar.Time;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
@@ -171,7 +173,7 @@ package body Posix_Tools.Commands.Stat is
       while First <= Context.Argument_Count loop
          if Context.Argument (First) = "-c" then
             if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-c'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-c");
                return;
             end if;
             Has_Format := True;
@@ -195,7 +197,7 @@ package body Posix_Tools.Commands.Stat is
       end loop;
 
       if Context.Argument_Count < First then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

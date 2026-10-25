@@ -5,12 +5,14 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Base_Parsing;
 with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Tr is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
@@ -288,7 +290,7 @@ package body Posix_Tools.Commands.Tr is
                when 'd' => Delete_Mode := True;
                when 's' => Squeeze := True;
                when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                   return;
             end case;
          end loop;
@@ -299,7 +301,7 @@ package body Posix_Tools.Commands.Tr is
         or else ((not Delete_Mode) and then Squeeze and then Context.Argument_Count not in First | First + 1)
         or else ((not Delete_Mode) and then (not Squeeze) and then Context.Argument_Count /= First + 1)
       then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

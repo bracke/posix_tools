@@ -1,10 +1,12 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Text.Signal_Names;
 
 package body Posix_Tools.Commands.Kill is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package Signals renames Posix_Tools.Host_Adapters.Signals;
 
    procedure Run
@@ -66,7 +68,7 @@ package body Posix_Tools.Commands.Kill is
       end if;
 
       if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
@@ -83,22 +85,20 @@ package body Posix_Tools.Commands.Kill is
          return;
       elsif Context.Argument_Count >= 2 and then Context.Argument (1) = "-s" then
          if not Signal_From_Name (Context.Argument (2), Chosen) then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (2) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (2));
             return;
          end if;
          First := 3;
       elsif Context.Argument (1)'Length > 1 and then Context.Argument (1) (1) = '-' then
          if not Signal_From_Name (Context.Argument (1) (2 .. Context.Argument (1)'Last), Chosen) then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (1) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (1));
             return;
          end if;
          First := 2;
       end if;
 
       if Context.Argument_Count < First then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

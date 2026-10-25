@@ -36,7 +36,6 @@ is not covered unless it appears in the target inventory below.
 - `Posix_Tools.Text.Checksums`
 - `Posix_Tools.Text.Cut_Fields`
 - `Posix_Tools.Text.DD_Conversions`
-- `Posix_Tools.Text.Diagnostic_Fields`
 - `Posix_Tools.Text.Duration_Fields`
 - `Posix_Tools.Text.File_Magic_Fields`
 - `Posix_Tools.Text.File_Operands`
@@ -153,9 +152,7 @@ in both cases, digits with leading zeros, and a dot, with and without folding.
 Command implementations remain covered primarily by tests. Pure command-local
 helpers are extracted when practical: conventional command extension option
 dispatch for `--help`, `--version`, and `--posix-tools-identify` is proved in
-`Posix_Tools.Extension_Options`; usage-diagnostic prefix classification
-and payload slice bounds for localized command diagnostics are proved in
-`Posix_Tools.Text.Diagnostic_Fields`; file operand subject naming for `-`
+`Posix_Tools.Extension_Options`; file operand subject naming for `-`
 standard-input diagnostics is proved in `Posix_Tools.Text.File_Operands`;
 SHA256 checksum-file line digest validation, digest lowercasing, and filename
 slice selection are proved in `Posix_Tools.Text.Checksum_Lines`;

@@ -1,10 +1,12 @@
 with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Find_Expressions;
 
 package body Posix_Tools.Commands.Find_Validation is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    function Parse_Find_Count
@@ -60,7 +62,7 @@ package body Posix_Tools.Commands.Find_Validation is
             elsif Token = ")" then
                Depth := Depth - 1;
                if Depth < 0 then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand ')'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, ")");
                   return False;
                end if;
                I := I + 1;
@@ -80,12 +82,10 @@ package body Posix_Tools.Commands.Find_Validation is
                       (Expression, I + 1, Allow_Batch => Token = "-exec");
                begin
                   if Terminator = 0 then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing option argument '" & Token & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Token);
                      return False;
                   elsif Terminator = I + 1 then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing operand");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
                      return False;
                   end if;
 
@@ -95,13 +95,12 @@ package body Posix_Tools.Commands.Find_Validation is
               or else Token = "-user" or else Token = "-group"
             then
                if I = Natural (Expression.Length) then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '" & Token & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Token);
                   return False;
                end if;
                if Token = "-newer" and then not FS.Exists (Expression.Element (I + 1)) then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Expression.Element (I + 1) & "'");
+                    (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                   return False;
                end if;
                I := I + 2;
@@ -109,7 +108,7 @@ package body Posix_Tools.Commands.Find_Validation is
                I := I + 1;
             elsif Token = "-mtime" then
                if I = Natural (Expression.Length) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-mtime'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-mtime");
                   return False;
                end if;
                declare
@@ -121,14 +120,14 @@ package body Posix_Tools.Commands.Find_Validation is
                     or else Bytes
                   then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid operand '" & Expression.Element (I + 1) & "'");
+                       (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                      return False;
                   end if;
                end;
                I := I + 2;
             elsif Token = "-perm" then
                if I = Natural (Expression.Length) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-perm'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-perm");
                   return False;
                end if;
                declare
@@ -137,14 +136,14 @@ package body Posix_Tools.Commands.Find_Validation is
                begin
                   if not Parse_Permission_Mode (Expression.Element (I + 1), Mode, Match_All) then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid operand '" & Expression.Element (I + 1) & "'");
+                       (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                      return False;
                   end if;
                end;
                I := I + 2;
             elsif Token = "-size" then
                if I = Natural (Expression.Length) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-size'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-size");
                   return False;
                end if;
                declare
@@ -154,14 +153,14 @@ package body Posix_Tools.Commands.Find_Validation is
                begin
                   if not Parse_Find_Count (Expression.Element (I + 1), Count, Relation, Bytes) then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid operand '" & Expression.Element (I + 1) & "'");
+                       (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                      return False;
                   end if;
                end;
                I := I + 2;
             elsif Token = "-type" then
                if I = Natural (Expression.Length) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-type'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-type");
                   return False;
                end if;
                declare
@@ -173,24 +172,22 @@ package body Posix_Tools.Commands.Find_Validation is
                end;
                if not Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "unsupported type '" & Expression.Element (I + 1) & "'");
+                    (Context, Result, Unsupported_Type, Expression.Element (I + 1));
                   return False;
                end if;
                I := I + 2;
             elsif Token'Length > 0 and then Token (Token'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "unknown option '" & Token & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Token);
                return False;
             else
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Token & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Token);
                return False;
             end if;
          end;
       end loop;
 
       if Depth /= 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '('");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "(");
          return False;
       end if;
 

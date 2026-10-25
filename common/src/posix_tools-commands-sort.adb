@@ -1,12 +1,14 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Sort_Keys;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Sort_Modifiers;
 
 package body Posix_Tools.Commands.Sort is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    LF : constant Character := Character'Val (10);
@@ -60,7 +62,7 @@ package body Posix_Tools.Commands.Sort is
             Options.Sorting.Keys.Append (Key);
             return True;
          end if;
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
          return False;
       end Add_Key;
    begin
@@ -83,8 +85,7 @@ package body Posix_Tools.Commands.Sort is
                end loop;
                exit;
             elsif Arg in "-o" | "-k" | "-t" and then not Has_Arg then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '" & Arg & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                return False;
             elsif Arg = "-o" then
                Options.Output_Path := To_Unbounded_String (Context.Argument (I + 1));
@@ -102,8 +103,7 @@ package body Posix_Tools.Commands.Sort is
                end if;
             elsif Arg = "-t" then
                if Context.Argument (I + 1)'Length /= 1 then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (I + 1) & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I + 1));
                   return False;
                end if;
                Options.Sorting.Field_Separator := Context.Argument (I + 1) (Context.Argument (I + 1)'First);
@@ -126,7 +126,7 @@ package body Posix_Tools.Commands.Sort is
                      when 's' => Options.Sorting.Stable_Sort := True;
                      when 'u' => Options.Sorting.Unique := True;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                         return False;
                   end case;
                end loop;

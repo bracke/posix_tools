@@ -1,10 +1,12 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Getconf is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -65,17 +67,16 @@ package body Posix_Tools.Commands.Getconf is
       end if;
 
       if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       elsif Context.Argument_Count > 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Context.Argument (3) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (3));
          return;
       end if;
 
       if Context.Argument_Count = 2 then
          if Context.Argument (2) = "" then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (2) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (2));
             return;
          elsif not FS.Exists (Context.Argument (2)) then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
@@ -91,8 +92,7 @@ package body Posix_Tools.Commands.Getconf is
            (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
             else Posix_Tools.Exit_Status.Success);
       else
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "invalid operand '" & Context.Argument (1) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (1));
       end if;
    end Run;
 end Posix_Tools.Commands.Getconf;

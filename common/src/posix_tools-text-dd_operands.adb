@@ -55,20 +55,21 @@ package body Posix_Tools.Text.DD_Operands is
    end Parse_Conversions;
 
    procedure Set_Invalid
-     (Error : out Unbounded_String;
-      Text  : String)
+     (Error   : out Operand_Error;
+      Kind    : Operand_Error_Kind;
+      Subject : String)
    is
    begin
-      Error := To_Unbounded_String (Text);
+      Error := (Kind => Kind, Subject => To_Unbounded_String (Subject));
    end Set_Invalid;
 
    function Parse_Argument
      (Argument : String;
       Options  : in out Settings;
-      Error    : out Unbounded_String) return Boolean
+      Error    : out Operand_Error) return Boolean
    is
    begin
-      Error := Null_Unbounded_String;
+      Error := (others => <>);
 
       if Argument'Length > 3
         and then Argument (Argument'First .. Argument'First + 2) = "if="
@@ -86,7 +87,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 6);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid then
-               Set_Invalid (Error, "invalid count '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Count, Argument);
                return False;
             end if;
             Options.Count := Parsed.Value;
@@ -99,7 +100,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 6);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
-               Set_Invalid (Error, "invalid file count '" & Argument & "'");
+               Set_Invalid (Error, Invalid_File_Count, Argument);
                return False;
             end if;
             Options.Input_File_Count := Parsed.Value;
@@ -112,7 +113,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 5);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid then
-               Set_Invalid (Error, "invalid skip '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Skip, Argument);
                return False;
             end if;
             Options.Skip_Blocks := Parsed.Value;
@@ -125,7 +126,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 6);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid then
-               Set_Invalid (Error, "invalid skip '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Skip, Argument);
                return False;
             end if;
             Options.Skip_Blocks := Parsed.Value;
@@ -138,7 +139,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 5);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid then
-               Set_Invalid (Error, "invalid seek '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Seek, Argument);
                return False;
             end if;
             Options.Seek_Blocks := Parsed.Value;
@@ -151,7 +152,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 6);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid then
-               Set_Invalid (Error, "invalid seek '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Seek, Argument);
                return False;
             end if;
             Options.Seek_Blocks := Parsed.Value;
@@ -164,7 +165,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 4);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
-               Set_Invalid (Error, "invalid block size '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Block_Size, Argument);
                return False;
             end if;
             Options.Input_Block_Size := Parsed.Value;
@@ -178,7 +179,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 4);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
-               Set_Invalid (Error, "invalid block size '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Block_Size, Argument);
                return False;
             end if;
             Options.Output_Block_Size := Parsed.Value;
@@ -191,7 +192,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 4);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
-               Set_Invalid (Error, "invalid block size '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Block_Size, Argument);
                return False;
             end if;
             Options.Conversion_Settings.Conversion_Block_Size := Parsed.Value;
@@ -204,7 +205,7 @@ package body Posix_Tools.Text.DD_Operands is
               Parse_Count_Operand (Argument, 3);
          begin
             if Parsed.Status /= Posix_Tools.Numbers.Valid or else Parsed.Value = 0 then
-               Set_Invalid (Error, "invalid block size '" & Argument & "'");
+               Set_Invalid (Error, Invalid_Block_Size, Argument);
                return False;
             end if;
             Options.Input_Block_Size := Parsed.Value;
@@ -217,11 +218,11 @@ package body Posix_Tools.Text.DD_Operands is
          if Argument'Length = 5
            or else not Parse_Conversions (Argument (Argument'First + 5 .. Argument'Last), Options)
          then
-            Set_Invalid (Error, "invalid conversion '" & Argument & "'");
+            Set_Invalid (Error, Invalid_Conversion, Argument);
             return False;
          end if;
       else
-         Set_Invalid (Error, "invalid operand '" & Argument & "'");
+         Set_Invalid (Error, Invalid_Operand, Argument);
          return False;
       end if;
 
@@ -230,10 +231,10 @@ package body Posix_Tools.Text.DD_Operands is
 
    function Validate
      (Options : Settings;
-      Error   : out Unbounded_String) return Boolean
+      Error   : out Operand_Error) return Boolean
    is
    begin
-      Error := Null_Unbounded_String;
+      Error := (others => <>);
 
       if Options.Conversion_Settings.Block_Conversion /=
            Posix_Tools.Text.DD_Conversions.No_Block_Conversion
@@ -241,7 +242,7 @@ package body Posix_Tools.Text.DD_Operands is
                   or else Options.Conversion_Settings.Conversion_Block_Size >
                     Posix_Tools.Numbers.Count (Natural'Last))
       then
-         Set_Invalid (Error, "invalid block size 'cbs'");
+         Set_Invalid (Error, Invalid_Block_Size, "cbs");
          return False;
       end if;
 
@@ -251,12 +252,12 @@ package body Posix_Tools.Text.DD_Operands is
                   or else Options.Conversion_Settings.Conversion_Block_Size >
                     Posix_Tools.Numbers.Count (Natural'Last))
       then
-         Set_Invalid (Error, "invalid block size 'cbs'");
+         Set_Invalid (Error, Invalid_Block_Size, "cbs");
          return False;
       end if;
 
       if Options.Input_File_Count = 0 then
-         Set_Invalid (Error, "invalid file count 'files'");
+         Set_Invalid (Error, Invalid_File_Count, "files");
          return False;
       end if;
 
