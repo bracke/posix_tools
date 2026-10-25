@@ -76,6 +76,7 @@ package body Search_Tests is
       AUnit.Assertions.Assert (Search.Name_Matches ("*.md", "README.md"), "a glob");
       AUnit.Assertions.Assert (not Search.Name_Matches ("*.md", "notes.txt"), "a glob that does not match");
       AUnit.Assertions.Assert (Search.Name_Matches ("file?.[ch]", "file1.c"), "? and a class");
+      AUnit.Assertions.Assert (Search.Name_Matches ("*.JPG", "x.jpg"), "a glob, regardless of case too");
    end Test_Matching;
 
    procedure Test_Search_Pane (T : in out Fixture) is

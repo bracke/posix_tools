@@ -6,6 +6,7 @@ with Explore.Keymap;
 with Explore.Launch;
 with Explore.Line_Editor;
 with Explore.Model;
+with Explore.Paths;
 with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
@@ -15,8 +16,8 @@ with Explore.String_Vectors;
 with Explore.Tabs;
 with Explore.Words;
 with Posix_Tools.Arguments;
-with Posix_Tools.File_Operations;
 with Posix_Tools.File_Operations.Listing;
+with Posix_Tools.File_Operations;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Text.File_Modes;
@@ -264,7 +265,7 @@ package body Explore.Application.Controller is
       Current   : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
       Directory : constant Boolean := State.Interaction.Mode = Creating and then Text (Text'Last) = '/';
       Name      : constant String := (if Directory then Text (Text'First .. Text'Last - 1) else Text);
-      Target    : constant String := Model.Child_Of (Unbounded.To_String (Current.Path), Name);
+      Target    : constant String := Explore.Paths.Child_Of (Unbounded.To_String (Current.Path), Name);
       Written   : Boolean := True;
    begin
       if Name'Length = 0 or else Name = "." or else Name = ".." or else (for some C of Name => C = '/') then
@@ -317,7 +318,7 @@ package body Explore.Application.Controller is
             Unbounded.Append (Text, Character'Val (10));
          end if;
 
-         Unbounded.Append (Text, (if Names_Only then Model.Name_Of (Path) else Path));
+         Unbounded.Append (Text, (if Names_Only then Explore.Paths.Name_Of (Path) else Path));
       end loop;
 
       if Unbounded.Length (Text) > 0 then
@@ -508,9 +509,9 @@ package body Explore.Application.Controller is
       Path    : constant String :=
         (if Text = "~" then Home
          elsif Text'Length >= 2 and then Text (Text'First .. Text'First + 1) = "~/"
-         then Model.Child_Of (Home, Text (Text'First + 2 .. Text'Last))
+         then Explore.Paths.Child_Of (Home, Text (Text'First + 2 .. Text'Last))
          elsif Text (Text'First) = '/' then Text
-         else Model.Child_Of (Current, Text));
+         else Explore.Paths.Child_Of (Current, Text));
    begin
       if FS.Kind (Path) = FS.Directory then
          Model.Jump (State.Browser, FS.Real_Path (Path));
@@ -518,7 +519,7 @@ package body Explore.Application.Controller is
          declare
             Real : constant String := FS.Real_Path (Path);
          begin
-            Model.Jump (State.Browser, Model.Parent_Of (Real), Model.Name_Of (Real));
+            Model.Jump (State.Browser, Explore.Paths.Parent_Of (Real), Explore.Paths.Name_Of (Real));
          end;
       else
          Complain (State, Text, Posix_Tools.File_Operations.Not_A_Directory);
@@ -581,7 +582,7 @@ package body Explore.Application.Controller is
          Opener :=
            Explore.Launch.Opener_For
              (State.Config.Openers,
-              Model.Name_Of (First),
+              Explore.Paths.Name_Of (First),
               Read and then Explore.Previews.Is_Text (Unbounded.To_String (Head)));
          Run_Program
            (State,

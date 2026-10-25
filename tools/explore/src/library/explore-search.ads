@@ -2,8 +2,9 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.File_Operations.Listing;
 
 --  Finding entries below a directory: by name, as a glob when the pattern has
---  *, ?, or [ in it and as a substring regardless of case when it has not; or
---  by content, the files whose text contains the pattern regardless of case.
+--  *, ?, or [ in it and as a substring when it has not, either way regardless
+--  of case; or by content, the files whose text contains the pattern
+--  regardless of case.
 --
 --  A search walks the tree away from the screen, without following links,
 --  and hands its results over in batches as it finds them, so the first show

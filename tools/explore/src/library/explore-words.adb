@@ -1,4 +1,4 @@
-with Explore.Model;
+with Explore.Paths;
 with Posix_Tools.Localization;
 with Posix_Tools.Text.Numeric_Images;
 
@@ -79,7 +79,7 @@ package body Explore.Words is
          else "");
    begin
       return Verb_Of (Words, Lane.Job.Kind) & " " & Image (Natural'Min (Lane.Done + 1, Lane.Job.Total)) & "/"
-        & Image (Lane.Job.Total) & " " & Explore.Model.Name_Of (Unbounded.To_String (Lane.Current)) & Percent;
+        & Image (Lane.Job.Total) & " " & Explore.Paths.Name_Of (Unbounded.To_String (Lane.Current)) & Percent;
    end Lane_Line;
 
    function Load (Locale : String) return Word_Set is

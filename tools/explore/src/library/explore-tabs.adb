@@ -1,4 +1,5 @@
 with Ada.Strings.Unbounded;
+with Explore.Paths;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Tabs is
@@ -34,7 +35,7 @@ package body Explore.Tabs is
                  Unbounded.To_String
                    (if I = Self.Active then Browser.Panes (Model.Current_Pane).Path
                     else Self.Browsers (I).Panes (Model.Current_Pane).Path);
-               Name  : constant String := (if Path = "/" then "/" else Model.Name_Of (Path));
+               Name  : constant String := (if Path = "/" then "/" else Explore.Paths.Name_Of (Path));
                Label : constant String := Image (I) & " " & Name;
             begin
                Unbounded.Append (Result, (if I = Self.Active then "[" & Label & "] " else " " & Label & "  "));

@@ -1,7 +1,6 @@
-with Ada.Characters.Handling;
 with Explore.Images;
+with Explore.Paths;
 with Explore.Protocol;
-with Posix_Tools.Text.Glob;
 
 package body Explore.Launch is
    package Unbounded renames Ada.Strings.Unbounded;
@@ -12,7 +11,6 @@ package body Explore.Launch is
      (Explore.Protocol.To_Outer_Terminal (ESC & "]52;c;" & Explore.Images.Base64 (Text) & ESC & "\", In_Tmux));
 
    function Opener_For (Openers : Opener_Vectors.Vector; Name : String; Is_Text : Boolean) return Opener is
-      Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
    begin
       for Candidate of Openers loop
          if Candidate.Patterns.Is_Empty then
@@ -20,7 +18,7 @@ package body Explore.Launch is
          end if;
 
          for Pattern of Candidate.Patterns loop
-            if Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Lower) then
+            if Explore.Paths.Glob_Matches (Pattern, Name) then
                return Candidate;
             end if;
          end loop;

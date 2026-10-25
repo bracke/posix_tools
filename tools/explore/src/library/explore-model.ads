@@ -133,21 +133,6 @@ package Explore.Model is
    --  hidden-file setting changed.
    procedure Reload_All (Self : in out Browser);
 
-   --  The parent directory of an absolute Path; Path itself for the root.
-   function Parent_Of (Path : String) return String;
-
-   --  The last component of Path, any trailing slashes aside; empty for the
-   --  root.
-   function Name_Of (Path : String) return String;
-
-   --  The path of Name in Directory, with one slash between them.
-   function Child_Of (Directory, Name : String) return String;
-
-   --  Text with its ASCII letters in lower case and every other byte as it
-   --  is, as the filter and a name search compare names: a byte of a UTF-8
-   --  sequence is never mistaken for a letter.
-   function Folded (Text : String) return String;
-
    --  Hand a pane the entries read for Generation. Entries for any other
    --  generation are ignored. The cursor goes to the pane's wanted name, or
    --  stays on the name it was on, or as near its old place as the entries

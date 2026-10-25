@@ -1,16 +1,14 @@
-with Ada.Characters.Handling;
 with Explore.Archives;
 with Explore.Files;
-with Explore.Model;
+with Explore.Paths;
 with Posix_Tools.Arguments;
-with Posix_Tools.File_Operations;
 with Posix_Tools.File_Operations.Removing;
+with Posix_Tools.File_Operations;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.Executables;
-with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Text.File_Descriptions;
-with Posix_Tools.Text.Glob;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Previews is
@@ -277,7 +275,7 @@ package body Explore.Previews is
         "text/plain" | "text/x-script" | "inode/x-empty");
 
    function Is_Video (Name : String) return Boolean is
-      Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
+      Lower : constant String := Explore.Paths.Folded (Name);
 
       function Ends (Suffix : String) return Boolean is
         (Lower'Length > Suffix'Length and then Lower (Lower'Last - Suffix'Length + 1 .. Lower'Last) = Suffix);
@@ -446,14 +444,12 @@ package body Explore.Previews is
       Result    : in out Preview;
       Made      : out Boolean)
    is
-      Name : constant String := Ada.Characters.Handling.To_Lower (Explore.Model.Name_Of (Path));
+      Name : constant String := Explore.Paths.Name_Of (Path);
    begin
       Made := False;
 
       for Rule of Rules loop
-         if (for some Pattern of Rule.Patterns =>
-               Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Name))
-         then
+         if (for some Pattern of Rule.Patterns => Explore.Paths.Glob_Matches (Pattern, Name)) then
             Run_Previewer (Rule, Path, Directory & "/preview.txt", Result, Made);
             return;
          end if;

@@ -1,11 +1,10 @@
 with Ada.Strings.Fixed;
-with Explore.Model;
+with Explore.Paths;
 with Greplib.Collected;
 with Greplib.Options;
 with Greplib.Paths;
 with Greplib.Patterns;
 with Greplib.Results;
-with Posix_Tools.Text.Glob;
 
 package body Explore.Search is
    package Unbounded renames Ada.Strings.Unbounded;
@@ -124,8 +123,8 @@ package body Explore.Search is
 
    function Name_Matches (Pattern, Name : String) return Boolean is
      (if (for some C of Pattern => C in '*' | '?' | '[')
-      then Posix_Tools.Text.Glob.Matches (Pattern, Name)
-      else Ada.Strings.Fixed.Index (Explore.Model.Folded (Name), Explore.Model.Folded (Pattern)) > 0);
+      then Explore.Paths.Glob_Matches (Pattern, Name)
+      else Ada.Strings.Fixed.Index (Explore.Paths.Folded (Name), Explore.Paths.Folded (Pattern)) > 0);
 
    task body Worker is
       Item   : Request;
@@ -165,7 +164,7 @@ package body Explore.Search is
 
                   declare
                      Name : constant String := Unbounded.To_String (Found.Name);
-                     Path : constant String := Explore.Model.Child_Of (Directory, Name);
+                     Path : constant String := Explore.Paths.Child_Of (Directory, Name);
                      Hit  : constant Boolean :=
                        (case Item.Kind is
                           when By_Name => Name_Matches (Pattern, Name),

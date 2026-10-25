@@ -1,6 +1,7 @@
 with Explore.Application.Display;
 with Explore.Jobs;
 with Explore.Model;
+with Explore.Paths;
 with Explore.Previews;
 with Explore.Search;
 with Explore.Words;
@@ -129,7 +130,7 @@ package body Explore.Application.Workers is
                Answering,
                Explore.Words.Conflict_Question
                  (Unbounded.To_String (State.Config.Locale),
-                  Model.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict))));
+                  Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict))));
          elsif Lane = 0 and then Mode = Answering then
             Leave_Mode (State);
          end if;

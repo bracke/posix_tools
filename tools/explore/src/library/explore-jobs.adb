@@ -1,4 +1,4 @@
-with Explore.Model;
+with Explore.Paths;
 with Posix_Tools.File_Operations.Copying;
 with Posix_Tools.File_Operations.Moving;
 with Posix_Tools.File_Operations.Removing;
@@ -7,8 +7,8 @@ with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Jobs is
    package FS renames Posix_Tools.Host_Adapters.File_System;
-   package Model renames Explore.Model;
    package Ops renames Posix_Tools.File_Operations;
+   package Paths renames Explore.Paths;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Ops.Conflict_Choice;
@@ -253,7 +253,7 @@ package body Explore.Jobs is
      (Self.Jobs.Cancel_Requested (Self.Lane));
 
    function Destination (Source, Directory : String) return String is
-      Wanted : constant String := Model.Child_Of (Directory, Model.Name_Of (Source));
+      Wanted : constant String := Paths.Child_Of (Directory, Paths.Name_Of (Source));
    begin
       if Wanted /= Source then
          return Wanted;
@@ -352,8 +352,8 @@ package body Explore.Jobs is
                Outcome);
          when Move_Job =>
             --  Moving into the directory it is already in moves nothing.
-            if Model.Child_Of (Directory, Model.Name_Of (Source)) /= Source then
-               Ops.Moving.Move_Path (Source, Model.Child_Of (Directory, Model.Name_Of (Source)), Watcher, Outcome);
+            if Paths.Child_Of (Directory, Paths.Name_Of (Source)) /= Source then
+               Ops.Moving.Move_Path (Source, Paths.Child_Of (Directory, Paths.Name_Of (Source)), Watcher, Outcome);
             end if;
          when Link_Job =>
             declare
@@ -414,7 +414,7 @@ package body Explore.Jobs is
    function View_Of (Item : Job) return Job_View is
      ((Id    => Item.Id,
        Kind  => Item.Kind,
-       First => Unbounded.To_Unbounded_String (if Item.Sources.Is_Empty then "" else Model.Name_Of (Item.Sources (1))),
+       First => Unbounded.To_Unbounded_String (if Item.Sources.Is_Empty then "" else Paths.Name_Of (Item.Sources (1))),
        Total => Natural (Item.Sources.Length)));
 
    task body Worker is

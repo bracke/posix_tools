@@ -1,7 +1,9 @@
 with Ada.Strings.Fixed;
+with Explore.Paths;
 
 package body Explore.Model is
 
+   package Paths renames Explore.Paths;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Listing.Entry_Kind;
@@ -31,14 +33,6 @@ package body Explore.Model is
      (Unbounded.Length (Self.Panes (Current_Pane).Path) > 0
       and then Unbounded.To_String (Self.Panes (Current_Pane).Path) /= "/");
 
-   function Child_Of (Directory, Name : String) return String is
-     (if Directory'Length > 0 and then Directory (Directory'Last) = '/'
-      then Directory & Name
-      else Directory & "/" & Name);
-
-   function Folded (Text : String) return String is
-     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
-
    --  A pane for Path, waiting for its first entries.
    function New_Pane (Self : in out Browser; Path : String) return Pane is
      ((Path       => Unbounded.To_Unbounded_String (Path),
@@ -53,7 +47,7 @@ package body Explore.Model is
      (if Has_Selection (Item) then Unbounded.To_String (Selected (Item).Name) else "");
 
    function Selected_Path (Item : Pane) return String is
-     (if Has_Selection (Item) then Child_Of (Unbounded.To_String (Item.Path), Selected_Name (Item)) else "");
+     (if Has_Selection (Item) then Paths.Child_Of (Unbounded.To_String (Item.Path), Selected_Name (Item)) else "");
 
    function Shown_Entry (Item : Pane; I : Positive) return Listing.Listed_Entry is
      (Item.Entries (Item.Shown (I)));
@@ -197,7 +191,7 @@ package body Explore.Model is
             Open (Self, Target);
             --  Back in a parent, the cursor goes to the directory left.
             Self.Panes (Current_Pane).Wanted :=
-              Unbounded.To_Unbounded_String (if Parent_Of (Left) = Target then Name_Of (Left) else "");
+              Unbounded.To_Unbounded_String (if Paths.Parent_Of (Left) = Target then Paths.Name_Of (Left) else "");
          end;
       end if;
    end Go_Back;
@@ -255,7 +249,7 @@ package body Explore.Model is
 
       declare
          Left   : constant String := Unbounded.To_String (Self.Panes (Current_Pane).Path);
-         Parent : constant String := Parent_Of (Left);
+         Parent : constant String := Paths.Parent_Of (Left);
       begin
          Self.Filter := Unbounded.Null_Unbounded_String;
          Self.Panes (Preview_Pane) := Self.Panes (Current_Pane);
@@ -263,17 +257,17 @@ package body Explore.Model is
 
          if Self.Panes (Parent_Pane).Path = Parent and then Self.Panes (Parent_Pane).State in Loaded | Failed then
             Self.Panes (Current_Pane) := Self.Panes (Parent_Pane);
-            Show (Self.Panes (Current_Pane), "", Name_Of (Left), 0);
+            Show (Self.Panes (Current_Pane), "", Paths.Name_Of (Left), 0);
          else
             Self.Panes (Current_Pane) := New_Pane (Self, Parent);
-            Self.Panes (Current_Pane).Wanted := Unbounded.To_Unbounded_String (Name_Of (Left));
+            Self.Panes (Current_Pane).Wanted := Unbounded.To_Unbounded_String (Paths.Name_Of (Left));
          end if;
 
          if Parent = "/" then
             Self.Panes (Parent_Pane) := (others => <>);
          else
-            Self.Panes (Parent_Pane) := New_Pane (Self, Parent_Of (Parent));
-            Self.Panes (Parent_Pane).Wanted := Unbounded.To_Unbounded_String (Name_Of (Parent));
+            Self.Panes (Parent_Pane) := New_Pane (Self, Paths.Parent_Of (Parent));
+            Self.Panes (Parent_Pane).Wanted := Unbounded.To_Unbounded_String (Paths.Name_Of (Parent));
          end if;
       end;
    end Leave;
@@ -298,22 +292,6 @@ package body Explore.Model is
          Update_Visual (Self);
       end if;
    end Move_To;
-
-   function Name_Of (Path : String) return String is
-      Last : Natural := Path'Last;
-   begin
-      while Last >= Path'First and then Path (Last) = '/' loop
-         Last := Last - 1;
-      end loop;
-
-      for I in reverse Path'First .. Last loop
-         if Path (I) = '/' then
-            return Path (I + 1 .. Last);
-         end if;
-      end loop;
-
-      return Path (Path'First .. Last);
-   end Name_Of;
 
    function Next_Generation (Self : in out Browser) return Natural is
    begin
@@ -346,26 +324,10 @@ package body Explore.Model is
       if Path = "/" then
          Self.Panes (Parent_Pane) := (others => <>);
       else
-         Self.Panes (Parent_Pane) := New_Pane (Self, Parent_Of (Path));
-         Self.Panes (Parent_Pane).Wanted := Unbounded.To_Unbounded_String (Name_Of (Path));
+         Self.Panes (Parent_Pane) := New_Pane (Self, Paths.Parent_Of (Path));
+         Self.Panes (Parent_Pane).Wanted := Unbounded.To_Unbounded_String (Paths.Name_Of (Path));
       end if;
    end Open;
-
-   function Parent_Of (Path : String) return String is
-      Last : Natural := Path'Last;
-   begin
-      while Last > Path'First and then Path (Last) = '/' loop
-         Last := Last - 1;
-      end loop;
-
-      for I in reverse Path'First .. Last loop
-         if Path (I) = '/' then
-            return (if I = Path'First then "/" else Path (Path'First .. I - 1));
-         end if;
-      end loop;
-
-      return Path;
-   end Parent_Of;
 
    function Preview_Changed (Self : in out Browser) return Boolean is
       Current : Pane renames Self.Panes (Current_Pane);
@@ -431,13 +393,13 @@ package body Explore.Model is
    end Scroll_Panes;
 
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural) is
-      Needle : constant String := Folded (Filter);
+      Needle : constant String := Paths.Folded (Filter);
    begin
       Item.Shown.Clear;
 
       for I in 1 .. Natural (Item.Entries.Length) loop
          if Needle'Length = 0
-           or else Ada.Strings.Fixed.Index (Folded (Unbounded.To_String (Item.Entries (I).Name)), Needle) > 0
+           or else Ada.Strings.Fixed.Index (Paths.Folded (Unbounded.To_String (Item.Entries (I).Name)), Needle) > 0
          then
             Item.Shown.Append (I);
          end if;
@@ -472,7 +434,7 @@ package body Explore.Model is
    begin
       for Item of Current.Entries loop
          if Current.Marked.Contains (Unbounded.To_String (Item.Name)) then
-            Result.Append (Child_Of (Unbounded.To_String (Current.Path), Unbounded.To_String (Item.Name)));
+            Result.Append (Paths.Child_Of (Unbounded.To_String (Current.Path), Unbounded.To_String (Item.Name)));
          end if;
       end loop;
 
