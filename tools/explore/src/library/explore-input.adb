@@ -1,4 +1,3 @@
-with Ada.Strings.Fixed;
 with Posix_Tools.Text.UTF_8;
 
 package body Explore.Input is
@@ -9,7 +8,8 @@ package body Explore.Input is
    ESC : constant Character := Character'Val (27);
    BEL : constant Character := Character'Val (7);
 
-   Paste_End : constant String := ESC & "[201~";
+   Paste_Start : constant String := ESC & "[200~";
+   Paste_End   : constant String := ESC & "[201~";
 
    --  A sequence longer than this is not one the terminal sends; its
    --  introducer is dropped so that what follows is decoded afresh.
@@ -44,6 +44,11 @@ package body Explore.Input is
 
    procedure Decode_Mouse (Params : String; Final : Character; Item : out Event; Found : out Boolean);
 
+   --  Drop what Self holds of the rest of a paste cut short, up to its end,
+   --  or all of it after a pause.
+   procedure Drop_Paste (Self : in out Decoder)
+     with Pre => Self.Dropping;
+
    --  A CSI sequence whose parameters start with one of "<=>?": a mouse
    --  report, or the terminal's reply to a question about its attributes.
    procedure Decode_Private_CSI
@@ -70,15 +75,6 @@ package body Explore.Input is
       Length : out Natural;
       Status : out Scan_Status);
 
-   --  A bracketed paste, Text starting with the CSI 200~ that ends at Final:
-   --  whatever comes before the CSI 201~ that closes it.
-   procedure Scan_Paste
-     (Text   : String;
-      Final  : Positive;
-      Item   : out Event;
-      Length : out Natural;
-      Status : out Scan_Status);
-
    procedure Scan_Plain
      (Text   : String;
       Item   : out Event;
@@ -96,6 +92,11 @@ package body Explore.Input is
       Item   : out Event;
       Length : out Natural;
       Status : out Scan_Status);
+
+   --  A bracketed paste, which Self.Buffer starts with: whatever comes
+   --  before the CSI 201~ that closes it. Found is False while its end is
+   --  still to come.
+   procedure Take_Paste (Self : in out Decoder; Item : out Event; Found : out Boolean);
 
    function Tilde_Key (Number : Natural; Mods : Modifiers; Item : out Event) return Boolean;
 
@@ -226,6 +227,23 @@ package body Explore.Input is
       end if;
    end Decode_Private_CSI;
 
+   procedure Drop_Paste (Self : in out Decoder) is
+      Held : constant Natural := Unbounded.Length (Self.Buffer);
+      Ends : constant Natural := (if Held >= Paste_End'Length then Unbounded.Index (Self.Buffer, Paste_End) else 0);
+   begin
+      if Ends > 0 then
+         Unbounded.Delete (Self.Buffer, 1, Ends + Paste_End'Length - 1);
+         Self.Dropping := False;
+      elsif Self.Flushed then
+         --  A pause this long past the limit: the terminal is not ending it.
+         Self.Buffer := Unbounded.Null_Unbounded_String;
+         Self.Dropping := False;
+      elsif Held >= Paste_End'Length then
+         --  Kept: the start of its end, should that be what came last.
+         Unbounded.Delete (Self.Buffer, 1, Held - Paste_End'Length + 1);
+      end if;
+   end Drop_Paste;
+
    procedure Feed (Self : in out Decoder; Data : String) is
    begin
       Unbounded.Append (Self.Buffer, Data);
@@ -268,9 +286,27 @@ package body Explore.Input is
       Found := False;
       Item := Key (Character_Key);
 
-      while Unbounded.Length (Self.Buffer) > 0 loop
+      loop
+         if Self.Dropping then
+            Drop_Paste (Self);
+            exit when Self.Dropping;
+         end if;
+
+         exit when Unbounded.Length (Self.Buffer) = 0;
+
+         --  A paste is as long as what was pasted, and is looked through
+         --  where it is held; anything else is decoded from no more of the
+         --  buffer than the longest sequence takes.
+         if Unbounded.Length (Self.Buffer) >= Paste_Start'Length
+           and then Unbounded.Slice (Self.Buffer, 1, Paste_Start'Length) = Paste_Start
+         then
+            Take_Paste (Self, Item, Found);
+            return;
+         end if;
+
          declare
-            Text : constant String := Unbounded.To_String (Self.Buffer);
+            Text : constant String :=
+              Unbounded.Slice (Self.Buffer, 1, Natural'Min (Unbounded.Length (Self.Buffer), Sequence_Limit + 1));
          begin
             Scan (Text, Self.Flushed, Item, Length, Status);
          end;
@@ -286,15 +322,6 @@ package body Explore.Input is
                if not Self.Flushed then
                   return;
                end if;
-
-               declare
-                  Text : constant String := Unbounded.To_String (Self.Buffer);
-               begin
-                  if Starts_With (Text, ESC & "[200~") then
-                     --  A paste is never cut short; the rest is still coming.
-                     return;
-                  end if;
-               end;
 
                --  An unfinished sequence after a pause: the ESC was a key.
                Unbounded.Delete (Self.Buffer, 1, 1);
@@ -403,9 +430,9 @@ package body Explore.Input is
             end if;
       end case;
 
-      --  Past the limit an unfinished sequence is taken for noise -- unless
-      --  it is a paste, which is as long as what was pasted.
-      if Status = Incomplete and then Text'Length > Sequence_Limit and then not Starts_With (Text, ESC & "[200~") then
+      --  Past the limit an unfinished sequence is taken for noise. A paste,
+      --  which is as long as what was pasted, never comes here.
+      if Status = Incomplete and then Text'Length > Sequence_Limit then
          Length := 1;
          Status := Skip;
       end if;
@@ -448,37 +475,13 @@ package body Explore.Input is
          Params    : constant String := Text (First .. Final - 1);
          Last_Byte : constant Character := Text (Final);
       begin
-         if Last_Byte = '~' and then Params = "200" then
-            Scan_Paste (Text, Final, Item, Length, Status);
-         elsif Params'Length > 0 and then Params (Params'First) in '<' .. '?' then
+         if Params'Length > 0 and then Params (Params'First) in '<' .. '?' then
             Decode_Private_CSI (Params, Last_Byte, Item, Status);
          else
             Decode_CSI (Params, Last_Byte, Item, Status);
          end if;
       end;
    end Scan_CSI;
-
-   procedure Scan_Paste
-     (Text   : String;
-      Final  : Positive;
-      Item   : out Event;
-      Length : out Natural;
-      Status : out Scan_Status)
-   is
-      Rest     : constant String := Text (Final + 1 .. Text'Last);
-      Paste_At : constant Natural := Ada.Strings.Fixed.Index (Rest, Paste_End);
-   begin
-      Item := Key (Character_Key);
-
-      if Paste_At = 0 then
-         Length := 0;
-         Status := Incomplete;
-      else
-         Item := (Kind => Paste_Event, Text => Unbounded.To_Unbounded_String (Rest (Rest'First .. Paste_At - 1)));
-         Length := Paste_At + Paste_End'Length - Text'First;
-         Status := Complete;
-      end if;
-   end Scan_Paste;
 
    --  A key typed without a sequence: a control byte, DEL, or a character.
    procedure Scan_Plain
@@ -610,6 +613,33 @@ package body Explore.Input is
       Length := 0;
       Status := Incomplete;
    end Scan_UTF_8;
+
+   procedure Take_Paste (Self : in out Decoder; Item : out Event; Found : out Boolean) is
+      Start : constant Positive := Paste_Start'Length + 1;
+      Held  : constant Natural := Unbounded.Length (Self.Buffer);
+      --  What was looked through before is not looked through again, but
+      --  for its last bytes, which may begin the end.
+      From  : constant Positive := Positive'Max (Start, Self.Searched - Paste_End'Length + 2);
+      Ends  : constant Natural := (if From <= Held then Unbounded.Index (Self.Buffer, Paste_End, From) else 0);
+   begin
+      Item := Key (Character_Key);
+      Found := True;
+
+      if Ends > 0 then
+         Item := (Kind => Paste_Event, Text => Unbounded.Unbounded_Slice (Self.Buffer, Start, Ends - 1));
+         Unbounded.Delete (Self.Buffer, 1, Ends + Paste_End'Length - 1);
+         Self.Searched := 0;
+      elsif Held - Paste_Start'Length > Paste_Limit then
+         Item := (Kind => Paste_Event, Text => Unbounded.Unbounded_Slice (Self.Buffer, Start, Start + Paste_Limit - 1));
+         Unbounded.Delete (Self.Buffer, 1, Paste_Start'Length + Paste_Limit);
+         Self.Searched := 0;
+         Self.Dropping := True;
+      else
+         --  A paste is never cut short by a pause; the rest is still coming.
+         Self.Searched := Held;
+         Found := False;
+      end if;
+   end Take_Paste;
 
    function Tilde_Key (Number : Natural; Mods : Modifiers; Item : out Event) return Boolean is
    begin

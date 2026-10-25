@@ -229,6 +229,42 @@ package body Input_Tests is
          AUnit.Assertions.Assert
            (Found and then Item.Kind = Input.Paste_Event and then Item.Text = Long, "a long paste arrives whole");
       end;
+
+      --  A paste past the limit is handed over cut short, and the rest of it
+      --  dropped up to its end, or up to a pause; it is read in pieces, as
+      --  from the terminal, each looked through once.
+      declare
+         Piece : constant String (1 .. 4096) := [others => 'z'];
+      begin
+         for Pass in 1 .. 2 loop
+            Input.Feed (Decoder, CSI & "200~");
+
+            for I in 1 .. Input.Paste_Limit / Piece'Length + 1 loop
+               Input.Feed (Decoder, Piece);
+               Input.Next (Decoder, Item, Found);
+               exit when Found;
+            end loop;
+
+            AUnit.Assertions.Assert
+              (Found and then Item.Kind = Input.Paste_Event
+               and then Ada.Strings.Unbounded.Length (Item.Text) = Input.Paste_Limit,
+               "an endless paste is handed over at the limit");
+            Input.Feed (Decoder, Piece);
+
+            if Pass = 1 then
+               Input.Feed (Decoder, "zz" & CSI & "201~q");
+            else
+               Input.Flush (Decoder);
+               Expect_Nothing (Decoder, "the rest of it is not taken for keys");
+               Input.Feed (Decoder, "q");
+            end if;
+
+            Input.Next (Decoder, Item, Found);
+            AUnit.Assertions.Assert
+              (Found and then Input.Is_Character (Item, 'q'),
+               (if Pass = 1 then "keys go on after its end" else "keys go on after a pause"));
+         end loop;
+      end;
    end Test_Paste;
 
    procedure Test_Plain_Keys (T : in out Fixture) is
