@@ -579,6 +579,8 @@ tools/explore/src/library/explore-screen.adb
 tools/explore/src/library/explore-screen.ads
 tools/explore/src/library/explore-search.adb
 tools/explore/src/library/explore-search.ads
+tools/explore/src/library/explore-settings-storage.adb
+tools/explore/src/library/explore-settings-storage.ads
 tools/explore/src/library/explore-settings.adb
 tools/explore/src/library/explore-settings.ads
 tools/explore/src/library/explore-string_vectors.ads

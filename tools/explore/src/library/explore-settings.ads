@@ -15,6 +15,9 @@ with Posix_Tools.File_Operations.Listing;
 --  [[preview]] of openers and previewers. Whatever it leaves out keeps its
 --  default. A part that cannot be read is left out and reported, and the
 --  rest is used: a mistake in one binding does not cost the user the others.
+--
+--  This package only reads and writes text; Explore.Settings.Storage reads
+--  and writes the files.
 package Explore.Settings is
    type Settings is record
       Show_Hidden : Boolean := False;
@@ -30,24 +33,24 @@ package Explore.Settings is
 
    type Problem_Kind is
      (Unreadable_File,   --  The file exists and cannot be read.
-      Syntax_Error,      --  It is not TOML; Where is its line.
+      Syntax_Error,      --  It is not TOML; Line is where it stops being.
       Unknown_Setting,   --  A key explore does not know.
       Bad_Value);        --  A value of the wrong type or out of range.
 
    type Problem is record
       Kind  : Problem_Kind := Bad_Value;
-      --  The setting, as a dotted path such as "keys.ctrl-x", or a line.
+      --  The setting, as a dotted path such as "keys.ctrl-x", or the file.
       Where : Ada.Strings.Unbounded.Unbounded_String;
+      --  For a syntax error, the line of the file it is on, from 1. It is a
+      --  number rather than text so that the word for "line" is the
+      --  reader's language.
+      Line  : Natural := 0;
    end record;
 
    package Problem_Vectors is new Ada.Containers.Vectors (Positive, Problem);
 
    --  Read the configuration in Text.
    procedure Parse (Text : String; Into : out Settings; Problems : out Problem_Vectors.Vector);
-
-   --  Read the configuration file at Path. A file that does not exist is
-   --  no configuration, and no problem.
-   procedure Load (Path : String; Into : out Settings; Problems : out Problem_Vectors.Vector);
 
    --  Where the configuration is: config.toml in the explore directory of
    --  Config_Home, the value of XDG_CONFIG_HOME, or of Home's .config when
@@ -65,8 +68,4 @@ package Explore.Settings is
    --  its directory. A line that is not one is skipped.
    function Bookmarks_Image (Marks : Bookmark_Maps.Map) return String;
    function Bookmarks_Value (Text : String) return Bookmark_Maps.Map;
-
-   --  Read and write the bookmarks file, making its directory if needed.
-   function Read_Bookmarks (Path : String) return Bookmark_Maps.Map;
-   procedure Write_Bookmarks (Path : String; Marks : Bookmark_Maps.Map; Ok : out Boolean);
 end Explore.Settings;

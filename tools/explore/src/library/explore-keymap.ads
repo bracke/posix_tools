@@ -77,16 +77,29 @@ package Explore.Keymap is
    --  for no action.
    procedure Parse_Command (Text : String; Result : out Command; Ok : out Boolean);
 
+   --  The sort key a configuration names: natural, name, extension, size,
+   --  modified, or kind. Ok is False, and Key natural, for anything else.
+   procedure Parse_Sort_Key
+     (Text : String;
+      Key  : out Posix_Tools.File_Operations.Listing.Sort_Key;
+      Ok   : out Boolean);
+
    --  One key as the configuration writes it: a character, "space", or a
    --  named key -- enter, tab, backspace, esc, up, down, left, right, home,
    --  end, pageup, pagedown, insert, delete, f1 to f12 -- after any of the
-   --  prefixes "ctrl-" and "alt-".
+   --  prefixes "ctrl-" and "alt-", and for a named key also "shift-".
+   --
+   --  A key matches only with the modifiers its spec names: "tab" is not
+   --  Shift-Tab. A character is the exception for Shift, which it already
+   --  carries in itself -- "G" is a shifted g -- so Shift is not asked of
+   --  it and "shift-" cannot be written before one.
    type Key_Spec is record
       Key     : Explore.Input.Key_Kind := Explore.Input.Character_Key;
       Code    : Wide_Wide_Character := ' ';
       Number  : Natural := 0;
       Control : Boolean := False;
       Alt     : Boolean := False;
+      Shift   : Boolean := False;
    end record;
 
    --  A binding's keys: one, or two separated by a space.

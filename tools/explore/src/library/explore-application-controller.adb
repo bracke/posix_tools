@@ -10,7 +10,7 @@ with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
 with Explore.Search;
-with Explore.Settings;
+with Explore.Settings.Storage;
 with Explore.String_Vectors;
 with Explore.Tabs;
 with Explore.Words;
@@ -794,7 +794,7 @@ package body Explore.Application.Controller is
          Unbounded.To_String (State.Config.Words.Bookmarked) & " " & Letter & ": " & Unbounded.To_String (Path));
 
       if File'Length > 0 then
-         Explore.Settings.Write_Bookmarks (File, State.Interaction.Bookmarks, Kept);
+         Explore.Settings.Storage.Write_Bookmarks (File, State.Interaction.Bookmarks, Kept);
 
          if not Kept then
             Warn (State, Unbounded.To_String (State.Config.Words.Unsaved));

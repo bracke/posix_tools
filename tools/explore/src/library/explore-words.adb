@@ -5,6 +5,8 @@ with Posix_Tools.Text.Numeric_Images;
 package body Explore.Words is
    package Unbounded renames Ada.Strings.Unbounded;
 
+   use type Explore.Settings.Problem_Kind;
+
    function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    --  Which job, by its first entry, and how many more it has.
@@ -24,7 +26,10 @@ package body Explore.Words is
                when Explore.Settings.Syntax_Error => Words.Not_TOML,
                when Explore.Settings.Unknown_Setting => Words.Unknown,
                when Explore.Settings.Bad_Value => Words.Bad_Value)
-        & " " & Unbounded.To_String (First.Where)
+        & " "
+        & (if First.Kind = Explore.Settings.Syntax_Error
+           then Unbounded.To_String (Words.Line) & " " & Image (First.Line)
+           else Unbounded.To_String (First.Where))
         & (if Problems.Last_Index > 1 then " (+" & Image (Problems.Last_Index - 1) & ")" else "");
    end Configuration_Problem;
 
@@ -121,6 +126,7 @@ package body Explore.Words is
          No_Clipboard  => Word ("no_clipboard", "the terminal offers no clipboard"),
          Configuration => Word ("configuration", "configuration"),
          Not_TOML      => Word ("config.syntax", "not valid TOML at"),
+         Line          => Word ("config.line", "line"),
          Unknown       => Word ("config.unknown", "unknown setting"),
          Bad_Value     => Word ("config.bad_value", "invalid value for"),
          Unreadable    => Word ("config.unreadable", "cannot read"));

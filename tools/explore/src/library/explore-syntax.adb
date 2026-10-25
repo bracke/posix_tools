@@ -52,6 +52,68 @@ package body Explore.Syntax is
    function Is_Word_Character (C : Character) return Boolean is
      (C in 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_');
 
+   --  What starts a comment that runs to the end of the line; empty for a
+   --  language that has none.
+   function Line_Comment (Of_Language : Language) return String is
+     (case Of_Language is
+        when Ada_Language => "--",
+        when C_Family => "//",
+        when Hash_Commented => "#",
+        when others => "");
+
+   function Starts (Line : String; At_Index : Natural; Text : String) return Boolean is
+     (At_Index + Text'Length - 1 <= Line'Last
+      and then Line (At_Index .. At_Index + Text'Length - 1) = Text);
+
+   --  Add the run First .. Last of Kind to Spans; nothing when it is empty.
+   procedure Add (Spans : in out Span_Vectors.Vector; First, Last : Natural; Kind : Token_Kind);
+
+   --  Whether Text is a keyword of Of_Language; Ada's in any case.
+   function Is_Keyword (Text : String; Of_Language : Language) return Boolean;
+
+   --  The scanners of one token of Line, from I, which they move past it,
+   --  adding its run to Spans: the rest of a block comment, which closes
+   --  State's when it ends on this line; a number; a quoted string, which
+   --  runs to the end of the line when it is not closed there; and a word,
+   --  which is coloured only when it is a keyword.
+   procedure Scan_Block_Comment
+     (Line  : String;
+      I     : in out Natural;
+      State : in out Line_State;
+      Spans : in out Span_Vectors.Vector);
+   procedure Scan_Number (Line : String; I : in out Natural; Spans : in out Span_Vectors.Vector);
+   procedure Scan_String
+     (Line        : String;
+      Of_Language : Language;
+      I           : in out Natural;
+      Spans       : in out Span_Vectors.Vector);
+   procedure Scan_Word
+     (Line        : String;
+      Of_Language : Language;
+      I           : in out Natural;
+      Spans       : in out Span_Vectors.Vector);
+
+   procedure Add (Spans : in out Span_Vectors.Vector; First, Last : Natural; Kind : Token_Kind) is
+   begin
+      if Last < First then
+         return;
+      end if;
+
+      --  A comment's opening and its body join into one run.
+      if not Spans.Is_Empty and then Spans.Last_Element.Kind = Kind and then Spans.Last_Element.Last + 1 = First then
+         Spans (Spans.Last_Index).Last := Last;
+      else
+         Spans.Append (Span'(First, Last, Kind));
+      end if;
+   end Add;
+
+   function Is_Keyword (Text : String; Of_Language : Language) return Boolean is
+      Lower : constant String :=
+        (if Of_Language = Ada_Language then Ada.Characters.Handling.To_Lower (Text) else Text);
+   begin
+      return (for some Candidate of Words_Of (Of_Language) => Candidate.all = Lower);
+   end Is_Keyword;
+
    function Language_Of (Name, First_Line : String) return Language is
       Lower : constant String := Ada.Characters.Handling.To_Lower (Name);
 
@@ -80,40 +142,85 @@ package body Explore.Syntax is
       end if;
    end Language_Of;
 
+   procedure Scan_Block_Comment
+     (Line  : String;
+      I     : in out Natural;
+      State : in out Line_State;
+      Spans : in out Span_Vectors.Vector)
+   is
+      Start : constant Natural := I;
+   begin
+      while I <= Line'Last and then not Starts (Line, I, "*/") loop
+         I := I + 1;
+      end loop;
+
+      if I <= Line'Last then
+         I := I + 2;
+         State.In_Block_Comment := False;
+      end if;
+
+      Add (Spans, Start, Natural'Min (I - 1, Line'Last), Comment);
+   end Scan_Block_Comment;
+
+   procedure Scan_Number (Line : String; I : in out Natural; Spans : in out Span_Vectors.Vector) is
+      Start : constant Natural := I;
+   begin
+      while I <= Line'Last and then (Is_Word_Character (Line (I)) or else Line (I) in '.' | '#') loop
+         I := I + 1;
+      end loop;
+
+      Add (Spans, Start, I - 1, Number);
+   end Scan_Number;
+
+   procedure Scan_String
+     (Line        : String;
+      Of_Language : Language;
+      I           : in out Natural;
+      Spans       : in out Span_Vectors.Vector)
+   is
+      Quote : constant Character := Line (I);
+      Start : constant Natural := I;
+   begin
+      I := I + 1;
+
+      while I <= Line'Last and then Line (I) /= Quote loop
+         --  A backslash takes the next character with it, except in Ada.
+         if Line (I) = '\' and then Of_Language /= Ada_Language then
+            I := I + 1;
+         end if;
+
+         I := I + 1;
+      end loop;
+
+      I := Natural'Min (I, Line'Last) + 1;
+      Add (Spans, Start, I - 1, String_Literal);
+   end Scan_String;
+
+   procedure Scan_Word
+     (Line        : String;
+      Of_Language : Language;
+      I           : in out Natural;
+      Spans       : in out Span_Vectors.Vector)
+   is
+      Start : constant Natural := I;
+   begin
+      while I <= Line'Last and then Is_Word_Character (Line (I)) loop
+         I := I + 1;
+      end loop;
+
+      if Is_Keyword (Line (Start .. I - 1), Of_Language) then
+         Add (Spans, Start, I - 1, Keyword);
+      end if;
+   end Scan_Word;
+
    procedure Tokenize
      (Line        : String;
       Of_Language : Language;
       State       : in out Line_State;
       Spans       : out Span_Vectors.Vector)
    is
-      I : Natural := Line'First;
-
-      procedure Add (First, Last : Natural; Kind : Token_Kind);
-
-      procedure Add (First, Last : Natural; Kind : Token_Kind) is
-      begin
-         if Last < First then
-            return;
-         end if;
-
-         --  A comment's opening and its body join into one run.
-         if not Spans.Is_Empty and then Spans.Last_Element.Kind = Kind and then Spans.Last_Element.Last + 1 = First then
-            Spans (Spans.Last_Index).Last := Last;
-         else
-            Spans.Append (Span'(First, Last, Kind));
-         end if;
-      end Add;
-
-      function Starts (At_Index : Natural; Text : String) return Boolean is
-        (At_Index + Text'Length - 1 <= Line'Last
-         and then Line (At_Index .. At_Index + Text'Length - 1) = Text);
-
-      function Line_Comment return String is
-        (case Of_Language is
-           when Ada_Language => "--",
-           when C_Family => "//",
-           when Hash_Commented => "#",
-           when others => "");
+      Comment_Start : constant String := Line_Comment (Of_Language);
+      I             : Natural := Line'First;
    begin
       Spans.Clear;
 
@@ -123,7 +230,7 @@ package body Explore.Syntax is
 
       if Of_Language = Markdown_Language then
          if Line'Length > 0 and then Line (Line'First) = '#' then
-            Add (Line'First, Line'Last, Heading);
+            Add (Spans, Line'First, Line'Last, Heading);
          end if;
 
          return;
@@ -131,80 +238,43 @@ package body Explore.Syntax is
 
       while I <= Line'Last loop
          if State.In_Block_Comment then
-            declare
-               Start : constant Natural := I;
-            begin
-               while I <= Line'Last and then not Starts (I, "*/") loop
-                  I := I + 1;
-               end loop;
-
-               if I <= Line'Last then
-                  I := I + 2;
-                  State.In_Block_Comment := False;
-               end if;
-
-               Add (Start, Natural'Min (I - 1, Line'Last), Comment);
-            end;
-         elsif Line_Comment'Length > 0 and then Starts (I, Line_Comment) then
-            Add (I, Line'Last, Comment);
+            Scan_Block_Comment (Line, I, State, Spans);
+         elsif Comment_Start'Length > 0 and then Starts (Line, I, Comment_Start) then
+            Add (Spans, I, Line'Last, Comment);
             return;
-         elsif Of_Language = C_Family and then Starts (I, "/*") then
+         elsif Of_Language = C_Family and then Starts (Line, I, "/*") then
             State.In_Block_Comment := True;
+            Add (Spans, I, I + 1, Comment);
             I := I + 2;
-            Add (I - 2, I - 1, Comment);
          elsif Line (I) = '"' or else (Line (I) = ''' and then Of_Language in C_Family | Hash_Commented) then
-            declare
-               Quote : constant Character := Line (I);
-               Start : constant Natural := I;
-            begin
-               I := I + 1;
-
-               while I <= Line'Last and then Line (I) /= Quote loop
-                  --  A backslash takes the next character with it, except in Ada.
-                  if Line (I) = '\' and then Of_Language /= Ada_Language then
-                     I := I + 1;
-                  end if;
-
-                  I := I + 1;
-               end loop;
-
-               I := Natural'Min (I, Line'Last) + 1;
-               Add (Start, I - 1, String_Literal);
-            end;
+            Scan_String (Line, Of_Language, I, Spans);
          elsif Line (I) in '0' .. '9' and then (I = Line'First or else not Is_Word_Character (Line (I - 1))) then
-            declare
-               Start : constant Natural := I;
-            begin
-               while I <= Line'Last and then (Is_Word_Character (Line (I)) or else Line (I) in '.' | '#') loop
-                  I := I + 1;
-               end loop;
-
-               Add (Start, I - 1, Number);
-            end;
+            Scan_Number (Line, I, Spans);
          elsif Is_Word_Character (Line (I)) then
-            declare
-               Start : constant Natural := I;
-            begin
-               while I <= Line'Last and then Is_Word_Character (Line (I)) loop
-                  I := I + 1;
-               end loop;
-
-               declare
-                  Word  : constant String := Line (Start .. I - 1);
-                  Lower : constant String :=
-                    (if Of_Language = Ada_Language then Ada.Characters.Handling.To_Lower (Word) else Word);
-               begin
-                  for Candidate of Words_Of (Of_Language) loop
-                     if Candidate.all = Lower then
-                        Add (Start, I - 1, Keyword);
-                        exit;
-                     end if;
-                  end loop;
-               end;
-            end;
+            Scan_Word (Line, Of_Language, I, Spans);
          else
             I := I + 1;
          end if;
       end loop;
    end Tokenize;
+
+   function Tokenize_Lines
+     (Lines       : Explore.String_Vectors.Vector;
+      Of_Language : Language) return Line_Span_Vectors.Vector
+   is
+      State  : Line_State;
+      Spans  : Span_Vectors.Vector;
+      Result : Line_Span_Vectors.Vector;
+   begin
+      if Of_Language = No_Language then
+         return Result;
+      end if;
+
+      for Line of Lines loop
+         Tokenize (Line, Of_Language, State, Spans);
+         Result.Append (Spans);
+      end loop;
+
+      return Result;
+   end Tokenize_Lines;
 end Explore.Syntax;

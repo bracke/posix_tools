@@ -10,12 +10,71 @@ package body Explore.Keymap is
    use type Input.Event_Kind;
    use type Input.Key_Kind;
 
-   function Control (Item : Input.Event; Letter : Wide_Wide_Character) return Boolean is
-     (Item.Kind = Input.Key_Event
-      and then Item.Key = Input.Character_Key
-      and then Item.Code = Letter
-      and then Item.Mods.Control
-      and then not Item.Mods.Alt);
+   --  The default bindings of single keys, one line each. Keys that start a
+   --  default prefix -- b, c, g, ', and the comma -- are in Prefix_Of, and the
+   --  digits, which switch to the tab they number, in Plain.
+
+   --  A character typed on its own.
+   function Character_Action (Code : Wide_Wide_Character) return Action is
+     (case Code is
+        when 'q' => Quit,
+        when 'j' => Move_Down,
+        when 'k' => Move_Up,
+        when 'h' => Leave_Directory,
+        when 'l' => Enter_Directory,
+        when 'G' => Move_Bottom,
+        when '.' => Toggle_Hidden,
+        when 'f' => Start_Filter,
+        when '~' => Go_Home,
+        when ' ' => Toggle_Mark,
+        when 'y' => Yank,
+        when 'x' => Cut,
+        when 'p' => Paste,
+        when '-' => Paste_Links,
+        when 'd' => Delete_Entries,
+        when 'r' => Rename_Entry,
+        when 'a' => Create_Entry,
+        when 'm' => Change_Mode,
+        when 'w' => Show_Jobs,
+        when 't' => New_Tab,
+        when 'T' => Close_Tab,
+        when '[' => Previous_Tab,
+        when ']' => Next_Tab,
+        when 'H' => Go_Back,
+        when 'L' => Go_Forward,
+        when ':' => Jump_To_Path,
+        when 'v' => Visual_Mode,
+        when '/' => Search_Names,
+        when '?' => Search_Contents,
+        when '!' => Shell_Command,
+        when 'S' => Spawn_Shell,
+        when 'o' => Open_Entries,
+        when others => No_Action);
+
+   --  A letter typed with Control, and not Alt.
+   function Control_Action (Code : Wide_Wide_Character) return Action is
+     (case Code is
+        when 'd' => Half_Page_Down,
+        when 'u' => Half_Page_Up,
+        when 'f' => Page_Down,
+        when 'b' => Page_Up,
+        when 'c' => Cancel_Job,
+        when others => No_Action);
+
+   --  A named key, with whatever modifiers.
+   function Named_Key_Action (Key : Input.Key_Kind) return Action is
+     (case Key is
+        when Input.Up => Move_Up,
+        when Input.Down => Move_Down,
+        when Input.Left => Leave_Directory,
+        when Input.Right | Input.Enter => Enter_Directory,
+        when Input.Home => Move_Top,
+        when Input.End_Key => Move_Bottom,
+        when Input.Page_Up => Page_Up,
+        when Input.Page_Down => Page_Down,
+        when Input.Escape => Clear_Filter,
+        when Input.Character_Key | Input.Tab | Input.Backspace | Input.Insert | Input.Delete
+           | Input.Function_Key => No_Action);
 
    --  Whether Item is the key Spec describes.
    function Matches (Spec : Key_Spec; Item : Input.Event) return Boolean;
@@ -32,9 +91,6 @@ package body Explore.Keymap is
 
    --  The meaning of a key under a default prefix.
    function Prefixed (Was : Prefix; Item : Input.Event) return Command;
-
-   --  The sort key a configuration names, such as "size".
-   procedure Parse_Sort_Key (Text : String; Key : out Listing.Sort_Key; Ok : out Boolean);
 
    --  The meaning of the key after the sort prefix.
    function Sort_Command (Code : Wide_Wide_Character) return Command;
@@ -80,13 +136,14 @@ package body Explore.Keymap is
          return False;
       end if;
 
+      --  A character carries its own Shift: see Key_Spec.
       case Item.Key is
          when Input.Character_Key =>
             return Item.Code = Spec.Code;
          when Input.Function_Key =>
-            return Item.Number = Spec.Number;
+            return Item.Number = Spec.Number and then Item.Mods.Shift = Spec.Shift;
          when others =>
-            return True;
+            return Item.Mods.Shift = Spec.Shift;
       end case;
    end Matches;
 
@@ -161,6 +218,10 @@ package body Explore.Keymap is
          elsif Text'Last - Rest >= 4 and then Ada.Characters.Handling.To_Lower (Text (Rest .. Rest + 3)) = "alt-" then
             Spec.Alt := True;
             Rest := Rest + 4;
+         elsif Text'Last - Rest >= 6 and then Ada.Characters.Handling.To_Lower (Text (Rest .. Rest + 5)) = "shift-"
+         then
+            Spec.Shift := True;
+            Rest := Rest + 6;
          else
             exit;
          end if;
@@ -236,6 +297,11 @@ package body Explore.Keymap is
                   null;
             end;
          end if;
+
+         --  Shift is written into a character itself, as "G", never before it.
+         if Spec.Shift and then Spec.Key = Input.Character_Key then
+            Ok := False;
+         end if;
       end;
    end Parse_Key;
 
@@ -292,118 +358,16 @@ package body Explore.Keymap is
    begin
       if Item.Kind /= Input.Key_Event then
          return (others => <>);
-      end if;
-
-      case Item.Key is
-         when Input.Up =>
-            return (Kind => Move_Up, others => <>);
-         when Input.Down =>
-            return (Kind => Move_Down, others => <>);
-         when Input.Left =>
-            return (Kind => Leave_Directory, others => <>);
-         when Input.Right | Input.Enter =>
-            return (Kind => Enter_Directory, others => <>);
-         when Input.Home =>
-            return (Kind => Move_Top, others => <>);
-         when Input.End_Key =>
-            return (Kind => Move_Bottom, others => <>);
-         when Input.Page_Up =>
-            return (Kind => Page_Up, others => <>);
-         when Input.Page_Down =>
-            return (Kind => Page_Down, others => <>);
-         when Input.Escape =>
-            return (Kind => Clear_Filter, others => <>);
-         when Input.Character_Key =>
-            null;
-         when Input.Tab | Input.Backspace | Input.Insert | Input.Delete | Input.Function_Key =>
-            return (others => <>);
-      end case;
-
-      if Control (Item, 'd') then
-         return (Kind => Half_Page_Down, others => <>);
-      elsif Control (Item, 'u') then
-         return (Kind => Half_Page_Up, others => <>);
-      elsif Control (Item, 'f') then
-         return (Kind => Page_Down, others => <>);
-      elsif Control (Item, 'b') then
-         return (Kind => Page_Up, others => <>);
-      elsif Control (Item, 'c') then
-         return (Kind => Cancel_Job, others => <>);
+      elsif Item.Key /= Input.Character_Key then
+         --  A named key means the same whatever modifiers are held with it.
+         return (Kind => Named_Key_Action (Item.Key), others => <>);
       elsif Item.Mods.Control or else Item.Mods.Alt then
-         return (others => <>);
+         return (Kind => (if Item.Mods.Alt then No_Action else Control_Action (Item.Code)), others => <>);
+      elsif Item.Code in '1' .. '9' then
+         return (Kind => Switch_Tab, Number => Wide_Wide_Character'Pos (Item.Code) - Character'Pos ('0'), others => <>);
+      else
+         return (Kind => Character_Action (Item.Code), others => <>);
       end if;
-
-      case Item.Code is
-         when 'q' =>
-            return (Kind => Quit, others => <>);
-         when 'j' =>
-            return (Kind => Move_Down, others => <>);
-         when 'k' =>
-            return (Kind => Move_Up, others => <>);
-         when 'h' =>
-            return (Kind => Leave_Directory, others => <>);
-         when 'l' =>
-            return (Kind => Enter_Directory, others => <>);
-         when 'G' =>
-            return (Kind => Move_Bottom, others => <>);
-         when '.' =>
-            return (Kind => Toggle_Hidden, others => <>);
-         when 'f' =>
-            return (Kind => Start_Filter, others => <>);
-         when '~' =>
-            return (Kind => Go_Home, others => <>);
-         when ' ' =>
-            return (Kind => Toggle_Mark, others => <>);
-         when 'y' =>
-            return (Kind => Yank, others => <>);
-         when 'x' =>
-            return (Kind => Cut, others => <>);
-         when 'p' =>
-            return (Kind => Paste, others => <>);
-         when '-' =>
-            return (Kind => Paste_Links, others => <>);
-         when 'd' =>
-            return (Kind => Delete_Entries, others => <>);
-         when 'r' =>
-            return (Kind => Rename_Entry, others => <>);
-         when 'a' =>
-            return (Kind => Create_Entry, others => <>);
-         when 'm' =>
-            return (Kind => Change_Mode, others => <>);
-         when 'w' =>
-            return (Kind => Show_Jobs, others => <>);
-         when 't' =>
-            return (Kind => New_Tab, others => <>);
-         when 'T' =>
-            return (Kind => Close_Tab, others => <>);
-         when '[' =>
-            return (Kind => Previous_Tab, others => <>);
-         when ']' =>
-            return (Kind => Next_Tab, others => <>);
-         when '1' .. '9' =>
-            return (Kind => Switch_Tab, Number => Wide_Wide_Character'Pos (Item.Code) - Character'Pos ('0'),
-                    others => <>);
-         when 'H' =>
-            return (Kind => Go_Back, others => <>);
-         when 'L' =>
-            return (Kind => Go_Forward, others => <>);
-         when ':' =>
-            return (Kind => Jump_To_Path, others => <>);
-         when 'v' =>
-            return (Kind => Visual_Mode, others => <>);
-         when '/' =>
-            return (Kind => Search_Names, others => <>);
-         when '?' =>
-            return (Kind => Search_Contents, others => <>);
-         when '!' =>
-            return (Kind => Shell_Command, others => <>);
-         when 'S' =>
-            return (Kind => Spawn_Shell, others => <>);
-         when 'o' =>
-            return (Kind => Open_Entries, others => <>);
-         when others =>
-            return (others => <>);
-      end case;
    end Plain;
 
    function Prefix_Of (Item : Input.Event) return Prefix is

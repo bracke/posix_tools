@@ -10,6 +10,7 @@ with Explore.Launch;
 with Explore.Previews;
 with Explore.Screen;
 with Explore.Settings;
+with Explore.Settings.Storage;
 with Explore.String_Vectors;
 with Explore.Themes;
 with Posix_Tools.File_Operations.Listing;
@@ -19,6 +20,7 @@ package body Settings_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
    package Keymap renames Explore.Keymap;
    package Settings renames Explore.Settings;
+   package Storage renames Explore.Settings.Storage;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Keymap.Action;
@@ -55,6 +57,9 @@ package body Settings_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:bindings", Test_Bindings'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:configuration", Test_Configuration'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:problems", Test_Problems'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:readers", Test_Readers'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:sort keys", Test_Sort_Keys'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("keymap:shift", Test_Shift'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("settings:bookmarks", Test_Bookmarks'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("launch:openers", Test_Openers'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("launch:shell", Test_Shell'Access));
@@ -141,11 +146,12 @@ package body Settings_Tests is
                                                  & "b /usr/lib"), Marks),
          "read back, skipping lines that are not bookmarks, the last without its line feed");
 
-      Settings.Write_Bookmarks (Root & "/deep/explore/bookmarks", Marks, Ok);
+      Storage.Write_Bookmarks (Root & "/deep/explore/bookmarks", Marks, Ok);
       AUnit.Assertions.Assert (Ok, "written, its directories made");
       AUnit.Assertions.Assert
-        (Settings.Bookmark_Maps."=" (Settings.Read_Bookmarks (Root & "/deep/explore/bookmarks"), Marks), "and read again");
-      AUnit.Assertions.Assert (Settings.Read_Bookmarks (Root & "/missing").Is_Empty, "no file, no bookmarks");
+        (Settings.Bookmark_Maps."=" (Storage.Read_Bookmarks (Root & "/deep/explore/bookmarks"), Marks),
+         "and read again");
+      AUnit.Assertions.Assert (Storage.Read_Bookmarks (Root & "/missing").Is_Empty, "no file, no bookmarks");
 
       AUnit.Assertions.Assert
         (Settings.Bookmarks_Path ("/state", "/home/u") = "/state/explore/bookmarks"
@@ -258,7 +264,10 @@ package body Settings_Tests is
         (for some Item of Problems => Item.Kind = Kind and then Unbounded.To_String (Item.Where) = Where);
    begin
       Settings.Parse ("[options" & LF, Loaded, Problems);
-      AUnit.Assertions.Assert (Has (Settings.Syntax_Error, "line 1"), "not TOML, with its line");
+      AUnit.Assertions.Assert
+        (Natural (Problems.Length) = 1 and then Problems (1).Kind = Settings.Syntax_Error
+         and then Problems (1).Line = 1 and then Unbounded.Length (Problems (1).Where) = 0,
+         "not TOML, with its line as a number");
 
       Settings.Parse
         ("colour = 1" & LF
@@ -294,6 +303,64 @@ package body Settings_Tests is
          "what could be read is kept");
    end Test_Problems;
 
+   procedure Test_Readers (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Loaded   : Settings.Settings;
+      Problems : Settings.Problem_Vectors.Vector;
+
+      function Has (Kind : Settings.Problem_Kind; Where : String) return Boolean is
+        (for some Item of Problems => Item.Kind = Kind and then Unbounded.To_String (Item.Where) = Where);
+   begin
+      Settings.Parse
+        ("open = 1" & LF
+         & "keys = 2" & LF
+         & "[[preview]]" & LF
+         & "match = [""*.md"", 3]" & LF
+         & "run = ""glow""" & LF
+         & "detach = true" & LF
+         & "[[preview]]" & LF
+         & "match = ""*.x""" & LF
+         & "run = 4" & LF,
+         Loaded, Problems);
+
+      AUnit.Assertions.Assert
+        (Has (Settings.Bad_Value, "open") and then Has (Settings.Bad_Value, "keys"), "a table of the wrong kind");
+      AUnit.Assertions.Assert (Has (Settings.Bad_Value, "preview[1].match"), "a pattern that is not a string");
+      AUnit.Assertions.Assert
+        (Has (Settings.Unknown_Setting, "preview[1].detach"), "detach is an opener's, not a previewer's");
+      AUnit.Assertions.Assert
+        (Natural (Loaded.Previewers.Length) = 1 and then Natural (Loaded.Previewers (1).Patterns.Length) = 1,
+         "the previewer is kept with the pattern that could be read");
+      AUnit.Assertions.Assert
+        ((for all Item of Problems => Item.Kind /= Settings.Bad_Value
+            or else Unbounded.To_String (Item.Where) /= "preview[2].match")
+         and then Has (Settings.Bad_Value, "preview[2].run"),
+         "a run that is not a string is a previewer without one");
+
+      Settings.Parse
+        ("[[open]]" & LF
+         & "run = ""xdg-open""" & LF
+         & "detach = ""yes""" & LF
+         & "[theme]" & LF
+         & "cursor = { fg = 256, bg = ""default"", blink = true }" & LF
+         & "status = ""red""" & LF,
+         Loaded, Problems);
+
+      AUnit.Assertions.Assert
+        (Has (Settings.Bad_Value, "open[1].detach") and then Natural (Loaded.Openers.Length) = 1
+         and then not Loaded.Openers (1).Detach and then Loaded.Openers (1).Patterns.Is_Empty,
+         "an opener for every file, its bad detach left out");
+      AUnit.Assertions.Assert
+        (Has (Settings.Bad_Value, "theme.cursor.fg") and then Has (Settings.Unknown_Setting, "theme.cursor.blink")
+         and then Has (Settings.Bad_Value, "theme.status"),
+         "a palette index past 255, an unknown field, and a style that is not a table");
+      AUnit.Assertions.Assert
+        (Loaded.Colors (Explore.Themes.Cursor_Role).Foreground = Explore.Screen.Default_Color
+         and then not Loaded.Colors (Explore.Themes.Cursor_Role).Inverse,
+         "a theme entry starts from a plain style, whatever it could not read");
+      AUnit.Assertions.Assert (Natural (Problems.Length) = 4, "nothing else");
+   end Test_Readers;
+
    procedure Test_Shell (T : in out Fixture) is
       pragma Unreferenced (T);
       Root   : constant String := Ada.Directories.Current_Directory & "/obj/shell fixture";
@@ -325,4 +392,79 @@ package body Settings_Tests is
       AUnit.Assertions.Assert
         (not Ok and then Status = 126, "a directory that cannot be entered runs nothing, as a shell reports it");
    end Test_Shell;
+
+   procedure Test_Shift (T : in out Fixture) is
+      pragma Unreferenced (T);
+      State   : Keymap.State;
+      Command : Keymap.Command;
+      Ok      : Boolean;
+      First, Second : Keymap.Key_Spec;
+      Has_Second    : Boolean;
+
+      function Named (Kind : Explore.Input.Key_Kind; Shift : Boolean) return Explore.Input.Event is
+        (Kind => Explore.Input.Key_Event, Key => Kind, Code => Wide_Wide_Character'Val (0), Number => 0,
+         Mods => (Shift => Shift, others => False));
+
+      function Shifted (Code : Wide_Wide_Character) return Explore.Input.Event is
+        (Kind => Explore.Input.Key_Event, Key => Explore.Input.Character_Key, Code => Code, Number => 0,
+         Mods => (Shift => True, others => False));
+   begin
+      --  By default neither Tab nor Shift-Tab means anything, and a shifted
+      --  letter means what it is, whether or not the terminal says Shift.
+      Keymap.Translate (State, Named (Explore.Input.Tab, Shift => True), Command);
+      AUnit.Assertions.Assert (Command.Kind = Keymap.No_Action, "Shift-Tab is unbound by default");
+      Keymap.Translate (State, Shifted ('G'), Command);
+      AUnit.Assertions.Assert (Command.Kind = Keymap.Move_Bottom, "G with Shift reported is still G");
+
+      Keymap.Bind (State, "tab", "next_tab", Ok);
+      Keymap.Translate (State, Named (Explore.Input.Tab, Shift => False), Command);
+      AUnit.Assertions.Assert (Ok and then Command.Kind = Keymap.Next_Tab, "tab is bound");
+      Keymap.Translate (State, Named (Explore.Input.Tab, Shift => True), Command);
+      AUnit.Assertions.Assert (Command.Kind = Keymap.No_Action, "and Shift-Tab is not tab");
+
+      Keymap.Bind (State, "shift-tab", "previous_tab", Ok);
+      Keymap.Translate (State, Named (Explore.Input.Tab, Shift => True), Command);
+      AUnit.Assertions.Assert (Ok and then Command.Kind = Keymap.Previous_Tab, "Shift-Tab bound by name");
+      Keymap.Translate (State, Named (Explore.Input.Tab, Shift => False), Command);
+      AUnit.Assertions.Assert (Command.Kind = Keymap.Next_Tab, "tab keeps its own binding");
+
+      Keymap.Bind (State, "J", "move_top", Ok);
+      Keymap.Translate (State, Shifted ('J'), Command);
+      AUnit.Assertions.Assert (Ok and then Command.Kind = Keymap.Move_Top, "a bound capital, Shift reported");
+
+      Keymap.Parse_Keys ("shift-j", First, Second, Has_Second, Ok);
+      AUnit.Assertions.Assert (not Ok, "Shift is written into a character, not before it");
+      Keymap.Parse_Keys ("ctrl-shift-f5", First, Second, Has_Second, Ok);
+      AUnit.Assertions.Assert (Ok and then First.Shift and then First.Control and then First.Number = 5, "shift-f5");
+   end Test_Shift;
+
+   procedure Test_Sort_Keys (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Listing renames Posix_Tools.File_Operations.Listing;
+
+      Key : Listing.Sort_Key;
+      Ok  : Boolean;
+
+      --  Whether Text is read as the sort key Expected; one that is not a
+      --  key at all is read as natural, and not Ok.
+      function Parsed (Text : String; Expected : Listing.Sort_Key; Valid : Boolean := True) return Boolean;
+
+      function Parsed (Text : String; Expected : Listing.Sort_Key; Valid : Boolean := True) return Boolean is
+      begin
+         Keymap.Parse_Sort_Key (Text, Key, Ok);
+         return Ok = Valid and then Key = Expected;
+      end Parsed;
+   begin
+      AUnit.Assertions.Assert
+        (Parsed ("natural", Listing.By_Natural_Name) and then Parsed ("name", Listing.By_Name)
+         and then Parsed ("extension", Listing.By_Extension) and then Parsed ("size", Listing.By_Size)
+         and then Parsed ("modified", Listing.By_Modified) and then Parsed ("kind", Listing.By_Kind),
+         "every sort key by name");
+      AUnit.Assertions.Assert
+        (Parsed ("", Listing.By_Natural_Name, Valid => False)
+         and then Parsed ("Size", Listing.By_Natural_Name, Valid => False)
+         and then Parsed ("size_descending", Listing.By_Natural_Name, Valid => False)
+         and then Parsed ("sizes", Listing.By_Natural_Name, Valid => False),
+         "lower case, and the key alone: the order is an option of its own");
+   end Test_Sort_Keys;
 end Settings_Tests;

@@ -12,6 +12,7 @@ with Explore.Model;
 with Explore.Previews;
 with Explore.Search;
 with Explore.Settings;
+with Explore.Settings.Storage;
 with Explore.Tabs;
 with Explore.Words;
 with Posix_Tools.Commands.Helpers;
@@ -88,7 +89,7 @@ package body Explore.Application is
       State.Config.Locale := Unbounded.To_Unbounded_String (Locale);
       State.Config.Home := Unbounded.To_Unbounded_String (Home);
 
-      Explore.Settings.Load (Path, Loaded, Problems);
+      Explore.Settings.Storage.Load (Path, Loaded, Problems);
       State.Browser.Show_Hidden := Loaded.Show_Hidden;
       State.Browser.Order.Key := Loaded.Sort_Key;
       State.Browser.Order.Descending := Loaded.Descending;
@@ -105,7 +106,8 @@ package body Explore.Application is
       State.Config.Marks_File :=
         Unbounded.To_Unbounded_String
           (Explore.Settings.Bookmarks_Path (Context.Environment_Value ("XDG_STATE_HOME"), Home));
-      State.Interaction.Bookmarks := Explore.Settings.Read_Bookmarks (Unbounded.To_String (State.Config.Marks_File));
+      State.Interaction.Bookmarks :=
+        Explore.Settings.Storage.Read_Bookmarks (Unbounded.To_String (State.Config.Marks_File));
    end Configure;
 
    procedure Main_Loop (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is

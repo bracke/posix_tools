@@ -24,6 +24,10 @@ package Explore.Previews is
       Lines       : Explore.String_Vectors.Vector;
       --  The language a text preview is coloured as.
       Language    : Explore.Syntax.Language := Explore.Syntax.No_Language;
+      --  The coloured runs of each of Lines in that language, worked out
+      --  once here so that drawing the preview does not tokenize it again.
+      --  Lines past the last of them have none.
+      Spans       : Explore.Syntax.Line_Span_Vectors.Vector;
       --  The image is a thumbnail made of the file, not the file itself.
       Thumbnail   : Boolean := False;
       --  The image data, its encoding, and its size in pixels, for an image.

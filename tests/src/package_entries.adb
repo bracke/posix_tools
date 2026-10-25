@@ -586,6 +586,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-screen.ads");
    Add_Entry ("tools/explore/src/library/explore-search.adb");
    Add_Entry ("tools/explore/src/library/explore-search.ads");
+   Add_Entry ("tools/explore/src/library/explore-settings-storage.adb");
+   Add_Entry ("tools/explore/src/library/explore-settings-storage.ads");
    Add_Entry ("tools/explore/src/library/explore-settings.adb");
    Add_Entry ("tools/explore/src/library/explore-settings.ads");
    Add_Entry ("tools/explore/src/library/explore-string_vectors.ads");

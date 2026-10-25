@@ -189,16 +189,17 @@ run = 'glow -s dark "$1"'
 
 
 A key is a character, space, or one of enter, tab, backspace, esc, up, down, left, right, home,
-end, pageup, pagedown, insert, delete, and f1 to f12, after any of ctrl- and alt-. Keys bound there
-come before the defaults; a default two-key sequence still works when its first key also starts a bound one. An
-action is named in lower case: quit, move_up, move_down, move_top, move_bottom, half_page_up,
-half_page_down, page_up, page_down, enter_directory, leave_directory, toggle_hidden, start_filter,
-clear_filter, go_home, toggle_mark, yank, cut, paste, paste_links, delete_entries, rename_entry,
-create_entry, change_mode, cancel_job, show_jobs, new_tab, close_tab, previous_tab, next_tab,
-go_back, go_forward, jump_to_path, visual_mode, search_names, search_contents, open_entries,
-shell_command, spawn_shell, copy_path, copy_directory, copy_name, and with an argument after a colon
-sort_entries: a sort key, optionally followed by _descending, switch_tab: a digit, and set_bookmark: and
-go_bookmark: a letter or digit. none unbinds a key.
+end, pageup, pagedown, insert, delete, and f1 to f12, after any of ctrl- and alt-, and for a named key
+also shift-. A binding takes only the modifiers it names, so tab is not Shift-Tab, which is shift-tab; a character
+carries its own Shift, as J does. Keys bound there come before the defaults; a default two-key sequence still works
+when its first key also starts a bound one. An action is named in lower case: quit, move_up, move_down,
+move_top, move_bottom, half_page_up, half_page_down, page_up, page_down, enter_directory,
+leave_directory, toggle_hidden, start_filter, clear_filter, go_home, toggle_mark, yank, cut, paste,
+paste_links, delete_entries, rename_entry, create_entry, change_mode, cancel_job, show_jobs, new_tab,
+close_tab, previous_tab, next_tab, go_back, go_forward, jump_to_path, visual_mode, search_names,
+search_contents, open_entries, shell_command, spawn_shell, copy_path, copy_directory, copy_name, and with
+an argument after a colon sort_entries: a sort key, optionally followed by _descending, switch_tab: a digit, and
+set_bookmark: and go_bookmark: a letter or digit. none unbinds a key.
 
 A theme entry replaces the style of a role: fg and bg are default, one of black, red, green, yellow,
 blue, magenta, cyan, and white, the same after bright_, or a palette index from 0 to 255; bold, dim,

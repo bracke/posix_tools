@@ -1,4 +1,5 @@
 with Ada.Containers.Vectors;
+with Explore.String_Vectors;
 
 --  Light syntax colouring for text previews: keywords, strings, comments,
 --  and numbers in the languages a source tree is mostly made of, told apart
@@ -27,8 +28,18 @@ package Explore.Syntax is
    --  The coloured runs of Line, by byte position, and the state the next
    --  line starts in. Bytes no span covers are plain.
    procedure Tokenize
-     (Line   : String;
+     (Line        : String;
       Of_Language : Language;
-      State  : in out Line_State;
-      Spans  : out Span_Vectors.Vector);
+      State       : in out Line_State;
+      Spans       : out Span_Vectors.Vector);
+
+   package Line_Span_Vectors is new Ada.Containers.Vectors (Positive, Span_Vectors.Vector, Span_Vectors."=");
+
+   --  The coloured runs of each of Lines, in order, as Tokenize finds them
+   --  from the first line on: what a preview is coloured with, worked out
+   --  once when it is built rather than on every frame. None, for no
+   --  language.
+   function Tokenize_Lines
+     (Lines       : Explore.String_Vectors.Vector;
+      Of_Language : Language) return Line_Span_Vectors.Vector;
 end Explore.Syntax;

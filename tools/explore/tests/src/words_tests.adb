@@ -25,6 +25,8 @@ package body Words_Tests is
       No_Jobs       => +"no operations",
       Configuration => +"configuration",
       Unknown       => +"unknown setting",
+      Not_TOML      => +"not valid TOML at",
+      Line          => +"line",
       others        => +"?");
 
    function Running (Id, Total, Done : Natural; Current : String; Copied, Size : Long_Long_Integer := 0)
@@ -54,16 +56,22 @@ package body Words_Tests is
       Problems : Explore.Settings.Problem_Vectors.Vector;
    begin
       Problems.Append
-        (Explore.Settings.Problem'(Kind => Explore.Settings.Unknown_Setting, Where => +"options.colour"));
+        (Explore.Settings.Problem'(Kind => Explore.Settings.Unknown_Setting, Where => +"options.colour", Line => 0));
       AUnit.Assertions.Assert
         (Explore.Words.Configuration_Problem (Words, Problems) = "configuration: unknown setting options.colour",
          "one problem: " & Explore.Words.Configuration_Problem (Words, Problems));
-      Problems.Append (Explore.Settings.Problem'(Kind => Explore.Settings.Bad_Value, Where => +"keys.x"));
-      Problems.Append (Explore.Settings.Problem'(Kind => Explore.Settings.Bad_Value, Where => +"keys.y"));
+      Problems.Append (Explore.Settings.Problem'(Kind => Explore.Settings.Bad_Value, Where => +"keys.x", Line => 0));
+      Problems.Append (Explore.Settings.Problem'(Kind => Explore.Settings.Bad_Value, Where => +"keys.y", Line => 0));
       AUnit.Assertions.Assert
         (Explore.Words.Configuration_Problem (Words, Problems)
          = "configuration: unknown setting options.colour (+2)",
          "the first, and how many more: " & Explore.Words.Configuration_Problem (Words, Problems));
+
+      Problems.Clear;
+      Problems.Append (Explore.Settings.Problem'(Kind => Explore.Settings.Syntax_Error, Where => <>, Line => 7));
+      AUnit.Assertions.Assert
+        (Explore.Words.Configuration_Problem (Words, Problems) = "configuration: not valid TOML at line 7",
+         "a syntax error, its line in words: " & Explore.Words.Configuration_Problem (Words, Problems));
    end Test_Configuration_Problem;
 
    procedure Test_Job_Line (T : in out Fixture) is

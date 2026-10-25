@@ -7,6 +7,9 @@ package Settings_Tests is
    procedure Test_Bindings (T : in out Fixture);
    procedure Test_Configuration (T : in out Fixture);
    procedure Test_Problems (T : in out Fixture);
+   procedure Test_Readers (T : in out Fixture);
+   procedure Test_Sort_Keys (T : in out Fixture);
+   procedure Test_Shift (T : in out Fixture);
    procedure Test_Bookmarks (T : in out Fixture);
    procedure Test_Openers (T : in out Fixture);
    procedure Test_Shell (T : in out Fixture);

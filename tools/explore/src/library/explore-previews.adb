@@ -21,6 +21,22 @@ package body Explore.Previews is
 
    Tab_Width : constant := 4;
 
+   --  What `file` calls a JPEG. Content_Description has no word of its own
+   --  for one, and a preview's description reads as `file` would give it,
+   --  so this is data in the form of that output, not text of explore's.
+   JPEG_Description : constant String := "JPEG image data";
+
+   --  The thumbnails explore can make of a file that is not an image.
+   type Thumbnail_Kind is
+     (No_Thumbnail,
+      PDF_Page,      --  The first page, by pdftoppm.
+      Video_Frame);  --  The frame a second in, by ffmpeg.
+
+   --  What Data, the start of a file, is, as Result's description; and when
+   --  it is an image explore can show, its format and size into Result, with
+   --  Is_Image True.
+   procedure Describe (Data : String; Result : in out Preview; Is_Image : out Boolean);
+
    --  Run Tool with Arguments, which write a PNG to Output, and take it.
    procedure Make_Thumbnail
      (Tool      : String;
@@ -28,6 +44,19 @@ package body Explore.Previews is
       Output    : String;
       Result    : in out Preview;
       Made      : out Boolean);
+
+   --  A directory of this process's own for thumbnails, empty if none could
+   --  be made.
+   function Make_Thumbnail_Directory return String;
+
+   --  The arguments of pdftoppm that make the first page of the PDF at Path
+   --  into Directory's thumbnail.png, and of ffmpeg that make a frame of the
+   --  video at Path into Output.
+   function PDF_Arguments (Path, Directory : String) return Posix_Tools.Arguments.Vector;
+   function Video_Arguments (Path, Output : String) return Posix_Tools.Arguments.Vector;
+
+   --  Remove the thumbnail directory, if one was made.
+   procedure Remove_Thumbnails (Directory : String);
 
    --  Run Rule's command for the file at Path, its output going to Output,
    --  and take what it printed as text. Made is False when it printed
@@ -39,16 +68,41 @@ package body Explore.Previews is
       Result : in out Preview;
       Made   : out Boolean);
 
-   --  A directory of this process's own for thumbnails, empty if none could
-   --  be made.
-   function Make_Thumbnail_Directory return String;
+   --  Run the first of Rules whose patterns match the name of the file at
+   --  Path, with its output in Directory. Made is False when none matches,
+   --  or the one that does prints nothing; the rules after it are not tried.
+   procedure Run_User_Previewer
+     (Path      : String;
+      Directory : String;
+      Rules     : Rule_Vectors.Vector;
+      Result    : in out Preview;
+      Made      : out Boolean);
 
    --  Text split into lines without their terminators, tabs expanded, at
    --  most Max_Lines of them.
    procedure Split_Lines (Text : String; Lines : out Explore.String_Vectors.Vector);
 
-   --  Remove the thumbnail directory, if one was made.
-   procedure Remove_Thumbnails (Directory : String);
+   --  The members of the archive at Path, whose start is Data, into Result.
+   procedure Take_Archive (Path, Data : String; Result : in out Preview; Made : out Boolean);
+
+   --  Data, the start of the file at Path, as text coloured by its
+   --  language, or else as a hex dump.
+   procedure Take_Content (Path, Data : String; Result : in out Preview);
+
+   --  The image Describe found the file at Path to be, unless it is larger
+   --  than an image explore sends.
+   procedure Take_Image (Path : String; Result : in out Preview; Made : out Boolean);
+
+   --  A thumbnail of Kind of the file at Path, made in Directory.
+   procedure Take_Thumbnail
+     (Path      : String;
+      Kind      : Thumbnail_Kind;
+      Directory : String;
+      Result    : in out Preview;
+      Made      : out Boolean);
+
+   --  The thumbnail explore makes of the file at Path, whose start is Data.
+   function Thumbnail_Of (Path, Data : String) return Thumbnail_Kind;
 
    protected body Board is
       function Busy return Boolean is (Waiting or else Running or else Ready);
@@ -131,155 +185,66 @@ package body Explore.Previews is
          return Result;
       end if;
 
-      if Thumbnail_Directory'Length > 0 then
-         declare
-            Name : constant String := Ada.Characters.Handling.To_Lower (Explore.Model.Name_Of (Path));
-         begin
-            for Rule of Rules loop
-               if (for some Pattern of Rule.Patterns =>
-                     Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Name))
-               then
-                  declare
-                     Made : Boolean;
-                  begin
-                     Run_Previewer (Rule, Path, Thumbnail_Directory & "/preview.txt", Result, Made);
-
-                     if Made then
-                        declare
-                           Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
-                        begin
-                           Result.Modified := Status.Modified_Seconds;
-                           Result.File_Size := Status.Size;
-                        end;
-
-                        return Result;
-                     end if;
-                  end;
-
-                  exit;
-               end if;
-            end loop;
-         end;
-      end if;
-
       declare
-         Data   : constant String := Unbounded.To_String (Head);
-         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
-         Sized  : Boolean := False;
+         Data     : constant String := Unbounded.To_String (Head);
+         Status   : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
+         Made     : Boolean := False;
+         Is_Image : Boolean := False;
       begin
          Result.Modified := Status.Modified_Seconds;
          Result.File_Size := Status.Size;
-         Result.Description :=
-           Unbounded.To_Unbounded_String
-             (if Explore.Images.Is_JPEG (Data) then "JPEG image data"
-              else Posix_Tools.Text.File_Descriptions.Content_Description (Data, False, "", False));
 
-         if Explore.Images.Is_PNG (Data) then
-            Result.Format := Explore.Images.PNG_Format;
-            Sized := Explore.Images.PNG_Size (Data, Result.Width, Result.Height);
-         elsif Explore.Images.Is_JPEG (Data) then
-            Result.Format := Explore.Images.JPEG_Format;
-            Sized := Explore.Images.JPEG_Size (Data, Result.Width, Result.Height);
-         elsif Explore.Images.Is_GIF (Data) then
-            Result.Format := Explore.Images.GIF_Format;
-            Sized := Explore.Images.GIF_Size (Data, Result.Width, Result.Height);
+         --  The user's own previewers come first, and write where thumbnails do.
+         if Thumbnail_Directory'Length > 0 then
+            Run_User_Previewer (Path, Thumbnail_Directory, Rules, Result, Made);
          end if;
 
-         if Sized and then FS.Size (Path) <= Image_Bytes then
-            Explore.Files.Read_Head (Path, Image_Bytes, Result.Image, Ok);
-
-            if Ok then
-               Result.Kind := Image_Preview;
-               return Result;
-            end if;
-
-            Result.Image := Unbounded.Null_Unbounded_String;
+         if not Made then
+            Describe (Data, Result, Is_Image);
          end if;
 
-         if Explore.Archives.Is_Archive (Data) then
-            Explore.Archives.List (Path, Data, Max_Lines, Result.Lines, Ok);
-
-            if Ok then
-               Result.Kind := Archive_Preview;
-               return Result;
-            end if;
-
-            Result.Lines.Clear;
+         if Is_Image then
+            Take_Image (Path, Result, Made);
          end if;
 
-         if Thumbnail_Directory'Length > 0 and then Thumbnails then
-            declare
-               Output : constant String := Thumbnail_Directory & "/thumbnail.png";
-               Tool   : constant String :=
-                 Posix_Tools.Host_Adapters.Executables.Locate
-                   (if Data'Length >= 5 and then Data (Data'First .. Data'First + 4) = "%PDF-" then "pdftoppm"
-                    elsif Is_Video (Path) then "ffmpeg"
-                    else "");
-               Arguments : Posix_Tools.Arguments.Vector;
-               Made      : Boolean := False;
-            begin
-               if Tool'Length > 0 and then Data'Length >= 5 and then Data (Data'First .. Data'First + 4) = "%PDF-" then
-                  --  -singlefile writes Output without a page number.
-                  Arguments.Append ("-q");
-                  Arguments.Append ("-png");
-                  Arguments.Append ("-f");
-                  Arguments.Append ("1");
-                  Arguments.Append ("-l");
-                  Arguments.Append ("1");
-                  Arguments.Append ("-scale-to");
-                  Arguments.Append ("1024");
-                  Arguments.Append ("-singlefile");
-                  Arguments.Append (Path);
-                  Arguments.Append (Thumbnail_Directory & "/thumbnail");
-
-                  Make_Thumbnail (Tool, Arguments, Output, Result, Made);
-               elsif Tool'Length > 0 then
-                  --  Quiet, and never reading the keyboard explore reads.
-                  Arguments.Append ("-v");
-                  Arguments.Append ("quiet");
-                  Arguments.Append ("-nostdin");
-                  Arguments.Append ("-y");
-                  Arguments.Append ("-ss");
-                  Arguments.Append ("1");
-                  Arguments.Append ("-i");
-                  Arguments.Append (Path);
-                  Arguments.Append ("-frames:v");
-                  Arguments.Append ("1");
-                  Arguments.Append ("-vf");
-                  Arguments.Append ("scale=1024:-2");
-                  Arguments.Append ("-c:v");
-                  Arguments.Append ("png");
-                  Arguments.Append (Output);
-
-                  Make_Thumbnail (Tool, Arguments, Output, Result, Made);
-               end if;
-
-               if Made then
-                  return Result;
-               end if;
-            end;
+         if not Made and then Explore.Archives.Is_Archive (Data) then
+            Take_Archive (Path, Data, Result, Made);
          end if;
 
-         if Is_Text (Data) then
-            Result.Kind := Text_Preview;
-            Split_Lines (Data, Result.Lines);
-            Result.Language :=
-              Explore.Syntax.Language_Of
-                (Path, (if Result.Lines.Is_Empty then "" else Result.Lines.First_Element));
-         else
-            Result.Kind := Binary_Preview;
+         if not Made and then Thumbnail_Directory'Length > 0 and then Thumbnails then
+            Take_Thumbnail (Path, Thumbnail_Of (Path, Data), Thumbnail_Directory, Result, Made);
+         end if;
 
-            for Offset in 0 .. Natural'Min (Max_Lines, (Data'Length + 15) / 16) - 1 loop
-               Result.Lines.Append
-                 (Hex_Line
-                    (Data (Data'First + Offset * 16 .. Natural'Min (Data'Last, Data'First + Offset * 16 + 15)),
-                     Offset * 16));
-            end loop;
+         if not Made then
+            Take_Content (Path, Data, Result);
          end if;
       end;
 
       return Result;
    end Build;
+
+   procedure Describe (Data : String; Result : in out Preview; Is_Image : out Boolean) is
+   begin
+      Is_Image := False;
+
+      if Explore.Images.Is_JPEG (Data) then
+         Result.Description := Unbounded.To_Unbounded_String (JPEG_Description);
+         Result.Format := Explore.Images.JPEG_Format;
+         Is_Image := Explore.Images.JPEG_Size (Data, Result.Width, Result.Height);
+         return;
+      end if;
+
+      Result.Description :=
+        Unbounded.To_Unbounded_String (Posix_Tools.Text.File_Descriptions.Content_Description (Data, False, "", False));
+
+      if Explore.Images.Is_PNG (Data) then
+         Result.Format := Explore.Images.PNG_Format;
+         Is_Image := Explore.Images.PNG_Size (Data, Result.Width, Result.Height);
+      elsif Explore.Images.Is_GIF (Data) then
+         Result.Format := Explore.Images.GIF_Format;
+         Is_Image := Explore.Images.GIF_Size (Data, Result.Width, Result.Height);
+      end if;
+   end Describe;
 
    function Hex_Line (Data : String; Offset : Natural) return String is
       Digits_Of : constant String := "0123456789abcdef";
@@ -396,6 +361,24 @@ package body Explore.Previews is
       return "";
    end Make_Thumbnail_Directory;
 
+   function PDF_Arguments (Path, Directory : String) return Posix_Tools.Arguments.Vector is
+      Result : Posix_Tools.Arguments.Vector;
+   begin
+      --  -singlefile writes the page without a number after its name.
+      Result.Append ("-q");
+      Result.Append ("-png");
+      Result.Append ("-f");
+      Result.Append ("1");
+      Result.Append ("-l");
+      Result.Append ("1");
+      Result.Append ("-scale-to");
+      Result.Append ("1024");
+      Result.Append ("-singlefile");
+      Result.Append (Path);
+      Result.Append (Directory & "/thumbnail");
+      return Result;
+   end PDF_Arguments;
+
    procedure Remove_Thumbnails (Directory : String) is
       type Quiet_Observer is new Posix_Tools.File_Operations.Observer with null record;
 
@@ -456,6 +439,27 @@ package body Explore.Previews is
          Made := False;
    end Run_Previewer;
 
+   procedure Run_User_Previewer
+     (Path      : String;
+      Directory : String;
+      Rules     : Rule_Vectors.Vector;
+      Result    : in out Preview;
+      Made      : out Boolean)
+   is
+      Name : constant String := Ada.Characters.Handling.To_Lower (Explore.Model.Name_Of (Path));
+   begin
+      Made := False;
+
+      for Rule of Rules loop
+         if (for some Pattern of Rule.Patterns =>
+               Posix_Tools.Text.Glob.Matches (Ada.Characters.Handling.To_Lower (Pattern), Name))
+         then
+            Run_Previewer (Rule, Path, Directory & "/preview.txt", Result, Made);
+            return;
+         end if;
+      end loop;
+   end Run_User_Previewer;
+
    procedure Split_Lines (Text : String; Lines : out Explore.String_Vectors.Vector) is
       Line : Unbounded.Unbounded_String;
       Column : Natural := 0;
@@ -491,6 +495,112 @@ package body Explore.Previews is
          Lines.Append (Unbounded.To_String (Line));
       end if;
    end Split_Lines;
+
+   procedure Take_Archive (Path, Data : String; Result : in out Preview; Made : out Boolean) is
+   begin
+      Explore.Archives.List (Path, Data, Max_Lines, Result.Lines, Made);
+
+      if Made then
+         Result.Kind := Archive_Preview;
+      else
+         Result.Lines.Clear;
+      end if;
+   end Take_Archive;
+
+   procedure Take_Content (Path, Data : String; Result : in out Preview) is
+   begin
+      if Is_Text (Data) then
+         Result.Kind := Text_Preview;
+         Split_Lines (Data, Result.Lines);
+         Result.Language :=
+           Explore.Syntax.Language_Of (Path, (if Result.Lines.Is_Empty then "" else Result.Lines.First_Element));
+         Result.Spans := Explore.Syntax.Tokenize_Lines (Result.Lines, Result.Language);
+      else
+         Result.Kind := Binary_Preview;
+
+         for Offset in 0 .. Natural'Min (Max_Lines, (Data'Length + 15) / 16) - 1 loop
+            Result.Lines.Append
+              (Hex_Line
+                 (Data (Data'First + Offset * 16 .. Natural'Min (Data'Last, Data'First + Offset * 16 + 15)),
+                  Offset * 16));
+         end loop;
+      end if;
+   end Take_Content;
+
+   procedure Take_Image (Path : String; Result : in out Preview; Made : out Boolean) is
+   begin
+      Made := False;
+
+      if FS.Size (Path) <= Image_Bytes then
+         Explore.Files.Read_Head (Path, Image_Bytes, Result.Image, Made);
+
+         if Made then
+            Result.Kind := Image_Preview;
+         else
+            Result.Image := Unbounded.Null_Unbounded_String;
+         end if;
+      end if;
+   end Take_Image;
+
+   procedure Take_Thumbnail
+     (Path      : String;
+      Kind      : Thumbnail_Kind;
+      Directory : String;
+      Result    : in out Preview;
+      Made      : out Boolean)
+   is
+      Output : constant String := Directory & "/thumbnail.png";
+   begin
+      Made := False;
+
+      case Kind is
+         when No_Thumbnail =>
+            null;
+         when PDF_Page =>
+            declare
+               Tool : constant String := Posix_Tools.Host_Adapters.Executables.Locate ("pdftoppm");
+            begin
+               if Tool'Length > 0 then
+                  Make_Thumbnail (Tool, PDF_Arguments (Path, Directory), Output, Result, Made);
+               end if;
+            end;
+         when Video_Frame =>
+            declare
+               Tool : constant String := Posix_Tools.Host_Adapters.Executables.Locate ("ffmpeg");
+            begin
+               if Tool'Length > 0 then
+                  Make_Thumbnail (Tool, Video_Arguments (Path, Output), Output, Result, Made);
+               end if;
+            end;
+      end case;
+   end Take_Thumbnail;
+
+   function Thumbnail_Of (Path, Data : String) return Thumbnail_Kind is
+     (if Data'Length >= 5 and then Data (Data'First .. Data'First + 4) = "%PDF-" then PDF_Page
+      elsif Is_Video (Path) then Video_Frame
+      else No_Thumbnail);
+
+   function Video_Arguments (Path, Output : String) return Posix_Tools.Arguments.Vector is
+      Result : Posix_Tools.Arguments.Vector;
+   begin
+      --  Quiet, and never reading the keyboard explore reads.
+      Result.Append ("-v");
+      Result.Append ("quiet");
+      Result.Append ("-nostdin");
+      Result.Append ("-y");
+      Result.Append ("-ss");
+      Result.Append ("1");
+      Result.Append ("-i");
+      Result.Append (Path);
+      Result.Append ("-frames:v");
+      Result.Append ("1");
+      Result.Append ("-vf");
+      Result.Append ("scale=1024:-2");
+      Result.Append ("-c:v");
+      Result.Append ("png");
+      Result.Append (Output);
+      return Result;
+   end Video_Arguments;
 
    function Without_Controls (Text : String) return String is
       ESC    : constant Character := Character'Val (27);

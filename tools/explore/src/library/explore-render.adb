@@ -179,7 +179,7 @@ package body Explore.Render is
    is
       Place   : constant Pane_Place := Shape.Places (Model.Preview_Pane);
       Content : constant Area := Content_Area (Shape);
-      Shown   : constant Previews.Preview := Context.Preview;
+      Shown   : Previews.Preview renames Context.Preview;
       Current : constant Boolean := Unbounded.To_String (Shown.Path) = Path;
       Heading : constant String :=
         (if Item.Is_Link then "-> " & Unbounded.To_String (Item.Link_Target) & "  " else "")
@@ -193,20 +193,16 @@ package body Explore.Render is
 
       case Shown.Kind is
          when Previews.Text_Preview =>
-            declare
-               State : Syntax.Line_State;
-               Spans : Syntax.Span_Vectors.Vector;
-            begin
-               for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
-                  declare
-                     Line : constant String := Shown.Lines (I);
-                  begin
-                     Write (Into, Content.Row + I - 1, Content.Column, Content.Columns, Line, Screen.Plain);
-                     Syntax.Tokenize (Line, Shown.Language, State, Spans);
+            for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
+               declare
+                  Line : constant String := Shown.Lines (I);
+               begin
+                  Write (Into, Content.Row + I - 1, Content.Column, Content.Columns, Line, Screen.Plain);
 
-                     --  Each coloured run is written again over the plain line,
-                     --  from the column its first byte falls in.
-                     for Run of Spans loop
+                  --  Each coloured run is written again over the plain line,
+                  --  from the column its first byte falls in.
+                  if I <= Shown.Spans.Last_Index then
+                     for Run of Shown.Spans (I) loop
                         declare
                            Before : constant Natural := Screen.Width_Of (Line (Line'First .. Run.First - 1));
                         begin
@@ -217,9 +213,9 @@ package body Explore.Render is
                            end if;
                         end;
                      end loop;
-                  end;
-               end loop;
-            end;
+                  end if;
+               end;
+            end loop;
          when Previews.Binary_Preview | Previews.Archive_Preview =>
             for I in 1 .. Natural'Min (Content.Rows, Natural (Shown.Lines.Length)) loop
                Write

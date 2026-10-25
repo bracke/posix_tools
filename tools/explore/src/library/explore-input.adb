@@ -38,7 +38,20 @@ package body Explore.Input is
 
    function Decode_Modifiers (Value : Natural) return Modifiers;
 
+   --  The event an ordinary CSI sequence stands for, by its parameters and
+   --  final byte: a key, a focus change, or the size of the window.
+   procedure Decode_CSI (Params : String; Last_Byte : Character; Item : out Event; Status : out Scan_Status);
+
    procedure Decode_Mouse (Params : String; Final : Character; Item : out Event; Found : out Boolean);
+
+   --  A CSI sequence whose parameters start with one of "<=>?": a mouse
+   --  report, or the terminal's reply to a question about its attributes.
+   procedure Decode_Private_CSI
+     (Params    : String;
+      Last_Byte : Character;
+      Item      : out Event;
+      Status    : out Scan_Status)
+     with Pre => Params'Length > 0;
 
    function Kitty_Key (Code : Natural; Mods : Modifiers; Item : out Event) return Boolean;
 
@@ -53,6 +66,15 @@ package body Explore.Input is
 
    procedure Scan_CSI
      (Text   : String;
+      Item   : out Event;
+      Length : out Natural;
+      Status : out Scan_Status);
+
+   --  A bracketed paste, Text starting with the CSI 200~ that ends at Final:
+   --  whatever comes before the CSI 201~ that closes it.
+   procedure Scan_Paste
+     (Text   : String;
+      Final  : Positive;
       Item   : out Event;
       Length : out Natural;
       Status : out Scan_Status);
@@ -76,6 +98,59 @@ package body Explore.Input is
       Status : out Scan_Status);
 
    function Tilde_Key (Number : Natural; Mods : Modifiers; Item : out Event) return Boolean;
+
+   procedure Decode_CSI (Params : String; Last_Byte : Character; Item : out Event; Status : out Scan_Status) is
+      Mods : constant Modifiers := Decode_Modifiers (Parameter (Params, 2, 1));
+   begin
+      Item := Key (Character_Key);
+      Status := Complete;
+
+      case Last_Byte is
+         when 'A' =>
+            Item := Key (Up, Mods);
+         when 'B' =>
+            Item := Key (Down, Mods);
+         when 'C' =>
+            Item := Key (Right, Mods);
+         when 'D' =>
+            Item := Key (Left, Mods);
+         when 'H' =>
+            Item := Key (Home, Mods);
+         when 'F' =>
+            Item := Key (End_Key, Mods);
+         when 'P' .. 'S' =>
+            Item := Key (Function_Key, Mods, Number => Character'Pos (Last_Byte) - Character'Pos ('P') + 1);
+         when 'Z' =>
+            Item := Key (Tab, (Shift => True, others => False));
+         when 'I' | 'O' =>
+            if Params'Length = 0 then
+               Item := (Kind => Focus_Event, Focused => Last_Byte = 'I');
+            else
+               Status := Skip;
+            end if;
+         when '~' =>
+            if not Tilde_Key (Parameter (Params, 1), Mods, Item) then
+               Status := Skip;
+            end if;
+         when 'u' =>
+            if not Kitty_Key (Parameter (Params, 1), Mods, Item) then
+               Status := Skip;
+            end if;
+         when 't' =>
+            if Parameter (Params, 1) = 48 then
+               Item :=
+                 (Kind         => Resize_Event,
+                  Rows         => Parameter (Params, 2),
+                  Columns      => Parameter (Params, 3),
+                  Pixel_Height => Parameter (Params, 4),
+                  Pixel_Width  => Parameter (Params, 5));
+            else
+               Status := Skip;
+            end if;
+         when others =>
+            Status := Skip;
+      end case;
+   end Decode_CSI;
 
    --  The modifiers an xterm-style parameter encodes: one more than a bit set
    --  of shift, alt and control.
@@ -123,6 +198,33 @@ package body Explore.Input is
          Column     => Positive'Max (Column, 1),
          Mouse_Mods => Mods);
    end Decode_Mouse;
+
+   procedure Decode_Private_CSI
+     (Params    : String;
+      Last_Byte : Character;
+      Item      : out Event;
+      Status    : out Scan_Status)
+   is
+   begin
+      Item := Key (Character_Key);
+      Status := Complete;
+
+      if Params (Params'First) = '<' and then Last_Byte in 'M' | 'm' then
+         declare
+            Found : Boolean;
+         begin
+            Decode_Mouse (Params (Params'First + 1 .. Params'Last), Last_Byte, Item, Found);
+            Status := (if Found then Complete else Skip);
+         end;
+      elsif Params (Params'First) = '?' and then Last_Byte = 'c' then
+         Item :=
+           (Kind    => Reply_Event,
+            Reply   => Device_Attributes_Reply,
+            Payload => Unbounded.To_Unbounded_String (Params (Params'First + 1 .. Params'Last)));
+      else
+         Status := Skip;
+      end if;
+   end Decode_Private_CSI;
 
    procedure Feed (Self : in out Decoder; Data : String) is
    begin
@@ -341,98 +443,42 @@ package body Explore.Input is
       end if;
 
       Length := Final - Text'First + 1;
-      Status := Complete;
 
       declare
          Params    : constant String := Text (First .. Final - 1);
          Last_Byte : constant Character := Text (Final);
-         Private_P : constant Boolean := Params'Length > 0 and then Params (Params'First) in '<' .. '?';
-         Mods      : constant Modifiers := Decode_Modifiers (Parameter (Params, 2, 1));
       begin
          if Last_Byte = '~' and then Params = "200" then
-            declare
-               Rest     : constant String := Text (Final + 1 .. Text'Last);
-               Paste_At : constant Natural := Ada.Strings.Fixed.Index (Rest, Paste_End);
-            begin
-               if Paste_At = 0 then
-                  Length := 0;
-                  Status := Incomplete;
-               else
-                  Item :=
-                    (Kind => Paste_Event,
-                     Text => Unbounded.To_Unbounded_String (Rest (Rest'First .. Paste_At - 1)));
-                  Length := Paste_At + Paste_End'Length - Text'First;
-               end if;
-            end;
-            return;
+            Scan_Paste (Text, Final, Item, Length, Status);
+         elsif Params'Length > 0 and then Params (Params'First) in '<' .. '?' then
+            Decode_Private_CSI (Params, Last_Byte, Item, Status);
+         else
+            Decode_CSI (Params, Last_Byte, Item, Status);
          end if;
-
-         if Private_P then
-            if Params (Params'First) = '<' and then (Last_Byte = 'M' or else Last_Byte = 'm') then
-               declare
-                  Found : Boolean;
-               begin
-                  Decode_Mouse (Params (Params'First + 1 .. Params'Last), Last_Byte, Item, Found);
-                  Status := (if Found then Complete else Skip);
-               end;
-            elsif Params (Params'First) = '?' and then Last_Byte = 'c' then
-               Item :=
-                 (Kind    => Reply_Event,
-                  Reply   => Device_Attributes_Reply,
-                  Payload => Unbounded.To_Unbounded_String (Params (Params'First + 1 .. Params'Last)));
-            else
-               Status := Skip;
-            end if;
-            return;
-         end if;
-
-         case Last_Byte is
-            when 'A' =>
-               Item := Key (Up, Mods);
-            when 'B' =>
-               Item := Key (Down, Mods);
-            when 'C' =>
-               Item := Key (Right, Mods);
-            when 'D' =>
-               Item := Key (Left, Mods);
-            when 'H' =>
-               Item := Key (Home, Mods);
-            when 'F' =>
-               Item := Key (End_Key, Mods);
-            when 'P' .. 'S' =>
-               Item := Key (Function_Key, Mods, Number => Character'Pos (Last_Byte) - Character'Pos ('P') + 1);
-            when 'Z' =>
-               Item := Key (Tab, (Shift => True, others => False));
-            when 'I' | 'O' =>
-               if Params'Length = 0 then
-                  Item := (Kind => Focus_Event, Focused => Last_Byte = 'I');
-               else
-                  Status := Skip;
-               end if;
-            when '~' =>
-               if not Tilde_Key (Parameter (Params, 1), Mods, Item) then
-                  Status := Skip;
-               end if;
-            when 'u' =>
-               if not Kitty_Key (Parameter (Params, 1), Mods, Item) then
-                  Status := Skip;
-               end if;
-            when 't' =>
-               if Parameter (Params, 1) = 48 then
-                  Item :=
-                    (Kind         => Resize_Event,
-                     Rows         => Parameter (Params, 2),
-                     Columns      => Parameter (Params, 3),
-                     Pixel_Height => Parameter (Params, 4),
-                     Pixel_Width  => Parameter (Params, 5));
-               else
-                  Status := Skip;
-               end if;
-            when others =>
-               Status := Skip;
-         end case;
       end;
    end Scan_CSI;
+
+   procedure Scan_Paste
+     (Text   : String;
+      Final  : Positive;
+      Item   : out Event;
+      Length : out Natural;
+      Status : out Scan_Status)
+   is
+      Rest     : constant String := Text (Final + 1 .. Text'Last);
+      Paste_At : constant Natural := Ada.Strings.Fixed.Index (Rest, Paste_End);
+   begin
+      Item := Key (Character_Key);
+
+      if Paste_At = 0 then
+         Length := 0;
+         Status := Incomplete;
+      else
+         Item := (Kind => Paste_Event, Text => Unbounded.To_Unbounded_String (Rest (Rest'First .. Paste_At - 1)));
+         Length := Paste_At + Paste_End'Length - Text'First;
+         Status := Complete;
+      end if;
+   end Scan_Paste;
 
    --  A key typed without a sequence: a control byte, DEL, or a character.
    procedure Scan_Plain

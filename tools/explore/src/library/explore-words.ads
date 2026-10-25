@@ -49,6 +49,8 @@ package Explore.Words is
       No_Clipboard  : Ada.Strings.Unbounded.Unbounded_String;
       Configuration : Ada.Strings.Unbounded.Unbounded_String;
       Not_TOML      : Ada.Strings.Unbounded.Unbounded_String;
+      --  The word before the number of the line a syntax error is on.
+      Line          : Ada.Strings.Unbounded.Unbounded_String;
       Unknown       : Ada.Strings.Unbounded.Unbounded_String;
       Bad_Value     : Ada.Strings.Unbounded.Unbounded_String;
       Unreadable    : Ada.Strings.Unbounded.Unbounded_String;
