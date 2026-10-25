@@ -39,12 +39,6 @@ package body Posix_Tools.Host_Adapters.File_System is
         (Path, Available);
    end Path_Name_Limit;
 
-   function Copy_Modification_Time (Source : String; Target : String) return Boolean is
-   begin
-      return Posix_Tools.Host_Adapters.File_System.Times.Copy_Modification_Time
-        (Source, Target);
-   end Copy_Modification_Time;
-
    function Copy_File_Times (Source : String; Target : String) return Boolean is
    begin
       return Posix_Tools.Host_Adapters.File_System.Times.Copy_File_Times
@@ -266,20 +260,10 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Posix_Tools.Host_Adapters.File_System.Metadata.Group_Name_For_Id (Id);
    end Group_Name_For_Id;
 
-   function Group_Name_For_Current_User return String is
-   begin
-      return Posix_Tools.Host_Adapters.File_System.Metadata.Group_Name_For_Current_User;
-   end Group_Name_For_Current_User;
-
    function Is_Link (Path : String) return Boolean is
    begin
       return Posix_Tools.Host_Adapters.File_System.Metadata.Is_Link (Path);
    end Is_Link;
-
-   function Join (Left : String; Right : String) return String is
-   begin
-      return Posix_Tools.Host_Adapters.File_System.Paths.Join (Left, Right);
-   end Join;
 
    function Kind (Path : String) return File_Kind is
    begin
@@ -461,18 +445,6 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Posix_Tools.Host_Adapters.File_System.Paths.Same_File (Left, Right);
    end Same_File;
-
-   function Set_Modification_Time (Path : String; Time : File_Time) return Boolean is
-   begin
-      return Posix_Tools.Host_Adapters.File_System.Times.Set_Modification_Time
-        (Path, Time);
-   end Set_Modification_Time;
-
-   function Set_Access_Time (Path : String; Time : File_Time) return Boolean is
-   begin
-      return Posix_Tools.Host_Adapters.File_System.Times.Set_Access_Time
-        (Path, Time);
-   end Set_Access_Time;
 
    function Set_File_Times (Path : String; Access_Time, Modified_Time : File_Time) return Boolean is
    begin

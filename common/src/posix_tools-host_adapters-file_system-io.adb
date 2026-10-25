@@ -40,27 +40,22 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
       First   : Ada.Streams.Stream_Element_Offset;
       Written : Ada.Streams.Stream_Element_Offset;
       Outcome : Transfer_Outcome;
-      Source_Access_Time       : File_Time;
-      Source_Modification_Time : File_Time;
-      Source_Times_Available   : constant Boolean :=
-        File_Access_Time_From_File (Source, Source_Access_Time)
-        and then File_Time_From_File (Source, Source_Modification_Time);
 
-      procedure Close_All is
+      --  Close both, the copy having ended as Ending: a target whose close
+      --  fails may not hold what was written to it, and a copy that would
+      --  otherwise have ended well ends as a failed write instead.
+      procedure Finish (Ending : Copy_File_Status);
+
+      procedure Finish (Ending : Copy_File_Status) is
+         Closed : Boolean;
       begin
          Close (Input);
-         Close (Output);
-      end Close_All;
-
-      procedure Restore_Source_Times is
-      begin
-         if Source_Times_Available then
-            if not Set_File_Times (Source, Source_Access_Time, Source_Modification_Time) then
-               null;
-            end if;
-         end if;
-      end Restore_Source_Times;
+         Closed := Close (Output);
+         Status := (if Ending = Copy_Ok and then not Closed then Target_Write_Failed else Ending);
+      end Finish;
    begin
+      --  The source is only read: its times are what reading leaves them,
+      --  and a copy that keeps them takes them before it starts.
       if not Open_File (Source, Open_Read, Input) then
          Status := Source_Open_Failed;
          return;
@@ -83,8 +78,7 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
                      case Outcome is
                         when Transfer_Ok =>
                            if Written < First then
-                              Close_All;
-                              Status := Target_Write_Failed;
+                              Finish (Target_Write_Failed);
                               return;
                            end if;
 
@@ -94,8 +88,7 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
                            null;
 
                         when others =>
-                           Close_All;
-                           Status := Target_Write_Failed;
+                           Finish (Target_Write_Failed);
                            return;
                      end case;
                   end loop;
@@ -104,9 +97,7 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
                   Progress (Copied, Stop);
 
                   if Stop then
-                     Close_All;
-                     Restore_Source_Times;
-                     Status := Copy_Stopped;
+                     Finish (Copy_Stopped);
                      return;
                   end if;
                end if;
@@ -115,21 +106,18 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
                null;
 
             when Transfer_End_Of_File =>
-               Close_All;
-               Restore_Source_Times;
-               Status := Copy_Ok;
+               Finish (Copy_Ok);
                return;
 
             when others =>
-               Close_All;
-               Restore_Source_Times;
-               Status := Source_Read_Failed;
+               Finish (Source_Read_Failed);
                return;
          end case;
       end loop;
    exception
       when others =>
-         Close_All;
+         Close (Input);
+         Close (Output);
          Status := Source_Read_Failed;
    end Copy_Regular_File_With_Progress;
 
@@ -188,8 +176,7 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
          end loop;
       end if;
 
-      Close (Output);
-      Ok := True;
+      Ok := Close (Output);
    exception
       when others =>
          Close (Output);

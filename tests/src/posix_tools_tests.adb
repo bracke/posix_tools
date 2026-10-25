@@ -2131,15 +2131,15 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "type File_Time is private");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Copy_Modification_Time");
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Copy_File_Times");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "File_Time_Of");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Set_Modification_Time");
+        (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Set_File_Times");
       Project_Tools.Release_Checks.Require_Text
         (Check,
          "common/src/posix_tools-host_adapters-file_system-times.adb",
-         "GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp");
+         "Hostkit.Metadata.Set_File_Times");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-file_system.adb",
          "Ada.Streams.Stream_IO",

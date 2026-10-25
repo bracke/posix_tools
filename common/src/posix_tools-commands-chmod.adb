@@ -7,6 +7,8 @@ package body Posix_Tools.Commands.Chmod is
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Mode_Helpers renames Posix_Tools.Commands.Text_Helpers.File_Modes;
 
+   use type FS.File_Kind;
+
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -35,17 +37,24 @@ package body Posix_Tools.Commands.Chmod is
                Ok := Ok and Listed;
             end;
          end if;
+         if not FS.Exists (Path) then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path, "posix_tools.diagnostic.file.missing", "no such file or directory");
+            return;
+         end if;
+
          Desired_Mode := Selected_Mode_For (Path, Mode_Ok);
          if not Mode_Ok or else not FS.Set_Permissions (Path, Desired_Mode) then
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Path, "posix_tools.diagnostic.file.mode_failed", "cannot change permissions");
          end if;
       exception
          when others =>
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Path, "posix_tools.diagnostic.file.mode_failed", "cannot change permissions");
       end Apply_One;
 
       function Parse_Mode (Text : String) return Boolean is
@@ -71,7 +80,7 @@ package body Posix_Tools.Commands.Chmod is
             Valid := False;
             return 0;
          end if;
-         Selected := Mode_Helpers.Selected (Mode_Selection, Base, 8#10000#);
+         Selected := Mode_Helpers.Selected (Mode_Selection, Base, 8#10000#, FS.Kind (Path) = FS.Directory);
          Valid := Selected.Valid;
          return Selected.Mode;
       end Selected_Mode_For;

@@ -78,7 +78,8 @@ package body Posix_Tools.Commands.Ls is
             for Name of Names loop
                Emit_Line (Name);
             end loop;
-         elsif FS.Exists (Path) then
+         elsif FS.Exists (Path) or else FS.Is_Link (Path) then
+            --  A link is listed as itself, the one to nothing too.
             Emit_Line (Path);
          else
             Ok := False;
@@ -127,14 +128,38 @@ package body Posix_Tools.Commands.Ls is
       if Context.Argument_Count < First then
          List_Path (".", False);
       else
-         for I in First .. Context.Argument_Count loop
-            List_Path
-              (Context.Argument (I),
-               With_Header =>
-                 Context.Argument_Count - First + 1 > 1
-                 and then FS.Kind (Context.Argument (I)) = FS.Directory
-                 and then not Directory_As_File);
-         end loop;
+         --  POSIX: the operands that are not directories first, then the
+         --  directories, each sorted; what is not there is reported first.
+         declare
+            Files       : String_Vectors.Vector;
+            Directories : String_Vectors.Vector;
+            Headers     : constant Boolean := Context.Argument_Count - First + 1 > 1;
+         begin
+            for I in First .. Context.Argument_Count loop
+               declare
+                  Path : constant String := Context.Argument (I);
+               begin
+                  if not FS.Exists (Path) and then not FS.Is_Link (Path) then
+                     List_Path (Path, False);
+                  elsif FS.Kind (Path) = FS.Directory and then not Directory_As_File then
+                     Directories.Append (Path);
+                  else
+                     Files.Append (Path);
+                  end if;
+               end;
+            end loop;
+
+            String_Vector_Sorting.Sort (Files);
+            String_Vector_Sorting.Sort (Directories);
+
+            for Path of Files loop
+               List_Path (Path, False);
+            end loop;
+
+            for Path of Directories loop
+               List_Path (Path, With_Header => Headers);
+            end loop;
+         end;
       end if;
 
       Result.Status :=

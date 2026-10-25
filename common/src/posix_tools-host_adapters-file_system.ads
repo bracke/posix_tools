@@ -40,7 +40,6 @@ package Posix_Tools.Host_Adapters.File_System is
    function Can_Open_For_Read (Path : String) return Boolean;
    function Containing_Directory (Path : String) return String;
    function Copy_File_Times (Source : String; Target : String) return Boolean;
-   function Copy_Modification_Time (Source : String; Target : String) return Boolean;
    --  Copy the regular file Source to Target, calling Progress with the
    --  bytes copied so far after each block; setting Stop ends the copy with
    --  Copy_Stopped.
@@ -80,9 +79,7 @@ package Posix_Tools.Host_Adapters.File_System is
    function Full_Name (Path : String) return String;
    function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural;
    function Group_Name_For_Id (Id : Natural) return String;
-   function Group_Name_For_Current_User return String;
    function Is_Link (Path : String) return Boolean;
-   function Join (Left : String; Right : String) return String;
    function Kind (Path : String) return File_Kind;
    function Current_File_Time return File_Time;
    function File_Time_From_File (Path : String; Time : out File_Time) return Boolean;
@@ -113,8 +110,6 @@ package Posix_Tools.Host_Adapters.File_System is
    --  as rename(2) does: a file, or an empty directory with a directory.
    function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome;
    function Same_File (Left : String; Right : String) return Boolean;
-   function Set_Modification_Time (Path : String; Time : File_Time) return Boolean;
-   function Set_Access_Time (Path : String; Time : File_Time) return Boolean;
    function Set_File_Times (Path : String; Access_Time, Modified_Time : File_Time) return Boolean;
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;

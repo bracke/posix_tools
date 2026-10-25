@@ -9,11 +9,15 @@ Copies one source file or recursive source directory to one target path, or mult
 source: input file path. target: output file path or target directory. A lone - is treated as an ordinary
 pathname operand, not as standard input or an option.
 .SH OPTIONS
--f forces overwrites without prompting. -H and -L select the default behavior of following symbolic links named
-by source operands. -i prompts before overwriting an existing destination. When -f and -i
+-f forces overwrites without prompting, and removes an existing destination that cannot be opened for writing and
+copies afresh. -H follows symbolic links named by source operands and copies the links inside a tree as links. -L
+follows every symbolic link. -i prompts before overwriting each existing destination that is not a directory, inside a
+recursive copy too; a directory that is merged into is never asked about. When -f and -i
 are both supplied, the last one wins. -P copies symbolic links as symbolic links where hostkit supports link reading
-and creation. -p preserves permission bits and ownership where the hostkit metadata service
-reports support and preserves modification timestamps where the host timestamp service supports it. -R and -r copy
+and creation. -p preserves all twelve permission bits (set-user-ID, set-group-ID, and sticky included) and ownership where the
+hostkit metadata service reports support, and preserves access and modification timestamps where the host timestamp
+service supports it. An owner or group that cannot be kept, as for anyone but the superuser, is no failure; the copy
+then keeps neither set-ID bit. -R and -r copy
 directory trees recursively. -v writes deterministic source-to-target lines after
 successful copies.
 Options are recognized before the first source operand; later option-like words are path operands. The end-of-options
@@ -33,14 +37,18 @@ The command copies file contents through bounded internal buffers at the command
 directory copying creates missing target directories and copies contained entries. Interactive overwrite prompts are
 localized through messages, safely escape untrusted path text, and accept
 an initial y or Y byte as confirmation; any other response, including end-of-input, skips that operand without
-treating the skip as a copy failure. Symbolic links are followed unless -P is the last selected symlink traversal
-mode.
+treating the skip as a copy failure. Without -R, symbolic links named by operands are followed unless -P is the
+last selected traversal mode. The source is only read: no times are set on it.
 Directory sources without -R or -r fail with a localized is a directory diagnostic. Recursive directory copies
 fail immediately with a localized not a directory diagnostic when the destination path already exists as a
 non-directory.
 Copies that would write a source onto the same underlying destination file, including a destination hard link to the
 source where hostkit reports identity, fail before writing. Recursive copies that would place the destination at or
-below the source directory fail before creating the destination subtree.
+below the source directory fail before creating the destination subtree; both paths are compared with their symbolic
+links resolved, so a destination reached through a link to the source is refused too. When links are followed, a
+directory that leads back to one being copied around it is reported as a file system loop, left out, and the copy goes
+on with the rest, ending with status 1.
+Without -R, a special file such as /dev/null is read for what it holds, and its copy is a regular file. Under -R,
 FIFOs, character or block device nodes, and Unix-domain socket files are recreated through hostkit where the platform
 exposes portable special-file metadata and permits creation.
 Copying is done by the shared Posix_Tools.File_Operations.Copying, which explore uses too. A recursive copy visits
@@ -49,7 +57,9 @@ and when links are followed they fail as unreadable files instead of being left 
 .SH LOCALE BEHAVIOR
 Diagnostics and help are localized; copied data is not localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
-Multiple source operands require the target to be an existing directory. Ownership preservation with -p is attempted
+Multiple source operands require the target to be an existing directory. With -R and none of -H, -L, or -P,
+symbolic links are copied as links, as under -P (POSIX leaves this choice to the implementation; BSD and GNU cp make
+the same one). Ownership preservation with -p is attempted
 only when source and target ownership metadata are both available, and it can still be refused by host permissions.
 Special-file recreation is limited by host platform capabilities and ordinary filesystem permissions. Device-node
 creation is commonly privileged. Windows does not have POSIX pathname sockets or device nodes, so those creation

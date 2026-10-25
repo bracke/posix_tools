@@ -5,6 +5,12 @@ package body Posix_Tools.File_Operations is
       return False;
    end Cancelled;
 
+   function Confirm_Removal (Self : in out Observer; Path : String; Question : Removal_Question) return Boolean is
+      pragma Unreferenced (Self, Path, Question);
+   begin
+      return True;
+   end Confirm_Removal;
+
    function Default_Message (Error : Operation_Error) return String is
    begin
       case Error is
@@ -26,6 +32,14 @@ package body Posix_Tools.File_Operations is
             return "cannot read directory";
          when Unsupported_Type =>
             return "unsupported file type";
+         when No_Such_File =>
+            return "no such file or directory";
+         when Directory_Not_Empty =>
+            return "directory not empty";
+         when File_Exists =>
+            return "file exists";
+         when File_System_Loop =>
+            return "file system loop detected";
       end case;
    end Default_Message;
 
@@ -50,6 +64,14 @@ package body Posix_Tools.File_Operations is
             return "posix_tools.diagnostic.file.read_directory_failed";
          when Unsupported_Type =>
             return "posix_tools.diagnostic.file.unsupported_type";
+         when No_Such_File =>
+            return "posix_tools.diagnostic.file.missing";
+         when Directory_Not_Empty =>
+            return "posix_tools.diagnostic.file.not_empty";
+         when File_Exists =>
+            return "posix_tools.diagnostic.file.exists";
+         when File_System_Loop =>
+            return "posix_tools.diagnostic.file.loop";
       end case;
    end Message_Key;
 

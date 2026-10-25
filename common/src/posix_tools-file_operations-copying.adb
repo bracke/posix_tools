@@ -1,5 +1,7 @@
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.File_Operations.Copying is
 
@@ -10,16 +12,37 @@ package body Posix_Tools.File_Operations.Copying is
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
-   function Full_Path_Or_Raw (Path : String) return String;
+   --  The directories a copy is inside of, outermost first.
+   package Path_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
+
+   --  Copy Source to Target, as Copy_Path does, inside the directories
+   --  Ancestors names. Follow says whether Source is followed if it is a
+   --  symbolic link.
+   procedure Copy_Entry
+     (Source    : String;
+      Target    : String;
+      Options   : Copy_Options;
+      Behaviour : Copy_Behaviour;
+      Follow    : Boolean;
+      Watcher   : in out Observer'Class;
+      Ancestors : in out Path_Vectors.Vector;
+      Outcome   : out Operation_Outcome);
+
+   --  Path with its symbolic links resolved: through its longest part that
+   --  exists, with the rest, which does not yet, after it.
+   function Resolved (Path : String) return String;
 
    function Without_Trailing_Separators (Path : String) return String;
 
-   procedure Copy_Path
-     (Source  : String;
-      Target  : String;
-      Options : Copy_Options;
-      Watcher : in out Observer'Class;
-      Outcome : out Operation_Outcome)
+   procedure Copy_Entry
+     (Source    : String;
+      Target    : String;
+      Options   : Copy_Options;
+      Behaviour : Copy_Behaviour;
+      Follow    : Boolean;
+      Watcher   : in out Observer'Class;
+      Ancestors : in out Path_Vectors.Vector;
+      Outcome   : out Operation_Outcome)
    is
       Source_Access_Time       : FS.File_Time;
       Source_Modification_Time : FS.File_Time;
@@ -34,7 +57,8 @@ package body Posix_Tools.File_Operations.Copying is
       --  Source is a symbolic link copied as one.
       procedure Copy_Link;
 
-      --  Source is a file or, links being followed, a link to one.
+      --  Source is a file or, links being followed, a link to one; or,
+      --  outside a recursive copy, a special file, read for what it holds.
       procedure Copy_Regular;
 
       procedure Copy_Special;
@@ -49,9 +73,11 @@ package body Posix_Tools.File_Operations.Copying is
          Available : Boolean;
          Mode      : Natural;
 
-         procedure Apply_Source_Ownership;
+         --  Give Target Source's owner and group, and say whether it has
+         --  them now: a copy by anyone but the superuser usually cannot.
+         function Apply_Source_Ownership return Boolean;
 
-         procedure Apply_Source_Ownership is
+         function Apply_Source_Ownership return Boolean is
             Source_User      : Natural;
             Source_Group     : Natural;
             Source_Available : Boolean;
@@ -60,17 +86,17 @@ package body Posix_Tools.File_Operations.Copying is
             Target_Available : Boolean;
          begin
             if not FS.Ownership_Supported then
-               return;
+               return True;
             end if;
 
             FS.File_Ownership (Source, Source_User, Source_Group, Source_Available);
             FS.File_Ownership (Target, Target_User, Target_Group, Target_Available);
-            if Source_Available
-              and then Target_Available
-              and then (Source_User /= Target_User or else Source_Group /= Target_Group)
-              and then not FS.Set_Ownership (Target, Source_User, Source_Group)
-            then
-               Fail (Target, Cannot_Open);
+            if not Source_Available or else not Target_Available then
+               return False;
+            elsif Source_User = Target_User and then Source_Group = Target_Group then
+               return True;
+            else
+               return FS.Set_Ownership (Target, Source_User, Source_Group);
             end if;
          end Apply_Source_Ownership;
       begin
@@ -78,12 +104,18 @@ package body Posix_Tools.File_Operations.Copying is
             return;
          end if;
 
-         Mode := FS.File_Permission_Bits (Source, Available);
-         Apply_Source_Ownership;
+         Mode := FS.File_Permission_Bits (Source, Available) mod 8#10000#;
+
+         --  POSIX: an owner that cannot be kept is not an error, but a copy
+         --  owned by someone else must not keep the set-user-ID or
+         --  set-group-ID bit, which would hand it the wrong privileges.
+         if not Apply_Source_Ownership then
+            Mode := Mode - ((Mode / 8#2000#) mod 4) * 8#2000#;
+         end if;
 
          if FS.Permissions_Supported
            and then Available
-           and then not FS.Set_Permissions (Target, Mode mod 8#1000#)
+           and then not FS.Set_Permissions (Target, Mode)
          then
             Fail (Target, Cannot_Open);
          end if;
@@ -122,7 +154,15 @@ package body Posix_Tools.File_Operations.Copying is
             pragma Unreferenced (Kind);
             Child : Operation_Outcome;
          begin
-            Copy_Path (FS.Child_Path (Source, Name), FS.Child_Path (Target, Name), Options, Watcher, Child);
+            Copy_Entry
+              (FS.Child_Path (Source, Name),
+               FS.Child_Path (Target, Name),
+               Options,
+               Behaviour,
+               not Options.Preserve_Links,
+               Watcher,
+               Ancestors,
+               Child);
             Outcome := Combined (Outcome, Child);
             Stop := Watcher.Cancelled;
          end Copy_Child;
@@ -133,6 +173,15 @@ package body Posix_Tools.File_Operations.Copying is
             Fail (Source, Is_A_Directory);
             return;
          end if;
+
+         --  A directory reached again on the way down, as by a link to one
+         --  around it, would be copied without end.
+         for Ancestor of Ancestors loop
+            if FS.Same_File (Ancestor, Source) then
+               Fail (Source, File_System_Loop);
+               return;
+            end if;
+         end loop;
 
          begin
             if Is_Same_Or_Descendant (Source, Target) then
@@ -147,7 +196,16 @@ package body Posix_Tools.File_Operations.Copying is
                return;
             end if;
 
-            For_Each_Child (Source, Iteration_Ok);
+            Ancestors.Append (Source);
+            begin
+               For_Each_Child (Source, Iteration_Ok);
+            exception
+               when others =>
+                  Ancestors.Delete_Last;
+                  raise;
+            end;
+            Ancestors.Delete_Last;
+
             if not Iteration_Ok then
                Fail (Source, Cannot_Read_Directory);
             elsif Watcher.Cancelled then
@@ -198,6 +256,7 @@ package body Posix_Tools.File_Operations.Copying is
       end Copy_Link;
 
       procedure Copy_Regular is
+         Present     : constant Boolean := FS.Exists (Target) or else FS.Is_Link (Target);
          Copy_Status : FS.Copy_File_Status;
 
          procedure Report (Copied : Long_Long_Integer; Stop : in out Boolean);
@@ -210,20 +269,35 @@ package body Posix_Tools.File_Operations.Copying is
 
          procedure Copy is new FS.Copy_Regular_File_With_Progress (Report);
       begin
-         if FS.Exists (Target) and then FS.Same_File (Source, Target) then
+         if not FS.Exists (Source) and then not FS.Is_Link (Source) then
+            Fail (Source, No_Such_File);
+            return;
+         elsif FS.Exists (Target) and then FS.Same_File (Source, Target) then
             Fail (Target, Same_File);
+            return;
+         elsif Present and then not FS.Is_Link (Target) and then FS.Kind (Target) = FS.Directory then
+            Fail (Target, Is_A_Directory);
             return;
          end if;
 
-         if (FS.Exists (Target) or else FS.Is_Link (Target))
-           and then FS.Kind (Target) /= FS.Directory
-           and then Watcher.Resolve_Conflict (Source, Target) = Skip
-         then
+         if Present and then Watcher.Resolve_Conflict (Source, Target) = Skip then
             Outcome := Skipped;
             return;
          end if;
 
          Copy (Source, Target, Copy_Status);
+
+         --  POSIX cp -f: a target that will not open for writing is removed,
+         --  and the copy made afresh.
+         if Copy_Status = FS.Target_Open_Failed and then Behaviour.Remove_Unwritable and then Present then
+            if not Delete_Target then
+               Fail (Target, Cannot_Remove);
+               return;
+            end if;
+
+            Copy (Source, Target, Copy_Status);
+         end if;
+
          case Copy_Status is
             when FS.Copy_Ok =>
                Apply_Source_Metadata;
@@ -256,7 +330,7 @@ package body Posix_Tools.File_Operations.Copying is
          Created : Boolean := False;
       begin
          if FS.Kind (Target) = FS.Directory then
-            Fail (Target, Not_A_Directory);
+            Fail (Target, Is_A_Directory);
             return;
          elsif (FS.Exists (Target) or else FS.Is_Link (Target))
            and then Watcher.Resolve_Conflict (Source, Target) = Skip
@@ -314,32 +388,50 @@ package body Posix_Tools.File_Operations.Copying is
          return;
       end if;
 
+      --  Before the copy reads the source, and so moves its access time.
       Capture_Source_Times;
-      if Options.Preserve_Links and then FS.Is_Link (Source) then
+      if not Follow and then FS.Is_Link (Source) then
          Copy_Link;
       else
          case FS.Kind (Source) is
             when FS.Directory =>
                Copy_Directory;
             when FS.Special_File =>
-               Copy_Special;
+               if Options.Recursive then
+                  Copy_Special;
+               else
+                  Copy_Regular;
+               end if;
             when FS.Missing_File | FS.Ordinary_File =>
                Copy_Regular;
          end case;
       end if;
+   end Copy_Entry;
+
+   procedure Copy_Path
+     (Source    : String;
+      Target    : String;
+      Options   : Copy_Options;
+      Watcher   : in out Observer'Class;
+      Outcome   : out Operation_Outcome;
+      Behaviour : Copy_Behaviour := (others => <>))
+   is
+      Ancestors : Path_Vectors.Vector;
+   begin
+      Copy_Entry
+        (Source,
+         Target,
+         Options,
+         Behaviour,
+         not Options.Preserve_Links or else Behaviour.Follow_Source_Link,
+         Watcher,
+         Ancestors,
+         Outcome);
    end Copy_Path;
 
-   function Full_Path_Or_Raw (Path : String) return String is
-   begin
-      return FS.Full_Name (Path);
-   exception
-      when others =>
-         return Path;
-   end Full_Path_Or_Raw;
-
    function Is_Same_Or_Descendant (Parent, Child : String) return Boolean is
-      Parent_Full : constant String := Without_Trailing_Separators (Full_Path_Or_Raw (Parent));
-      Child_Full  : constant String := Without_Trailing_Separators (Full_Path_Or_Raw (Child));
+      Parent_Full : constant String := Without_Trailing_Separators (Resolved (Parent));
+      Child_Full  : constant String := Without_Trailing_Separators (Resolved (Child));
    begin
       if Child_Full = Parent_Full then
          return True;
@@ -347,10 +439,36 @@ package body Posix_Tools.File_Operations.Copying is
          return False;
       elsif Child_Full (Child_Full'First .. Child_Full'First + Parent_Full'Length - 1) /= Parent_Full then
          return False;
+      elsif Parent_Full'Length > 0 and then Parent_Full (Parent_Full'Last) in '/' | '\' then
+         --  The root, which keeps its separator.
+         return True;
       else
          return Child_Full (Child_Full'First + Parent_Full'Length) in '/' | '\';
       end if;
    end Is_Same_Or_Descendant;
+
+   function Resolved (Path : String) return String is
+      Real : constant String := (if Path = "" then "" else FS.Real_Path (Path));
+   begin
+      if Real /= "" then
+         return Real;
+      end if;
+
+      declare
+         Parent : constant String := Posix_Tools.Paths.Dirname (Path);
+         Name   : constant String := Posix_Tools.Paths.Basename (Path);
+      begin
+         if Parent = Path or else Name = "" then
+            --  Nothing left to resolve.
+            return Path;
+         end if;
+
+         return FS.Child_Path (Resolved (Parent), Name);
+      end;
+   exception
+      when others =>
+         return Path;
+   end Resolved;
 
    function Without_Trailing_Separators (Path : String) return String is
       Last : Natural := Path'Last;

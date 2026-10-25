@@ -35,14 +35,16 @@ Diagnostics for invalid usage and creation failures.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Operands are processed in order and recoverable failures are diagnosed.
+Operands are processed in order and recoverable failures are diagnosed with their reason, such as `file exists` or
+`no such file or directory`.
 
 ## Locale Behavior
 Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
-Modes are applied after creation through hostkit. Symbolic relative modes are evaluated from the created directory mode
-where permission bits are available. Host-specific permission models may render these bits rather than store POSIX mode
+Modes are applied after creation through hostkit. As POSIX has it, symbolic `+` and `-` are relative to an initial
+mode of `a=rwx`, not to what the file mode creation mask left: `mkdir -m g-w d` makes `d` with mode `0757` whatever the
+umask. Host-specific permission models may render these bits rather than store POSIX mode
 bits natively.
 
 ## Extensions

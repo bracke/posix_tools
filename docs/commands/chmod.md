@@ -30,8 +30,11 @@ Diagnostics for invalid usage and permission failures.
 
 ## Behavioral Details
 V1 accepts octal modes of one to four digits and symbolic mode clauses using `u`, `g`, `o`, `a`, `+`, `-`, `=`,
-`r`, `w`, `x`, `X`, `s`, `t`, and permission-copy operands. Symbolic modes are evaluated from the current target
-mode reported by hostkit.
+`r`, `w`, `x`, `X`, `s`, `t`, and permission-copy operands, in POSIX's full grammar: comma-separated clauses, each a
+who list followed by one action or more, as in `u+r-w`, `g=u-w`, and `a=r,u+w`; an op with no perms, such as `u+`,
+changes nothing. Symbolic modes are evaluated from the current target mode reported by hostkit. `X` gives execute
+(search) permission only to a directory or to a file that already has an execute bit set; any other file is left
+without it.
 
 ## Locale Behavior
 Help and diagnostics are localized.

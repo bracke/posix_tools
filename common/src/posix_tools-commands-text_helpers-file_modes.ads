@@ -11,9 +11,10 @@ package Posix_Tools.Commands.Text_Helpers.File_Modes is
    function Is_Symbolic (Selection : Mode_Selection) return Boolean;
 
    function Selected
-     (Selection : Mode_Selection;
-      Base      : Natural;
-      Mask      : Natural) return Selected_Mode;
+     (Selection    : Mode_Selection;
+      Base         : Natural;
+      Mask         : Natural;
+      Is_Directory : Boolean := False) return Selected_Mode;
 
    procedure Parse
      (Text      : String;

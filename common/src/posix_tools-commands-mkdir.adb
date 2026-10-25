@@ -2,10 +2,13 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.File_Modes;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Mkdir is
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Mode_Helpers renames Posix_Tools.Commands.Text_Helpers.File_Modes;
+
+   use type FS.File_Kind;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -29,17 +32,12 @@ package body Posix_Tools.Commands.Mkdir is
       end Record_Mode;
 
       function Selected_Mode_For (Path : String; Valid : out Boolean) return Natural is
-         Available : Boolean := False;
-         Base      : Natural := 0;
-         Selected  : Mode_Helpers.Selected_Mode;
+         pragma Unreferenced (Path);
+         --  POSIX: a symbolic mode's + and - are taken from a=rwx, not from
+         --  what the file mode creation mask left the new directory.
+         Selected : constant Mode_Helpers.Selected_Mode :=
+           Mode_Helpers.Selected (Mode_Selection, 8#777#, 8#10000#, Is_Directory => True);
       begin
-         if Mode_Helpers.Is_Symbolic (Mode_Selection) then
-            Base := FS.File_Permission_Bits (Path, Available) mod 8#1000#;
-            if not Available then
-               Base := 0;
-            end if;
-         end if;
-         Selected := Mode_Helpers.Selected (Mode_Selection, Base, 8#1000#);
          Valid := Selected.Valid;
          return Selected.Mode;
       end Selected_Mode_For;
@@ -113,29 +111,46 @@ package body Posix_Tools.Commands.Mkdir is
          return;
       end if;
       for I in First .. Context.Argument_Count loop
+         declare
+            Path : constant String := Context.Argument (I);
+
+            procedure Fail (Key, Default : String);
+
+            procedure Fail (Key, Default : String) is
+            begin
+               Ok := False;
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error (Context, Path, Key, Default);
+            end Fail;
          begin
-            if Parents then
-               FS.Create_Path (Context.Argument (I));
+            if not Parents and then (FS.Exists (Path) or else FS.Is_Link (Path)) then
+               Fail ("posix_tools.diagnostic.file.exists", "file exists");
+            elsif Parents and then FS.Exists (Path) and then FS.Kind (Path) /= FS.Directory then
+               Fail ("posix_tools.diagnostic.file.not_directory", "not a directory");
+            elsif not Parents and then not FS.Exists (Posix_Tools.Paths.Dirname (Path)) then
+               Fail ("posix_tools.diagnostic.file.missing", "no such file or directory");
             else
-               FS.Create_Directory (Context.Argument (I));
-            end if;
-            if Has_Mode then
-               declare
-                  Mode_Ok      : Boolean;
-                  Desired_Mode : constant Natural := Selected_Mode_For (Context.Argument (I), Mode_Ok);
                begin
-                  if not Mode_Ok or else not FS.Set_Permissions (Context.Argument (I), Desired_Mode) then
-                     Ok := False;
-                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                       (Context, Context.Argument (I), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+                  if Parents then
+                     FS.Create_Path (Path);
+                  else
+                     FS.Create_Directory (Path);
                   end if;
+
+                  if Has_Mode then
+                     declare
+                        Mode_Ok      : Boolean;
+                        Desired_Mode : constant Natural := Selected_Mode_For (Path, Mode_Ok);
+                     begin
+                        if not Mode_Ok or else not FS.Set_Permissions (Path, Desired_Mode) then
+                           Fail ("posix_tools.diagnostic.file.mode_failed", "cannot change permissions");
+                        end if;
+                     end;
+                  end if;
+               exception
+                  when others =>
+                     Fail ("posix_tools.diagnostic.file.create_failed", "cannot create directory");
                end;
             end if;
-         exception
-            when others =>
-               Ok := False;
-               Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Context.Argument (I), "posix_tools.diagnostic.file.open_failed", "cannot open file");
          end;
       end loop;
       Result.Status :=

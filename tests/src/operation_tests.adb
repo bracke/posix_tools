@@ -250,10 +250,12 @@ package body Operation_Tests is
         (Outcome = Ops.Cancelled and then Watcher.Errors = 0 and then not FS.Exists (Path (Root, "large-copy")),
          "a copy stopped in the middle of a file leaves none of it");
 
-      --  A special file replaces a link to nothing at its target.
+      --  A special file replaces a link to nothing at its target. Only a
+      --  recursive copy makes one again; any other reads what it holds.
       if FS.Create_FIFO (Path (Root, "fifo"), 8#644#) then
          Reset (Watcher);
-         Ops.Copying.Copy_Path (Path (Root, "fifo"), Path (Root, "src/broken"), (others => <>), Watcher, Outcome);
+         Ops.Copying.Copy_Path
+           (Path (Root, "fifo"), Path (Root, "src/broken"), (Recursive => True, others => <>), Watcher, Outcome);
          AUnit.Assertions.Assert
            (Outcome = Ops.Done and then not FS.Is_Link (Path (Root, "src/broken"))
             and then FS.Kind (Path (Root, "src/broken")) = FS.Special_File,
@@ -365,7 +367,7 @@ package body Operation_Tests is
       Reset (Watcher);
       Ops.Moving.Move_Path (Path (Root, "moved"), Path (Root, "outside"), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Outcome = Ops.Failed and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Move
+        (Outcome = Ops.Failed and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Directory_Not_Empty
          and then FS.Exists (Path (Root, "moved/sub/b")) and then Read (Path (Root, "outside/keep")) = "keep",
          "a directory is not moved onto one that is not empty, nor merged into it");
       Remove (Root);
@@ -416,7 +418,8 @@ package body Operation_Tests is
 
       Ops.Removing.Remove_Path (Path (Root, "missing"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Cannot_Remove, "what does not exist cannot be removed");
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.No_Such_File,
+         "what does not exist cannot be removed, and is said not to exist");
       Remove (Root);
    end Test_Remove_Tree;
 

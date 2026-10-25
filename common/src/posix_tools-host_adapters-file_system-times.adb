@@ -72,15 +72,6 @@ package body Posix_Tools.Host_Adapters.File_System.Times is
          return False;
    end Copy_File_Times;
 
-   function Copy_Modification_Time (Source : String; Target : String) return Boolean is
-   begin
-      GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp (Target, GNAT.OS_Lib.File_Time_Stamp (Source));
-      return True;
-   exception
-      when others =>
-         return False;
-   end Copy_Modification_Time;
-
    function Creation_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
       Available : Boolean := False;
    begin
@@ -172,19 +163,6 @@ package body Posix_Tools.Host_Adapters.File_System.Times is
          return False;
    end Modification_Time;
 
-   function Set_Access_Time (Path : String; Time : File_Time) return Boolean is
-      Path_Modification_Time : File_Time;
-   begin
-      if not File_Time_From_File (Path, Path_Modification_Time) then
-         return False;
-      end if;
-
-      return Set_File_Times (Path, Time, Path_Modification_Time);
-   exception
-      when others =>
-         return False;
-   end Set_Access_Time;
-
    function Set_File_Times (Path : String; Access_Time, Modified_Time : File_Time) return Boolean is
    begin
       return Hostkit.Metadata.Set_File_Times
@@ -196,16 +174,4 @@ package body Posix_Tools.Host_Adapters.File_System.Times is
          return False;
    end Set_File_Times;
 
-   function Set_Modification_Time (Path : String; Time : File_Time) return Boolean is
-      Path_Access_Time : File_Time;
-   begin
-      if not File_Access_Time_From_File (Path, Path_Access_Time) then
-         Path_Access_Time := Current_File_Time;
-      end if;
-
-      return Set_File_Times (Path, Path_Access_Time, Time);
-   exception
-      when others =>
-         return False;
-   end Set_Modification_Time;
 end Posix_Tools.Host_Adapters.File_System.Times;

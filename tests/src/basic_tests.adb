@@ -1935,7 +1935,7 @@ package body Basic_Tests is
          Empty_Assign : constant Posix_Tools.Text.File_Modes.Symbolic_Mode_Result :=
            Posix_Tools.Text.File_Modes.Apply_Symbolic_Mode ("a=,u+rwx,go+rx", 0);
          Invalid_Mode : constant Posix_Tools.Text.File_Modes.Symbolic_Mode_Result :=
-           Posix_Tools.Text.File_Modes.Apply_Symbolic_Mode ("u+", 0);
+           Posix_Tools.Text.File_Modes.Apply_Symbolic_Mode ("u+q", 0);
       begin
          AUnit.Assertions.Assert
            (Assign_Mode.Valid
@@ -1968,7 +1968,7 @@ package body Basic_Tests is
          Parsed_Find_All_Symbolic : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
            Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode ("-u+r");
          Parsed_Find_Invalid : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
-           Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode ("u+");
+           Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode ("u+q");
       begin
          AUnit.Assertions.Assert
            (Parsed_Octal.Status = Posix_Tools.Text.File_Modes.Octal_Permission_Mode
