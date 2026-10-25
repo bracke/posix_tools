@@ -1,4 +1,4 @@
-private package Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images is
+package Posix_Tools.Text.Printf_Formats.Float_Images is
    function Fixed_Float_Image
      (Text        : String;
       Precision   : Natural;
@@ -23,4 +23,4 @@ private package Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images is
       Blank_Sign  : Boolean;
       Alternate   : Boolean;
       Ok          : out Boolean) return String;
-end Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images;
+end Posix_Tools.Text.Printf_Formats.Float_Images;

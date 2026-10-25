@@ -6,6 +6,7 @@ with Posix_Tools.Text.Octal_Parsing;
 with Posix_Tools.Text.Printf_Arguments;
 with Posix_Tools.Text.Printf_Escapes;
 with Posix_Tools.Text.Printf_Formats;
+with Posix_Tools.Text.Printf_Formats.Float_Images;
 
 package body Posix_Tools.Commands.Printf_Execution is
    use Ada.Strings.Unbounded;
@@ -13,6 +14,7 @@ package body Posix_Tools.Commands.Printf_Execution is
 
    package Arguments renames Posix_Tools.Text.Printf_Arguments;
    package Formats renames Posix_Tools.Text.Printf_Formats;
+   package Float_Formats renames Posix_Tools.Text.Printf_Formats.Float_Images;
 
    subtype Context_Class is Posix_Tools.Commands.Contexts.Context'Class;
 
@@ -230,14 +232,14 @@ package body Posix_Tools.Commands.Printf_Execution is
       function Image_Of (Number : String) return String is
         (case Spec.Conversion is
            when 'f' =>
-              Formats.Fixed_Float_Image
+              Float_Formats.Fixed_Float_Image
                 (Number, Digits_After, Spec.Always_Sign, Spec.Blank_Sign, Image_Ok),
            when 'e' | 'E' =>
-              Formats.Scientific_Float_Image
+              Float_Formats.Scientific_Float_Image
                 (Number, Digits_After, Spec.Conversion = 'E', Spec.Always_Sign, Spec.Blank_Sign,
                  Spec.Alternate, Image_Ok),
            when others =>
-              Formats.General_Float_Image
+              Float_Formats.General_Float_Image
                 (Number, Digits_After, Spec.Conversion = 'G', Spec.Always_Sign, Spec.Blank_Sign,
                  Spec.Alternate, Image_Ok));
 

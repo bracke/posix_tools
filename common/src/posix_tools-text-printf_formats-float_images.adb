@@ -3,53 +3,17 @@ with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Numeric_Images;
 
-package body Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images is
+package body Posix_Tools.Text.Printf_Formats.Float_Images is
    use Ada.Strings.Unbounded;
+
+   function Decimal_Exponent_Of (Text : String; Ok : out Boolean) return Integer;
 
    function Parse_Float_Exponent
      (Text     : String;
       First    : Positive;
       Exponent : out Integer) return Boolean;
 
-   function Decimal_Exponent_Of (Text : String; Ok : out Boolean) return Integer;
-
    function Trim_General_Float (Text : String; Alternate : Boolean) return String;
-
-   function Parse_Float_Exponent
-     (Text     : String;
-      First    : Positive;
-      Exponent : out Integer) return Boolean
-   is
-      Start    : Positive := First;
-      Negative : Boolean := False;
-   begin
-      Exponent := 0;
-
-      if Start > Text'Last then
-         return False;
-      elsif Text (Start) = '-' or else Text (Start) = '+' then
-         Negative := Text (Start) = '-';
-         Start := Start + 1;
-         if Start > Text'Last then
-            return False;
-         end if;
-      end if;
-
-      declare
-         Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
-           Posix_Tools.Text.Decimal_Parsing.Natural_In_Range
-             (Text (Start .. Text'Last), 0, 9_999_999);
-      begin
-         if not Parsed.Valid then
-            return False;
-         end if;
-         Exponent := Integer (Parsed.Value);
-         if Negative then
-            Exponent := -Exponent;
-         end if;
-         return True;
-      end;
-   end Parse_Float_Exponent;
 
    function Decimal_Exponent_Of (Text : String; Ok : out Boolean) return Integer is
       First       : Positive := Text'First;
@@ -304,6 +268,42 @@ package body Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images is
       end if;
    end General_Float_Image;
 
+   function Parse_Float_Exponent
+     (Text     : String;
+      First    : Positive;
+      Exponent : out Integer) return Boolean
+   is
+      Start    : Positive := First;
+      Negative : Boolean := False;
+   begin
+      Exponent := 0;
+
+      if Start > Text'Last then
+         return False;
+      elsif Text (Start) = '-' or else Text (Start) = '+' then
+         Negative := Text (Start) = '-';
+         Start := Start + 1;
+         if Start > Text'Last then
+            return False;
+         end if;
+      end if;
+
+      declare
+         Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
+           Posix_Tools.Text.Decimal_Parsing.Natural_In_Range
+             (Text (Start .. Text'Last), 0, 9_999_999);
+      begin
+         if not Parsed.Valid then
+            return False;
+         end if;
+         Exponent := Integer (Parsed.Value);
+         if Negative then
+            Exponent := -Exponent;
+         end if;
+         return True;
+      end;
+   end Parse_Float_Exponent;
+
    function Scientific_Float_Image
      (Text        : String;
       Precision   : Natural;
@@ -500,4 +500,4 @@ package body Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images is
          end;
       end;
    end Trim_General_Float;
-end Posix_Tools.Text.Printf_Formats.Number_Images.Float_Images;
+end Posix_Tools.Text.Printf_Formats.Float_Images;

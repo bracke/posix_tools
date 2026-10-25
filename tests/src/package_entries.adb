@@ -264,10 +264,8 @@ begin
    Add_Entry ("common/src/posix_tools-text-printf_arguments.ads");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.adb");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.ads");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images-float_images.adb");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images-float_images.ads");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images.adb");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images.ads");
+   Add_Entry ("common/src/posix_tools-text-printf_formats-float_images.adb");
+   Add_Entry ("common/src/posix_tools-text-printf_formats-float_images.ads");
    Add_Entry ("common/src/posix_tools-text-printf_formats.adb");
    Add_Entry ("common/src/posix_tools-text-printf_formats.ads");
    Add_Entry ("common/src/posix_tools-text-seq_formats.adb");
