@@ -1,7 +1,8 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Suffixes;
 with Posix_Tools.Text.Tab_Stops;
@@ -99,7 +100,7 @@ package body Posix_Tools.Commands.Split is
          end if;
       end;
 
-      Posix_Tools.Commands.File_Helpers.Read_All (Context, To_String (Input), Data, Ok);
+      Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, To_String (Input), Data, Ok);
       if not Ok then
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          return;
@@ -134,7 +135,7 @@ package body Posix_Tools.Commands.Split is
                   Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
                   return;
                end if;
-               Posix_Tools.Commands.File_Helpers.Write_File
+               Posix_Tools.Host_Adapters.File_System.Write_File
                  (To_String (Prefix)
                   & Posix_Tools.Text.Suffixes.Lowercase_Image (Part, Suffix_Length),
                   Text (Start .. Last),

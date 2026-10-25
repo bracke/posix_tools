@@ -9,20 +9,28 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
    Buffer_Size : constant := 16 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
 
+   procedure Append_Buffer_To_Lines
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Buffer  : Ada.Streams.Stream_Element_Array;
+      Last    : Ada.Streams.Stream_Element_Offset;
+      Current : in out Unbounded_String;
+      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
+      Ok      : in out Boolean);
+
+   procedure Finish_Line_Scan
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Current : in out Unbounded_String;
+      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
+      Ok      : in out Boolean);
+
+   procedure For_Each_Standard_Input_Line
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
+      Ok      : out Boolean);
+
    function To_String
      (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String
-   is
-      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Result'First;
-   begin
-      for I in Buffer'First .. Last loop
-         Result (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
+      Last   : Ada.Streams.Stream_Element_Offset) return String;
 
    procedure Append_Buffer_To_Lines
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -52,6 +60,30 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       end loop;
    end Append_Buffer_To_Lines;
 
+   procedure Copy_Standard_Input
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Ok      : out Boolean)
+   is
+      Buffer : Byte_Buffer;
+      Last   : Ada.Streams.Stream_Element_Offset;
+   begin
+      Ok := True;
+      loop
+         if not Context.Try_Read_Standard_Input (Buffer, Last) then
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
+            Ok := False;
+            return;
+         end if;
+         exit when Last < Buffer'First;
+         Context.Put (To_String (Buffer, Last));
+         if Context.Output_Failed then
+            Ok := False;
+            return;
+         end if;
+      end loop;
+   end Copy_Standard_Input;
+
    procedure Finish_Line_Scan
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Current : in out Unbounded_String;
@@ -69,72 +101,6 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       end if;
    end Finish_Line_Scan;
 
-   procedure For_Each_Standard_Input_Line
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : out Boolean)
-   is
-      Buffer  : Byte_Buffer;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Current : Unbounded_String;
-   begin
-      Ok := True;
-      loop
-         if not Context.Try_Read_Standard_Input (Buffer, Last) then
-            Ok := False;
-            return;
-         end if;
-         exit when Last < Buffer'First;
-         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
-         exit when not Ok;
-      end loop;
-
-      if Ok then
-         Finish_Line_Scan (Context, Current, Action, Ok);
-      end if;
-   end For_Each_Standard_Input_Line;
-
-   procedure For_Each_Line
-     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
-      File_Name : String;
-      Action    : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok        : out Boolean)
-   is
-      Current : Unbounded_String;
-
-      procedure Scan_Chunk
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean)
-      is
-      begin
-         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
-         Stop := not Ok;
-      end Scan_Chunk;
-   begin
-      Ok := True;
-
-      if File_Name = "-" then
-         For_Each_Standard_Input_Line (Context, Action, Ok);
-      else
-         declare
-            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
-              (Action => Scan_Chunk);
-         begin
-            Iterate (File_Name, Ok);
-         end;
-         if Ok then
-            Finish_Line_Scan (Context, Current, Action, Ok);
-         end if;
-      end if;
-
-      if not Ok and then not Context.Output_Failed then
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-          (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
-           "posix_tools.diagnostic.file.read_failed", "cannot read file");
-      end if;
-   end For_Each_Line;
-
    procedure For_Each_Chunk
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
@@ -142,6 +108,11 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
    is
       Buffer : Byte_Buffer;
       Last   : Ada.Streams.Stream_Element_Offset;
+
+      procedure Scan_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean);
 
       procedure Scan_Chunk
         (Buffer : Ada.Streams.Stream_Element_Array;
@@ -183,12 +154,88 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       end if;
    end For_Each_Chunk;
 
+   procedure For_Each_Line
+     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String;
+      Action    : Posix_Tools.Commands.File_Helpers.Line_Action;
+      Ok        : out Boolean)
+   is
+      Current : Unbounded_String;
+
+      procedure Scan_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean);
+
+      procedure Scan_Chunk
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean)
+      is
+      begin
+         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
+         Stop := not Ok;
+      end Scan_Chunk;
+   begin
+      Ok := True;
+
+      if File_Name = "-" then
+         For_Each_Standard_Input_Line (Context, Action, Ok);
+      else
+         declare
+            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+              (Action => Scan_Chunk);
+         begin
+            Iterate (File_Name, Ok);
+         end;
+         if Ok then
+            Finish_Line_Scan (Context, Current, Action, Ok);
+         end if;
+      end if;
+
+      if not Ok and then not Context.Output_Failed then
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+          (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+           "posix_tools.diagnostic.file.read_failed", "cannot read file");
+      end if;
+   end For_Each_Line;
+
+   procedure For_Each_Standard_Input_Line
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
+      Ok      : out Boolean)
+   is
+      Buffer  : Byte_Buffer;
+      Last    : Ada.Streams.Stream_Element_Offset;
+      Current : Unbounded_String;
+   begin
+      Ok := True;
+      loop
+         if not Context.Try_Read_Standard_Input (Buffer, Last) then
+            Ok := False;
+            return;
+         end if;
+         exit when Last < Buffer'First;
+         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
+         exit when not Ok;
+      end loop;
+
+      if Ok then
+         Finish_Line_Scan (Context, Current, Action, Ok);
+      end if;
+   end For_Each_Standard_Input_Line;
+
    procedure Read_All
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
       Data      : out Unbounded_String;
       Ok        : out Boolean)
    is
+      procedure Append_Chunk
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset);
+
       procedure Append_Chunk
         (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
          Buffer  : Ada.Streams.Stream_Element_Array;
@@ -220,56 +267,18 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       return To_String (Text);
    end Read_File;
 
-   function Read_Standard_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class) return String
+   function To_String
+     (Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset) return String
    is
-      Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
-      Last   : Ada.Streams.Stream_Element_Offset;
-      Text   : Unbounded_String;
+      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
+      Target : Positive := Result'First;
    begin
-      loop
-         exit when not Context.Try_Read_Standard_Input (Buffer, Last);
-         exit when Last < Buffer'First;
-
-         for I in Buffer'First .. Last loop
-            Append (Text, Character'Val (Integer (Buffer (I))));
-         end loop;
+      for I in Buffer'First .. Last loop
+         Result (Target) := Character'Val (Integer (Buffer (I)));
+         Target := Target + 1;
       end loop;
 
-      return To_String (Text);
-   end Read_Standard_Input;
-
-   procedure Copy_Standard_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Ok      : out Boolean)
-   is
-      Buffer : Byte_Buffer;
-      Last   : Ada.Streams.Stream_Element_Offset;
-   begin
-      Ok := True;
-      loop
-         if not Context.Try_Read_Standard_Input (Buffer, Last) then
-            Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
-            Ok := False;
-            return;
-         end if;
-         exit when Last < Buffer'First;
-         Context.Put (To_String (Buffer, Last));
-         if Context.Output_Failed then
-            Ok := False;
-            return;
-         end if;
-      end loop;
-   end Copy_Standard_Input;
-
-   procedure Write_File
-     (Path        : String;
-      Text        : String;
-      Append_Mode : Boolean;
-      Ok          : out Boolean)
-   is
-   begin
-      Posix_Tools.Host_Adapters.File_System.Write_File (Path, Text, Append_Mode, Ok);
-   end Write_File;
+      return Result;
+   end To_String;
 end Posix_Tools.Commands.File_Helpers.Streaming;

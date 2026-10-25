@@ -1,6 +1,6 @@
 with Ada.Streams;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
@@ -29,7 +29,7 @@ package body Posix_Tools.Commands.File is
          Magic_Ok   : Boolean := False;
          Magic_Text : constant String :=
            (if Has_Magic
-            then Posix_Tools.Commands.File_Helpers.Read_File
+            then Posix_Tools.Commands.File_Helpers.Streaming.Read_File
               (Context, To_String (Magic_Path), Magic_Ok)
             else "");
       begin
@@ -64,8 +64,16 @@ package body Posix_Tools.Commands.File is
          procedure Read_File_Data is new FS.For_Each_File_Chunk (Collect);
       begin
          if Path = "-" then
-            return Content_Description
-              (Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context));
+            declare
+               Input : constant String := Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Read_Ok);
+            begin
+               if not Read_Ok then
+                  All_Ok := False;
+                  return "";
+               end if;
+
+               return Content_Description (Input);
+            end;
          end if;
 
          case FS.Kind (Path) is

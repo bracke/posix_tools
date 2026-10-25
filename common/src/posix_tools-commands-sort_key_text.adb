@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
+with Posix_Tools.Commands.Text_Helpers.Folding;
 with Posix_Tools.Text.Byte_Classes;
 
 package body Posix_Tools.Commands.Sort_Key_Text is
@@ -150,17 +151,17 @@ package body Posix_Tools.Commands.Sort_Key_Text is
          begin
             return
               (if Apply_Locale_Collation
-               then Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Raw_Key)
+               then Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Raw_Key)
                else Raw_Key);
          end;
       elsif Fold_Case and then not Dictionary_Order and then not Ignore_Nonprinting then
          declare
             Raw_Key : constant String :=
-              Posix_Tools.Commands.Text_Helpers.Folded_Sort_Text (Text (First .. Last));
+              Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text (Text (First .. Last));
          begin
             return
               (if Apply_Locale_Collation
-               then Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Raw_Key)
+               then Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Raw_Key)
                else Raw_Key);
          end;
       else
@@ -179,12 +180,12 @@ package body Posix_Tools.Commands.Sort_Key_Text is
             declare
                Raw_Key : constant String :=
                  (if Fold_Case
-                  then Posix_Tools.Commands.Text_Helpers.Folded_Sort_Text (To_String (Key))
+                  then Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text (To_String (Key))
                   else To_String (Key));
             begin
                return
                  (if Apply_Locale_Collation
-                  then Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Raw_Key)
+                  then Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Raw_Key)
                   else Raw_Key);
             end;
          end;

@@ -117,8 +117,6 @@ begin
    Add_Entry ("common/src/posix_tools-commands-tee.ads");
    Add_Entry ("common/src/posix_tools-commands-test_command.adb");
    Add_Entry ("common/src/posix_tools-commands-test_command.ads");
-   Add_Entry ("common/src/posix_tools-commands-text_helpers-collation-locale_rules.adb");
-   Add_Entry ("common/src/posix_tools-commands-text_helpers-collation-locale_rules.ads");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-collation.adb");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-collation.ads");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-display.adb");
@@ -266,10 +264,8 @@ begin
    Add_Entry ("common/src/posix_tools-text-printf_arguments.ads");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.adb");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.ads");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images-float_images.adb");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images-float_images.ads");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images.adb");
-   Add_Entry ("common/src/posix_tools-text-printf_formats-number_images.ads");
+   Add_Entry ("common/src/posix_tools-text-printf_formats-float_images.adb");
+   Add_Entry ("common/src/posix_tools-text-printf_formats-float_images.ads");
    Add_Entry ("common/src/posix_tools-text-printf_formats.adb");
    Add_Entry ("common/src/posix_tools-text-printf_formats.ads");
    Add_Entry ("common/src/posix_tools-text-seq_formats.adb");
@@ -658,16 +654,6 @@ begin
       Add_Entry (Posix_Tools.Command_Inventory.Wrapper_Path (I));
       Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
    end loop;
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-directories.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-directories.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-io.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-io.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-metadata.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-metadata.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-paths.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-paths.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-times.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-times.ads");
    Add_Entry ("tests/src/package_entries.adb");
    Add_Entry ("tests/src/package_entries.ads");
    Add_Entry ("tests/src/proof_targets.adb");

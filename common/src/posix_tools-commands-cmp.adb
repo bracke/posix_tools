@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Line_Breaks;
@@ -42,12 +42,12 @@ package body Posix_Tools.Commands.Cmp is
          return;
       end if;
 
-      Posix_Tools.Commands.File_Helpers.Read_All (Context, Context.Argument (First), Left, Ok);
+      Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (First), Left, Ok);
       if not Ok then
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          return;
       end if;
-      Posix_Tools.Commands.File_Helpers.Read_All (Context, Context.Argument (First + 1), Right, Ok);
+      Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (First + 1), Right, Ok);
       if not Ok then
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          return;

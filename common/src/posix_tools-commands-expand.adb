@@ -1,7 +1,7 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Display;
 with Posix_Tools.Commands.Text_Helpers.Tab_Stops;
 with Posix_Tools.Exit_Status;
 
@@ -25,7 +25,7 @@ package body Posix_Tools.Commands.Expand is
       procedure Expand_File (Name : String; Ok : out Boolean) is
          Data : Unbounded_String;
       begin
-         Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
          if Ok then
             Expand_Text (To_String (Data), Ok);
          end if;
@@ -63,7 +63,7 @@ package body Posix_Tools.Commands.Expand is
                   if Character'Pos (Text (I)) > 16#7F# then
                      declare
                         Next_Column : constant Natural :=
-                          Posix_Tools.Commands.Text_Helpers.Display_Next_Column
+                          Posix_Tools.Commands.Text_Helpers.Display.Display_Next_Column
                             (Text, I, Column, Consumed);
                      begin
                         if Consumed > 1 then
@@ -73,7 +73,7 @@ package body Posix_Tools.Commands.Expand is
                      end;
                   else
                      Column :=
-                       Posix_Tools.Commands.Text_Helpers.Display_Next_Column
+                       Posix_Tools.Commands.Text_Helpers.Display.Display_Next_Column
                          (Text, I, Column, Consumed);
                   end if;
                   I := I + Consumed;

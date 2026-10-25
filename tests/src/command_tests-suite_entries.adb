@@ -94,6 +94,8 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:simple output failures", Test_Simple_Output_Failures'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:standard input read failures", Test_Standard_Input_Read_Failures'Access));
+      AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
            ("regression:REG-STDOUT-0001 simple output failures",

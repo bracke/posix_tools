@@ -2,7 +2,7 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with CryptoLib.Hashes;
 
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
@@ -96,7 +96,7 @@ package body Posix_Tools.Commands.Sha256sum is
             end;
          end Check_Line;
       begin
-         Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
          if not Ok then
             All_Ok := False;
             return;
@@ -140,7 +140,7 @@ package body Posix_Tools.Commands.Sha256sum is
             end if;
          end Hash_Chunk;
 
-         procedure Hash_Input is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+         procedure Hash_Input is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
            (Action => Hash_Chunk);
       begin
          CryptoLib.Hashes.Initialize_SHA256 (Hash_Context);

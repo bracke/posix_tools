@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Od_Rendering;
 with Posix_Tools.Exit_Status;
@@ -246,13 +246,13 @@ package body Posix_Tools.Commands.Od is
                Size => 2));
       end if;
       if Context.Argument_Count < First then
-         Posix_Tools.Commands.File_Helpers.Read_All (Context, "-", Data, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, "-", Data, Ok);
       else
          for I in First .. Context.Argument_Count loop
             declare
                Chunk : Unbounded_String;
             begin
-               Posix_Tools.Commands.File_Helpers.Read_All (Context, Context.Argument (I), Chunk, Ok);
+               Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (I), Chunk, Ok);
                exit when not Ok;
                Append (Data, To_String (Chunk));
             end;

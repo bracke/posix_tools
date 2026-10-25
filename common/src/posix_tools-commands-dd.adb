@@ -1,7 +1,7 @@
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
@@ -82,7 +82,7 @@ package body Posix_Tools.Commands.Dd is
       Data :=
         To_Unbounded_String
           ((if Length (Options.Input) = 0 then Read_Dd_Standard_Input (Ok)
-            else Posix_Tools.Commands.File_Helpers.Read_File
+            else Posix_Tools.Commands.File_Helpers.Streaming.Read_File
               (Context, To_String (Options.Input), Ok)));
       if not Ok then
          if not Options.Continue_After_Read_Error then
@@ -143,7 +143,7 @@ package body Posix_Tools.Commands.Dd is
                   declare
                      Existing_Ok : Boolean := False;
                      Existing    : constant String :=
-                       Posix_Tools.Commands.File_Helpers.Read_File
+                       Posix_Tools.Commands.File_Helpers.Streaming.Read_File
                          (Context, To_String (Options.Output), Existing_Ok);
                      Combined    : Unbounded_String;
                      Offset      : constant Natural := Natural (Transfer.Prefix_Count);
@@ -166,7 +166,7 @@ package body Posix_Tools.Commands.Dd is
                      if Write_Last < Existing'Length then
                         Append (Combined, Existing (Existing'First + Write_Last .. Existing'Last));
                      end if;
-                     Posix_Tools.Commands.File_Helpers.Write_File
+                     Posix_Tools.Host_Adapters.File_System.Write_File
                        (To_String (Options.Output), To_String (Combined), False, Ok);
                   end;
                else

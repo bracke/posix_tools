@@ -14,7 +14,7 @@ with Greplib.Options;
 with Greplib.Patterns;
 with Greplib.Results;
 with Greplib.Paths;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Streams;
@@ -236,7 +236,7 @@ procedure Grep is
 
       procedure Append_Locale_Range (Low, High : Character) is
          Order : constant String :=
-           Posix_Tools.Commands.Text_Helpers.Locale_Collation_Order (Locale, "");
+           Posix_Tools.Commands.Text_Helpers.Collation.Locale_Collation_Order (Locale, "");
          Low_Pos  : Natural := 0;
          High_Pos : Natural := 0;
       begin
@@ -282,7 +282,7 @@ procedure Grep is
                elsif Marker = '=' then
                   declare
                      Expanded : constant String :=
-                       Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec
+                       Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec
                          (Pattern (I .. Closing + 1), Locale);
                   begin
                      Append_Class_Literal (Class_Text, Expanded);
@@ -292,7 +292,7 @@ procedure Grep is
                else
                   declare
                      Symbol : constant String :=
-                       Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec
+                       Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec
                          (Pattern (I .. Closing + 1), Locale);
                   begin
                      if Symbol'Length = 1 then

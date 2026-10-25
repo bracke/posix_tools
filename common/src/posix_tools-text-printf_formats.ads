@@ -1,3 +1,4 @@
+--  Floating-point conversions are rendered by the Float_Images child.
 package Posix_Tools.Text.Printf_Formats is
    function Canonical_Decimal (Text : String; Ok : out Boolean) return String;
 
@@ -18,22 +19,6 @@ package Posix_Tools.Text.Printf_Formats is
       Precision     : Natural := 0;
       Pad           : Character := ' ') return String;
 
-   function Fixed_Float_Image
-     (Text        : String;
-      Precision   : Natural;
-      Always_Sign : Boolean;
-      Blank_Sign  : Boolean;
-      Ok          : out Boolean) return String;
-
-   function General_Float_Image
-     (Text        : String;
-      Precision   : Natural;
-      Upper       : Boolean;
-      Always_Sign : Boolean;
-      Blank_Sign  : Boolean;
-      Alternate   : Boolean;
-      Ok          : out Boolean) return String;
-
    function Localize_Decimal_Number
      (Text                  : String;
       Locale                : String;
@@ -43,15 +28,6 @@ package Posix_Tools.Text.Printf_Formats is
    function Parse_Checked_Signed
      (Text : String;
       Ok   : out Boolean) return Long_Long_Integer;
-
-   function Scientific_Float_Image
-     (Text        : String;
-      Precision   : Natural;
-      Upper       : Boolean;
-      Always_Sign : Boolean;
-      Blank_Sign  : Boolean;
-      Alternate   : Boolean;
-      Ok          : out Boolean) return String;
 
    function Unsigned_Image
      (Text  : String;

@@ -107,8 +107,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.text.glob`
 - `posix_tools.text.printf_arguments`
 - `posix_tools.text.printf_formats`
-- `posix_tools.text.printf_formats.number_images`
-- `posix_tools.text.printf_formats.number_images.float_images`
+- `posix_tools.text.printf_formats.float_images`
 - `posix_tools.text.stat_formats`
 - `posix_tools.text.sort_numeric`
 - `posix_tools.text.xargs_parsing`
@@ -247,7 +246,7 @@ assembly, and remains covered by command-level `date` tests;
 conversion classification are proved in `Posix_Tools.Text.Seq_Formats`;
 `printf` conversion rendering, field padding, and locale-specific decimal
 rendering are isolated in `Posix_Tools.Text.Printf_Formats` and its
-`Number_Images` child as a non-SPARK string-formatting boundary because they
+`Float_Images` child as a non-SPARK string-formatting boundary because they
 depend on unbounded string assembly and CLDR locale numeric data, and remain
 covered by command-level `printf` tests;
 `stat` custom format rendering is isolated in `Posix_Tools.Text.Stat_Formats`

@@ -1,5 +1,5 @@
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
@@ -72,7 +72,7 @@ package body Posix_Tools.Commands.Paste is
                Name : constant String :=
                  (if Context.Argument_Count < First then "-" else Context.Argument (First + I - 1));
             begin
-               Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+               Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
                exit when not Ok;
                Files (I) := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Data));
                Max := Natural'Max (Max, Natural (Files (I).Length));

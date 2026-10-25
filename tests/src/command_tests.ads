@@ -17,6 +17,7 @@ package Command_Tests is
    procedure Test_Fold (T : in out Fixture);
    procedure Test_Host_Identity_Commands (T : in out Fixture);
    procedure Test_Simple_Output_Failures (T : in out Fixture);
+   procedure Test_Standard_Input_Read_Failures (T : in out Fixture);
    procedure Test_Echo (T : in out Fixture);
    procedure Test_Echo_Data_Edge_Cases (T : in out Fixture);
    procedure Test_Echo_Output_Property (T : in out Fixture);

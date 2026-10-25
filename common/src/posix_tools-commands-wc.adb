@@ -1,6 +1,6 @@
 with Ada.Streams;
 with Ada.Strings.Unbounded;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Counting;
@@ -51,7 +51,7 @@ package body Posix_Tools.Commands.Wc is
          Count_Buffer (Buffer, Last, State);
       end Count_Chunk;
 
-      procedure Count_Chunks is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+      procedure Count_Chunks is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
         (Action => Count_Chunk);
    begin
       Result := (others => 0);

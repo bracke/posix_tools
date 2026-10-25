@@ -1,7 +1,7 @@
 with Ada.Containers;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Xargs_Fields;
@@ -286,14 +286,22 @@ package body Posix_Tools.Commands.Xargs is
       --  Posix_Tools.Text.Xargs_Parsing owns Text.Byte_Classes.Is_Xargs_Blank
       --  based tokenization; this command maps parser statuses to diagnostics.
       declare
+         Input_Ok     : Boolean;
+         Input        : constant String :=
+           Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Input_Ok);
          Parsed_Input : constant Posix_Tools.Text.Xargs_Parsing.Parse_Result :=
            Posix_Tools.Text.Xargs_Parsing.Parse_Input
-             (Posix_Tools.Commands.File_Helpers.Read_Standard_Input (Context),
+             (Input,
               Options.Null_Delimited,
               Options.Replacement_Mode,
               Options.Has_Eof_Marker,
               To_String (Options.Eof_Marker));
       begin
+         if not Input_Ok then
+            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+            return;
+         end if;
+
          case Parsed_Input.Status is
             when Posix_Tools.Text.Xargs_Parsing.Valid =>
                Input_Args := Parsed_Input.Items;

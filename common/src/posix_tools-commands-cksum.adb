@@ -1,6 +1,6 @@
 with Ada.Strings.Unbounded;
 
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Checksums;
@@ -22,7 +22,7 @@ package body Posix_Tools.Commands.Cksum is
          Data : Unbounded_String;
          Ok   : Boolean;
       begin
-         Posix_Tools.Commands.File_Helpers.Read_All (Context, Name, Data, Ok);
+         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
          if Ok then
             Context.Put_Line
               (Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image

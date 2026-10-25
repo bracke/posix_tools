@@ -1,4 +1,4 @@
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Touch_Times;
 with Posix_Tools.Exit_Status;
@@ -102,10 +102,10 @@ package body Posix_Tools.Commands.Touch is
                declare
                   File_Ok : Boolean;
                   Data : constant String :=
-                    Posix_Tools.Commands.File_Helpers.Read_File (Context, Path, File_Ok);
+                    Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Path, File_Ok);
                begin
                   if File_Ok then
-                     Posix_Tools.Commands.File_Helpers.Write_File (Path, Data, False, Written);
+                     Posix_Tools.Host_Adapters.File_System.Write_File (Path, Data, False, Written);
                      Ok := Ok and Written;
                   else
                      Ok := False;
@@ -115,7 +115,7 @@ package body Posix_Tools.Commands.Touch is
                Apply_Selected_Time (FS.Current_File_Time);
             end if;
          elsif Create_Missing then
-            Posix_Tools.Commands.File_Helpers.Write_File (Path, "", False, Written);
+            Posix_Tools.Host_Adapters.File_System.Write_File (Path, "", False, Written);
             Ok := Ok and Written;
             if Written then
                if Have_Target_Time then

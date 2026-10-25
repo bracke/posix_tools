@@ -1,6 +1,6 @@
 with Ada.Streams;
 with Posix_Tools.Counts;
-with Posix_Tools.Commands.File_Helpers;
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Posix_Tools.Tail_Rings;
@@ -101,7 +101,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
          end if;
       end Store_Chunk;
 
-      procedure Iterate is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+      procedure Iterate is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
         (Action => Store_Chunk);
    begin
       Ok := False;
@@ -196,7 +196,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
                end loop;
             end Emit_From_Start;
 
-            procedure Iterate is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+            procedure Iterate is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
               (Action => Emit_From_Start);
          begin
             Iterate (Context, File_Name, Ok);
@@ -216,7 +216,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
                null;
             end Ignore_Chunk;
 
-            procedure Iterate is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+            procedure Iterate is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
               (Action => Ignore_Chunk);
          begin
             Iterate (Context, File_Name, Ok);
@@ -252,7 +252,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
             end loop;
          end Retain_Chunk;
 
-         procedure Iterate is new Posix_Tools.Commands.File_Helpers.For_Each_Chunk
+         procedure Iterate is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
            (Action => Retain_Chunk);
       begin
          Iterate (Context, File_Name, Ok);
