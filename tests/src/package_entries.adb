@@ -538,6 +538,18 @@ begin
    Add_Entry ("tools/sed/src/library/sed-terminal.ads");
    Add_Entry ("tools/sed/src/library/sed-version.ads");
    Add_Entry ("tools/sed/src/library/sed.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-controller.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-controller.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-display.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-display.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-options.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-options.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-sessions.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-sessions.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-terminals.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-terminals.ads");
+   Add_Entry ("tools/explore/src/library/explore-application-workers.adb");
+   Add_Entry ("tools/explore/src/library/explore-application-workers.ads");
    Add_Entry ("tools/explore/src/library/explore-application.adb");
    Add_Entry ("tools/explore/src/library/explore-application.ads");
    Add_Entry ("tools/explore/src/library/explore-archives.adb");
@@ -548,6 +560,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-files.ads");
    Add_Entry ("tools/explore/src/library/explore-format.adb");
    Add_Entry ("tools/explore/src/library/explore-format.ads");
+   Add_Entry ("tools/explore/src/library/explore-image_cache.adb");
+   Add_Entry ("tools/explore/src/library/explore-image_cache.ads");
    Add_Entry ("tools/explore/src/library/explore-images.adb");
    Add_Entry ("tools/explore/src/library/explore-images.ads");
    Add_Entry ("tools/explore/src/library/explore-input.adb");
@@ -558,6 +572,8 @@ begin
    Add_Entry ("tools/explore/src/library/explore-keymap.ads");
    Add_Entry ("tools/explore/src/library/explore-launch.adb");
    Add_Entry ("tools/explore/src/library/explore-launch.ads");
+   Add_Entry ("tools/explore/src/library/explore-line_editor.adb");
+   Add_Entry ("tools/explore/src/library/explore-line_editor.ads");
    Add_Entry ("tools/explore/src/library/explore-model.adb");
    Add_Entry ("tools/explore/src/library/explore-model.ads");
    Add_Entry ("tools/explore/src/library/explore-previews.adb");
@@ -575,8 +591,12 @@ begin
    Add_Entry ("tools/explore/src/library/explore-string_vectors.ads");
    Add_Entry ("tools/explore/src/library/explore-syntax.adb");
    Add_Entry ("tools/explore/src/library/explore-syntax.ads");
+   Add_Entry ("tools/explore/src/library/explore-tabs.adb");
+   Add_Entry ("tools/explore/src/library/explore-tabs.ads");
    Add_Entry ("tools/explore/src/library/explore-themes.adb");
    Add_Entry ("tools/explore/src/library/explore-themes.ads");
+   Add_Entry ("tools/explore/src/library/explore-words.adb");
+   Add_Entry ("tools/explore/src/library/explore-words.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");
    Add_Entry ("tools/explore/e2e/alire.toml");
    Add_Entry ("tools/explore/e2e/posix_tools_explore_e2e.gpr");
@@ -594,10 +614,14 @@ begin
    Add_Entry ("tools/explore/tests/src/explore_suites.adb");
    Add_Entry ("tools/explore/tests/src/explore_suites.ads");
    Add_Entry ("tools/explore/tests/src/explore_tests.adb");
+   Add_Entry ("tools/explore/tests/src/image_cache_tests.adb");
+   Add_Entry ("tools/explore/tests/src/image_cache_tests.ads");
    Add_Entry ("tools/explore/tests/src/input_tests.adb");
    Add_Entry ("tools/explore/tests/src/input_tests.ads");
    Add_Entry ("tools/explore/tests/src/jobs_tests.adb");
    Add_Entry ("tools/explore/tests/src/jobs_tests.ads");
+   Add_Entry ("tools/explore/tests/src/line_editor_tests.adb");
+   Add_Entry ("tools/explore/tests/src/line_editor_tests.ads");
    Add_Entry ("tools/explore/tests/src/model_tests.adb");
    Add_Entry ("tools/explore/tests/src/model_tests.ads");
    Add_Entry ("tools/explore/tests/src/preview_tests.adb");
@@ -610,6 +634,10 @@ begin
    Add_Entry ("tools/explore/tests/src/search_tests.ads");
    Add_Entry ("tools/explore/tests/src/settings_tests.adb");
    Add_Entry ("tools/explore/tests/src/settings_tests.ads");
+   Add_Entry ("tools/explore/tests/src/tabs_tests.adb");
+   Add_Entry ("tools/explore/tests/src/tabs_tests.ads");
+   Add_Entry ("tools/explore/tests/src/words_tests.adb");
+   Add_Entry ("tools/explore/tests/src/words_tests.ads");
 
    for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
       Add_Entry ("generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");

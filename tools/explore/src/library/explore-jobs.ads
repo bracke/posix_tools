@@ -93,6 +93,10 @@ package Explore.Jobs is
    --  The lane whose job waits for an answer; zero when none does.
    function Asking_Lane (Item : Snapshot) return Natural;
 
+   --  Counts the changes to what Status shows, so that the screen can tell
+   --  that nothing changed without taking a snapshot. It goes round.
+   type Version_Number is mod 2 ** 32;
+
    Max_Queued  : constant := 16;
    Max_History : constant := 16;
 
@@ -118,6 +122,10 @@ package Explore.Jobs is
 
       function Status return Snapshot;
 
+      --  Changed whenever Status would show something else; the same may
+      --  still show the same, as when progress is reported twice alike.
+      function Version return Version_Number;
+
       procedure Shut_Down;
 
       --  For the workers.
@@ -137,6 +145,9 @@ package Explore.Jobs is
       --  Count the queued jobs that may start now, for Take's barrier.
       procedure Recount;
 
+      --  Note that what Status shows changed.
+      procedure Changed;
+
       Queue     : Job_Vectors.Vector;
       Lanes     : Lane_Views;
       Running   : Job_Array;
@@ -148,6 +159,7 @@ package Explore.Jobs is
       Last_Id   : Natural := 0;
       Completed : Natural := 0;
       Closed    : Boolean := False;
+      Changes   : Version_Number := 0;
    end Board;
 
    task type Worker (Jobs : not null access Board);

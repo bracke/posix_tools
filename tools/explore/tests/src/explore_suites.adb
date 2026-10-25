@@ -1,11 +1,15 @@
+with Image_Cache_Tests;
 with Input_Tests;
 with Jobs_Tests;
+with Line_Editor_Tests;
 with Model_Tests;
 with Preview_Tests;
 with Protocol_Tests;
 with Screen_Tests;
 with Search_Tests;
 with Settings_Tests;
+with Tabs_Tests;
+with Words_Tests;
 
 package body Explore_Suites is
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -19,6 +23,10 @@ package body Explore_Suites is
       AUnit.Test_Suites.Add_Test (Result, Preview_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Search_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Settings_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Line_Editor_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Image_Cache_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Tabs_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Words_Tests.Suite);
       return Result;
    end Suite;
 end Explore_Suites;

@@ -10,6 +10,7 @@ package Jobs_Tests is
    procedure Test_Cancel (T : in out Fixture);
    procedure Test_Queue_Bound (T : in out Fixture);
    procedure Test_Overlap (T : in out Fixture);
+   procedure Test_Version (T : in out Fixture);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 end Jobs_Tests;

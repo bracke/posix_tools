@@ -57,6 +57,7 @@ package body Explore.Jobs is
                Answered (Lane) := True;
                Lanes (Lane).Asking := False;
                Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
+               Changed;
                return;
             end if;
          end loop;
@@ -67,6 +68,7 @@ package body Explore.Jobs is
          Answered (Lane) := False;
          Lanes (Lane).Asking := True;
          Lanes (Lane).Conflict := Unbounded.To_Unbounded_String (Target);
+         Changed;
       end Ask;
 
       procedure Begin_Item (Lane : Lane_Index; Path : String) is
@@ -74,6 +76,7 @@ package body Explore.Jobs is
          Lanes (Lane).Current := Unbounded.To_Unbounded_String (Path);
          Lanes (Lane).Copied := 0;
          Lanes (Lane).Size := 0;
+         Changed;
       end Begin_Item;
 
       procedure Cancel (Id : Natural) is
@@ -81,6 +84,7 @@ package body Explore.Jobs is
          for Lane in Lanes'Range loop
             if Lanes (Lane).Running and then Lanes (Lane).Job.Id = Id then
                Lanes (Lane).Cancelling := True;
+               Changed;
                return;
             end if;
          end loop;
@@ -96,6 +100,7 @@ package body Explore.Jobs is
                Queue.Delete (I);
                Completed := Completed + 1;
                Recount;
+               Changed;
                return;
             end if;
          end loop;
@@ -108,13 +113,20 @@ package body Explore.Jobs is
          for Lane in Lanes'Range loop
             if Lanes (Lane).Running then
                Lanes (Lane).Cancelling := True;
+               Changed;
             end if;
          end loop;
       end Cancel_Running;
 
+      procedure Changed is
+      begin
+         Changes := Changes + 1;
+      end Changed;
+
       procedure End_Item (Lane : Lane_Index) is
       begin
          Lanes (Lane).Done := Lanes (Lane).Done + 1;
+         Changed;
       end End_Item;
 
       procedure Finish (Lane : Lane_Index) is
@@ -135,6 +147,7 @@ package body Explore.Jobs is
          Answered (Lane) := False;
          Completed := Completed + 1;
          Recount;
+         Changed;
       end Finish;
 
       procedure Recount is
@@ -161,6 +174,7 @@ package body Explore.Jobs is
       begin
          Lanes (Lane).Copied := Copied;
          Lanes (Lane).Size := Size;
+         Changed;
       end Report_Progress;
 
       procedure Shut_Down is
@@ -186,6 +200,7 @@ package body Explore.Jobs is
             Last_Id := Last_Id + 1;
             Queue.Append ((Item with delta Id => Last_Id));
             Recount;
+            Changed;
          end if;
       end Submit;
 
@@ -216,7 +231,10 @@ package body Explore.Jobs is
          Lanes (Lane) := (Running => True, Job => View_Of (Item), others => <>);
          Results (Lane) := (Job => View_Of (Item), others => <>);
          Recount;
+         Changed;
       end Take;
+
+      function Version return Version_Number is (Changes);
 
       entry Wait_Answer (for Lane in Lane_Index) (Choice : out Conflict_Answer)
         when Answered (Lane) or else Lanes (Lane).Cancelling or else Closed
@@ -227,6 +245,7 @@ package body Explore.Jobs is
          Answered (Lane) := False;
          Lanes (Lane).Asking := False;
          Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
+         Changed;
       end Wait_Answer;
    end Board;
 

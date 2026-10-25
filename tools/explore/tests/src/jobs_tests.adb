@@ -63,6 +63,7 @@ package body Jobs_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:cancel", Test_Cancel'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:queue bound", Test_Queue_Bound'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:overlap", Test_Overlap'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:version", Test_Version'Access));
       return Result;
    end Suite;
 
@@ -225,6 +226,29 @@ package body Jobs_Tests is
          "a queued job is cancelled before it starts");
       Board.Shut_Down;
    end Test_Queue_Bound;
+
+   procedure Test_Version (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Jobs.Version_Number;
+
+      Board    : Jobs.Board;
+      Accepted : Boolean;
+      Seen     : Jobs.Version_Number := Board.Version;
+   begin
+      --  No worker: what changes is only what the screen does.
+      AUnit.Assertions.Assert (Board.Status.Queued.Is_Empty and then Board.Version = Seen, "a look changes nothing");
+      Board.Submit ((Jobs.Delete_Job, Sources ("/nonexistent"), others => <>), Accepted);
+      AUnit.Assertions.Assert (Accepted and then Board.Version /= Seen, "a queued job changes the version");
+      Seen := Board.Version;
+      Board.Submit ((Jobs.Delete_Job, Explore.String_Vectors.Empty_Vector, others => <>), Accepted);
+      AUnit.Assertions.Assert (not Accepted and then Board.Version = Seen, "a refused job does not");
+      Board.Cancel_Running;
+      AUnit.Assertions.Assert (Board.Version = Seen, "nor does cancelling when nothing runs");
+      Board.Cancel (1);
+      AUnit.Assertions.Assert
+        (Board.Version /= Seen and then Board.Status.Queued.Is_Empty, "a cancelled queued job does");
+      Board.Shut_Down;
+   end Test_Version;
 
    procedure Wait_For
      (Board  : in out Jobs.Board;
