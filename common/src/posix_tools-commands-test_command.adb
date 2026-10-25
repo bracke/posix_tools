@@ -1,9 +1,11 @@
+with Ada.Strings.Unbounded;
 with I18N.Collation;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Test_Operators;
 
@@ -17,6 +19,62 @@ package body Posix_Tools.Commands.Test_Command is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      use Ada.Strings.Unbounded;
+
+      --  The expression could not be parsed.
+      Syntax_Error  : Boolean := False;
+      --  The usage diagnostic for it, when a more precise one than
+      --  "invalid expression" applies.
+      Syntax_Detail : Unbounded_String;
+      --  The first operand of an integer comparison that is not an integer.
+      Bad_Integer   : Unbounded_String;
+      Has_Bad_Integer : Boolean := False;
+
+      --  The general grammar for more than four arguments (XSI): '!' binds
+      --  tighter than -a, -a tighter than -o, and parentheses group.
+      Position : Positive := 1;
+      Last     : Natural := 0;
+
+      function Arg (Index : Positive) return String is (Context.Argument (Index));
+      function Binary_Test (Left, Op, Right : String) return Boolean;
+      function Collation_Locale return String;
+      function Evaluate (First : Positive; Count : Natural) return Boolean;
+      function Integer_Operand (Text : String) return Boolean;
+      procedure Invalid (Detail : String := "");
+      function Parse_And return Boolean;
+      function Parse_Expression (First, Final : Positive) return Boolean;
+      function Parse_Not return Boolean;
+      function Parse_Or return Boolean;
+      function Parse_Primary return Boolean;
+      function String_Comparison (Left, Op, Right : String) return Boolean;
+      function Unary_Test (Op, Operand : String) return Boolean;
+
+      --  A binary primary of $2 between $1 and $3; -a and -o are the XSI
+      --  binary primaries "both nonempty" and "either nonempty".
+      function Binary_Test (Left, Op, Right : String) return Boolean is
+      begin
+         if Op = "-a" then
+            return Left /= "" and then Right /= "";
+         elsif Op = "-o" then
+            return Left /= "" or else Right /= "";
+         elsif Op = "=" then
+            return Left = Right;
+         elsif Op = "!=" then
+            return Left /= Right;
+         elsif Op = "<" or else Op = ">" then
+            return String_Comparison (Left, Op, Right);
+         elsif Op = "-ef" then
+            return FS.Same_File (Left, Right);
+         elsif not Integer_Operand (Left) or else not Integer_Operand (Right) then
+            return False;
+         else
+            return Posix_Tools.Text.Test_Operators.Numeric_Comparison (Left, Op, Right);
+         end if;
+      exception
+         when Constraint_Error =>
+            return False;
+      end Binary_Test;
+
       function Collation_Locale return String is
          LC_All     : constant String := Context.Environment_Value ("LC_ALL");
          LC_Collate : constant String := Context.Environment_Value ("LC_COLLATE");
@@ -32,6 +90,168 @@ package body Posix_Tools.Commands.Test_Command is
             return Context.Effective_Locale;
          end if;
       end Collation_Locale;
+
+      --  XCU test decides by the number of arguments before it parses: the
+      --  rules for up to four arguments come first, so "x = -a" compares two
+      --  strings and "( = (" is true.
+      function Evaluate (First : Positive; Count : Natural) return Boolean is
+      begin
+         case Count is
+            when 0 =>
+               return False;
+            when 1 =>
+               return Arg (First) /= "";
+            when 2 =>
+               if Arg (First) = "!" then
+                  return Arg (First + 1) = "";
+               elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Arg (First)) then
+                  return Unary_Test (Arg (First), Arg (First + 1));
+               elsif Arg (First)'Length > 1 and then Arg (First) (Arg (First)'First) = '-' then
+                  Invalid ("unknown option '" & Arg (First) & "'");
+               else
+                  Invalid;
+               end if;
+               return False;
+            when 3 =>
+               if Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (First + 1))
+                 or else Arg (First + 1) in "-a" | "-o"
+               then
+                  return Binary_Test (Arg (First), Arg (First + 1), Arg (First + 2));
+               elsif Arg (First) = "!" then
+                  return not Evaluate (First + 1, 2);
+               elsif Arg (First) = "(" and then Arg (First + 2) = ")" then
+                  return Evaluate (First + 1, 1);
+               elsif Arg (First + 1)'Length > 0
+                 and then Arg (First + 1) (Arg (First + 1)'First) in '-' | '=' | '<' | '>'
+               then
+                  Invalid ("unknown operator '" & Arg (First + 1) & "'");
+               else
+                  Invalid;
+               end if;
+               return False;
+            when 4 =>
+               if Arg (First) = "!" then
+                  return not Evaluate (First + 1, 3);
+               elsif Arg (First) = "(" and then Arg (First + 3) = ")" then
+                  return Evaluate (First + 1, 2);
+               else
+                  return Parse_Expression (First, First + 3);
+               end if;
+            when others =>
+               return Parse_Expression (First, First + Count - 1);
+         end case;
+      end Evaluate;
+
+      --  Is Text an integer for -eq and its kind? The first one that is not
+      --  is kept for the diagnostic.
+      function Integer_Operand (Text : String) return Boolean is
+      begin
+         if Posix_Tools.Text.Decimal_Parsing.Long_Long_Value (Text).Valid then
+            return True;
+         end if;
+         if not Has_Bad_Integer then
+            Has_Bad_Integer := True;
+            Bad_Integer := To_Unbounded_String (Text);
+         end if;
+         return False;
+      end Integer_Operand;
+
+      procedure Invalid (Detail : String := "") is
+      begin
+         if not Syntax_Error then
+            Syntax_Error := True;
+            Syntax_Detail := To_Unbounded_String (Detail);
+         end if;
+      end Invalid;
+
+      function Parse_And return Boolean is
+         Value : Boolean := Parse_Not;
+      begin
+         while not Syntax_Error and then Position <= Last and then Arg (Position) = "-a" loop
+            Position := Position + 1;
+            declare
+               Right : constant Boolean := Parse_Not;
+            begin
+               Value := Value and Right;
+            end;
+         end loop;
+         return Value;
+      end Parse_And;
+
+      function Parse_Expression (First, Final : Positive) return Boolean is
+         Value : Boolean;
+      begin
+         Position := First;
+         Last := Final;
+         Value := Parse_Or;
+         if not Syntax_Error and then Position <= Last then
+            Invalid;
+         end if;
+         return Value;
+      end Parse_Expression;
+
+      function Parse_Not return Boolean is
+      begin
+         if Position <= Last and then Arg (Position) = "!" then
+            Position := Position + 1;
+            return not Parse_Not;
+         end if;
+         return Parse_Primary;
+      end Parse_Not;
+
+      function Parse_Or return Boolean is
+         Value : Boolean := Parse_And;
+      begin
+         while not Syntax_Error and then Position <= Last and then Arg (Position) = "-o" loop
+            Position := Position + 1;
+            declare
+               Right : constant Boolean := Parse_And;
+            begin
+               Value := Value or Right;
+            end;
+         end loop;
+         return Value;
+      end Parse_Or;
+
+      function Parse_Primary return Boolean is
+      begin
+         if Position > Last then
+            Invalid;
+            return False;
+         end if;
+
+         declare
+            Token : constant String := Arg (Position);
+         begin
+            if Position + 2 <= Last
+              and then Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (Position + 1))
+            then
+               Position := Position + 3;
+               return Binary_Test (Token, Arg (Position - 2), Arg (Position - 1));
+            elsif Token = "(" then
+               Position := Position + 1;
+               declare
+                  Value : constant Boolean := Parse_Or;
+               begin
+                  if Syntax_Error or else Position > Last or else Arg (Position) /= ")" then
+                     Invalid;
+                     return False;
+                  end if;
+                  Position := Position + 1;
+                  return Value;
+               end;
+            elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Token) and then Position < Last then
+               Position := Position + 2;
+               return Unary_Test (Token, Arg (Position - 1));
+            elsif Token in ")" | "-a" | "-o" then
+               Invalid;
+               return False;
+            else
+               Position := Position + 1;
+               return Token /= "";
+            end if;
+         end;
+      end Parse_Primary;
 
       function String_Comparison (Left, Op, Right : String) return Boolean is
          Locale   : constant String := Collation_Locale;
@@ -76,27 +296,10 @@ package body Posix_Tools.Commands.Test_Command is
                else False);
       end String_Comparison;
 
-      function Evaluate_One (Operand : String) return Boolean is
-      begin
-         return Operand /= "";
-      end Evaluate_One;
+      function Unary_Test (Op, Operand : String) return Boolean is
+         function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean;
+         function Terminal_File_Descriptor return Boolean;
 
-      function Evaluate_Three (Left, Op, Right : String) return Boolean is
-      begin
-         return
-           (if Op = "=" then Left = Right
-            elsif Op = "!=" then Left /= Right
-            elsif Op = "<" or else Op = ">" then String_Comparison (Left, Op, Right)
-            elsif Op = "-ef" then FS.Same_File (Left, Right)
-            elsif Op in "-eq" | "-ne" | "-gt" | "-ge" | "-lt" | "-le" then
-               Posix_Tools.Text.Test_Operators.Numeric_Comparison (Left, Op, Right)
-            else False);
-      exception
-         when others =>
-            return False;
-      end Evaluate_Three;
-
-      function Evaluate_Two (Op, Operand : String) return Boolean is
          function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean is
          begin
             return Posix_Tools.Text.File_Modes.Has_Any_Mode_Bit (Mode, Mask);
@@ -174,120 +377,42 @@ package body Posix_Tools.Commands.Test_Command is
                  and then Available
                  and then Has_Any_Mode_Bit (Mode, Mask);
             end;
-         elsif Op = "!" then
-            return not Evaluate_One (Operand);
          else
             return False;
          end if;
       exception
          when others =>
             return False;
-      end Evaluate_Two;
-
-      function Parentheses_Balanced (First : Positive; Last : Natural) return Boolean is
-         Depth : Integer := 0;
-      begin
-         for I in First .. Last loop
-            if Context.Argument (I) = "(" then
-               Depth := Depth + 1;
-            elsif Context.Argument (I) = ")" then
-               Depth := Depth - 1;
-               if Depth < 0 then
-                  return False;
-               end if;
-            end if;
-         end loop;
-
-         return Depth = 0;
-      end Parentheses_Balanced;
-
-      function Evaluate_Range (First : Positive; Last : Natural) return Boolean is
-         Count : constant Natural := (if Last < First then 0 else Last - First + 1);
-         Depth : Integer;
-      begin
-         if Count = 0 then
-            return False;
-         elsif Count >= 3
-           and then Context.Argument (First) = "("
-           and then Context.Argument (Last) = ")"
-         then
-            return Evaluate_Range (First + 1, Last - 1);
-         end if;
-
-         Depth := 0;
-         for I in reverse First .. Last loop
-            if Context.Argument (I) = ")" then
-               Depth := Depth + 1;
-            elsif Context.Argument (I) = "(" then
-               Depth := Depth - 1;
-            elsif Depth = 0 and then Context.Argument (I) = "-o" then
-               return Evaluate_Range (First, I - 1) or else Evaluate_Range (I + 1, Last);
-            end if;
-         end loop;
-
-         Depth := 0;
-         for I in reverse First .. Last loop
-            if Context.Argument (I) = ")" then
-               Depth := Depth + 1;
-            elsif Context.Argument (I) = "(" then
-               Depth := Depth - 1;
-            elsif Depth = 0 and then Context.Argument (I) = "-a" then
-               return Evaluate_Range (First, I - 1) and then Evaluate_Range (I + 1, Last);
-            end if;
-         end loop;
-
-         if Context.Argument (First) = "!" then
-            return not Evaluate_Range (First + 1, Last);
-         elsif Count = 1 then
-            return Evaluate_One (Context.Argument (First));
-         elsif Count = 2 then
-            return Evaluate_Two (Context.Argument (First), Context.Argument (Last));
-         elsif Count = 3 then
-            return Evaluate_Three
-              (Context.Argument (First), Context.Argument (First + 1), Context.Argument (Last));
-         else
-            return False;
-         end if;
-      end Evaluate_Range;
+      end Unary_Test;
 
       Truth : Boolean;
    begin
-      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
+      --  Every argument is an operand of the expression, so the project
+      --  extensions are recognized only as a sole argument.
+      if Posix_Tools.Commands.Helpers.Intercept_Extension
+        (Context, Result, Conventional => False)
+      then
          return;
       end if;
 
-      if Context.Argument_Count > 0 and then not Parentheses_Balanced (1, Context.Argument_Count) then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid expression");
-         return;
-      elsif Context.Argument_Count >= 1
-        and then Context.Argument (Context.Argument_Count) in "-a" | "-o" | "!"
-      then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid expression");
-         return;
-      elsif Context.Argument_Count = 2
-        and then Context.Argument (1)'Length > 0
-        and then Context.Argument (1) (Context.Argument (1)'First) = '-'
-        and then not Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Context.Argument (1))
-        and then Context.Argument (1) /= "!"
-      then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "unknown option '" & Context.Argument (1) & "'");
-         return;
-      elsif Context.Argument_Count = 3
-        and then Context.Argument (1) /= "!"
-        and then (Context.Argument (2)'Length > 0
-                  and then (Context.Argument (2) (Context.Argument (2)'First) in '-' | '=' | '<' | '>'))
-        and then Context.Argument (2) not in "-a" | "-o"
-        and then not Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Context.Argument (2))
-      then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "unknown operator '" & Context.Argument (2) & "'");
-         return;
-      end if;
+      Truth := Evaluate (1, Context.Argument_Count);
 
-      Truth := Evaluate_Range (1, Context.Argument_Count);
-      Result.Status :=
-        (if Truth then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      if Syntax_Error then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context,
+            Result,
+            (if Length (Syntax_Detail) > 0 then To_String (Syntax_Detail) else "invalid expression"));
+      elsif Has_Bad_Integer then
+         Posix_Tools.Commands.Helpers.Subject_Operational_Error
+           (Context,
+            To_String (Bad_Integer),
+            "posix_tools.diagnostic.integer.expected",
+            "integer expression expected");
+         Result.Status := Posix_Tools.Exit_Status.Invalid_Usage;
+      else
+         Result.Status :=
+           (if Truth then Posix_Tools.Exit_Status.Success
+            else Posix_Tools.Exit_Status.Operational_Failure);
+      end if;
    end Run;
 end Posix_Tools.Commands.Test_Command;

@@ -105,6 +105,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.text.expr_regex`
 - `posix_tools.text.file_descriptions`
 - `posix_tools.text.glob`
+- `posix_tools.text.printf_arguments`
 - `posix_tools.text.printf_formats`
 - `posix_tools.text.printf_formats.number_images`
 - `posix_tools.text.printf_formats.number_images.float_images`
@@ -278,12 +279,9 @@ executable names, crate names, package names, generated manifest paths,
 generated project-file paths, documentation paths, and POSIX status strings
 while delegating the repetitive command table cases to the child package.
 
-The `Posix_Tools.Commands.Dispatcher` package is intentionally a
-dispatcher-only boundary. Release metadata checks fail if command-local
-`Run_*` implementations are added back there, and they require the extracted
-`find`, `sort`, `test`, and `uniq` command bodies to remain delegated through
-their own packages. That keeps non-SPARK command algorithms smaller and makes
-future helper extraction for GNATprove more localized.
+Each command runs from its own package through its own thin wrapper; there is
+no shared command dispatcher. That keeps non-SPARK command algorithms smaller
+and makes future helper extraction for GNATprove more localized.
 
 The host adapters, localization, process/environment interfaces, filesystem
 operations, and packaging/test tooling remain outside GNATprove. Their boundary

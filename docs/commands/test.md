@@ -32,7 +32,11 @@ Supported forms include nonempty string, `! expression`, parenthesized expressio
 `expression -o expression`, `-n string`, `-z string`, `-e path`, `-b path`, `-c path`, `-d path`, `-f path`,
 `-h path`, `-L path`, `-g path`, `-k path`, `-p path`, `-r path`, `-s path`, `-S path`, `-t fd`, `-u path`,
 `-w path`, `-x path`, `a -ef b`, `a = b`, `a != b`, string ordering `a < b` and `a > b`, and signed integer
-comparisons `a -eq b`, `a -ne b`, `a -gt b`, `a -ge b`, `a -lt b`, and `a -le b`. `-a` binds tighter than `-o`.
+comparisons `a -eq b`, `a -ne b`, `a -gt b`, `a -ge b`, `a -lt b`, and `a -le b`. The number of arguments decides first, as XCU test specifies: none is false; one is true when it is not
+empty; two are `! string` or a unary primary; with three a binary primary in the middle comes first, then `!` and two
+arguments, then `( string )`; with four, `!` and three arguments or `(` two arguments `)`. Only longer expressions, or
+four that fit neither form, use the XSI grammar, where `!` binds tighter than `-a` and `-a` tighter than `-o`. So
+`test x = -a` and `test ( = (` compare strings, and `test !` is true.
 
 ## Locale Behavior
 Expression results are not localized. String ordering uses the collation locale selected by `LC_ALL`,
@@ -45,10 +49,11 @@ standard input, output, and error descriptors 0, 1, and 2 through the command co
 terminal service; other descriptor operands are false in this increment. `-g`, `-k`, `-u`, `-w`, and `-x` use
 hostkit permission-bit metadata where available. `-b`, `-c`, `-p`, and `-S` use hostkit special-file subtype metadata
 for block devices, character devices, FIFOs, and sockets where available. Malformed expressions with unbalanced parentheses, dangling boolean
-operators, or unknown unary or binary operators are invalid usage.
+operators, or unknown unary or binary operators are invalid usage. An operand of `-eq`, `-ne`, `-gt`, `-ge`, `-lt` or
+`-le` that is not an integer is diagnosed as `integer expression expected` and the exit status is `2`.
 
 ## Extensions
-`--help`, `--version`, `--posix-tools-identify`.
+Sole-argument `--help`, `--version`, `--posix-tools-identify`; with any other argument they are operands, so `test --help = x` compares strings.
 
 ## Examples
 `test value`

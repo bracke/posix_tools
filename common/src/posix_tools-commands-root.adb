@@ -132,19 +132,24 @@ package body Posix_Tools.Commands.Root is
          if Reject_Extra_Operands (Context, Result, 1) then
             return;
          end if;
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            declare
-               Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
-            begin
-               Context.Put_Line
-                 (Executable & ": "
-                  & Status_Label
-                    (Context,
-                     Posix_Tools.Host_Adapters.Executables.Verify_Identity (Executable)));
-               exit when Context.Output_Failed;
-            end;
-         end loop;
-         Result.Status := Root_Status (Context);
+         declare
+            --  Every command answered with this project's identity and
+            --  version from where PATH finds it.
+            All_Verified : Boolean := True;
+         begin
+            for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+               declare
+                  Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
+                  Status     : constant String := Posix_Tools.Host_Adapters.Executables.Verify_Identity (Executable);
+               begin
+                  All_Verified := All_Verified and then Status = "ok";
+                  Context.Put_Line (Executable & ": " & Status_Label (Context, Status));
+                  exit when Context.Output_Failed;
+               end;
+            end loop;
+            Result.Status :=
+              (if All_Verified then Root_Status (Context) else Posix_Tools.Exit_Status.Operational_Failure);
+         end;
       elsif Context.Argument (1) = "help" then
          if Reject_Extra_Operands (Context, Result, 2) then
             return;

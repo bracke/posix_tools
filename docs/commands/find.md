@@ -4,7 +4,7 @@
 `find` - walk file hierarchies.
 
 ## Synopsis
-`find [path...] [expression]`
+`find [-H|-L|-P] [path...] [expression]`
 
 ## Description
 Writes each supplied path and recursively visits directory contents. The supported expression subset includes `-name`,
@@ -14,9 +14,15 @@ pathnames are printed by the default action.
 
 ## Operands
 `path`: starting point. With no operands, `.` is used. A lone `-` is treated as
-an ordinary starting path, not as an option.
+an ordinary starting path, not as an option. A path that names no file, not even a symbolic link, is diagnosed on
+standard error and the remaining paths are still walked; the exit status is then `1`.
 
 ## Options
+`-H`, `-L` and `-P` come before the first path; the last one given wins. `-P`, the default, follows no symbolic link:
+a link is examined and listed as itself. `-H` follows links named as path operands only, and `-L` follows every link
+it meets; a followed link to nothing is examined as the link itself, and under `-L` a link back to a directory being
+walked is diagnosed as a file system loop and not entered (XCU find). `-type`, `-size`, `-perm`, `-mtime`, `-newer`,
+`-user`, `-group`, `-nouser` and `-nogroup` examine the link itself where it is not followed and its target where it is.
 `--` ends option recognition for path operands. `-name pattern` emits only paths whose final component matches simple
 `*`, `?`, and bracket-list or bracket-range wildcard patterns. `-perm mode` matches exact octal or symbolic permission
 templates where hostkit reports permission bits, and `-perm -mode` matches paths where all selected bits are set.
@@ -32,7 +38,9 @@ to a user or group name. `-path pattern` matches the whole current pathname usin
 is not active, `-xdev` prevents descent below directories whose hostkit device identity differs from the starting path,
 `-exec utility [argument...] ;` invokes a utility through the command context after replacing each standalone `{}`
 argument with the current pathname, `-exec utility [argument...] {} +` batches matching pathnames after the preceding
-arguments and invokes the utility after traversal, `-ok utility [argument...] ;` prompts on standard error and invokes
+arguments; only a `+` that immediately follows an argument that is exactly `{}` ends the primary, any other `+` is an
+argument and the primary runs to `;`. A batch is invoked whenever the next pathname would take its arguments past a
+conservative limit of 128 KiB less the environment (never less than 4096 bytes), and once more after traversal, `-ok utility [argument...] ;` prompts on standard error and invokes
 the utility only for an affirmative `y` or `Y` response on standard input, and `-print` explicitly selects pathname
 output.
 Expressions may combine predicates with implicit AND, explicit `-a`,
@@ -52,7 +60,8 @@ Diagnostics for traversal failures.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Traversal is synchronous and deterministic within host directory enumeration order.
+Traversal is synchronous and deterministic within host directory enumeration order. Every directory entry is visited,
+symbolic links to nothing included.
 
 ## Locale Behavior
 Path output is not localized. Help and diagnostics are localized.

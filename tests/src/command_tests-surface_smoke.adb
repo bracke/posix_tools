@@ -2364,17 +2364,22 @@ package body Command_Tests.Surface_Smoke is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "printf reports standard-output failure");
 
+      --  XCU printf: a numeric argument is a C constant, and an unsigned
+      --  conversion of a negative one wraps as strtoumax gives it.
       Context.Initialize ("printf", Two_Args ("%u", "-1"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf invalid unsigned status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "18446744073709551615",
+         "printf unsigned conversion of a negative argument wraps");
 
-      Context.Initialize ("printf", Three_Args ("%*s", "bad", "x"));
+      Context.Initialize ("printf", Three_Args ("%*s|", "bad", "x"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf invalid star width status");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "x|"
+         and then Test_Contexts.Error_Output (Context) = "printf: 'bad': expected a numeric value" & EOL,
+         "printf invalid star width is diagnosed and taken as zero");
 
       Context.Initialize ("printf", Three_Args ("%*s", "9223372036854775808", "x"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
@@ -2397,49 +2402,55 @@ package body Command_Tests.Surface_Smoke is
       Context.Initialize ("printf", Two_Args ("%x", "-1"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf invalid hex status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "ffffffffffffffff",
+         "printf hexadecimal conversion of a negative argument wraps");
 
-      Context.Initialize ("printf", Two_Args ("%d", "abc"));
+      --  An argument that is not a number is diagnosed, written as zero,
+      --  and makes the exit status 1 while printf goes on.
+      Context.Initialize ("printf", Three_Args ("%d|%s", "abc", "next"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf invalid decimal status");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "0|next"
+         and then Test_Contexts.Error_Output (Context) = "printf: 'abc': expected a numeric value" & EOL,
+         "printf invalid decimal is diagnosed and printing continues");
 
       Context.Initialize ("printf", Two_Args ("%f", "abc"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf invalid float status");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = "0.000000",
+         "printf invalid float is diagnosed and written as zero");
 
       Context.Initialize ("printf", Two_Args ("%f", "999999999999999999999999999999999999999.0"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf fixed rejects overflowing whole part");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "printf fixed diagnoses an overflowing whole part");
 
       Context.Initialize ("printf", Two_Args ("%.20f", "0.99999999999999999999"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf fixed rejects overflowing fraction part");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "printf fixed diagnoses an overflowing fraction part");
 
       Context.Initialize ("printf", Two_Args ("%e", "1e999999999999999999999999999999999999999"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf scientific rejects overflowing exponent");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "printf scientific diagnoses an overflowing exponent");
 
       Context.Initialize ("printf", Two_Args ("%g", "1e999999999999999999999999999999999999999"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "printf general rejects overflowing exponent");
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "printf general diagnoses an overflowing exponent");
 
       Context.Initialize ("printf", Two_Args ("%i", "abc"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "printf invalid signed integer status");
 
       Context.Initialize ("printf", Three_Args ("%c", "alpha", "beta"));
@@ -2467,11 +2478,13 @@ package body Command_Tests.Surface_Smoke is
            "" & Character'Val (7) & Character'Val (8) & Character'Val (12) & Character'Val (11),
          "printf control escapes");
 
+      --  In the format \ddd is one to three octal digits, so \0101 is
+      --  \010 followed by '1' (XBD File Format Notation).
       Context.Initialize ("printf", One_Arg ("\0101\0102"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "AB",
-         "printf octal escapes");
+        (Test_Contexts.Output (Context) = Character'Val (8) & "1" & Character'Val (8) & "2",
+         "printf format octal escapes take at most three digits");
 
       Context.Initialize ("sort", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
@@ -4205,18 +4218,21 @@ package body Command_Tests.Surface_Smoke is
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = Source & EOL, "find explicit -print output");
 
+      --  Neither names a file here, so each is diagnosed as a missing
+      --  path operand rather than taken as an option or primary.
       Context.Initialize ("find", One_Arg ("-"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "-" & EOL,
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "find: '-': no such file or directory" & EOL,
          "find treats - as path operand");
 
       Context.Initialize ("find", Two_Args ("--", "-name"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "-name" & EOL,
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context) = "find: '-name': no such file or directory" & EOL,
          "find treats option-like operand after -- as path operand");
 
       Context.Initialize ("find", Three_Args (Made, "-name", "command-source.txt"));
@@ -4922,8 +4938,9 @@ package body Command_Tests.Surface_Smoke is
       Context.Initialize ("test", Three_Args ("abc", "-eq", "0"));
       Posix_Tools.Commands.Test_Command.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "test invalid numeric comparison is false");
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "test: 'abc': integer expression expected" & EOL,
+         "test diagnoses a non-integer operand of a numeric comparison");
 
       Context.Initialize ("test", Two_Args ("(", "value"));
       Posix_Tools.Commands.Test_Command.Run (Context, Result);

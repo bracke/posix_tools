@@ -95,6 +95,7 @@ with Posix_Tools.Presentation;
 with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Test_Contexts;
+with Command_Tests.Scripting;
 with Command_Tests.Surface_Smoke;
 
 package body Command_Tests is
@@ -494,6 +495,61 @@ package body Command_Tests is
       Ada.Streams.Stream_IO.Write (File, Buffer);
       Ada.Streams.Stream_IO.Close (File);
    end Write_File;
+
+   procedure Test_Expr_Extension_Operands (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Expr_Extension_Operands (T);
+   end Test_Expr_Extension_Operands;
+
+   procedure Test_Find_Exec_Batches (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Find_Exec_Batches (T);
+   end Test_Find_Exec_Batches;
+
+   procedure Test_Find_Missing_Operands (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Find_Missing_Operands (T);
+   end Test_Find_Missing_Operands;
+
+   procedure Test_Find_Symbolic_Links (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Find_Symbolic_Links (T);
+   end Test_Find_Symbolic_Links;
+
+   procedure Test_Printf_Character_Conversion (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Printf_Character_Conversion (T);
+   end Test_Printf_Character_Conversion;
+
+   procedure Test_Printf_Escapes (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Printf_Escapes (T);
+   end Test_Printf_Escapes;
+
+   procedure Test_Printf_Extension_Operands (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Printf_Extension_Operands (T);
+   end Test_Printf_Extension_Operands;
+
+   procedure Test_Printf_Numeric_Arguments (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Printf_Numeric_Arguments (T);
+   end Test_Printf_Numeric_Arguments;
+
+   procedure Test_Test_Argument_Counts (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Test_Argument_Counts (T);
+   end Test_Test_Argument_Counts;
+
+   procedure Test_Test_Extension_Operands (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Test_Extension_Operands (T);
+   end Test_Test_Extension_Operands;
+
+   procedure Test_Test_Integer_Operands (T : in out Fixture) is
+   begin
+      Command_Tests.Scripting.Test_Test_Integer_Operands (T);
+   end Test_Test_Integer_Operands;
 
    procedure Test_Command_Surface_Smoke (T : in out Fixture) is
    begin
@@ -3282,6 +3338,27 @@ package body Command_Tests is
       end;
    end Test_Root_Paths;
 
+   --  What `posix-tools verify` must exit with for the lines it wrote:
+   --  success only when every command reported ok.
+   function Expected_Verify_Status (Output_Text : String) return Posix_Tools.Exit_Status.Code is
+      LF    : constant Character := Character'Val (10);
+      First : Positive := Output_Text'First;
+   begin
+      for I in Output_Text'Range loop
+         if Output_Text (I) = LF then
+            declare
+               Line : constant String := Output_Text (First .. I - 1);
+            begin
+               if Line'Length < 4 or else Line (Line'Last - 3 .. Line'Last) /= ": ok" then
+                  return Posix_Tools.Exit_Status.Operational_Failure;
+               end if;
+            end;
+            First := I + 1;
+         end if;
+      end loop;
+      return Posix_Tools.Exit_Status.Success;
+   end Expected_Verify_Status;
+
    procedure Test_Root_Verify (T : in out Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
@@ -3292,7 +3369,9 @@ package body Command_Tests is
       declare
          Output_Text : constant String := Test_Contexts.Output (Context);
       begin
-         AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "root verify status");
+         AUnit.Assertions.Assert
+           (Result.Status = Expected_Verify_Status (Output_Text),
+            "root verify fails exactly when a command is not ok");
          AUnit.Assertions.Assert (Contains (Output_Text, "basename: "), "root verify basename line");
          AUnit.Assertions.Assert (Contains (Output_Text, "cat: "), "root verify cat line");
          AUnit.Assertions.Assert (Contains (Output_Text, "dirname: "), "root verify dirname line");
@@ -3387,7 +3466,7 @@ package body Command_Tests is
          Test_Contexts.Set_Locale (Context, Locale);
          Posix_Tools.Commands.Root.Run (Context, Result);
          AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success,
+           (Result.Status = Expected_Verify_Status (Test_Contexts.Output (Context)),
             "root verify locale status " & Label);
          Assert_Verify_Status_Lines (Test_Contexts.Output (Context), Label, Danish);
          AUnit.Assertions.Assert
@@ -3422,7 +3501,7 @@ package body Command_Tests is
       Context.Initialize ("posix-tools", One_Arg ("verify"));
       Posix_Tools.Commands.Root.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success,
+        (Result.Status = Expected_Verify_Status (Test_Contexts.Output (Context)),
          "root verify inventory status");
       Assert_Inventory_Status_Lines
         (Test_Contexts.Output (Context),

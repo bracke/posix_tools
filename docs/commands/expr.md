@@ -13,7 +13,7 @@ Evaluates the supplied argument vector as a single expression and writes the res
 `expression`: expression tokens supplied as separate command-line arguments.
 
 ## Options
-Project extensions `--help`, `--version`, and `--posix-tools-identify` are recognized only by the common command wrapper.
+Project extensions `--help`, `--version`, and `--posix-tools-identify` are recognized only as sole arguments.
 
 ## Standard Input
 Not used.
@@ -45,7 +45,7 @@ also accepted for compatibility with earlier V1 tests. When the pattern has a ca
 is returned; otherwise the matched length is returned.
 
 ## Extensions
-`--help`, `--version`, `--posix-tools-identify`.
+Sole-argument `--help`, `--version`, `--posix-tools-identify`; with any other argument they are operands, so `expr --help = x` compares strings.
 
 ## Examples
 `expr 1 + 2`

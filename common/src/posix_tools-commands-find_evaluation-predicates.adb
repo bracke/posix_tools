@@ -1,4 +1,5 @@
 with Ada.Calendar;
+with Ada.Calendar.Formatting;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Glob;
@@ -50,6 +51,69 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
       Bytes := Parsed.Bytes;
       return Parsed.Valid;
    end Parse_Find_Count;
+
+   --  Path's last modification, of the link itself when Own.
+   function Modified_At
+     (Path : String;
+      Own  : Boolean;
+      Time : out Ada.Calendar.Time) return Boolean;
+
+   --  Path's owner and group, of the link itself when Own.
+   procedure Owners_Of
+     (Path      : String;
+      Own       : Boolean;
+      User      : out Natural;
+      Group     : out Natural;
+      Available : out Boolean);
+
+   function Modified_At
+     (Path : String;
+      Own  : Boolean;
+      Time : out Ada.Calendar.Time) return Boolean
+   is
+   begin
+      if not Own then
+         return FS.Modification_Time (Path, Time);
+      end if;
+
+      declare
+         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
+         Epoch  : constant Ada.Calendar.Time :=
+           Ada.Calendar.Formatting.Time_Of (1970, 1, 1, 0.0, Time_Zone => 0);
+      begin
+         Time := Epoch;
+         if not Status.Available then
+            return False;
+         end if;
+         Time := Epoch + Duration (Status.Modified_Seconds);
+         return True;
+      end;
+   exception
+      when Constraint_Error | Ada.Calendar.Time_Error =>
+         return False;
+   end Modified_At;
+
+   procedure Owners_Of
+     (Path      : String;
+      Own       : Boolean;
+      User      : out Natural;
+      Group     : out Natural;
+      Available : out Boolean)
+   is
+   begin
+      if not Own then
+         FS.File_Ownership (Path, User, Group, Available);
+         return;
+      end if;
+
+      declare
+         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
+      begin
+         User := Status.User;
+         Group := Status.Group;
+         Available := Status.Available;
+      end;
+   end Owners_Of;
 
    function Glob_Matches (Pattern, Text : String) return Boolean is (Posix_Tools.Text.Glob.Matches (Pattern, Text));
 
@@ -117,11 +181,15 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function Permission_Matches
      (Path  : String;
+      Own   : Boolean;
       Text  : String;
       Valid : in out Boolean) return Boolean
    is
-      Available : Boolean;
-      Actual    : constant Natural := FS.File_Permission_Bits (Path, Available) mod 8#10000#;
+      Status    : constant FS.Entry_Status :=
+        (if Own then FS.Entry_Status_Of (Path) else (others => <>));
+      Available : Boolean := Status.Available;
+      Actual    : constant Natural :=
+        (if Own then Status.Mode else FS.File_Permission_Bits (Path, Available)) mod 8#10000#;
       Expected  : Natural;
       Match_All : Boolean;
    begin
@@ -139,11 +207,12 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function Size_Matches
      (Path  : String;
+      Own   : Boolean;
       Text  : String;
       Valid : in out Boolean) return Boolean
    is
-      Exists   : constant Boolean := FS.Exists (Path);
-      Kind     : constant FS.File_Kind := FS.Kind (Path);
+      Exists   : constant Boolean := Own or else FS.Exists (Path);
+      Kind     : constant FS.File_Kind := (if Own then FS.Missing_File else FS.Kind (Path));
       Count    : Long_Long_Integer;
       Relation : Find_Count_Relation;
       Bytes    : Boolean;
@@ -157,7 +226,8 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
       end if;
 
       declare
-         Raw_Size : constant Long_Long_Integer := FS.Size (Path);
+         Raw_Size : constant Long_Long_Integer :=
+           (if Own then FS.Entry_Status_Of (Path).Size else FS.Size (Path));
       begin
          Units := (if Bytes then Raw_Size else (Raw_Size + 511) / 512);
       end;
@@ -169,6 +239,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function Mtime_Matches
      (Path  : String;
+      Own   : Boolean;
       Text  : String;
       Valid : in out Boolean) return Boolean
    is
@@ -186,7 +257,10 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          return Duration (Value) * Seconds_Per_Day;
       end Threshold;
    begin
-      if not FS.Exists (Path) or else not Parse_Find_Count (Text, Count, Relation, Bytes) or else Bytes then
+      if not (Own or else FS.Exists (Path))
+        or else not Parse_Find_Count (Text, Count, Relation, Bytes)
+        or else Bytes
+      then
          Valid := False;
          return False;
       end if;
@@ -196,7 +270,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          Path_Time : Ada.Calendar.Time;
          Ok  : Boolean := True;
       begin
-         if not FS.Modification_Time (Path, Path_Time) then
+         if not Modified_At (Path, Own, Path_Time) then
             Valid := False;
             return False;
          end if;
@@ -246,11 +320,12 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function Newer_Matches
      (Path      : String;
+      Own       : Boolean;
       Reference : String;
       Valid     : in out Boolean) return Boolean
    is
    begin
-      if not FS.Exists (Path) or else not FS.Exists (Reference) then
+      if not (Own or else FS.Exists (Path)) or else not FS.Exists (Reference) then
          Valid := False;
          return False;
       end if;
@@ -258,7 +333,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          Path_Time      : Ada.Calendar.Time;
          Reference_Time : Ada.Calendar.Time;
       begin
-         if not FS.Modification_Time (Path, Path_Time)
+         if not Modified_At (Path, Own, Path_Time)
            or else not FS.Modification_Time (Reference, Reference_Time)
          then
             Valid := False;
@@ -274,6 +349,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function Ownership_Matches
      (Path  : String;
+      Own   : Boolean;
       Text  : String;
       User  : Boolean;
       Valid : in out Boolean) return Boolean
@@ -294,7 +370,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          return False;
       end if;
 
-      FS.File_Ownership (Path, Actual_User, Actual_Group, Available);
+      Owners_Of (Path, Own, Actual_User, Actual_Group, Available);
       return
         Posix_Tools.Text.Find_Expressions.Ownership_Matches
           (Available, User, Actual_User, Actual_Group, Expected);
@@ -306,6 +382,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
    function No_Owner_Matches
      (Path  : String;
+      Own   : Boolean;
       User  : Boolean;
       Valid : in out Boolean) return Boolean
    is
@@ -317,7 +394,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          return False;
       end if;
 
-      FS.File_Ownership (Path, Actual_User, Actual_Group, Available);
+      Owners_Of (Path, Own, Actual_User, Actual_Group, Available);
       return
         Posix_Tools.Text.Find_Expressions.Missing_Owner_Name_Matches
           (Available,
