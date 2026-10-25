@@ -2,7 +2,8 @@ with Ada.Containers;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
+with Posix_Tools.Commands.Text_Helpers.Folding;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Lines;
@@ -133,10 +134,10 @@ package body Posix_Tools.Commands.Uniq is
       declare
          Text_Key : constant String :=
            (if Options.Fold_Case
-            then Posix_Tools.Commands.Text_Helpers.Folded_Sort_Text (Line (Position .. Line'Last))
+            then Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text (Line (Position .. Line'Last))
             else Line (Position .. Line'Last));
       begin
-         return Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Text_Key);
+         return Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Text_Key);
       end;
    end Comparison_Key;
 

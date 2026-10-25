@@ -117,8 +117,6 @@ begin
    Add_Entry ("common/src/posix_tools-commands-tee.ads");
    Add_Entry ("common/src/posix_tools-commands-test_command.adb");
    Add_Entry ("common/src/posix_tools-commands-test_command.ads");
-   Add_Entry ("common/src/posix_tools-commands-text_helpers-collation-locale_rules.adb");
-   Add_Entry ("common/src/posix_tools-commands-text_helpers-collation-locale_rules.ads");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-collation.adb");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-collation.ads");
    Add_Entry ("common/src/posix_tools-commands-text_helpers-display.adb");

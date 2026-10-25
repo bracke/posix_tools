@@ -1,14 +1,6 @@
+--  Collation, display widths and folding are in the Collation, Display
+--  and Folding children.
 package Posix_Tools.Commands.Text_Helpers is
-   function Translation_Set_From_Spec (Text, Locale : String) return String;
-
-   function Display_Next_Column
-     (Text     : String;
-      Index    : Positive;
-      Column   : Natural;
-      Consumed : out Natural) return Natural;
-
-   function Folded_Sort_Text (Text : String) return String;
-
    --  True for the C and POSIX locales (any letter case, any codeset), whose
    --  collation order is byte order.
    function Is_Byte_Collation_Locale (Locale : String) return Boolean;
@@ -16,12 +8,6 @@ package Posix_Tools.Commands.Text_Helpers is
    --  True when text in Locale is decoded as UTF-8 characters: every locale
    --  except C and POSIX, which are single-byte unless their codeset is UTF-8.
    function Is_Multibyte_Locale (Locale : String) return Boolean;
-
-   function Locale_Collation_Order (Locale, Set1 : String) return String;
-
-   function Locale_Family (Locale : String) return String;
-
-   function Locale_Sort_Text (Locale, Text : String) return String;
 
    function Parse_Long_Long_Text
      (Text  : String;

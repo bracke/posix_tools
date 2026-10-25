@@ -1,7 +1,7 @@
 with Ada.Containers;
 with Ada.Unchecked_Deallocation;
 with Posix_Tools.Commands.Sort_Keys.Comparison;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 
 package body Posix_Tools.Commands.Sort_Keys is
    use Ada.Strings.Unbounded;
@@ -143,7 +143,7 @@ package body Posix_Tools.Commands.Sort_Keys is
                      Whole_Line));
             end loop;
             if Data.Use_Whole then
-               Data.Whole.Append (Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Line));
+               Data.Whole.Append (Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Line));
             end if;
          end loop;
       end return;

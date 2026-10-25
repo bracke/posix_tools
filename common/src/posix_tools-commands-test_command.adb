@@ -2,7 +2,7 @@ with Ada.Strings.Unbounded;
 with I18N.Collation;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Decimal_Parsing;
@@ -255,7 +255,7 @@ package body Posix_Tools.Commands.Test_Command is
 
       function String_Comparison (Left, Op, Right : String) return Boolean is
          Locale   : constant String := Collation_Locale;
-         Family   : constant String := Posix_Tools.Commands.Text_Helpers.Locale_Family (Locale);
+         Family   : constant String := Posix_Tools.Commands.Text_Helpers.Collation.Locale_Family (Locale);
          Compared : Integer;
       begin
          if Family = ""
@@ -273,9 +273,9 @@ package body Posix_Tools.Commands.Test_Command is
          else
             declare
                Left_Key  : constant String :=
-                 Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Left);
+                 Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Left);
                Right_Key : constant String :=
-                 Posix_Tools.Commands.Text_Helpers.Locale_Sort_Text (Locale, Right);
+                 Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Right);
             begin
                Compared :=
                  (if Left_Key < Right_Key then -1

@@ -5,7 +5,7 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Base_Parsing;
 with Posix_Tools.Text.UTF_8;
@@ -104,7 +104,8 @@ package body Posix_Tools.Commands.Tr is
                end loop;
             end if;
             I := I + 1;
-            return Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec (Text (First .. I - 1), Locale);
+            return Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec
+              (Text (First .. I - 1), Locale);
          end if;
          Decode_At (Text, I, True, Width, Code_Point);
          I := I + Width;
@@ -175,7 +176,7 @@ package body Posix_Tools.Commands.Tr is
                   Output.Append (Next_Element);
                else
                   Append_Bytes
-                    (Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec (Text (I .. Close), Locale));
+                    (Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec (Text (I .. Close), Locale));
                   I := Close + 1;
                end if;
             end;
@@ -310,7 +311,8 @@ package body Posix_Tools.Commands.Tr is
 
          function Parse_Set (Operand : String) return Element_Vectors.Vector is
            (if Multibyte then Character_Set (Operand, Locale)
-            else Split (Posix_Tools.Commands.Text_Helpers.Translation_Set_From_Spec (Operand, Locale), False));
+            else Split
+              (Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec (Operand, Locale), False));
 
          Set1 : constant Element_Vectors.Vector := Parse_Set (Context.Argument (First));
          Set2 : constant Element_Vectors.Vector :=
@@ -478,7 +480,7 @@ package body Posix_Tools.Commands.Tr is
                end loop;
                Complement_Order :=
                  To_Unbounded_String
-                   (Posix_Tools.Commands.Text_Helpers.Locale_Collation_Order (Locale, To_String (Bytes)));
+                   (Posix_Tools.Commands.Text_Helpers.Collation.Locale_Collation_Order (Locale, To_String (Bytes)));
             end;
          end if;
 
