@@ -17,131 +17,80 @@ package body Posix_Tools.Commands.Sort_Key_Text is
       Locale : String := "";
       Apply_Locale_Collation : Boolean := True) return String
    is
-      First : Natural := Text'First;
-      Last  : Natural := Text'Last;
+      --  Without a field separator a field is a run of blanks followed by
+      --  the run of non-blanks after it, so its leading blanks belong to it;
+      --  they are skipped only when Ignore_Leading_Blanks (-b) asks.
+      function Field_Base (Field : Positive) return Natural;
+      function Field_Limit (Field : Positive) return Natural;
+      function Key_Base (Field : Positive) return Natural;
+      function Skip_Blanks (From, Limit : Natural) return Natural;
+      function Skip_Nonblanks (From : Natural) return Natural;
 
-      function Apply_Start_Character (Index : Natural) return Natural is
+      --  The first index of Field, or Text'Last + 1 when the line has fewer
+      --  fields.
+      function Field_Base (Field : Positive) return Natural is
+         I : Natural := Text'First;
       begin
-         if Character_Start = 1 then
-            return Index;
-         elsif Index > Text'Last then
-            return Text'Last + 1;
-         else
-            return Natural'Min (Text'Last + 1, Index + Character_Start - 1);
-         end if;
-      end Apply_Start_Character;
-
-      function Field_Start_Index return Natural is
-         Field : Positive := 1;
-         I     : Natural := Text'First;
-      begin
-         if Field_Start = 1 then
+         for Unused in 2 .. Field loop
             if Has_Field_Separator then
-               return Apply_Start_Character (Text'First);
+               while I <= Text'Last and then Text (I) /= Field_Separator loop
+                  I := I + 1;
+               end loop;
+               if I > Text'Last then
+                  return Text'Last + 1;
+               end if;
+               I := I + 1;
+            else
+               I := Skip_Nonblanks (Skip_Blanks (I, Text'Last));
             end if;
-         elsif Has_Field_Separator then
-            while I <= Text'Last loop
-               if Text (I) = Field_Separator then
-                  Field := Field + 1;
-                  if Field = Field_Start then
-                     return Apply_Start_Character (I + 1);
-                  end if;
-               end if;
-               I := I + 1;
-            end loop;
-            return Text'Last + 1;
-         end if;
-
-         while I <= Text'Last
-           and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-         loop
-            I := I + 1;
          end loop;
+         return I;
+      end Field_Base;
 
-         while Field < Field_Start and then I <= Text'Last loop
-            while I <= Text'Last
-              and then not Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-            loop
-               I := I + 1;
-            end loop;
-            while I <= Text'Last
-              and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-            loop
-               I := I + 1;
-            end loop;
-            Field := Field + 1;
-         end loop;
-         return Apply_Start_Character (I);
-      end Field_Start_Index;
-
-      function Field_End_Index return Natural is
-         Field : Positive := 1;
-         I     : Natural := Text'First;
-         Base  : Natural := Text'First;
+      --  The last index of Field.
+      function Field_Limit (Field : Positive) return Natural is
+         I : Natural := Field_Base (Field);
       begin
-         if Field_End = 0 then
-            return Text'Last;
-         elsif Has_Field_Separator then
-            while I <= Text'Last loop
-               if Field = Field_End and then Text (I) = Field_Separator then
-                  return
-                    (if Character_End = 0
-                     then I - 1
-                     else Natural'Min (I - 1, Base + Character_End - 1));
-               elsif Text (I) = Field_Separator then
-                  Field := Field + 1;
-                  Base := I + 1;
-               end if;
+         if Has_Field_Separator then
+            while I <= Text'Last and then Text (I) /= Field_Separator loop
                I := I + 1;
             end loop;
-            return
-              (if Character_End = 0
-               then Text'Last
-               else Natural'Min (Text'Last, Base + Character_End - 1));
+            return I - 1;
+         else
+            return Skip_Nonblanks (Skip_Blanks (I, Text'Last)) - 1;
          end if;
+      end Field_Limit;
 
-         while I <= Text'Last
-           and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-         loop
+      --  Where the characters of Field are counted from.
+      function Key_Base (Field : Positive) return Natural is
+        (if Ignore_Leading_Blanks then Skip_Blanks (Field_Base (Field), Field_Limit (Field))
+         else Field_Base (Field));
+
+      function Skip_Blanks (From, Limit : Natural) return Natural is
+         I : Natural := From;
+      begin
+         while I <= Limit and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I)) loop
             I := I + 1;
          end loop;
+         return I;
+      end Skip_Blanks;
 
-         while Field < Positive'Max (1, Field_End) and then I <= Text'Last loop
-            while I <= Text'Last
-              and then not Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-            loop
-               I := I + 1;
-            end loop;
-            while I <= Text'Last
-              and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-            loop
-               I := I + 1;
-            end loop;
-            Field := Field + 1;
-         end loop;
-
-         Base := I;
-         while I <= Text'Last
-           and then not Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I))
-         loop
+      function Skip_Nonblanks (From : Natural) return Natural is
+         I : Natural := From;
+      begin
+         while I <= Text'Last and then not Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (I)) loop
             I := I + 1;
          end loop;
-         return
-           (if Character_End = 0
-            then I - 1
-            else Natural'Min (I - 1, Base + Character_End - 1));
-      end Field_End_Index;
+         return I;
+      end Skip_Nonblanks;
+
+      First : constant Natural :=
+        Natural'Min (Text'Last + 1, Key_Base (Field_Start) + Character_Start - 1);
+      Last  : constant Natural :=
+        (if Field_End = 0 then Text'Last
+         elsif Character_End = 0 then Field_Limit (Field_End)
+         else Natural'Min (Field_Limit (Field_End), Key_Base (Field_End) + Character_End - 1));
    begin
-      First := Field_Start_Index;
-      Last := Field_End_Index;
-      if Ignore_Leading_Blanks then
-         while First <= Last
-           and then Posix_Tools.Text.Byte_Classes.Is_POSIX_Blank (Text (First))
-         loop
-            First := First + 1;
-         end loop;
-      end if;
-
       if First > Text'Last or else First > Last then
          return "";
       elsif not Fold_Case and then not Dictionary_Order and then not Ignore_Nonprinting then

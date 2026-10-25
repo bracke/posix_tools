@@ -4083,6 +4083,20 @@ package body Command_Tests is
              "sort key modifiers override the global -f");
       Check (No_Args, "b" & LF & "B" & LF & "a" & LF & "A" & LF, "A" & LF & "B" & LF & "a" & LF & "b" & LF,
              "sort uses byte order in the C locale");
+      Check (One_Arg ("-k1,1"), " b" & LF & "a" & LF, " b" & LF & "a" & LF,
+             "sort keeps the leading blanks of a field without -t");
+      Check (Two_Args ("-b", "-k1,1"), " b" & LF & "a" & LF, "a" & LF & " b" & LF,
+             "sort -b skips the leading blanks of a field");
+      Check (One_Arg ("-k1b,1"), " b" & LF & "a" & LF, "a" & LF & " b" & LF,
+             "sort key modifier b skips the leading blanks of a field");
+      Check (One_Arg ("-k2,2"), "x a" & LF & "x  b" & LF, "x  b" & LF & "x a" & LF,
+             "sort counts the blanks before a later field as part of it");
+      Check (Two_Args ("-b", "-k2,2"), "x  b" & LF & "x a" & LF, "x a" & LF & "x  b" & LF,
+             "sort -b skips the blanks before a later field");
+      Check (One_Arg ("-k1.2,1.2"), "yb" & LF & " az" & LF, " az" & LF & "yb" & LF,
+             "sort counts key characters from the leading blanks of a field");
+      Check (Two_Args ("-b", "-k1.2,1.2"), " az" & LF & "yb" & LF, "yb" & LF & " az" & LF,
+             "sort -b counts key characters after the leading blanks of a field");
 
       Context.Initialize ("sort", Two_Args ("-cu", "-n"));
       Test_Contexts.Set_Standard_Input (Context, "1" & LF & "01" & LF);

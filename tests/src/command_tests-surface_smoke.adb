@@ -2757,7 +2757,9 @@ package body Command_Tests.Surface_Smoke is
         (Test_Contexts.Output (Context) = "z1" & EOL & "y2" & EOL & "x3" & EOL,
          "sort -k start character key output");
 
-      Context.Initialize ("sort", Three_Args ("-k", "2.2,2.2", "-"));
+      --  Without -t the blank before field 2 belongs to it, so its digit is
+      --  the field's third character.
+      Context.Initialize ("sort", Three_Args ("-k", "2.3,2.3", "-"));
       Test_Contexts.Set_Standard_Input (Context, "a b3" & EOL & "b a1" & EOL & "c c2" & EOL);
       Posix_Tools.Commands.Sort.Run (Context, Result);
       AUnit.Assertions.Assert

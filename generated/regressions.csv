@@ -61,6 +61,7 @@ REG-SORT-0006,sort,apply -r inside the comparison so -s keeps equal lines in inp
 REG-SORT-0007,sort,decide -u duplicates with the ordering comparison of the keys so -nu merges numerically equal keys,command:sort ordering rules
 REG-SORT-0008,sort,report an -o output file that cannot be written,command:sort ordering rules
 REG-SORT-0009,sort,use byte order in the C and POSIX locales whatever the letter case of the locale name,command:sort ordering rules
+REG-SORT-0010,sort,without -t keep the blanks before a field as part of it and skip them only under -b or a key's b modifier when locating keys and their character positions,command:sort ordering rules
 REG-UNIQ-0002,uniq,write nothing when -d and -u are both given,command:uniq filters
 REG-UNIQ-0003,uniq,report an output operand that cannot be written,command:uniq filters
 REG-UNIQ-0004,uniq,compare lines as bytes in the C locale,command:uniq filters
