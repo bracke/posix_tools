@@ -32,6 +32,12 @@ package body Explore.Archives is
 
    function Format_Of (Head : String) return Archive_Format;
 
+   --  Inflate Packed into Plain, a piece at a time, stopping once Plain holds
+   --  Limit bytes: a small file can inflate to any size. Ok is False when
+   --  Packed is not a compressed stream.
+   procedure Inflate (Packed : Unbounded.Unbounded_String; Limit : Natural;
+                      Plain  : out Unbounded.Unbounded_String; Ok : out Boolean);
+
    function Line (Size : Long_Long_Integer; Name : String; Directory : Boolean) return String is
      ([1 .. Natural'Max (0, 6 - (if Directory then 0 else Format.Size_Image (Size)'Length)) => ' ']
       & (if Directory then "" else Format.Size_Image (Size)) & "  " & Name
@@ -72,6 +78,63 @@ package body Explore.Archives is
          return Not_An_Archive;
       end if;
    end Format_Of;
+
+   procedure Inflate (Packed : Unbounded.Unbounded_String; Limit : Natural;
+                      Plain  : out Unbounded.Unbounded_String; Ok : out Boolean)
+   is
+      Piece   : constant := 65_536;
+      Filter  : Zlib.Filter_Type;
+      Input   : Ada.Streams.Stream_Element_Array (1 .. Piece);
+      Output  : Ada.Streams.Stream_Element_Array (1 .. Piece);
+      Used    : Natural := 0;
+      Filled  : Ada.Streams.Stream_Element_Offset := 0;
+      In_Last : Ada.Streams.Stream_Element_Offset;
+      Last    : Ada.Streams.Stream_Element_Offset;
+   begin
+      Plain := Unbounded.Null_Unbounded_String;
+      Ok := True;
+      Zlib.Inflate_Init (Filter, Zlib.Default);
+
+      while not Zlib.Stream_End (Filter) and then Unbounded.Length (Plain) < Limit loop
+         --  Top up what is waiting to go in.
+         while Filled < Input'Last and then Used < Unbounded.Length (Packed) loop
+            Used := Used + 1;
+            Filled := Filled + 1;
+            Input (Filled) := Character'Pos (Unbounded.Element (Packed, Used));
+         end loop;
+
+         Zlib.Translate (Filter, Input (1 .. Filled), In_Last, Output, Last);
+
+         declare
+            Text : String (1 .. Natural (Last - Output'First + 1));
+         begin
+            for I in Text'Range loop
+               Text (I) := Character'Val (Output (Output'First + Ada.Streams.Stream_Element_Offset (I) - 1));
+            end loop;
+
+            Unbounded.Append (Plain, Text);
+         end;
+
+         --  What was taken in goes; the rest moves up to the front. Nothing
+         --  is taken from nothing, whatever In_Last says then.
+         declare
+            Taken : constant Ada.Streams.Stream_Element_Offset :=
+              (if Filled = 0 then 0
+               else Ada.Streams.Stream_Element_Offset'Max (0, In_Last - Input'First + 1));
+         begin
+            Input (1 .. Filled - Taken) := Input (Taken + 1 .. Filled);
+            Filled := Filled - Taken;
+
+            exit when Last < Output'First and then Taken = 0 and then Used = Unbounded.Length (Packed);
+         end;
+      end loop;
+
+      Zlib.Close (Filter, Ignore_Error => True);
+   exception
+      when others =>
+         Zlib.Close (Filter, Ignore_Error => True);
+         Ok := Unbounded.Length (Plain) > 0;
+   end Inflate;
 
    function Is_Archive (Head : String) return Boolean is (Format_Of (Head) /= Not_An_Archive);
 
@@ -120,7 +183,7 @@ package body Explore.Archives is
                Data : Unbounded.Unbounded_String;
                Read : Boolean;
             begin
-               Read_All (Path, Max_Inflated_Bytes, Data, Read);
+               Read_All (Path, Max_Read_Bytes, Data, Read);
 
                if not Read then
                   return;
@@ -128,36 +191,27 @@ package body Explore.Archives is
 
                if Kind = Gzip_Tar then
                   declare
-                     Packed : constant String := Unbounded.To_String (Data);
-                     Input  : Zlib.Byte_Array (0 .. Packed'Length - 1);
+                     Plain    : Unbounded.Unbounded_String;
+                     Inflated : Boolean;
                   begin
-                     for I in Input'Range loop
-                        Input (I) := Zlib.Byte (Character'Pos (Packed (Packed'First + I)));
-                     end loop;
+                     Inflate (Data, Max_Inflated_Bytes, Plain, Inflated);
 
-                     declare
-                        Plain : constant Zlib.Byte_Array := Zlib.Inflate_Auto (Input, Status);
-                        Text  : String (1 .. Plain'Length);
-                     begin
-                        --  A gzip file that holds no tar is not listed.
-                        if Status /= Zlib.Ok or else Plain'Length < 262 then
-                           return;
-                        end if;
+                     --  A gzip file that holds no tar is not listed.
+                     if not Inflated
+                       or else Unbounded.Length (Plain) < 262
+                       or else Unbounded.Slice (Plain, 258, 262) /= "ustar"
+                     then
+                        return;
+                     end if;
 
-                        for I in Text'Range loop
-                           Text (I) := Character'Val (Plain (Plain'First + I - 1));
-                        end loop;
-
-                        if Text (258 .. 262) /= "ustar" then
-                           return;
-                        end if;
-
-                        Data := Unbounded.To_Unbounded_String (Text);
-                     end;
+                     Data := Plain;
                   end;
                end if;
 
                List_Tar (Data, Limit, Lines, Ok);
+
+               --  A tar cut short at the limit still shows what it starts with.
+               Ok := Ok or else not Lines.Is_Empty;
             end;
       end case;
    exception

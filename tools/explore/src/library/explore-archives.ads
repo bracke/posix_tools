@@ -17,6 +17,9 @@ package Explore.Archives is
       Lines : out Explore.Model.Path_Vectors.Vector;
       Ok    : out Boolean);
 
-   --  The largest compressed tar that is inflated in memory to be listed.
+   --  The largest tar, plain or compressed, that is read into memory to be
+   --  listed, and the most a compressed one is inflated to: the members at
+   --  the start of a larger one are listed.
+   Max_Read_Bytes     : constant := 64 * 1024 * 1024;
    Max_Inflated_Bytes : constant := 64 * 1024 * 1024;
 end Explore.Archives;

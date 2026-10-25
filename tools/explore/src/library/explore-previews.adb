@@ -15,6 +15,8 @@ with Posix_Tools.Text.Glob;
 
 package body Explore.Previews is
    package FS renames Posix_Tools.Host_Adapters.File_System;
+
+   use type FS.File_Kind;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Ada.Streams.Stream_Element_Offset;
@@ -122,6 +124,12 @@ package body Explore.Previews is
       Head   : Unbounded.Unbounded_String;
       Ok     : Boolean;
    begin
+      --  A pipe or a device is not read: opening one can wait for ever for
+      --  the other end, and the worker with it.
+      if FS.Kind (Path) = FS.Special_File then
+         return Result;
+      end if;
+
       Read_Head (Path, Head_Bytes, Head, Ok);
 
       if not Ok then

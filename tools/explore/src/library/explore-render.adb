@@ -102,7 +102,7 @@ package body Explore.Render is
    begin
       Screen.Clear (Into);
 
-      if Rows = 0 or else Columns = 0 then
+      if Rows < Min_Rows or else Columns < Min_Columns then
          return;
       end if;
 

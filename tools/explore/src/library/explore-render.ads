@@ -148,6 +148,11 @@ package Explore.Render is
       Panel_Cursor : Natural := 0;
    end record;
 
+   --  A screen smaller than this is left blank: there is no room for the
+   --  heading, a pane and the status line, nor for a name beside its size.
+   Min_Rows    : constant := 3;
+   Min_Columns : constant := 12;
+
    --  Draw the whole frame for Browser into Into, scrolling each pane so its
    --  cursor is on screen.
    procedure Draw

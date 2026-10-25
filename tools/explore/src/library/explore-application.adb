@@ -108,6 +108,8 @@ package body Explore.Application is
       Creating,          --  Typing the name of a file, or of a directory with a slash.
       Changing_Mode,     --  Typing permissions, octal or symbolic.
       Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
+      --  Renaming, changing modes and shell commands act on Pending too: the
+      --  entries as they were when asked, whatever a reload does meanwhile.
       Answering,         --  A running job asks about a target that exists.
       Viewing_Jobs,      --  The jobs panel is open.
       Jumping,           --  Typing a path to go to.
@@ -220,6 +222,9 @@ package body Explore.Application is
       Cutting   : Boolean := False;
       --  The entries a delete waits to be confirmed for.
       Pending   : Model.Path_Vectors.Vector;
+      --  Whether the terminal stopped taking output, or giving input: the
+      --  session ends, and not as one the user ended.
+      Terminal_Lost : Boolean := False;
 
       Previewer  : Preview_Board_Access;
       --  The file whose preview was asked for, and for which generation.
@@ -425,7 +430,7 @@ package body Explore.Application is
 
                begin
                   if State.Mode = Renaming then
-                     FS.Rename (Model.Selected_Path (Current), Target);
+                     FS.Rename (State.Pending.First_Element, Target);
                   elsif Directory then
                      FS.Create_Path (Target);
                   else
@@ -450,7 +455,7 @@ package body Explore.Application is
                Parsed : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
                  Posix_Tools.Text.File_Modes.Parse_Permission_Mode (Text);
             begin
-               for Path of Model.Targets (State.Browser) loop
+               for Path of State.Pending loop
                   declare
                      use type Posix_Tools.Text.File_Modes.Permission_Mode_Status;
 
@@ -494,7 +499,7 @@ package body Explore.Application is
          when Shelling =>
             Run_Program
               (State,
-               Explore.Launch.Shell_Arguments (Folder, Text, Model.Targets (State.Browser)),
+               Explore.Launch.Shell_Arguments (Folder, Text, State.Pending),
                Detach => False,
                Pause  => True);
          when Browsing | Confirming_Delete | Answering | Viewing_Jobs =>
@@ -520,6 +525,7 @@ package body Explore.Application is
          State.Frame.Message := State.Words.No_Clipboard;
          State.Frame.Message_Is_Error := True;
       elsif not Write (Explore.Launch.Clipboard (Text, State.In_Tmux)) then
+         State.Terminal_Lost := True;
          State.Quit := True;
       else
          State.Frame.Message :=
@@ -719,6 +725,7 @@ package body Explore.Application is
       case Item.Kind is
          when Input.Key_Event | Input.Paste_Event =>
             State.Frame.Message := Unbounded.Null_Unbounded_String;
+            State.Frame.Message_Is_Error := False;
             State.Dirty := True;
 
             case State.Mode is
@@ -1056,6 +1063,7 @@ package body Explore.Application is
             Draw (State, Ok);
 
             if not Ok then
+               State.Terminal_Lost := True;
                return;
             end if;
          end if;
@@ -1129,7 +1137,14 @@ package body Explore.Application is
          Read   : Boolean;
          Opener : Explore.Launch.Opener;
       begin
-         Explore.Previews.Read_Head (First, 4096, Head, Read);
+         --  Only a plain file is looked into: reading a pipe or a device
+         --  could wait for ever, and this is the screen's own thread.
+         if FS.Kind (First) /= FS.Special_File then
+            Explore.Previews.Read_Head (First, 4096, Head, Read);
+         else
+            Read := False;
+         end if;
+
          Opener :=
            Explore.Launch.Opener_For
              (State.Openers,
@@ -1184,6 +1199,7 @@ package body Explore.Application is
          when Keymap.Open_Entries =>
             Open_Targets (State);
          when Keymap.Shell_Command =>
+            State.Pending := Model.Targets (State.Browser);
             State.Mode := Shelling;
             State.Frame.Prompting := True;
             State.Frame.Prompt_Label := State.Words.Shell_Prompt;
@@ -1239,7 +1255,7 @@ package body Explore.Application is
             if not State.Clipboard.Is_Empty then
                State.Frame.Message :=
                  Unbounded.To_Unbounded_String
-                   (Natural'Image (Natural (State.Clipboard.Length)) & " "
+                   (Image (Natural (State.Clipboard.Length)) & " "
                     & Unbounded.To_String (if State.Cutting then State.Words.Cut else State.Words.Yanked));
             end if;
          when Keymap.Paste | Keymap.Paste_Links =>
@@ -1280,6 +1296,10 @@ package body Explore.Application is
             end if;
          when Keymap.Rename_Entry | Keymap.Create_Entry | Keymap.Change_Mode =>
             if Item.Kind = Keymap.Create_Entry or else Model.Has_Selection (Current) then
+               State.Pending :=
+                 (if Item.Kind = Keymap.Rename_Entry
+                  then Model.Path_Vectors.To_Vector (Model.Selected_Path (Current), 1)
+                  else Model.Targets (State.Browser));
                State.Mode :=
                  (case Item.Kind is
                     when Keymap.Rename_Entry => Renaming,
@@ -1426,6 +1446,10 @@ package body Explore.Application is
    begin
       Terminal_IO.Read (Buffer, Last, Timeout_Ms, Outcome);
       Ended := Outcome = Terminal_IO.Read_End_Of_File or else Outcome = Terminal_IO.Read_Failed;
+
+      if Outcome = Terminal_IO.Read_Failed then
+         State.Terminal_Lost := True;
+      end if;
 
       if Outcome = Terminal_IO.Read_Data then
          declare
@@ -1707,6 +1731,7 @@ package body Explore.Application is
                   then Explore.Images.Delete_All (State.In_Tmux) else "")
                  & Explore.Protocol.Leave_Screen)
             then
+               State.Terminal_Lost := True;
                State.Quit := True;
                return;
             end if;
@@ -1754,6 +1779,7 @@ package body Explore.Application is
             end loop;
 
             if not Terminal_IO.Enter_Raw (Scratch) or else not Write (Explore.Protocol.Enter_Screen) then
+               State.Terminal_Lost := True;
                State.Quit := True;
                return;
             end if;
@@ -1886,7 +1912,10 @@ package body Explore.Application is
       end;
 
       Hand_Back;
-      Outcome := (if State.Signalled then Session_Signalled else Session_Ended);
+      Outcome :=
+        (if State.Signalled then Session_Signalled
+         elsif State.Terminal_Lost then Output_Failed
+         else Session_Ended);
    exception
       when others =>
          Hand_Back;
@@ -1923,6 +1952,7 @@ package body Explore.Application is
 
          if Oldest > 0 then
             if not Write (Explore.Images.Delete (State.Images (Oldest).Id, State.In_Tmux)) then
+               State.Terminal_Lost := True;
                State.Quit := True;
             end if;
 
@@ -1976,6 +2006,7 @@ package body Explore.Application is
          --  Already there: placed afresh only when the pane changed size.
          if State.Images (Slot).Columns /= Columns or else State.Images (Slot).Rows /= Rows then
             if not Write (Explore.Images.Place (State.Images (Slot).Id, Columns, Rows, State.In_Tmux)) then
+               State.Terminal_Lost := True;
                State.Quit := True;
                return;
             end if;
@@ -2019,6 +2050,7 @@ package body Explore.Application is
               (State.Images (Slot).Id, Preview.Format, Unbounded.To_String (Preview.Image), Columns, Rows,
                State.In_Tmux))
          then
+            State.Terminal_Lost := True;
             State.Quit := True;
             return;
          end if;
@@ -2147,7 +2179,9 @@ package body Explore.Application is
 
       State.Frame.Job_Line := Line;
 
-      if Lane > 0 and then State.Mode /= Answering then
+      --  A question waits until what is being typed or confirmed is done
+      --  with: the job it is about waits for its answer meanwhile.
+      if Lane > 0 and then State.Mode in Browsing | Viewing_Jobs then
          State.Mode := Answering;
          State.Frame.Panel_Open := False;
          State.Frame.Question :=

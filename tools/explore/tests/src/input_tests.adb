@@ -216,6 +216,19 @@ package body Input_Tests is
         (Found and then Item.Kind = Input.Paste_Event and then Item.Text = "part two", "paste completes");
       Input.Next (Decoder, Item, Found);
       AUnit.Assertions.Assert (Found and then Input.Is_Character (Item, 'q'), "the key after it");
+
+      --  Longer than any escape sequence, and read in more than one piece.
+      declare
+         Long : constant String (1 .. 10_000) := (others => 'd');
+      begin
+         Input.Feed (Decoder, CSI & "200~" & Long (1 .. 5_000));
+         Input.Next (Decoder, Item, Found);
+         AUnit.Assertions.Assert (not Found, "a long paste waits for its end, its text not taken for keys");
+         Input.Feed (Decoder, Long (5_001 .. Long'Last) & CSI & "201~");
+         Input.Next (Decoder, Item, Found);
+         AUnit.Assertions.Assert
+           (Found and then Item.Kind = Input.Paste_Event and then Item.Text = Long, "a long paste arrives whole");
+      end;
    end Test_Paste;
 
    procedure Test_Plain_Keys (T : in out Fixture) is

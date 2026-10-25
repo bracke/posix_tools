@@ -170,6 +170,9 @@ package body Session_Tests is
 
       --  Too narrow for the selected entry's details beside the position and
       --  the quit hint, whatever the owner's name: the details give way.
+      --  Narrower than anything can be drawn in: explore waits it out.
+      E2E_Rig.Resize (Session, 2, 1);
+      E2E_Rig.Pump (Session, 200);
       E2E_Rig.Resize (Session, 30, 50);
       E2E_Rig.Expect
         (Session,

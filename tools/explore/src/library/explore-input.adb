@@ -299,7 +299,9 @@ package body Explore.Input is
             end if;
       end case;
 
-      if Status = Incomplete and then Text'Length > Sequence_Limit then
+      --  Past the limit an unfinished sequence is taken for noise -- unless
+      --  it is a paste, which is as long as what was pasted.
+      if Status = Incomplete and then Text'Length > Sequence_Limit and then not Starts_With (Text, ESC & "[200~") then
          Length := 1;
          Status := Skip;
       end if;
