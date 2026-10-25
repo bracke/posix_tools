@@ -2123,11 +2123,11 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-environment.adb", "with Ada.Environment_Variables;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system-directories.adb", "with Ada.Directories;");
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Ada.Directories;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system-io.adb", "with Hostkit.Descriptors;");
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "with Hostkit.Descriptors;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-host_adapters-file_system-paths.adb", "Hostkit.Metadata.Same_File");
+        (Check, "common/src/posix_tools-host_adapters-file_system.adb", "Hostkit.Metadata.Same_File");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "type File_Time is private");
       Project_Tools.Release_Checks.Require_Text
@@ -2138,7 +2138,7 @@ procedure Posix_Tools_Tests is
         (Check, "common/src/posix_tools-host_adapters-file_system.ads", "Set_File_Times");
       Project_Tools.Release_Checks.Require_Text
         (Check,
-         "common/src/posix_tools-host_adapters-file_system-times.adb",
+         "common/src/posix_tools-host_adapters-file_system.adb",
          "Hostkit.Metadata.Set_File_Times");
       Forbid_Text
         ("common/src/posix_tools-host_adapters-file_system.adb",

@@ -654,16 +654,6 @@ begin
       Add_Entry (Posix_Tools.Command_Inventory.Wrapper_Path (I));
       Add_Entry (Posix_Tools.Command_Inventory.Documentation_Path (I));
    end loop;
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-directories.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-directories.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-io.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-io.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-metadata.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-metadata.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-paths.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-paths.ads");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-times.adb");
-   Add_Entry ("common/src/posix_tools-host_adapters-file_system-times.ads");
    Add_Entry ("tests/src/package_entries.adb");
    Add_Entry ("tests/src/package_entries.ads");
    Add_Entry ("tests/src/proof_targets.adb");
