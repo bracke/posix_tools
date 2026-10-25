@@ -9,10 +9,12 @@ package body Posix_Tools.File_Operations.Moving is
 
    --  Passes everything on to Inner, except that the conflict over the
    --  move's own target, already settled, is not asked about again when the
-   --  move falls back to copying.
+   --  move falls back to copying. It notes whether any entry inside was
+   --  skipped: its source is all there is of it then, and must stay.
    type Settled_Observer (Inner : not null access Observer'Class; Target_Length : Natural) is
      new Observer with record
-      Target : String (1 .. Target_Length);
+      Target  : String (1 .. Target_Length);
+      Skipped : Boolean := False;
    end record;
 
    overriding procedure Report_Error (Self : in out Settled_Observer; Path : String; Error : Operation_Error);
@@ -36,13 +38,13 @@ package body Posix_Tools.File_Operations.Moving is
      (Source  : String;
       Target  : String;
       Watcher : in out Observer'Class;
-      Ok      : out Boolean)
+      Outcome : out Operation_Outcome)
    is
    begin
-      Ok := True;
+      Outcome := Done;
 
       if Watcher.Cancelled then
-         Ok := False;
+         Outcome := Cancelled;
          return;
       end if;
 
@@ -50,6 +52,7 @@ package body Posix_Tools.File_Operations.Moving is
         and then FS.Kind (Target) /= FS.Directory
         and then Watcher.Resolve_Conflict (Source, Target) = Skip
       then
+         Outcome := Skipped;
          return;
       end if;
 
@@ -61,7 +64,7 @@ package body Posix_Tools.File_Operations.Moving is
             Watcher.Finished (Source);
             return;
          when FS.Move_Refused =>
-            Ok := False;
+            Outcome := Failed;
             Watcher.Report_Error (Source, Cannot_Move);
             return;
          when FS.Move_Needs_Copy =>
@@ -70,8 +73,8 @@ package body Posix_Tools.File_Operations.Moving is
 
       declare
          Settled : Settled_Observer (Watcher'Access, Target'Length);
-         Copied  : Boolean;
-         Removed : Boolean;
+         Copied  : Operation_Outcome;
+         Removed : Operation_Outcome;
       begin
          Settled.Target := Target;
          Copying.Copy_Path
@@ -81,17 +84,22 @@ package body Posix_Tools.File_Operations.Moving is
             Settled,
             Copied);
 
-         if not Copied then
-            Ok := False;
+         --  Whatever was not copied stays where it was; so does the whole
+         --  source when an entry in it was skipped, to keep that entry.
+         if Copied /= Done then
+            Outcome := Copied;
+            return;
+         elsif Settled.Skipped then
+            Outcome := Skipped;
             return;
          end if;
 
          Removing.Remove_Path (Source, (Recursive => True, Empty_Directories => False), Settled, Removed);
 
-         if Removed then
+         if Removed = Done then
             Watcher.Finished (Source);
          else
-            Ok := False;
+            Outcome := Removed;
          end if;
       end;
    end Move_Path;
@@ -107,6 +115,16 @@ package body Posix_Tools.File_Operations.Moving is
    end Report_Error;
 
    overriding function Resolve_Conflict
-     (Self : in out Settled_Observer; Source, Target : String) return Conflict_Choice is
-     (if Target = Self.Target then Overwrite else Self.Inner.Resolve_Conflict (Source, Target));
+     (Self : in out Settled_Observer; Source, Target : String) return Conflict_Choice
+   is
+      Choice : Conflict_Choice;
+   begin
+      if Target = Self.Target then
+         return Overwrite;
+      end if;
+
+      Choice := Self.Inner.Resolve_Conflict (Source, Target);
+      Self.Skipped := Self.Skipped or else Choice = Skip;
+      return Choice;
+   end Resolve_Conflict;
 end Posix_Tools.File_Operations.Moving;

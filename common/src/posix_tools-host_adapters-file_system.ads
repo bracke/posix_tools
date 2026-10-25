@@ -41,10 +41,9 @@ package Posix_Tools.Host_Adapters.File_System is
    function Containing_Directory (Path : String) return String;
    function Copy_File_Times (Source : String; Target : String) return Boolean;
    function Copy_Modification_Time (Source : String; Target : String) return Boolean;
-   procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status);
-
-   --  Copy_Regular_File, calling Progress with the bytes copied so far after
-   --  each block; setting Stop ends the copy with Copy_Stopped.
+   --  Copy the regular file Source to Target, calling Progress with the
+   --  bytes copied so far after each block; setting Stop ends the copy with
+   --  Copy_Stopped.
    generic
       with procedure Progress (Copied : Long_Long_Integer; Stop : in out Boolean);
    procedure Copy_Regular_File_With_Progress (Source : String; Target : String; Status : out Copy_File_Status);
@@ -67,7 +66,6 @@ package Posix_Tools.Host_Adapters.File_System is
    procedure Delete_Directory (Path : String);
    procedure Delete_File (Path : String);
    function Delete_Link (Path : String) return Boolean;
-   procedure Delete_Tree (Path : String);
    function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer;
    function Exists (Path : String) return Boolean;
    procedure File_Ownership

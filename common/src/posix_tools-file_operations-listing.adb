@@ -1,26 +1,16 @@
 with Ada.Containers.Generic_Array_Sort;
 with Ada.Unchecked_Deallocation;
+with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Natural_Order;
 
 package body Posix_Tools.File_Operations.Listing is
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   package Modes renames Posix_Tools.Text.File_Modes;
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type FS.File_Kind;
    use type FS.Listed_Kind;
    use type FS.Special_File_Kind;
-
-   --  The file type field of a POSIX mode word, as a number: zero where the
-   --  host's mode carries no type.
-   function Mode_Type (Mode : Natural) return Natural is ((Mode / 8#10000#) mod 16);
-
-   Type_FIFO             : constant := 1;
-   Type_Character_Device : constant := 2;
-   Type_Directory        : constant := 4;
-   Type_Block_Device     : constant := 6;
-   Type_Regular          : constant := 8;
-   Type_Link             : constant := 10;
-   Type_Socket           : constant := 12;
 
    function Describe
      (Directory   : String;
@@ -49,13 +39,13 @@ package body Posix_Tools.File_Operations.Listing is
 
       declare
          Path      : constant String := FS.Child_Path (Directory, Name);
-         Type_Code : Natural;
+         Type_Code : Modes.File_Type_Code;
       begin
          Item.Status := FS.Entry_Status_Of (Path);
-         Type_Code := (if Item.Status.Available then Mode_Type (Item.Status.Mode) else 0);
+         Type_Code := (if Item.Status.Available then Modes.File_Type (Item.Status.Mode) else 0);
 
          Item.Is_Link :=
-           (if Type_Code /= 0 then Type_Code = Type_Link
+           (if Type_Code /= 0 then Type_Code = Modes.Type_Link
             elsif Listed /= FS.Listed_Unknown then Listed = FS.Listed_Link
             else FS.Is_Link (Path));
 
@@ -69,17 +59,17 @@ package body Posix_Tools.File_Operations.Listing is
          end if;
 
          case Type_Code is
-            when Type_Directory =>
+            when Modes.Type_Directory =>
                Item.Kind := Directory_Entry;
-            when Type_Regular =>
+            when Modes.Type_Regular =>
                Item.Kind := Regular_Entry;
-            when Type_FIFO =>
+            when Modes.Type_FIFO =>
                Item.Kind := FIFO_Entry;
-            when Type_Character_Device =>
+            when Modes.Type_Character_Device =>
                Item.Kind := Character_Device_Entry;
-            when Type_Block_Device =>
+            when Modes.Type_Block_Device =>
                Item.Kind := Block_Device_Entry;
-            when Type_Socket =>
+            when Modes.Type_Socket =>
                Item.Kind := Socket_Entry;
             when others =>
                Item.Kind :=
@@ -166,10 +156,13 @@ package body Posix_Tools.File_Operations.Listing is
       --  comparing allocates nothing and sorting moves only numbers.
       type Sort_Key_Record is record
          --  The name, its ASCII letters folded when Order folds case: only
-         --  ever compared, by byte.
+         --  ever compared, by byte, and only made for a key that compares
+         --  names or extensions.
          Name      : Name_Access;
-         --  Natural_Order's key for the name, under Order's folding.
+         --  Natural_Order's key for the name, under Order's folding: the key
+         --  itself, or what breaks a tie under another.
          Collated  : Name_Access;
+         --  Where the extension starts in Name; zero when it has none.
          Extension : Natural := 0;
          Directory : Boolean := False;
          Kind      : Entry_Kind := Regular_Entry;
@@ -251,40 +244,39 @@ package body Posix_Tools.File_Operations.Listing is
 
       for I in 1 .. Count loop
          declare
-            Item : Listed_Entry renames Entries.Constant_Reference (I).Element.all;
+            Item  : Listed_Entry renames Entries.Constant_Reference (I).Element.all;
             Plain : constant String := Unbounded.To_String (Item.Name);
-            Name  : constant Name_Access := new String'(Plain);
-            Dot  : Natural := 0;
+            Key   : Sort_Key_Record renames Keys (I);
          begin
-            --  Only ASCII letters fold: the bytes of a UTF-8 name above 127
-            --  are parts of characters, not letters of their own.
-            if Order.Fold_Case then
-               for C of Name.all loop
-                  if C in 'A' .. 'Z' then
-                     C := Character'Val (Character'Pos (C) + 32);
-                  end if;
-               end loop;
-            end if;
+            Key.Directory := Item.Kind = Directory_Entry;
+            Key.Kind := Item.Kind;
+            Key.Size := Item.Status.Size;
+            Key.Modified := Item.Status.Modified_Seconds;
 
-            for J in reverse Name'First + 1 .. Name'Last loop
-               if Name (J) = '.' then
-                  Dot := J + 1;
-                  exit;
+            --  Each string goes into Keys as it is made, so that the handler
+            --  below frees it should making the next one raise.
+            Key.Collated := new String'(Posix_Tools.Text.Natural_Order.Sort_Key (Plain, Order.Fold_Case));
+
+            if Order.Key in By_Name | By_Extension | By_Kind then
+               Key.Name := new String'(Plain);
+
+               --  Only ASCII letters fold: the bytes of a UTF-8 name above
+               --  127 are parts of characters, not letters of their own.
+               if Order.Fold_Case then
+                  for C of Key.Name.all loop
+                     if C in 'A' .. 'Z' then
+                        C := Character'Val (Character'Pos (C) + 32);
+                     end if;
+                  end loop;
                end if;
-            end loop;
 
-            Keys (I) :=
-              (Name      => Name,
-               Collated  => new String'(Posix_Tools.Text.Natural_Order.Sort_Key (Plain, Order.Fold_Case)),
-               Extension => (if Dot > Name'Last then 0 else Dot),
-               Directory => Item.Kind = Directory_Entry,
-               Kind      => Item.Kind,
-               Size      => Item.Status.Size,
-               Modified  => Item.Status.Modified_Seconds);
-
-            --  A trailing dot leaves an empty extension, as Extension gives.
-            if Dot > Name'Last then
-               Keys (I).Extension := 0;
+               declare
+                  Suffix : constant String := Extension (Key.Name.all);
+               begin
+                  if Suffix'Length > 0 then
+                     Key.Extension := Key.Name'Last - Suffix'Length + 1;
+                  end if;
+               end;
             end if;
          end;
 

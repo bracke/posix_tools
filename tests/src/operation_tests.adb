@@ -21,6 +21,7 @@ package body Operation_Tests is
 
    use type FS.File_Kind;
    use type Ops.Operation_Error;
+   use type Ops.Operation_Outcome;
    use type Posix_Tools.Exit_Status.Code;
 
    --  Remembers what an operation told it, and answers as it is set to.
@@ -133,11 +134,11 @@ package body Operation_Tests is
 
    procedure Remove (Root : String) is
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       if FS.Exists (Root) or else FS.Is_Link (Root) then
-         Ops.Removing.Remove_Path (Root, (Recursive => True, others => <>), Watcher, Ok);
-         AUnit.Assertions.Assert (Ok, "fixture removed: " & Root);
+         Ops.Removing.Remove_Path (Root, (Recursive => True, others => <>), Watcher, Outcome);
+         AUnit.Assertions.Assert (Outcome = Ops.Done, "fixture removed: " & Root);
       end if;
    end Remove;
 
@@ -172,15 +173,17 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("cancel");
       Watcher : Recorder := (Stop_After => 1, others => <>);
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       Make_Tree (Root);
 
       --  Followed, the link to nothing is an error, and the host's listing
       --  order decides whether the copy reaches it before it is told to stop.
       AUnit.Assertions.Assert (FS.Delete_Link (Path (Root, "src/broken")), "the link to nothing removed");
-      Ops.Copying.Copy_Path (Path (Root, "src"), Path (Root, "copy"), (Recursive => True, others => <>), Watcher, Ok);
-      AUnit.Assertions.Assert (not Ok and then Watcher.Errors = 0, "a cancelled copy fails without an error");
+      Ops.Copying.Copy_Path
+        (Path (Root, "src"), Path (Root, "copy"), (Recursive => True, others => <>), Watcher, Outcome);
+      AUnit.Assertions.Assert
+        (Outcome = Ops.Cancelled and then Watcher.Errors = 0, "a cancelled copy ends so, without an error");
       AUnit.Assertions.Assert (Watcher.Done = 1, "and stops after the entry it was told to");
       Remove (Root);
    end Test_Copy_Cancel;
@@ -189,29 +192,29 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("conflicts");
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       Make_Tree (Root);
       Write (Path (Root, "existing"), "old");
 
       Watcher.Answer := Ops.Skip;
-      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "existing"), (others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "existing"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Ok and then Watcher.Asked = 1 and then Read (Path (Root, "existing")) = "old",
+        (Outcome = Ops.Skipped and then Watcher.Asked = 1 and then Read (Path (Root, "existing")) = "old",
          "a skipped conflict leaves the target alone");
 
       Watcher.Answer := Ops.Overwrite;
-      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "existing"), (others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "existing"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Ok and then Watcher.Asked = 2 and then Read (Path (Root, "existing")) = "alpha",
+        (Outcome = Ops.Done and then Watcher.Asked = 2 and then Read (Path (Root, "existing")) = "alpha",
          "an overwritten one is replaced");
 
-      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "fresh"), (others => <>), Watcher, Ok);
-      AUnit.Assertions.Assert (Ok and then Watcher.Asked = 2, "no question without a conflict");
+      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "fresh"), (others => <>), Watcher, Outcome);
+      AUnit.Assertions.Assert (Outcome = Ops.Done and then Watcher.Asked = 2, "no question without a conflict");
 
-      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "src/a"), (others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path (Path (Root, "src/a"), Path (Root, "src/a"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Last_Error = Ops.Same_File, "a file is not copied onto itself");
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Same_File, "a file is not copied onto itself");
       Remove (Root);
    end Test_Copy_Conflicts;
 
@@ -219,7 +222,7 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("kept");
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
       Known   : Boolean;
    begin
       Make_Tree (Root);
@@ -228,9 +231,9 @@ package body Operation_Tests is
       if FS.Permissions_Supported and then FS.Set_Permissions (Path (Root, "src/sub"), 8#555#) then
          Ops.Copying.Copy_Path
            (Path (Root, "src/sub"), Path (Root, "sub"), (Recursive => True, Preserve_Mode => True, others => <>),
-            Watcher, Ok);
+            Watcher, Outcome);
          AUnit.Assertions.Assert
-           (Ok and then Watcher.Errors = 0 and then Read (Path (Root, "sub/b")) = "beta"
+           (Outcome = Ops.Done and then Watcher.Errors = 0 and then Read (Path (Root, "sub/b")) = "beta"
             and then FS.File_Permission_Bits (Path (Root, "sub"), Known) mod 8#1000# = 8#555#,
             "a read-only directory is copied whole, and read-only");
          AUnit.Assertions.Assert
@@ -242,17 +245,17 @@ package body Operation_Tests is
       Write (Path (Root, "large"), (1 .. 4_000_000 => 'x'));
       Reset (Watcher);
       Watcher.Stop_After_Progress := 1;
-      Ops.Copying.Copy_Path (Path (Root, "large"), Path (Root, "large-copy"), (others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path (Path (Root, "large"), Path (Root, "large-copy"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Errors = 0 and then not FS.Exists (Path (Root, "large-copy")),
+        (Outcome = Ops.Cancelled and then Watcher.Errors = 0 and then not FS.Exists (Path (Root, "large-copy")),
          "a copy stopped in the middle of a file leaves none of it");
 
       --  A special file replaces a link to nothing at its target.
       if FS.Create_FIFO (Path (Root, "fifo"), 8#644#) then
          Reset (Watcher);
-         Ops.Copying.Copy_Path (Path (Root, "fifo"), Path (Root, "src/broken"), (others => <>), Watcher, Ok);
+         Ops.Copying.Copy_Path (Path (Root, "fifo"), Path (Root, "src/broken"), (others => <>), Watcher, Outcome);
          AUnit.Assertions.Assert
-           (Ok and then not FS.Is_Link (Path (Root, "src/broken"))
+           (Outcome = Ops.Done and then not FS.Is_Link (Path (Root, "src/broken"))
             and then FS.Kind (Path (Root, "src/broken")) = FS.Special_File,
             "a special file is copied over a link to nothing");
       end if;
@@ -270,14 +273,14 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("copy");
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       Make_Tree (Root);
 
       Ops.Copying.Copy_Path
         (Path (Root, "src"), Path (Root, "kept"), (Recursive => True, Preserve_Links => True, others => <>),
-         Watcher, Ok);
-      AUnit.Assertions.Assert (Ok and then Watcher.Errors = 0, "a tree with links copies");
+         Watcher, Outcome);
+      AUnit.Assertions.Assert (Outcome = Ops.Done and then Watcher.Errors = 0, "a tree with links copies");
       AUnit.Assertions.Assert
         (Read (Path (Root, "kept/sub/b")) = "beta" and then FS.Is_Link (Path (Root, "kept/link"))
          and then FS.Is_Link (Path (Root, "kept/broken")) and then FS.Is_Link (Path (Root, "kept/dirlink")),
@@ -286,9 +289,10 @@ package body Operation_Tests is
       AUnit.Assertions.Assert (Watcher.Progressed >= 2, "file copies report progress");
 
       Reset (Watcher);
-      Ops.Copying.Copy_Path (Path (Root, "src"), Path (Root, "followed"), (Recursive => True, others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path
+        (Path (Root, "src"), Path (Root, "followed"), (Recursive => True, others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Read,
+        (Outcome = Ops.Failed and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Read,
          "following links, a link to nothing cannot be read");
       AUnit.Assertions.Assert
         (not FS.Is_Link (Path (Root, "followed/link")) and then Read (Path (Root, "followed/link")) = "alpha"
@@ -296,15 +300,15 @@ package body Operation_Tests is
          "and the others are copied as what they point to");
 
       Reset (Watcher);
-      Ops.Copying.Copy_Path (Path (Root, "src"), Path (Root, "flat"), (others => <>), Watcher, Ok);
+      Ops.Copying.Copy_Path (Path (Root, "src"), Path (Root, "flat"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Last_Error = Ops.Is_A_Directory, "a directory needs a recursive copy");
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Is_A_Directory, "a directory needs a recursive copy");
 
       Reset (Watcher);
       Ops.Copying.Copy_Path
-        (Path (Root, "src"), Path (Root, "src/sub/inside"), (Recursive => True, others => <>), Watcher, Ok);
+        (Path (Root, "src"), Path (Root, "src/sub/inside"), (Recursive => True, others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Last_Error = Ops.Same_File, "a tree is not copied into itself");
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Same_File, "a tree is not copied into itself");
       Remove (Root);
    end Test_Copy_Tree;
 
@@ -329,36 +333,39 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("move");
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       Make_Tree (Root);
       Write (Path (Root, "existing"), "old");
 
       Watcher.Answer := Ops.Skip;
-      Ops.Moving.Move_Path (Path (Root, "src/a"), Path (Root, "existing"), Watcher, Ok);
+      Ops.Moving.Move_Path (Path (Root, "src/a"), Path (Root, "existing"), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Ok and then FS.Exists (Path (Root, "src/a")) and then Read (Path (Root, "existing")) = "old",
+        (Outcome = Ops.Skipped and then FS.Exists (Path (Root, "src/a"))
+         and then Read (Path (Root, "existing")) = "old",
          "a skipped conflict moves nothing");
 
       Watcher.Answer := Ops.Overwrite;
-      Ops.Moving.Move_Path (Path (Root, "src"), Path (Root, "moved"), Watcher, Ok);
+      Ops.Moving.Move_Path (Path (Root, "src"), Path (Root, "moved"), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Ok and then not FS.Exists (Path (Root, "src")) and then FS.Is_Link (Path (Root, "moved/broken"))
+        (Outcome = Ops.Done and then not FS.Exists (Path (Root, "src"))
+         and then FS.Is_Link (Path (Root, "moved/broken"))
          and then Read (Path (Root, "moved/sub/b")) = "beta",
          "a tree moves whole");
       AUnit.Assertions.Assert (Watcher.Done = 1, "and is reported once");
 
       Reset (Watcher);
-      Ops.Moving.Move_Path (Path (Root, "moved/a"), Path (Root, "existing"), Watcher, Ok);
+      Ops.Moving.Move_Path (Path (Root, "moved/a"), Path (Root, "existing"), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (Ok and then Read (Path (Root, "existing")) = "alpha" and then not FS.Exists (Path (Root, "moved/a"))
+        (Outcome = Ops.Done and then Read (Path (Root, "existing")) = "alpha"
+         and then not FS.Exists (Path (Root, "moved/a"))
          and then Watcher.Progressed = 0,
          "a file moves over another in one step, not by copying");
 
       Reset (Watcher);
-      Ops.Moving.Move_Path (Path (Root, "moved"), Path (Root, "outside"), Watcher, Ok);
+      Ops.Moving.Move_Path (Path (Root, "moved"), Path (Root, "outside"), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Move
+        (Outcome = Ops.Failed and then Watcher.Errors = 1 and then Watcher.Last_Error = Ops.Cannot_Move
          and then FS.Exists (Path (Root, "moved/sub/b")) and then Read (Path (Root, "outside/keep")) = "keep",
          "a directory is not moved onto one that is not empty, nor merged into it");
       Remove (Root);
@@ -384,30 +391,32 @@ package body Operation_Tests is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("remove");
       Watcher : Recorder;
-      Ok      : Boolean;
+      Outcome : Ops.Operation_Outcome;
    begin
       Make_Tree (Root);
 
-      Ops.Removing.Remove_Path (Path (Root, "src"), (others => <>), Watcher, Ok);
+      Ops.Removing.Remove_Path (Path (Root, "src"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Last_Error = Ops.Is_A_Directory and then FS.Exists (Path (Root, "src/a")),
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Is_A_Directory
+         and then FS.Exists (Path (Root, "src/a")),
          "a directory is not removed without asking for it");
 
       Reset (Watcher, Stop_After => 1);
-      Ops.Removing.Remove_Path (Path (Root, "src"), (Recursive => True, others => <>), Watcher, Ok);
+      Ops.Removing.Remove_Path (Path (Root, "src"), (Recursive => True, others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Errors = 0 and then FS.Kind (Path (Root, "src")) = FS.Directory,
+        (Outcome = Ops.Cancelled and then Watcher.Errors = 0 and then FS.Kind (Path (Root, "src")) = FS.Directory,
          "a cancelled removal stops, and leaves what it had not reached");
 
       Reset (Watcher);
-      Ops.Removing.Remove_Path (Path (Root, "src"), (Recursive => True, others => <>), Watcher, Ok);
-      AUnit.Assertions.Assert (Ok and then not FS.Exists (Path (Root, "src")), "a tree with links is removed");
+      Ops.Removing.Remove_Path (Path (Root, "src"), (Recursive => True, others => <>), Watcher, Outcome);
+      AUnit.Assertions.Assert
+        (Outcome = Ops.Done and then not FS.Exists (Path (Root, "src")), "a tree with links is removed");
       AUnit.Assertions.Assert
         (Read (Path (Root, "outside/keep")) = "keep", "and nothing a link in it points to is touched");
 
-      Ops.Removing.Remove_Path (Path (Root, "missing"), (others => <>), Watcher, Ok);
+      Ops.Removing.Remove_Path (Path (Root, "missing"), (others => <>), Watcher, Outcome);
       AUnit.Assertions.Assert
-        (not Ok and then Watcher.Last_Error = Ops.Cannot_Remove, "what does not exist cannot be removed");
+        (Outcome = Ops.Failed and then Watcher.Last_Error = Ops.Cannot_Remove, "what does not exist cannot be removed");
       Remove (Root);
    end Test_Remove_Tree;
 

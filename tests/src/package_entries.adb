@@ -60,8 +60,6 @@ begin
    Add_Entry ("common/src/posix_tools-commands-env.ads");
    Add_Entry ("common/src/posix_tools-commands-false_command.adb");
    Add_Entry ("common/src/posix_tools-commands-false_command.ads");
-   Add_Entry ("common/src/posix_tools-commands-file_helpers-copying.adb");
-   Add_Entry ("common/src/posix_tools-commands-file_helpers-copying.ads");
    Add_Entry ("common/src/posix_tools-commands-file_helpers-streaming.adb");
    Add_Entry ("common/src/posix_tools-commands-file_helpers-streaming.ads");
    Add_Entry ("common/src/posix_tools-commands-file_helpers-tailing.adb");

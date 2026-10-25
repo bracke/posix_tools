@@ -51,12 +51,6 @@ package body Posix_Tools.Host_Adapters.File_System is
         (Source, Target);
    end Copy_File_Times;
 
-   procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status) is
-   begin
-      Posix_Tools.Host_Adapters.File_System.IO.Copy_Regular_File
-        (Source, Target, Status);
-   end Copy_Regular_File;
-
    procedure Copy_Regular_File_With_Progress (Source : String; Target : String; Status : out Copy_File_Status) is
       procedure Copy is new Posix_Tools.Host_Adapters.File_System.IO.Copy_Regular_File_With_Progress (Progress);
    begin
@@ -131,11 +125,6 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Posix_Tools.Host_Adapters.File_System.Directories.Delete_Link (Path);
    end Delete_Link;
-
-   procedure Delete_Tree (Path : String) is
-   begin
-      Posix_Tools.Host_Adapters.File_System.Directories.Delete_Tree (Path);
-   end Delete_Tree;
 
    function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer is
    begin

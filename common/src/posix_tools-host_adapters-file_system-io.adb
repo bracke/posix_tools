@@ -23,14 +23,6 @@ package body Posix_Tools.Host_Adapters.File_System.IO is
          return False;
    end Can_Open_For_Read;
 
-   procedure Copy_Regular_File (Source : String; Target : String; Status : out Copy_File_Status) is
-      procedure Never_Stop (Copied : Long_Long_Integer; Stop : in out Boolean) is null;
-
-      procedure Copy is new Copy_Regular_File_With_Progress (Never_Stop);
-   begin
-      Copy (Source, Target, Status);
-   end Copy_Regular_File;
-
    procedure Copy_Regular_File_With_Progress
      (Source : String;
       Target : String;

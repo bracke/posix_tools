@@ -2,7 +2,9 @@ with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.File_Operations.Copying;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Localization;
 
@@ -30,6 +32,9 @@ package body Posix_Tools.Commands.Cp is
       Ok       : Boolean := True;
       Parsing_Operands : Boolean := False;
 
+      --  Copy Source to Destination, writing each error as cp always has.
+      procedure Copy (Source, Destination : String; Copied : out Boolean);
+
       function Confirm_Overwrite (Path : String) return Boolean is
       begin
          if not Interactive or else Force or else not FS.Exists (Path) then
@@ -45,6 +50,19 @@ package body Posix_Tools.Commands.Cp is
                "cp: overwrite '" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Path) & "'?"));
          return Posix_Tools.Commands.Helpers.Read_Affirmative_Response (Context);
       end Confirm_Overwrite;
+
+      procedure Copy (Source, Destination : String; Copied : out Boolean) is
+         Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
+         Outcome : Posix_Tools.File_Operations.Operation_Outcome;
+      begin
+         Posix_Tools.File_Operations.Copying.Copy_Path
+           (Source,
+            Destination,
+            (Recursive => Recursive, Preserve_Mode => Preserve_Mode, Preserve_Links => Preserve_Links),
+            Reports,
+            Outcome);
+         Copied := Posix_Tools.File_Operations.Succeeded (Outcome);
+      end Copy;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -100,15 +118,14 @@ package body Posix_Tools.Commands.Cp is
             declare
                Destination : constant String :=
                  (if FS.Kind (Target) = FS.Directory
-                  then Posix_Tools.Commands.File_Helpers.Join_Path
+                  then FS.Child_Path
                     (Target,
                      Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (1)))
                   else Target);
                Confirmed : constant Boolean := Confirm_Overwrite (Destination);
             begin
                if Confirmed then
-                  Posix_Tools.Commands.File_Helpers.Copy_Path
-                    (Context, Operands.Element (1), Destination, Recursive, Preserve_Mode, Preserve_Links, Ok);
+                  Copy (Operands.Element (1), Destination, Ok);
                else
                   Ok := True;
                end if;
@@ -123,20 +140,13 @@ package body Posix_Tools.Commands.Cp is
                declare
                   One_Ok : Boolean;
                   Destination : constant String :=
-                    Posix_Tools.Commands.File_Helpers.Join_Path
+                    FS.Child_Path
                       (Target,
                        Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I)));
                   Confirmed : constant Boolean := Confirm_Overwrite (Destination);
                begin
                   if Confirmed then
-                     Posix_Tools.Commands.File_Helpers.Copy_Path
-                       (Context,
-                        Operands.Element (I),
-                        Destination,
-                        Recursive,
-                        Preserve_Mode,
-                        Preserve_Links,
-                        One_Ok);
+                     Copy (Operands.Element (I), Destination, One_Ok);
                   else
                      One_Ok := True;
                   end if;

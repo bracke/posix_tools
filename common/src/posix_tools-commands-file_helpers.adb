@@ -1,4 +1,3 @@
-with Posix_Tools.Commands.File_Helpers.Copying;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.File_Helpers.Tailing;
 with Posix_Tools.Commands.Helpers;
@@ -39,15 +38,6 @@ package body Posix_Tools.Commands.File_Helpers is
    begin
       return Character'Val (Integer (Buffer (Index)));
    end Character_At;
-
-   function Join_Path (Directory, Leaf : String) return String is
-   begin
-      if Directory = "" or else Directory (Directory'Last) = '/' then
-         return Directory & Leaf;
-      else
-         return Directory & "/" & Leaf;
-      end if;
-   end Join_Path;
 
    function Simple_Name (Path : String) return String is
    begin
@@ -236,20 +226,6 @@ package body Posix_Tools.Commands.File_Helpers is
    begin
       return Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context);
    end Read_Standard_Input;
-
-   procedure Copy_Path
-     (Context        : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Source         : String;
-      Target         : String;
-      Recursive      : Boolean;
-      Preserve_Mode  : Boolean;
-      Preserve_Links : Boolean;
-      Ok             : out Boolean)
-   is
-   begin
-      Posix_Tools.Commands.File_Helpers.Copying.Copy_Path
-        (Context, Source, Target, Recursive, Preserve_Mode, Preserve_Links, Ok);
-   end Copy_Path;
 
    procedure Copy_File
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;

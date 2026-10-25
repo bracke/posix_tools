@@ -15,7 +15,6 @@ private package Posix_Tools.Host_Adapters.File_System.Directories is
    procedure Delete_Directory (Path : String);
    procedure Delete_File (Path : String);
    function Delete_Link (Path : String) return Boolean;
-   procedure Delete_Tree (Path : String);
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
 

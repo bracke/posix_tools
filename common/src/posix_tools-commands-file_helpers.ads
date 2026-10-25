@@ -40,8 +40,6 @@ package Posix_Tools.Commands.File_Helpers is
    function Read_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class) return String;
 
-   function Join_Path (Directory, Leaf : String) return String;
-
    function Simple_Name (Path : String) return String;
 
    function Target_Path
@@ -52,15 +50,6 @@ package Posix_Tools.Commands.File_Helpers is
    function Is_Directory (Path : String) return Boolean;
 
    function Remove_Non_Directory_Target (Path : String) return Boolean;
-
-   procedure Copy_Path
-     (Context        : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Source         : String;
-      Target         : String;
-      Recursive      : Boolean;
-      Preserve_Mode  : Boolean;
-      Preserve_Links : Boolean;
-      Ok             : out Boolean);
 
    procedure Copy_File
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;

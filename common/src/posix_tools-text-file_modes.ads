@@ -6,6 +6,22 @@ is
        Mode_Bit in 8#4000# | 8#2000# | 8#1000# | 8#400# | 8#200#
        | 8#100# | 8#040# | 8#020# | 8#010# | 8#004# | 8#002# | 8#001#;
 
+   --  The file type field of a POSIX mode word, S_IFMT, as a number: zero
+   --  where the host's mode carries no type.
+   subtype File_Type_Code is Natural range 0 .. 15;
+
+   function File_Type (Mode : Natural) return File_Type_Code is ((Mode / 8#10000#) mod 16);
+
+   --  The codes File_Type gives: S_IFIFO, S_IFCHR, S_IFDIR, S_IFBLK, S_IFREG,
+   --  S_IFLNK, and S_IFSOCK shifted down to it.
+   Type_FIFO             : constant File_Type_Code := 1;
+   Type_Character_Device : constant File_Type_Code := 2;
+   Type_Directory        : constant File_Type_Code := 4;
+   Type_Block_Device     : constant File_Type_Code := 6;
+   Type_Regular          : constant File_Type_Code := 8;
+   Type_Link             : constant File_Type_Code := 10;
+   Type_Socket           : constant File_Type_Code := 12;
+
    type Permission_Mode_Status is
      (Invalid_Permission_Mode,
       Octal_Permission_Mode,

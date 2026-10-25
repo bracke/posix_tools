@@ -10,24 +10,17 @@ package body Posix_Tools.File_Operations.Copying is
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
-   function Join_Path (Directory, Leaf : String) return String is
-     (if Directory = "" or else Directory (Directory'Last) = '/' then Directory & Leaf else Directory & "/" & Leaf);
-
    function Full_Path_Or_Raw (Path : String) return String;
 
    function Without_Trailing_Separators (Path : String) return String;
 
    procedure Copy_Path
-     (Source   : String;
-      Target   : String;
-      Options  : Copy_Options;
-      Watcher  : in out Observer'Class;
-      Ok       : out Boolean)
+     (Source  : String;
+      Target  : String;
+      Options : Copy_Options;
+      Watcher : in out Observer'Class;
+      Outcome : out Operation_Outcome)
    is
-      Recursive      : Boolean renames Options.Recursive;
-      Preserve_Mode  : Boolean renames Options.Preserve_Mode;
-      Preserve_Links : Boolean renames Options.Preserve_Links;
-
       Source_Access_Time       : FS.File_Time;
       Source_Modification_Time : FS.File_Time;
       Source_Times_Available   : Boolean := False;
@@ -35,6 +28,22 @@ package body Posix_Tools.File_Operations.Copying is
       procedure Apply_Source_Metadata;
 
       procedure Capture_Source_Times;
+
+      procedure Copy_Directory;
+
+      --  Source is a symbolic link copied as one.
+      procedure Copy_Link;
+
+      --  Source is a file or, links being followed, a link to one.
+      procedure Copy_Regular;
+
+      procedure Copy_Special;
+
+      --  Remove what Target names, a link itself and not what it points to,
+      --  so that the copy can take its place.
+      function Delete_Target return Boolean;
+
+      procedure Fail (Path : String; Error : Operation_Error);
 
       procedure Apply_Source_Metadata is
          Available : Boolean;
@@ -50,7 +59,7 @@ package body Posix_Tools.File_Operations.Copying is
             Target_Group     : Natural;
             Target_Available : Boolean;
          begin
-            if not Preserve_Mode or else not FS.Ownership_Supported then
+            if not FS.Ownership_Supported then
                return;
             end if;
 
@@ -61,12 +70,11 @@ package body Posix_Tools.File_Operations.Copying is
               and then (Source_User /= Target_User or else Source_Group /= Target_Group)
               and then not FS.Set_Ownership (Target, Source_User, Source_Group)
             then
-               Ok := False;
-               Watcher.Report_Error (Target, Cannot_Open);
+               Fail (Target, Cannot_Open);
             end if;
          end Apply_Source_Ownership;
       begin
-         if not Preserve_Mode then
+         if not Options.Preserve_Mode then
             return;
          end if;
 
@@ -77,28 +85,24 @@ package body Posix_Tools.File_Operations.Copying is
            and then Available
            and then not FS.Set_Permissions (Target, Mode mod 8#1000#)
          then
-            Ok := False;
-            Watcher.Report_Error (Target, Cannot_Open);
+            Fail (Target, Cannot_Open);
          end if;
 
          if Source_Times_Available then
             if not FS.Set_File_Times (Target, Source_Access_Time, Source_Modification_Time) then
-               Ok := False;
-               Watcher.Report_Error (Target, Cannot_Open);
+               Fail (Target, Cannot_Open);
             end if;
          elsif not FS.Copy_File_Times (Source, Target) then
-            Ok := False;
-            Watcher.Report_Error (Target, Cannot_Open);
+            Fail (Target, Cannot_Open);
          end if;
       exception
          when others =>
-            Ok := False;
-            Watcher.Report_Error (Target, Cannot_Open);
+            Fail (Target, Cannot_Open);
       end Apply_Source_Metadata;
 
       procedure Capture_Source_Times is
       begin
-         if Preserve_Mode then
+         if Options.Preserve_Mode then
             Source_Times_Available :=
               FS.File_Access_Time_From_File (Source, Source_Access_Time)
               and then FS.File_Time_From_File (Source, Source_Modification_Time);
@@ -108,199 +112,92 @@ package body Posix_Tools.File_Operations.Copying is
             Source_Times_Available := False;
       end Capture_Source_Times;
 
-   begin
-      Ok := True;
+      procedure Copy_Directory is
+         Iteration_Ok : Boolean;
 
-      if Watcher.Cancelled then
-         Ok := False;
-         return;
-      end if;
+         --  Every entry, a link whose target is missing included.
+         procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
 
-      Capture_Source_Times;
-      if Preserve_Links and then FS.Is_Link (Source) then
-         declare
-            Target_Text : Unbounded_String;
+         procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
+            pragma Unreferenced (Kind);
+            Child : Operation_Outcome;
          begin
-            if (FS.Is_Link (Target) or else FS.Kind (Target) = FS.Ordinary_File)
-              and then Watcher.Resolve_Conflict (Source, Target) = Skip
-            then
-               return;
-            end if;
+            Copy_Path (FS.Child_Path (Source, Name), FS.Child_Path (Target, Name), Options, Watcher, Child);
+            Outcome := Combined (Outcome, Child);
+            Stop := Watcher.Cancelled;
+         end Copy_Child;
 
-            if not FS.Read_Link_Target (Source, Target_Text) then
-               Ok := False;
-               Watcher.Report_Error (Source, Cannot_Open);
-               return;
-            end if;
-
-            begin
-               if FS.Is_Link (Target) then
-                  Ok := FS.Delete_Link (Target);
-               elsif FS.Kind (Target) = FS.Ordinary_File then
-                  FS.Delete_File (Target);
-               end if;
-            exception
-               when others =>
-                  Ok := False;
-            end;
-
-            if not Ok then
-               Watcher.Report_Error (Target, Cannot_Remove);
-               return;
-            end if;
-
-            if FS.Create_Link (To_String (Target_Text), Target) then
-               Watcher.Finished (Source);
-            else
-               Ok := False;
-               Watcher.Report_Error (Target, Cannot_Open);
-            end if;
-
-            return;
-         exception
-            when others =>
-               Ok := False;
-               Watcher.Report_Error (Source, Cannot_Open);
-               return;
-         end;
-      end if;
-
-      if FS.Kind (Source) = FS.Directory
-      then
-         if not Recursive then
-            Ok := False;
-            Watcher.Report_Error (Source, Is_A_Directory);
+         procedure For_Each_Child is new FS.For_Each_Listed_Entry (Copy_Child);
+      begin
+         if not Options.Recursive then
+            Fail (Source, Is_A_Directory);
             return;
          end if;
 
          begin
             if Is_Same_Or_Descendant (Source, Target) then
-               Ok := False;
-               Watcher.Report_Error (Target, Same_File);
+               Fail (Target, Same_File);
                return;
             end if;
 
             if not FS.Exists (Target) then
                FS.Create_Directory (Target);
             elsif FS.Kind (Target) /= FS.Directory then
-               Ok := False;
-               Watcher.Report_Error (Target, Not_A_Directory);
+               Fail (Target, Not_A_Directory);
                return;
             end if;
 
-            declare
-               Iteration_Ok : Boolean;
+            For_Each_Child (Source, Iteration_Ok);
+            if not Iteration_Ok then
+               Fail (Source, Cannot_Read_Directory);
+            elsif Watcher.Cancelled then
+               Outcome := Combined (Outcome, Cancelled);
+            else
+               --  Only once the children are in: a read-only mode would keep
+               --  them out, and making them would change the times.
+               Apply_Source_Metadata;
 
-               --  Every entry, a link whose target is missing included.
-               procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
-
-               procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
-                  pragma Unreferenced (Kind);
-                  Child_Ok : Boolean;
-               begin
-                  Copy_Path (Join_Path (Source, Name), Join_Path (Target, Name), Options, Watcher, Child_Ok);
-                  Ok := Ok and Child_Ok;
-                  Stop := Watcher.Cancelled;
-               end Copy_Child;
-
-               procedure For_Each_Child is new FS.For_Each_Listed_Entry (Copy_Child);
-            begin
-               For_Each_Child (Source, Iteration_Ok);
-               if not Iteration_Ok then
-                  Ok := False;
-                  Watcher.Report_Error (Source, Cannot_Read_Directory);
-               elsif Watcher.Cancelled then
-                  Ok := False;
-               else
-                  --  Only once the children are in: a read-only mode would
-                  --  keep them out, and making them would change the times.
-                  Apply_Source_Metadata;
-
-                  if Ok then
-                     Watcher.Finished (Source);
-                  end if;
+               if Outcome = Done then
+                  Watcher.Finished (Source);
                end if;
-            end;
-            return;
+            end if;
          exception
             when others =>
-               Ok := False;
-               Watcher.Report_Error (Target, Cannot_Open);
-               return;
+               Fail (Target, Cannot_Open);
          end;
-      end if;
+      end Copy_Directory;
 
-      if FS.Kind (Source) = FS.Special_File
-      then
-         declare
-            Info    : constant FS.Special_File_Info := FS.Special_File_Info_Of (Source);
-            Created : Boolean := False;
-         begin
-            if FS.Kind (Target) = FS.Directory then
-               Ok := False;
-               Watcher.Report_Error (Target, Not_A_Directory);
-               return;
-            elsif (FS.Exists (Target) or else FS.Is_Link (Target))
-              and then Watcher.Resolve_Conflict (Source, Target) = Skip
-            then
-               return;
-            elsif FS.Is_Link (Target) or else FS.Exists (Target) then
-               if FS.Is_Link (Target) then
-                  Ok := FS.Delete_Link (Target);
-               else
-                  begin
-                     FS.Delete_File (Target);
-                     Ok := True;
-                  exception
-                     when others =>
-                        Ok := False;
-                  end;
-               end if;
+      procedure Copy_Link is
+         Target_Text : Unbounded_String;
+      begin
+         if (FS.Is_Link (Target) or else FS.Kind (Target) = FS.Ordinary_File)
+           and then Watcher.Resolve_Conflict (Source, Target) = Skip
+         then
+            Outcome := Skipped;
+            return;
+         end if;
 
-               if not Ok then
-                  Watcher.Report_Error (Target, Cannot_Remove);
-                  return;
-               end if;
-            end if;
+         if not FS.Read_Link_Target (Source, Target_Text) then
+            Fail (Source, Cannot_Open);
+            return;
+         end if;
 
-            if Info.Available and then Info.Kind = FS.FIFO then
-               Created := FS.Create_FIFO (Target, Info.Mode);
-            elsif Info.Available and then Info.Kind in FS.Character_Device | FS.Block_Device then
-               Created := FS.Create_Device (Target, Info.Kind, Info.Device, Info.Mode);
-            elsif Info.Available and then Info.Kind = FS.Socket then
-               Created := FS.Create_Socket (Target, Info.Mode);
-            end if;
+         if (FS.Is_Link (Target) or else FS.Kind (Target) = FS.Ordinary_File) and then not Delete_Target then
+            Fail (Target, Cannot_Remove);
+            return;
+         end if;
 
-            if Created then
-               Apply_Source_Metadata;
-               Watcher.Finished (Source);
-            elsif Info.Available
-              and then Info.Kind in FS.FIFO | FS.Character_Device | FS.Block_Device | FS.Socket
-            then
-               Ok := False;
-               Watcher.Report_Error (Target, Cannot_Open);
-            else
-               Ok := False;
-               Watcher.Report_Error (Source, Unsupported_Type);
-            end if;
-         end;
-         return;
-      end if;
+         if FS.Create_Link (To_String (Target_Text), Target) then
+            Watcher.Finished (Source);
+         else
+            Fail (Target, Cannot_Open);
+         end if;
+      exception
+         when others =>
+            Fail (Source, Cannot_Open);
+      end Copy_Link;
 
-      if FS.Exists (Target) and then FS.Same_File (Source, Target) then
-         Ok := False;
-         Watcher.Report_Error (Target, Same_File);
-         return;
-      end if;
-
-      if (FS.Exists (Target) or else FS.Is_Link (Target))
-        and then FS.Kind (Target) /= FS.Directory
-        and then Watcher.Resolve_Conflict (Source, Target) = Skip
-      then
-         return;
-      end if;
-
-      declare
+      procedure Copy_Regular is
          Copy_Status : FS.Copy_File_Status;
 
          procedure Report (Copied : Long_Long_Integer; Stop : in out Boolean);
@@ -313,33 +210,123 @@ package body Posix_Tools.File_Operations.Copying is
 
          procedure Copy is new FS.Copy_Regular_File_With_Progress (Report);
       begin
+         if FS.Exists (Target) and then FS.Same_File (Source, Target) then
+            Fail (Target, Same_File);
+            return;
+         end if;
+
+         if (FS.Exists (Target) or else FS.Is_Link (Target))
+           and then FS.Kind (Target) /= FS.Directory
+           and then Watcher.Resolve_Conflict (Source, Target) = Skip
+         then
+            Outcome := Skipped;
+            return;
+         end if;
+
          Copy (Source, Target, Copy_Status);
-         Ok := Copy_Status = FS.Copy_Ok;
          case Copy_Status is
             when FS.Copy_Ok =>
                Apply_Source_Metadata;
 
-               if Ok then
+               if Outcome = Done then
                   Watcher.Finished (Source);
                end if;
 
             when FS.Copy_Stopped =>
                --  What a stopped copy left is neither the old file nor the
                --  new one; nothing is better than a cut-off copy.
+               Outcome := Cancelled;
                begin
                   FS.Delete_File (Target);
                exception
                   when others =>
-                     Watcher.Report_Error (Target, Cannot_Remove);
+                     Fail (Target, Cannot_Remove);
                end;
 
             when FS.Source_Open_Failed | FS.Source_Read_Failed =>
-               Watcher.Report_Error (Source, Cannot_Read);
+               Fail (Source, Cannot_Read);
 
             when FS.Target_Open_Failed | FS.Target_Write_Failed =>
-               Watcher.Report_Error (Target, Cannot_Open);
+               Fail (Target, Cannot_Open);
          end case;
-      end;
+      end Copy_Regular;
+
+      procedure Copy_Special is
+         Info    : constant FS.Special_File_Info := FS.Special_File_Info_Of (Source);
+         Created : Boolean := False;
+      begin
+         if FS.Kind (Target) = FS.Directory then
+            Fail (Target, Not_A_Directory);
+            return;
+         elsif (FS.Exists (Target) or else FS.Is_Link (Target))
+           and then Watcher.Resolve_Conflict (Source, Target) = Skip
+         then
+            Outcome := Skipped;
+            return;
+         elsif (FS.Is_Link (Target) or else FS.Exists (Target)) and then not Delete_Target then
+            Fail (Target, Cannot_Remove);
+            return;
+         end if;
+
+         if Info.Available and then Info.Kind = FS.FIFO then
+            Created := FS.Create_FIFO (Target, Info.Mode);
+         elsif Info.Available and then Info.Kind in FS.Character_Device | FS.Block_Device then
+            Created := FS.Create_Device (Target, Info.Kind, Info.Device, Info.Mode);
+         elsif Info.Available and then Info.Kind = FS.Socket then
+            Created := FS.Create_Socket (Target, Info.Mode);
+         end if;
+
+         if Created then
+            Apply_Source_Metadata;
+            Watcher.Finished (Source);
+         elsif Info.Available
+           and then Info.Kind in FS.FIFO | FS.Character_Device | FS.Block_Device | FS.Socket
+         then
+            Fail (Target, Cannot_Open);
+         else
+            Fail (Source, Unsupported_Type);
+         end if;
+      end Copy_Special;
+
+      function Delete_Target return Boolean is
+      begin
+         if FS.Is_Link (Target) then
+            return FS.Delete_Link (Target);
+         end if;
+
+         FS.Delete_File (Target);
+         return True;
+      exception
+         when others =>
+            return False;
+      end Delete_Target;
+
+      procedure Fail (Path : String; Error : Operation_Error) is
+      begin
+         Outcome := Failed;
+         Watcher.Report_Error (Path, Error);
+      end Fail;
+   begin
+      Outcome := Done;
+
+      if Watcher.Cancelled then
+         Outcome := Cancelled;
+         return;
+      end if;
+
+      Capture_Source_Times;
+      if Options.Preserve_Links and then FS.Is_Link (Source) then
+         Copy_Link;
+      else
+         case FS.Kind (Source) is
+            when FS.Directory =>
+               Copy_Directory;
+            when FS.Special_File =>
+               Copy_Special;
+            when FS.Missing_File | FS.Ordinary_File =>
+               Copy_Regular;
+         end case;
+      end if;
    end Copy_Path;
 
    function Full_Path_Or_Raw (Path : String) return String is

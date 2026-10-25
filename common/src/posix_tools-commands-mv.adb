@@ -101,12 +101,12 @@ package body Posix_Tools.Commands.Mv is
                Destination : constant String :=
                  (if not Into_Directory
                   then Target
-                  else Posix_Tools.Commands.File_Helpers.Join_Path
+                  else FS.Child_Path
                     (Target,
                      Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I))));
                Overwrite_Accepted : constant Boolean := Confirm_Overwrite (Destination);
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
-               Moved   : Boolean;
+               Moved   : Posix_Tools.File_Operations.Operation_Outcome;
             begin
                --  One diagnostic per operand, as for rm, rather than one for
                --  each entry a move by copying could not make.
@@ -115,7 +115,7 @@ package body Posix_Tools.Commands.Mv is
                if Overwrite_Accepted then
                   Posix_Tools.File_Operations.Moving.Move_Path (Operands.Element (I), Destination, Reports, Moved);
 
-                  if not Moved then
+                  if not Posix_Tools.File_Operations.Succeeded (Moved) then
                      Ok := False;
                      Posix_Tools.Commands.Helpers.Subject_Operational_Error
                        (Context,

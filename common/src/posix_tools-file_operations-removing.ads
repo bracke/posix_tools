@@ -9,11 +9,11 @@ package Posix_Tools.File_Operations.Removing is
 
    --  Remove Path. A symbolic link is removed itself, never what it points
    --  to, and a tree is walked without following links, so that nothing
-   --  outside it is touched. Ok is False when anything could not be removed
-   --  or the removal was cancelled; what could be removed is gone.
+   --  outside it is touched. When anything could not be removed, or the
+   --  removal was cancelled, what could be removed is gone.
    procedure Remove_Path
      (Path    : String;
       Options : Remove_Options;
       Watcher : in out Observer'Class;
-      Ok      : out Boolean);
+      Outcome : out Operation_Outcome);
 end Posix_Tools.File_Operations.Removing;

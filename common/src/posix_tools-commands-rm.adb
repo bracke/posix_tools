@@ -75,7 +75,7 @@ package body Posix_Tools.Commands.Rm is
                --  One diagnostic per operand, as rm has always given, rather
                --  than one for each entry inside it that could not go.
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
-               Removed : Boolean;
+               Removed : Posix_Tools.File_Operations.Operation_Outcome;
             begin
                Reports.Quiet := True;
                Posix_Tools.File_Operations.Removing.Remove_Path
@@ -84,7 +84,7 @@ package body Posix_Tools.Commands.Rm is
                   Reports,
                   Removed);
 
-               if Removed then
+               if Posix_Tools.File_Operations.Succeeded (Removed) then
                   if Verbose then
                      Context.Put_Line ("removed '" & Context.Argument (I) & "'");
                   end if;

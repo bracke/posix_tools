@@ -70,11 +70,6 @@ package body Posix_Tools.Host_Adapters.File_System.Directories is
       return Hostkit.Fs.Delete_Link (Path);
    end Delete_Link;
 
-   procedure Delete_Tree (Path : String) is
-   begin
-      Ada.Directories.Delete_Tree (Path);
-   end Delete_Tree;
-
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean is
    begin
       return Hostkit.Metadata.Set_Ownership (Path, User, Group);

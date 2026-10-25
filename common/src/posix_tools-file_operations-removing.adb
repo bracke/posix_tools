@@ -5,14 +5,11 @@ package body Posix_Tools.File_Operations.Removing is
 
    use type FS.File_Kind;
 
-   function Join_Path (Directory, Leaf : String) return String is
-     (if Directory = "" or else Directory (Directory'Last) = '/' then Directory & Leaf else Directory & "/" & Leaf);
-
    procedure Remove_Path
      (Path    : String;
       Options : Remove_Options;
       Watcher : in out Observer'Class;
-      Ok      : out Boolean)
+      Outcome : out Operation_Outcome)
    is
       procedure Fail (Error : Operation_Error);
 
@@ -32,17 +29,17 @@ package body Posix_Tools.File_Operations.Removing is
 
       procedure Fail (Error : Operation_Error) is
       begin
-         Ok := False;
+         Outcome := Failed;
          Watcher.Report_Error (Path, Error);
       end Fail;
 
       procedure Delete_Directory is new Attempt (FS.Delete_Directory);
       procedure Delete_File is new Attempt (FS.Delete_File);
    begin
-      Ok := True;
+      Outcome := Done;
 
       if Watcher.Cancelled then
-         Ok := False;
+         Outcome := Cancelled;
          return;
       end if;
 
@@ -66,10 +63,10 @@ package body Posix_Tools.File_Operations.Removing is
 
             procedure Remove_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
                pragma Unreferenced (Kind);
-               Child_Ok : Boolean;
+               Child : Operation_Outcome;
             begin
-               Remove_Path (Join_Path (Path, Name), Options, Watcher, Child_Ok);
-               Ok := Ok and Child_Ok;
+               Remove_Path (FS.Child_Path (Path, Name), Options, Watcher, Child);
+               Outcome := Combined (Outcome, Child);
                Stop := Watcher.Cancelled;
             end Remove_Child;
 
@@ -80,8 +77,8 @@ package body Posix_Tools.File_Operations.Removing is
             if not Listed then
                Fail (Cannot_Read_Directory);
             elsif Watcher.Cancelled then
-               Ok := False;
-            elsif Ok then
+               Outcome := Combined (Outcome, Cancelled);
+            elsif Outcome = Done then
                Delete_Directory;
             end if;
          end;

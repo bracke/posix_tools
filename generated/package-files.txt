@@ -56,8 +56,6 @@ common/src/posix_tools-commands-env.adb
 common/src/posix_tools-commands-env.ads
 common/src/posix_tools-commands-false_command.adb
 common/src/posix_tools-commands-false_command.ads
-common/src/posix_tools-commands-file_helpers-copying.adb
-common/src/posix_tools-commands-file_helpers-copying.ads
 common/src/posix_tools-commands-file_helpers-streaming.adb
 common/src/posix_tools-commands-file_helpers-streaming.ads
 common/src/posix_tools-commands-file_helpers-tailing.adb

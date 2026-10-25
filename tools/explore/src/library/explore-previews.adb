@@ -452,7 +452,7 @@ package body Explore.Previews is
         (Self : in out Quiet_Observer; Path : String; Error : Posix_Tools.File_Operations.Operation_Error) is null;
 
       Watcher : Quiet_Observer;
-      Removed : Boolean;
+      Removed : Posix_Tools.File_Operations.Operation_Outcome;
    begin
       if Directory'Length > 0 then
          Posix_Tools.File_Operations.Removing.Remove_Path

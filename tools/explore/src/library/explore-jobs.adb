@@ -340,7 +340,7 @@ package body Explore.Jobs is
 
    procedure Run_Item (Item : Job; Source : String; Watcher : in out Job_Observer'Class) is
       Directory : constant String := Unbounded.To_String (Item.Target);
-      Ok        : Boolean;
+      Outcome   : Ops.Operation_Outcome;
    begin
       Watcher.Jobs.Begin_Item (Watcher.Lane, Source);
 
@@ -351,11 +351,11 @@ package body Explore.Jobs is
                Destination (Source, Directory),
                (Recursive => True, Preserve_Mode => True, Preserve_Links => True),
                Watcher,
-               Ok);
+               Outcome);
          when Move_Job =>
             --  Moving into the directory it is already in moves nothing.
             if Join (Directory, Name_Of (Source)) /= Source then
-               Ops.Moving.Move_Path (Source, Join (Directory, Name_Of (Source)), Watcher, Ok);
+               Ops.Moving.Move_Path (Source, Join (Directory, Name_Of (Source)), Watcher, Outcome);
             end if;
          when Link_Job =>
             declare
@@ -372,7 +372,7 @@ package body Explore.Jobs is
                end if;
             end;
          when Delete_Job =>
-            Ops.Removing.Remove_Path (Source, (Recursive => True, Empty_Directories => False), Watcher, Ok);
+            Ops.Removing.Remove_Path (Source, (Recursive => True, Empty_Directories => False), Watcher, Outcome);
       end case;
 
       Watcher.Jobs.End_Item (Watcher.Lane);

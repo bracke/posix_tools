@@ -32,8 +32,6 @@ package body Posix_Tools.Commands.Ls is
 
       procedure List_Path (Path : String; With_Header : Boolean);
 
-      function Visible (Name : String) return Boolean;
-
       procedure Emit_Line (Text : String) is
       begin
          Context.Put_Line (Text);
@@ -67,15 +65,14 @@ package body Posix_Tools.Commands.Ls is
                  (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
                return;
             end if;
-            --  The listing leaves out the directory's own two entries.
+            --  The listing leaves out the directory's own two entries, and
+            --  hidden ones unless asked for them.
             if Hidden = All_Entries then
                Names.Append (".");
                Names.Append ("..");
             end if;
             for Item of Entries loop
-               if Visible (Ada.Strings.Unbounded.To_String (Item.Name)) then
-                  Names.Append (Ada.Strings.Unbounded.To_String (Item.Name));
-               end if;
+               Names.Append (Ada.Strings.Unbounded.To_String (Item.Name));
             end loop;
             String_Vector_Sorting.Sort (Names);
             for Name of Names loop
@@ -89,18 +86,6 @@ package body Posix_Tools.Commands.Ls is
               (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
          end if;
       end List_Path;
-
-      function Visible (Name : String) return Boolean is
-      begin
-         case Hidden is
-            when All_Entries =>
-               return True;
-            when Almost_All =>
-               return Name /= "." and then Name /= "..";
-            when Hide_Hidden =>
-               return Name = "" or else Name (Name'First) /= '.';
-         end case;
-      end Visible;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;

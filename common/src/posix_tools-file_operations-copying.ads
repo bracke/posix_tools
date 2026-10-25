@@ -11,14 +11,14 @@ package Posix_Tools.File_Operations.Copying is
    end record;
 
    --  Copy Source to Target, which names the copy itself, not a directory to
-   --  put it in. A directory is merged into an existing one at Target. Ok is
-   --  False when anything could not be copied or the copy was cancelled.
+   --  put it in. A directory is merged into an existing one at Target, and is
+   --  Done when all it holds was copied or skipped.
    procedure Copy_Path
-     (Source   : String;
-      Target   : String;
-      Options  : Copy_Options;
-      Watcher  : in out Observer'Class;
-      Ok       : out Boolean);
+     (Source  : String;
+      Target  : String;
+      Options : Copy_Options;
+      Watcher : in out Observer'Class;
+      Outcome : out Operation_Outcome);
 
    --  Whether Child is Parent or lies inside it, comparing full paths.
    function Is_Same_Or_Descendant (Parent, Child : String) return Boolean;
