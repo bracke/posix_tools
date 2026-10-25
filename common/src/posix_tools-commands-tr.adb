@@ -306,7 +306,8 @@ package body Posix_Tools.Commands.Tr is
       end if;
 
       declare
-         Locale    : constant String := Context.Effective_Locale;
+         Locale    : constant String :=
+           Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification);
          Multibyte : constant Boolean := Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale (Locale);
          Has_Set2  : constant Boolean := Context.Argument_Count = First + 1;
 

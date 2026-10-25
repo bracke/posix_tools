@@ -67,7 +67,10 @@ package body Posix_Tools.Commands.Sort is
       end Add_Key;
    begin
       Options := (others => <>);
-      Options.Sorting.Locale := To_Unbounded_String (Context.Effective_Locale);
+      Options.Sorting.Locale :=
+        To_Unbounded_String (Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
+      Options.Sorting.Numeric_Locale :=
+        To_Unbounded_String (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
       Result.Status := Posix_Tools.Exit_Status.Success;
 
       for I in 1 .. Context.Argument_Count loop

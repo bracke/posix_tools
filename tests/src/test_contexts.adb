@@ -225,10 +225,10 @@ package body Test_Contexts is
       return "";
    end Environment_Value;
 
-   overriding function Effective_Locale (Self : Capturing_Context) return String is
+   overriding function Default_Locale (Self : Capturing_Context) return String is
    begin
       return Ada.Strings.Unbounded.To_String (Self.Locale_Text);
-   end Effective_Locale;
+   end Default_Locale;
 
    overriding function Physical_Current_Directory (Self : Capturing_Context) return String is
    begin

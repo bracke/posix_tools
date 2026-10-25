@@ -8,6 +8,7 @@ REG-CP-0003,cp,recreate FIFO special files through hostkit where the platform su
 REG-CP-0004,cp,recreate Unix-domain socket files through hostkit where the platform supports filesystem sockets,regression:REG-CP-0004 socket recreation
 REG-DIAG-0001,all,escape control characters in untrusted diagnostic operands and subjects before terminal presentation,command:usage errors
 REG-DIAG-0002,all,render every usage diagnostic from a catalog message with its operand quoted and escaped instead of composing English text such as an unquoted unknown option,command:usage errors
+REG-LOCALE-0001,all,take each locale category from LC_ALL then its own variable then LANG so LC_MESSAGES no longer decides collation character classification numbers or dates,locale:categories
 REG-STREAMS-0001,head tail,preserve LF-delimited byte segments and final partial segments,streams:lf segment splitting
 REG-STDIN-0001,cat head tail wc,preserve standard input bytes and counts without adding a newline or rewinding repeated dash operands,command:cat standard input; command:head standard input; command:tail standard input; command:wc standard input
 REG-STDOUT-0001,basename dirname echo pwd,return operational failure when command-data stdout writes fail,command:simple output failures

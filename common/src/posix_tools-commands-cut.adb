@@ -107,7 +107,8 @@ package body Posix_Tools.Commands.Cut is
       First_File : Positive := 1;
       All_Ok     : Boolean := True;
       Characters : constant Boolean :=
-        Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale (Context.Effective_Locale);
+        Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale
+          (Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification));
 
       procedure Cut_File (Name : String; Ok : out Boolean);
       procedure Emit_Line (Line : String);

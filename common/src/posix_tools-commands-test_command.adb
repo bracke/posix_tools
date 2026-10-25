@@ -79,20 +79,7 @@ package body Posix_Tools.Commands.Test_Command is
       end Binary_Test;
 
       function Collation_Locale return String is
-         LC_All     : constant String := Context.Environment_Value ("LC_ALL");
-         LC_Collate : constant String := Context.Environment_Value ("LC_COLLATE");
-         Lang       : constant String := Context.Environment_Value ("LANG");
-      begin
-         if LC_All /= "" then
-            return LC_All;
-         elsif LC_Collate /= "" then
-            return LC_Collate;
-         elsif Lang /= "" then
-            return Lang;
-         else
-            return Context.Effective_Locale;
-         end if;
-      end Collation_Locale;
+        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
 
       --  XCU test decides by the number of arguments before it parses: the
       --  rules for up to four arguments come first, so "x = -a" compares two

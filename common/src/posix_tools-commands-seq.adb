@@ -42,20 +42,7 @@ package body Posix_Tools.Commands.Seq is
       Has_Format  : Boolean := False;
 
       function Numeric_Locale return String is
-         LC_All     : constant String := Context.Environment_Value ("LC_ALL");
-         LC_Numeric : constant String := Context.Environment_Value ("LC_NUMERIC");
-         Lang       : constant String := Context.Environment_Value ("LANG");
-      begin
-         if LC_All /= "" then
-            return LC_All;
-         elsif LC_Numeric /= "" then
-            return LC_Numeric;
-         elsif Lang /= "" then
-            return Lang;
-         else
-            return Context.Effective_Locale;
-         end if;
-      end Numeric_Locale;
+        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
 
       function Localize_Decimal_Number (Text : String) return String is
          Locale  : constant String := Numeric_Locale;

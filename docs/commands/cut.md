@@ -40,7 +40,8 @@ Exactly one of `-b`, `-c`, or `-f` may be selected. Supplying more than one list
 The delimiter option `-d` and suppression option `-s` are valid only with field mode `-f`.
 
 ## Locale Behavior
-The locale (`LC_ALL`, then `LC_MESSAGES`, then `LANG`) selects whether `-c` and `-n` see UTF-8 characters or bytes.
+The character-classification locale (`LC_ALL`, then `LC_CTYPE`, then `LANG`) selects whether `-c` and `-n` see
+UTF-8 characters or bytes.
 Data output is not localized. Help and diagnostics are localized.
 
 ## Implementation-Defined Choices

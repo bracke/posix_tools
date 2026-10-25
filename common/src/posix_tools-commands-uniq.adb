@@ -303,7 +303,9 @@ package body Posix_Tools.Commands.Uniq is
          declare
             Output : constant String :=
               Filter_Lines
-                (Options, Context.Effective_Locale, Posix_Tools.Streams.Lines.Split_LF_Records (Text));
+                (Options,
+                 Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation),
+                 Posix_Tools.Streams.Lines.Split_LF_Records (Text));
          begin
             if Options.Files.Length = 2 then
                Posix_Tools.Commands.File_Helpers.Write_File (Options.Files.Element (2), Output, False, Ok);

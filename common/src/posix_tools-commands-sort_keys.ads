@@ -33,7 +33,9 @@ package Posix_Tools.Commands.Sort_Keys is
       Has_Field_Separator : Boolean := False;
       Stable_Sort         : Boolean := False;
       Unique              : Boolean := False;
+      --  The collation locale, and the one -n reads numbers in.
       Locale              : Ada.Strings.Unbounded.Unbounded_String;
+      Numeric_Locale      : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  Sorts Lines stably in O(n log n), building every line's comparison keys

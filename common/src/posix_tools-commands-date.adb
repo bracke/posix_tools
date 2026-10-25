@@ -83,7 +83,7 @@ package body Posix_Tools.Commands.Date is
             if Posix_Tools.Commands.Date_Parsing.Resolve_Time_Zone
               (TZ_Text,
                (if Has_Set_Time then Set_Time else Now),
-               Context.Effective_Locale,
+               Context.Category_Locale (Posix_Tools.Commands.Contexts.Time),
                Parsed_Offset,
                Parsed_Name)
             then
@@ -107,7 +107,7 @@ package body Posix_Tools.Commands.Date is
                (if Has_Set_Time then Set_Time else Now),
                Time_Zone_Offset,
                To_String (Time_Zone_Name),
-               Context.Effective_Locale));
+               Context.Category_Locale (Posix_Tools.Commands.Contexts.Time)));
       else
          Context.Put_Line
            (Ada.Calendar.Formatting.Image

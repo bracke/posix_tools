@@ -297,6 +297,8 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("locale:diagnostic", Test_Diagnostic_Locales'Access));
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("locale:categories", Test_Locale_Categories'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("presentation:styling", Test_Presentation_Styling'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:identity", Test_Identity'Access));
       AUnit.Test_Suites.Add_Test
