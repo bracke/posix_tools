@@ -1,9 +1,10 @@
 with Ada.Containers.Ordered_Maps;
 with Ada.Containers.Vectors;
 with Ada.Streams;
-with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
+with Explore.Directory_Readers;
+with Explore.Files;
 with Explore.Images;
 with Explore.Input;
 with Explore.Jobs;
@@ -16,7 +17,7 @@ with Explore.Render;
 with Explore.Screen;
 with Explore.Search;
 with Explore.Settings;
-with Explore.Tasks;
+with Explore.String_Vectors;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Arguments;
 with Posix_Tools.Exit_Status;
@@ -29,6 +30,7 @@ with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Host_Adapters.Terminal_IO;
 with Posix_Tools.Localization;
 with Posix_Tools.Text.File_Modes;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Application is
 
@@ -218,10 +220,10 @@ package body Explore.Application is
       Last_Job  : Explore.Jobs.Snapshot;
       Mode      : Interaction := Browsing;
       --  Yanked or cut entries, waiting to be pasted.
-      Clipboard : Model.Path_Vectors.Vector;
+      Clipboard : Explore.String_Vectors.Vector;
       Cutting   : Boolean := False;
       --  The entries a delete waits to be confirmed for.
-      Pending   : Model.Path_Vectors.Vector;
+      Pending   : Explore.String_Vectors.Vector;
       --  Whether the terminal stopped taking output, or giving input: the
       --  session ends, and not as one the user ended.
       Terminal_Lost : Boolean := False;
@@ -269,7 +271,7 @@ package body Explore.Application is
    --  is the user's again.
    type Session_Outcome is (Session_Ended, Session_Signalled, Raw_Mode_Refused, Terminal_Unsupported, Output_Failed);
 
-   function Image (Value : Natural) return String is (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
+   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    function Verb_Of (State : Session; Kind : Explore.Jobs.Job_Kind) return String is
      (Unbounded.To_String
@@ -279,7 +281,7 @@ package body Explore.Application is
            when Explore.Jobs.Link_Job => State.Words.Linking,
            when Explore.Jobs.Delete_Job => State.Words.Deleting));
 
-   procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board);
+   procedure Collect (State : in out Session; Readers : in out Explore.Directory_Readers.Board);
 
    --  Carry out what was typed for Renaming, Creating, or Changing_Mode.
    procedure Commit (State : in out Session);
@@ -324,7 +326,7 @@ package body Explore.Application is
 
    function Load_Words (Locale : String) return Operation_Labels;
 
-   procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board);
+   procedure Main_Loop (State : in out Session; Readers : in out Explore.Directory_Readers.Board);
 
    --  Open the entries the next command is for with their opener, or, when
    --  explore chooses files for another program, write them down and quit.
@@ -361,7 +363,7 @@ package body Explore.Application is
    --  place of any image sent before.
    procedure Show_Image (State : in out Session);
 
-   procedure Sync (State : in out Session; Jobs : in out Explore.Tasks.Board);
+   procedure Sync (State : in out Session; Readers : in out Explore.Directory_Readers.Board);
 
    procedure Take_Signals (Saved : out Saved_Dispositions);
 
@@ -385,12 +387,12 @@ package body Explore.Application is
    --  ready.
    procedure Watch_Preview (State : in out Session);
 
-   procedure Collect (State : in out Session; Jobs : in out Explore.Tasks.Board) is
-      Outcome : Explore.Tasks.Result;
+   procedure Collect (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
+      Outcome : Explore.Directory_Readers.Result;
       Found   : Boolean;
    begin
       for Kind in Model.Pane_Kind loop
-         Jobs.Collect (Kind, Outcome, Found);
+         Readers.Collect (Kind, Outcome, Found);
 
          if Found then
             Model.Deliver (State.Browser, Kind, Outcome.Generation, Outcome.Entries, Outcome.Readable);
@@ -575,10 +577,14 @@ package body Explore.Application is
          end;
       end if;
 
+      Model.Scroll_Panes
+        (State.Browser,
+         Explore.Render.Listed_Heights
+           (State.Browser, Explore.Screen.Rows (State.Wanted), Explore.Screen.Columns (State.Wanted)));
       Explore.Render.Draw (State.Wanted, State.Browser, State.Frame);
       Ok := Write
         (Explore.Protocol.Begin_Frame
-         & Explore.Screen.Render (State.Shown, State.Wanted, Full => State.Repaint)
+         & Explore.Screen.Diff_Output (State.Shown, State.Wanted, Full => State.Repaint)
          & Explore.Protocol.End_Frame);
       State.Dirty := False;
       State.Repaint := False;
@@ -1019,7 +1025,7 @@ package body Explore.Application is
          Unreadable    => Word ("config.unreadable", "cannot read"));
    end Load_Words;
 
-   procedure Main_Loop (State : in out Session; Jobs : in out Explore.Tasks.Board) is
+   procedure Main_Loop (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
       Item  : Input.Event;
       Found : Boolean;
       Ended : Boolean;
@@ -1053,11 +1059,11 @@ package body Explore.Application is
             end if;
          end loop;
 
-         Collect (State, Jobs);
+         Collect (State, Readers);
          Watch_Jobs (State);
          Watch_Search (State);
          Watch_Preview (State);
-         Sync (State, Jobs);
+         Sync (State, Readers);
 
          if State.Dirty then
             Draw (State, Ok);
@@ -1070,7 +1076,7 @@ package body Explore.Application is
 
          Read_Into_Decoder
            (State,
-            (if Jobs.Busy or else Explore.Jobs.Any_Running (State.Last_Job) or else State.Previewer.Busy
+            (if Readers.Busy or else Explore.Jobs.Any_Running (State.Last_Job) or else State.Previewer.Busy
                or else State.Searcher.Busy
              then Busy_Poll_Ms
              else Idle_Poll_Ms),
@@ -1094,8 +1100,7 @@ package body Explore.Application is
 
       declare
          Found : constant String := (if Group then FS.Group_Name_For_Id (Id) else FS.User_Name_For_Id (Id));
-         Image : constant String := Natural'Image (Id);
-         Name  : constant String := (if Found'Length > 0 then Found else Image (Image'First + 1 .. Image'Last));
+         Name  : constant String := (if Found'Length > 0 then Found else Image (Id));
       begin
          Names.Insert (Id, Unbounded.To_Unbounded_String (Name));
          return Name;
@@ -1104,7 +1109,7 @@ package body Explore.Application is
 
    procedure Open_Targets (State : in out Session) is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
-      Targets : constant Model.Path_Vectors.Vector := Model.Targets (State.Browser);
+      Targets : constant Explore.String_Vectors.Vector := Model.Targets (State.Browser);
    begin
       if Targets.Is_Empty then
          return;
@@ -1140,7 +1145,7 @@ package body Explore.Application is
          --  Only a plain file is looked into: reading a pipe or a device
          --  could wait for ever, and this is the screen's own thread.
          if FS.Kind (First) /= FS.Special_File then
-            Explore.Previews.Read_Head (First, 4096, Head, Read);
+            Explore.Files.Read_Head (First, 4096, Head, Read);
          else
             Read := False;
          end if;
@@ -1148,7 +1153,7 @@ package body Explore.Application is
          Opener :=
            Explore.Launch.Opener_For
              (State.Openers,
-              First (Ada.Strings.Fixed.Index (First, "/", Ada.Strings.Backward) + 1 .. First'Last),
+              Model.Name_Of (First),
               Read and then Explore.Previews.Is_Text (Unbounded.To_String (Head)));
          Run_Program
            (State,
@@ -1223,7 +1228,7 @@ package body Explore.Application is
                   Unbounded.Append
                     (Text,
                      (if Item.Kind = Keymap.Copy_Path then Path
-                      else Path (Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward) + 1 .. Path'Last)));
+                      else Model.Name_Of (Path)));
                end loop;
 
                if Unbounded.Length (Text) > 0 then
@@ -1281,7 +1286,7 @@ package body Explore.Application is
 
             if not State.Pending.Is_Empty then
                declare
-                  Count : constant String := Natural'Image (Natural (State.Pending.Length));
+                  Count : constant String := Image (Natural (State.Pending.Length));
                begin
                   State.Frame.Question :=
                     Unbounded.To_Unbounded_String
@@ -1289,8 +1294,8 @@ package body Explore.Application is
                          (Unbounded.To_String (State.Locale),
                           "posix_tools.explore.ui.confirm_delete",
                           "count",
-                          Count (Count'First + 1 .. Count'Last),
-                          "delete " & Count (Count'First + 1 .. Count'Last) & "? y/n"));
+                          Count,
+                          "delete " & Count & "? y/n"));
                end;
                State.Mode := Confirming_Delete;
             end if;
@@ -1298,7 +1303,7 @@ package body Explore.Application is
             if Item.Kind = Keymap.Create_Entry or else Model.Has_Selection (Current) then
                State.Pending :=
                  (if Item.Kind = Keymap.Rename_Entry
-                  then Model.Path_Vectors.To_Vector (Model.Selected_Path (Current), 1)
+                  then Explore.String_Vectors.To_Vector (Model.Selected_Path (Current), 1)
                   else Model.Targets (State.Browser));
                State.Mode :=
                  (case Item.Kind is
@@ -1867,8 +1872,9 @@ package body Explore.Application is
       end if;
 
       declare
-         Jobs       : aliased Explore.Tasks.Board;
-         Workers    : array (1 .. Explore.Tasks.Worker_Count) of Explore.Tasks.Worker (Jobs'Access);
+         Readers    : aliased Explore.Directory_Readers.Board;
+         Workers    : array (1 .. Explore.Directory_Readers.Worker_Count) of Explore.Directory_Readers.Worker
+           (Readers'Access);
          Operations : aliased Explore.Jobs.Board;
          Operators  : array (Explore.Jobs.Lane_Index) of Explore.Jobs.Worker (Operations'Access);
          Previewer  : aliased Explore.Previews.Board;
@@ -1886,7 +1892,7 @@ package body Explore.Application is
             Operations.Shut_Down;
             Previewer.Shut_Down;
             Searcher.Shut_Down;
-            Jobs.Shut_Down;
+            Readers.Shut_Down;
             Release_Watches (State);
             State.Operations := null;
             State.Previewer := null;
@@ -1901,7 +1907,7 @@ package body Explore.Application is
          Resize (State, State.Size.Rows, State.Size.Columns);
 
          begin
-            Main_Loop (State, Jobs);
+            Main_Loop (State, Readers);
          exception
             when others =>
                Stop_Workers;
@@ -2086,7 +2092,7 @@ package body Explore.Application is
       Model.Reload_All (State.Browser);
    end Switch_Tab;
 
-   procedure Sync (State : in out Session; Jobs : in out Explore.Tasks.Board) is
+   procedure Sync (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
       use type Unbounded.Unbounded_String;
    begin
       if Model.Preview_Changed (State.Browser) then
@@ -2098,7 +2104,7 @@ package body Explore.Application is
             Item : Model.Pane renames State.Browser.Panes (Kind);
          begin
             if Item.Pending and then Item.Generation /= State.Submitted (Kind) then
-               Jobs.Submit
+               Readers.Submit
                  (Kind,
                   (Path       => Item.Path,
                    Generation => Item.Generation,

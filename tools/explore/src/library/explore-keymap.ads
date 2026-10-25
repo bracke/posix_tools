@@ -92,8 +92,6 @@ package Explore.Keymap is
    --  A binding's keys: one, or two separated by a space.
    procedure Parse_Keys (Text : String; First, Second : out Key_Spec; Has_Second : out Boolean; Ok : out Boolean);
 
-   function Matches (Spec : Key_Spec; Item : Explore.Input.Event) return Boolean;
-
    type State is private;
 
    --  Bind Keys to the command Action names, ahead of the default bindings.

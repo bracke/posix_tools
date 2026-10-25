@@ -1,8 +1,10 @@
 with Ada.Strings.Fixed;
+with Posix_Tools.Text.UTF_8;
 
 package body Explore.Input is
 
    package Unbounded renames Ada.Strings.Unbounded;
+   package UTF_8 renames Posix_Tools.Text.UTF_8;
 
    ESC : constant Character := Character'Val (27);
    BEL : constant Character := Character'Val (7);
@@ -528,55 +530,39 @@ package body Explore.Input is
       Length : out Natural;
       Status : out Scan_Status)
    is
-      Lead  : constant Natural := Character'Pos (Text (Text'First));
-      Count : Natural;
-      Code  : Natural;
+      Decoder : UTF_8.Decoder;
+      Decoded : UTF_8.Decode_Status;
+      Code    : Long_Long_Integer;
    begin
       Item := Key (Character_Key);
 
-      if Lead < 16#80# then
-         Count := 1;
-         Code := Lead;
-      elsif Lead in 16#C2# .. 16#DF# then
-         Count := 2;
-         Code := Lead mod 16#20#;
-      elsif Lead in 16#E0# .. 16#EF# then
-         Count := 3;
-         Code := Lead mod 16#10#;
-      elsif Lead in 16#F0# .. 16#F4# then
-         Count := 4;
-         Code := Lead mod 16#08#;
-      else
-         Length := 1;
-         Status := Skip;
-         return;
-      end if;
+      for I in Text'Range loop
+         UTF_8.Decode (Decoder, Character'Pos (Text (I)), Decoded, Code);
 
-      if Text'Length < Count then
-         Length := 0;
-         Status := Incomplete;
-         return;
-      end if;
-
-      for I in Text'First + 1 .. Text'First + Count - 1 loop
-         if Character'Pos (Text (I)) not in 16#80# .. 16#BF# then
-            Length := 1;
-            Status := Skip;
-            return;
-         end if;
-
-         Code := Code * 16#40# + Character'Pos (Text (I)) mod 16#40#;
+         case Decoded is
+            when UTF_8.Complete =>
+               Item := Character_Key (Natural (Code));
+               Length := I - Text'First + 1;
+               Status := Complete;
+               return;
+            when UTF_8.Invalid =>
+               --  A sequence whole but for what it encodes -- an overlong
+               --  form, a surrogate, or beyond U+10FFFF -- is skipped as a
+               --  whole. Otherwise only its first byte is, and the byte that
+               --  broke it is read again, as the start of what comes next.
+               Length :=
+                 (if I > Text'First and then Character'Pos (Text (I)) in 16#80# .. 16#BF# then I - Text'First + 1
+                  else 1);
+               Status := Skip;
+               return;
+            when UTF_8.Need_More =>
+               null;
+         end case;
       end loop;
 
-      if Code > 16#10_FFFF# or else Code in 16#D800# .. 16#DFFF# then
-         Length := Count;
-         Status := Skip;
-         return;
-      end if;
-
-      Item := Character_Key (Code);
-      Length := Count;
-      Status := Complete;
+      --  The rest of the sequence has not arrived yet.
+      Length := 0;
+      Status := Incomplete;
    end Scan_UTF_8;
 
    function Tilde_Key (Number : Natural; Mods : Modifiers; Item : out Event) return Boolean is

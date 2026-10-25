@@ -1,7 +1,6 @@
 with Ada.Characters.Handling;
-with Ada.Streams;
-with Ada.Strings.Fixed;
 with Explore.Archives;
+with Explore.Files;
 with Explore.Model;
 with Posix_Tools.Arguments;
 with Posix_Tools.File_Operations;
@@ -12,6 +11,7 @@ with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Descriptions;
 with Posix_Tools.Text.Glob;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Previews is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -19,13 +19,7 @@ package body Explore.Previews is
    use type FS.File_Kind;
    package Unbounded renames Ada.Strings.Unbounded;
 
-   use type Ada.Streams.Stream_Element_Offset;
-
    Tab_Width : constant := 4;
-
-   --  The last component of Path.
-   function Name_Of (Path : String) return String is
-     (Path (Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward) + 1 .. Path'Last));
 
    --  Run Tool with Arguments, which write a PNG to Output, and take it.
    procedure Make_Thumbnail
@@ -51,7 +45,7 @@ package body Explore.Previews is
 
    --  Text split into lines without their terminators, tabs expanded, at
    --  most Max_Lines of them.
-   procedure Split_Lines (Text : String; Lines : out Line_Vectors.Vector);
+   procedure Split_Lines (Text : String; Lines : out Explore.String_Vectors.Vector);
 
    --  Remove the thumbnail directory, if one was made.
    procedure Remove_Thumbnails (Directory : String);
@@ -130,7 +124,7 @@ package body Explore.Previews is
          return Result;
       end if;
 
-      Read_Head (Path, Head_Bytes, Head, Ok);
+      Explore.Files.Read_Head (Path, Head_Bytes, Head, Ok);
 
       if not Ok then
          Result.Kind := Unreadable_Preview;
@@ -139,7 +133,7 @@ package body Explore.Previews is
 
       if Thumbnail_Directory'Length > 0 then
          declare
-            Name : constant String := Ada.Characters.Handling.To_Lower (Name_Of (Path));
+            Name : constant String := Ada.Characters.Handling.To_Lower (Explore.Model.Name_Of (Path));
          begin
             for Rule of Rules loop
                if (for some Pattern of Rule.Patterns =>
@@ -192,7 +186,7 @@ package body Explore.Previews is
          end if;
 
          if Sized and then FS.Size (Path) <= Image_Bytes then
-            Read_Head (Path, Image_Bytes, Result.Image, Ok);
+            Explore.Files.Read_Head (Path, Image_Bytes, Result.Image, Ok);
 
             if Ok then
                Result.Kind := Image_Preview;
@@ -203,20 +197,14 @@ package body Explore.Previews is
          end if;
 
          if Explore.Archives.Is_Archive (Data) then
-            declare
-               Members : Explore.Model.Path_Vectors.Vector;
-            begin
-               Explore.Archives.List (Path, Data, Max_Lines, Members, Ok);
+            Explore.Archives.List (Path, Data, Max_Lines, Result.Lines, Ok);
 
-               if Ok then
-                  for Member of Members loop
-                     Result.Lines.Append (Member);
-                  end loop;
+            if Ok then
+               Result.Kind := Archive_Preview;
+               return Result;
+            end if;
 
-                  Result.Kind := Archive_Preview;
-                  return Result;
-               end if;
-            end;
+            Result.Lines.Clear;
          end if;
 
          if Thumbnail_Directory'Length > 0 and then Thumbnails then
@@ -352,12 +340,12 @@ package body Explore.Previews is
       end if;
 
       if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
-           (Tool, Arguments, Thumbnail_Timeout_Ms, Status, Timed_Out)
+           (Tool, Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out)
         and then Status = 0
         and then not Timed_Out
         and then FS.Exists (Output)
       then
-         Read_Head (Output, Image_Bytes, Result.Image, Read);
+         Explore.Files.Read_Head (Output, Image_Bytes, Result.Image, Read);
 
          declare
             Data : constant String := Unbounded.To_String (Result.Image);
@@ -392,8 +380,8 @@ package body Explore.Previews is
       --  free name is this process's alone.
       for N in 1 .. 1_000 loop
          declare
-            Image     : constant String := Natural'Image (N);
-            Candidate : constant String := Base & "/explore-thumbnails-" & Image (Image'First + 1 .. Image'Last);
+            Candidate : constant String :=
+              Base & "/explore-thumbnails-" & Posix_Tools.Text.Numeric_Images.Natural_Image (N);
          begin
             if not FS.Exists (Candidate) then
                FS.Create_Directory (Candidate);
@@ -407,43 +395,6 @@ package body Explore.Previews is
 
       return "";
    end Make_Thumbnail_Directory;
-
-   procedure Read_Head
-     (Path  : String;
-      Limit : Positive;
-      Data  : out Ada.Strings.Unbounded.Unbounded_String;
-      Ok    : out Boolean)
-   is
-      procedure Take
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean);
-
-      procedure Take
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean)
-      is
-         Room  : constant Natural := Limit - Unbounded.Length (Data);
-         Count : constant Natural := Natural'Min (Room, Natural (Last - Buffer'First + 1));
-         Chunk : String (1 .. Count);
-      begin
-         for I in Chunk'Range loop
-            Chunk (I) := Character'Val (Buffer (Buffer'First + Ada.Streams.Stream_Element_Offset (I - 1)));
-         end loop;
-
-         Unbounded.Append (Data, Chunk);
-         Stop := Unbounded.Length (Data) >= Limit;
-      end Take;
-
-      procedure Each is new FS.For_Each_File_Chunk (Take);
-   begin
-      Data := Unbounded.Null_Unbounded_String;
-      Each (Path, Ok);
-   exception
-      when others =>
-         Ok := False;
-   end Read_Head;
 
    procedure Remove_Thumbnails (Directory : String) is
       type Quiet_Observer is new Posix_Tools.File_Operations.Observer with null record;
@@ -484,10 +435,10 @@ package body Explore.Previews is
       Arguments.Append (Path);
 
       if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
-           ("/bin/sh", Arguments, Thumbnail_Timeout_Ms, Status, Timed_Out)
+           ("/bin/sh", Arguments, Preview_Command_Timeout_Ms, Status, Timed_Out)
         and then FS.Exists (Output)
       then
-         Read_Head (Output, Head_Bytes, Printed, Read);
+         Explore.Files.Read_Head (Output, Head_Bytes, Printed, Read);
 
          if Read and then Unbounded.Length (Printed) > 0 then
             Result.Kind := Text_Preview;
@@ -505,7 +456,7 @@ package body Explore.Previews is
          Made := False;
    end Run_Previewer;
 
-   procedure Split_Lines (Text : String; Lines : out Line_Vectors.Vector) is
+   procedure Split_Lines (Text : String; Lines : out Explore.String_Vectors.Vector) is
       Line : Unbounded.Unbounded_String;
       Column : Natural := 0;
    begin

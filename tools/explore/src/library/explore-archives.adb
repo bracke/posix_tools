@@ -1,5 +1,6 @@
 with Ada.Streams;
 with Ada.Strings.Unbounded;
+with Explore.Files;
 with Explore.Format;
 with Posix_Tools.Host_Adapters.File_System;
 with Tarlib.Entries;
@@ -46,11 +47,8 @@ package body Explore.Archives is
    procedure List_Tar
      (Data  : Unbounded.Unbounded_String;
       Limit : Positive;
-      Lines : out Explore.Model.Path_Vectors.Vector;
+      Lines : out Explore.String_Vectors.Vector;
       Ok    : out Boolean);
-
-   --  The whole file at Path, when it is at most Limit bytes.
-   procedure Read_All (Path : String; Limit : Natural; Data : out Unbounded.Unbounded_String; Ok : out Boolean);
 
    function Format_Of (Head : String) return Archive_Format is
       function At_Offset (Offset : Natural; Text : String) return Boolean is
@@ -142,7 +140,7 @@ package body Explore.Archives is
      (Path  : String;
       Head  : String;
       Limit : Positive;
-      Lines : out Explore.Model.Path_Vectors.Vector;
+      Lines : out Explore.String_Vectors.Vector;
       Ok    : out Boolean)
    is
       Kind   : constant Archive_Format := Format_Of (Head);
@@ -183,7 +181,12 @@ package body Explore.Archives is
                Data : Unbounded.Unbounded_String;
                Read : Boolean;
             begin
-               Read_All (Path, Max_Read_Bytes, Data, Read);
+               --  Only a whole tar is read; a larger one is not listed.
+               Read := FS.Size (Path) <= Max_Read_Bytes;
+
+               if Read then
+                  Explore.Files.Read_Head (Path, Max_Read_Bytes, Data, Read);
+               end if;
 
                if not Read then
                   return;
@@ -222,7 +225,7 @@ package body Explore.Archives is
    procedure List_Tar
      (Data  : Unbounded.Unbounded_String;
       Limit : Positive;
-      Lines : out Explore.Model.Path_Vectors.Vector;
+      Lines : out Explore.String_Vectors.Vector;
       Ok    : out Boolean)
    is
       Source  : aliased Memory_Source := (Data => Data, Position => 0);
@@ -266,35 +269,4 @@ package body Explore.Archives is
       Last := Data'First + Ada.Streams.Stream_Element_Offset (Count) - 1;
       Result := Tarlib.Errors.OK;
    end Read;
-
-   procedure Read_All (Path : String; Limit : Natural; Data : out Unbounded.Unbounded_String; Ok : out Boolean) is
-      procedure Take
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean);
-
-      procedure Take
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean)
-      is
-         pragma Unreferenced (Stop);
-         Chunk : String (1 .. Natural (Last - Buffer'First + 1));
-      begin
-         for I in Chunk'Range loop
-            Chunk (I) := Character'Val (Buffer (Buffer'First + Ada.Streams.Stream_Element_Offset (I - 1)));
-         end loop;
-
-         Unbounded.Append (Data, Chunk);
-      end Take;
-
-      procedure Each is new FS.For_Each_File_Chunk (Take);
-   begin
-      Data := Unbounded.Null_Unbounded_String;
-      Ok := FS.Size (Path) <= Long_Long_Integer (Limit);
-
-      if Ok then
-         Each (Path, Ok);
-      end if;
-   end Read_All;
 end Explore.Archives;

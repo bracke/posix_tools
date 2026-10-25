@@ -6,9 +6,6 @@ package Explore.Format is
    --  units: "512", "1.5K", "20M".
    function Size_Image (Bytes : Long_Long_Integer) return String;
 
-   --  A whole number in full, without a sign for positive ones.
-   function Count_Image (Value : Long_Long_Integer) return String;
-
    --  A time in seconds since 1970-01-01 UTC, as local "YYYY-MM-DD HH:MM".
    function Time_Image (Seconds : Long_Long_Integer) return String;
 

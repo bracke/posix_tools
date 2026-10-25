@@ -344,5 +344,19 @@ package body Input_Tests is
       AUnit.Assertions.Assert
         (Found and then Input.Is_Character (Item, 'a'), "what explore cannot use is skipped, not misread");
       AUnit.Assertions.Assert (not Input.Has_Pending (Decoder), "and consumed");
+
+      --  Overlong forms of "A" and a surrogate encode nothing a key can be.
+      Input.Feed
+        (Decoder,
+         Character'Val (16#C1#) & Character'Val (16#81#)
+         & Character'Val (16#E0#) & Character'Val (16#81#) & Character'Val (16#81#)
+         & Character'Val (16#F0#) & Character'Val (16#80#) & Character'Val (16#81#) & Character'Val (16#81#)
+         & Character'Val (16#ED#) & Character'Val (16#A0#) & Character'Val (16#80#)
+         & "b");
+      Input.Next (Decoder, Item, Found);
+      AUnit.Assertions.Assert
+        (Found and then Input.Is_Character (Item, 'b'), "overlong forms and surrogates are skipped, not read as keys");
+      Expect_Nothing (Decoder, "nothing else comes of them");
+      AUnit.Assertions.Assert (not Input.Has_Pending (Decoder), "and they are consumed");
    end Test_Unknown_Sequences;
 end Input_Tests;

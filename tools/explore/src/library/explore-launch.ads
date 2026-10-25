@@ -1,6 +1,6 @@
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
-with Explore.Model;
+with Explore.String_Vectors;
 with Posix_Tools.Arguments;
 
 --  Handing files to other programs: the opener a file is opened with, the
@@ -15,7 +15,7 @@ package Explore.Launch is
    type Opener is record
       --  Globs on the file's name, case ignored; an opener with none
       --  matches every file.
-      Patterns : Explore.Model.Path_Vectors.Vector;
+      Patterns : Explore.String_Vectors.Vector;
       --  The command line, for /bin/sh.
       Run      : Ada.Strings.Unbounded.Unbounded_String;
       --  Run apart from the terminal, without waiting for it to end, for a
@@ -42,7 +42,7 @@ package Explore.Launch is
    function Shell_Arguments
      (Directory : String;
       Script    : String;
-      Files     : Explore.Model.Path_Vectors.Vector;
+      Files     : Explore.String_Vectors.Vector;
       Detach    : Boolean := False) return Posix_Tools.Arguments.Vector;
 
    --  The script that starts the user's own shell, from SHELL.

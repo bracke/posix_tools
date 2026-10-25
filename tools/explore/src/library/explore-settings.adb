@@ -1,7 +1,9 @@
 with Ada.Characters.Handling;
-with Explore.Model;
+with Explore.Files;
 with Explore.Screen;
+with Explore.String_Vectors;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Text.Numeric_Images;
 with Tomllib.Documents;
 with Tomllib.Errors;
 with Tomllib.Parsers;
@@ -18,7 +20,7 @@ package body Explore.Settings is
    --  The largest configuration or bookmarks file read.
    Max_File_Bytes : constant := 1024 * 1024;
 
-   function Image (Value : Natural) return String is (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
+   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    --  The colour Text names: "default", one of the eight colours, one of
    --  them after "bright_", or a palette index.
@@ -113,7 +115,7 @@ package body Explore.Settings is
          return;
       end if;
 
-      Explore.Previews.Read_Head (Path, Max_File_Bytes, Text, Ok);
+      Explore.Files.Read_Head (Path, Max_File_Bytes, Text, Ok);
 
       if Ok then
          Parse (Unbounded.To_String (Text), Into, Problems);
@@ -150,7 +152,7 @@ package body Explore.Settings is
 
       --  One string or an array of strings, as the patterns of an opener or
       --  a previewer.
-      procedure Take_Patterns (Item : Documents.Node; Where : String; Patterns : out Explore.Model.Path_Vectors.Vector);
+      procedure Take_Patterns (Item : Documents.Node; Where : String; Patterns : out Explore.String_Vectors.Vector);
 
       procedure Read_Keys (Table : Documents.Node);
       procedure Read_Openers (List : Documents.Node);
@@ -283,11 +285,10 @@ package body Explore.Settings is
 
          for I in 1 .. Documents.Length (Document, List) loop
             declare
-               Where    : constant String := "preview[" & Image (I) & "]";
-               Table    : constant Documents.Node := Documents.Element (Document, List, I);
-               Item     : Explore.Previews.Preview_Rule;
-               Patterns : Explore.Model.Path_Vectors.Vector;
-               Ran      : Boolean := False;
+               Where : constant String := "preview[" & Image (I) & "]";
+               Table : constant Documents.Node := Documents.Element (Document, List, I);
+               Item  : Explore.Previews.Preview_Rule;
+               Ran   : Boolean := False;
             begin
                if Documents.Kind (Document, Table) /= Documents.Table_Value then
                   Report (Bad_Value, Where);
@@ -298,7 +299,7 @@ package body Explore.Settings is
                         Value : constant Documents.Node := Documents.Element (Document, Table, J);
                      begin
                         if Name = "match" then
-                           Take_Patterns (Value, Where & ".match", Patterns);
+                           Take_Patterns (Value, Where & ".match", Item.Patterns);
                         elsif Name = "run" and then Documents.Kind (Document, Value) = Documents.String_Value then
                            Item.Run := Unbounded.To_Unbounded_String (Documents.As_String (Document, Value));
                            Ran := True;
@@ -308,10 +309,6 @@ package body Explore.Settings is
                            Report (Unknown_Setting, Where & "." & Name);
                         end if;
                      end;
-                  end loop;
-
-                  for Pattern of Patterns loop
-                     Item.Patterns.Append (Pattern);
                   end loop;
 
                   --  A previewer without patterns would preview every file.
@@ -340,11 +337,11 @@ package body Explore.Settings is
                Value : constant Documents.Node := Documents.Element (Document, Table, I);
                Where : constant String := "theme." & Name;
                Found : Boolean := False;
-               Role  : Explore.Render.Theme_Role := Explore.Render.Theme_Role'First;
+               Role  : Explore.Themes.Theme_Role := Explore.Themes.Theme_Role'First;
                Style : Explore.Screen.Style := Explore.Screen.Plain;
             begin
-               for Candidate in Explore.Render.Theme_Role loop
-                  if Explore.Render.Role_Name (Candidate) = Name then
+               for Candidate in Explore.Themes.Theme_Role loop
+                  if Explore.Themes.Role_Name (Candidate) = Name then
                      Role := Candidate;
                      Found := True;
                   end if;
@@ -417,7 +414,7 @@ package body Explore.Settings is
          end if;
       end Take_Boolean;
 
-      procedure Take_Patterns (Item : Documents.Node; Where : String; Patterns : out Explore.Model.Path_Vectors.Vector)
+      procedure Take_Patterns (Item : Documents.Node; Where : String; Patterns : out Explore.String_Vectors.Vector)
       is
       begin
          Patterns.Clear;
@@ -484,7 +481,7 @@ package body Explore.Settings is
          return Bookmark_Maps.Empty_Map;
       end if;
 
-      Explore.Previews.Read_Head (Path, Max_File_Bytes, Text, Ok);
+      Explore.Files.Read_Head (Path, Max_File_Bytes, Text, Ok);
       return (if Ok then Bookmarks_Value (Unbounded.To_String (Text)) else Bookmark_Maps.Empty_Map);
    end Read_Bookmarks;
 

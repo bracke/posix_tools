@@ -1,4 +1,4 @@
-package body Explore.Tasks is
+package body Explore.Directory_Readers is
    use type Listing.Read_Outcome;
 
    --  The current pane first: it is what the user is looking at.
@@ -85,14 +85,14 @@ package body Explore.Tasks is
       Closed : Boolean;
    begin
       loop
-         Jobs.Take (Item, Work, Closed);
+         Readers.Take (Item, Work, Closed);
          exit when Closed;
 
          declare
             Outcome : Result := (Generation => Work.Generation, others => <>);
             Read    : Listing.Read_Outcome;
 
-            function Replaced return Boolean is (not Jobs.Is_Wanted (Item, Work.Generation));
+            function Replaced return Boolean is (not Readers.Is_Wanted (Item, Work.Generation));
          begin
             begin
                Listing.Read_Directory
@@ -107,8 +107,8 @@ package body Explore.Tasks is
             end if;
 
             Outcome.Readable := Read = Listing.Read_Complete;
-            Jobs.Finish (Item, Outcome);
+            Readers.Finish (Item, Outcome);
          end;
       end loop;
    end Worker;
-end Explore.Tasks;
+end Explore.Directory_Readers;

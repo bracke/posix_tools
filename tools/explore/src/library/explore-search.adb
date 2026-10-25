@@ -1,4 +1,5 @@
 with Ada.Strings.Fixed;
+with Explore.Model;
 with Greplib.Collected;
 with Greplib.Options;
 with Greplib.Paths;
@@ -17,12 +18,11 @@ package body Explore.Search is
    --  of every directory.
    Batch_Size : constant := 64;
 
-   function Folded (Text : String) return String is
-     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
-
    --  The compiled form of a content search's pattern.
    function Compile (Pattern : String) return Greplib.Patterns.Compiled_Pattern_Set;
 
+   --  Whether the file at Path holds what Set matches. Binary files are left
+   --  out.
    function Contains (Set : Greplib.Patterns.Compiled_Pattern_Set; Path : String) return Boolean;
 
    protected body Board is
@@ -122,12 +122,10 @@ package body Explore.Search is
          return False;
    end Contains;
 
-   function Content_Matches (Pattern, Path : String) return Boolean is (Contains (Compile (Pattern), Path));
-
    function Name_Matches (Pattern, Name : String) return Boolean is
      (if (for some C of Pattern => C in '*' | '?' | '[')
       then Posix_Tools.Text.Glob.Matches (Pattern, Name)
-      else Ada.Strings.Fixed.Index (Folded (Name), Folded (Pattern)) > 0);
+      else Ada.Strings.Fixed.Index (Explore.Model.Folded (Name), Explore.Model.Folded (Pattern)) > 0);
 
    task body Worker is
       Item   : Request;
@@ -167,7 +165,7 @@ package body Explore.Search is
 
                   declare
                      Name : constant String := Unbounded.To_String (Found.Name);
-                     Path : constant String := Directory & (if Directory = "/" then "" else "/") & Name;
+                     Path : constant String := Explore.Model.Child_Of (Directory, Name);
                      Hit  : constant Boolean :=
                        (case Item.Kind is
                           when By_Name => Name_Matches (Pattern, Name),

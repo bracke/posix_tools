@@ -17,11 +17,18 @@ package body Explore.Keymap is
       and then Item.Mods.Control
       and then not Item.Mods.Alt);
 
+   --  Whether Item is the key Spec describes.
+   function Matches (Spec : Key_Spec; Item : Input.Event) return Boolean;
+
    --  One key of a binding, as Parse_Keys reads it.
    procedure Parse_Key (Text : String; Spec : out Key_Spec; Ok : out Boolean);
 
-   --  The meaning of a key with no prefix pending.
-   function Plain (Self : in out State; Item : Input.Event) return Command;
+   --  The meaning of a key with no prefix pending; none for a key that
+   --  starts a default prefix.
+   function Plain (Item : Input.Event) return Command;
+
+   --  The default prefix Item starts, or No_Prefix.
+   function Prefix_Of (Item : Input.Event) return Prefix;
 
    --  The meaning of a key under a default prefix.
    function Prefixed (Was : Prefix; Item : Input.Event) return Command;
@@ -281,7 +288,7 @@ package body Explore.Keymap is
         when Copy_Prefix => "c",
         when Bound_Prefix => Unbounded.To_String (Self.Held_Shown));
 
-   function Plain (Self : in out State; Item : Input.Event) return Command is
+   function Plain (Item : Input.Event) return Command is
    begin
       if Item.Kind /= Input.Key_Event then
          return (others => <>);
@@ -394,22 +401,34 @@ package body Explore.Keymap is
             return (Kind => Spawn_Shell, others => <>);
          when 'o' =>
             return (Kind => Open_Entries, others => <>);
-         when 'c' =>
-            Self.Waiting := Copy_Prefix;
-         when 'b' =>
-            Self.Waiting := Bookmark_Prefix;
-         when ''' =>
-            Self.Waiting := Jump_Prefix;
-         when 'g' =>
-            Self.Waiting := Go_Prefix;
-         when ',' =>
-            Self.Waiting := Sort_Prefix;
          when others =>
-            null;
+            return (others => <>);
       end case;
-
-      return (others => <>);
    end Plain;
+
+   function Prefix_Of (Item : Input.Event) return Prefix is
+   begin
+      if Item.Kind /= Input.Key_Event or else Item.Key /= Input.Character_Key
+        or else Item.Mods.Control or else Item.Mods.Alt
+      then
+         return No_Prefix;
+      end if;
+
+      case Item.Code is
+         when 'c' =>
+            return Copy_Prefix;
+         when 'b' =>
+            return Bookmark_Prefix;
+         when ''' =>
+            return Jump_Prefix;
+         when 'g' =>
+            return Go_Prefix;
+         when ',' =>
+            return Sort_Prefix;
+         when others =>
+            return No_Prefix;
+      end case;
+   end Prefix_Of;
 
    function Prefixed (Was : Prefix; Item : Input.Event) return Command is
    begin
@@ -497,7 +516,8 @@ package body Explore.Keymap is
                end if;
             end loop;
 
-            Result := Plain (Self, Item);
+            Result := Plain (Item);
+            Self.Waiting := Prefix_Of (Item);
          when Bound_Prefix =>
             for Bound of Self.Bindings loop
                if Bound.Has_Second and then Matches (Bound.First, Self.Held) and then Matches (Bound.Second, Item) then
@@ -509,12 +529,8 @@ package body Explore.Keymap is
             --  A sequence not bound there means what it means by default,
             --  when the first key is a default prefix.
             declare
-               Ignored : constant Command := Plain (Self, Self.Held);
-               pragma Unreferenced (Ignored);
-               Default : constant Prefix := Self.Waiting;
+               Default : constant Prefix := Prefix_Of (Self.Held);
             begin
-               Self.Waiting := No_Prefix;
-
                if Default /= No_Prefix then
                   Result := Prefixed (Default, Item);
                end if;

@@ -542,6 +542,10 @@ begin
    Add_Entry ("tools/explore/src/library/explore-application.ads");
    Add_Entry ("tools/explore/src/library/explore-archives.adb");
    Add_Entry ("tools/explore/src/library/explore-archives.ads");
+   Add_Entry ("tools/explore/src/library/explore-directory_readers.adb");
+   Add_Entry ("tools/explore/src/library/explore-directory_readers.ads");
+   Add_Entry ("tools/explore/src/library/explore-files.adb");
+   Add_Entry ("tools/explore/src/library/explore-files.ads");
    Add_Entry ("tools/explore/src/library/explore-format.adb");
    Add_Entry ("tools/explore/src/library/explore-format.ads");
    Add_Entry ("tools/explore/src/library/explore-images.adb");
@@ -568,10 +572,11 @@ begin
    Add_Entry ("tools/explore/src/library/explore-search.ads");
    Add_Entry ("tools/explore/src/library/explore-settings.adb");
    Add_Entry ("tools/explore/src/library/explore-settings.ads");
+   Add_Entry ("tools/explore/src/library/explore-string_vectors.ads");
    Add_Entry ("tools/explore/src/library/explore-syntax.adb");
    Add_Entry ("tools/explore/src/library/explore-syntax.ads");
-   Add_Entry ("tools/explore/src/library/explore-tasks.adb");
-   Add_Entry ("tools/explore/src/library/explore-tasks.ads");
+   Add_Entry ("tools/explore/src/library/explore-themes.adb");
+   Add_Entry ("tools/explore/src/library/explore-themes.ads");
    Add_Entry ("tools/explore/src/library/explore.ads");
    Add_Entry ("tools/explore/e2e/alire.toml");
    Add_Entry ("tools/explore/e2e/posix_tools_explore_e2e.gpr");

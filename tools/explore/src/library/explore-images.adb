@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Explore.Protocol;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Images is
    ESC : constant Character := Character'Val (27);
@@ -41,7 +42,7 @@ package body Explore.Images is
    --  Kitty takes base64 data in chunks of at most this many bytes.
    Chunk_Size : constant := 4096;
 
-   function Image (Value : Natural) return String;
+   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
 
    function Base64 (Data : String) return String is
       Alphabet : constant String := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -129,12 +130,6 @@ package body Explore.Images is
       Height := Byte (8) + Byte (9) * 256;
       return Width > 0 and then Height > 0;
    end GIF_Size;
-
-   function Image (Value : Natural) return String is
-      Text : constant String := Natural'Image (Value);
-   begin
-      return Text (Text'First + 1 .. Text'Last);
-   end Image;
 
    function Is_GIF (Data : String) return Boolean is
      (Data'Length >= 6

@@ -23,9 +23,6 @@ package body Explore.Model is
    --  Mark the entries between the visual anchor and the cursor.
    procedure Update_Visual (Self : in out Browser);
 
-   function Folded (Text : String) return String is
-     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
-
    function Can_Enter (Self : Browser) return Boolean is
      (Has_Selection (Self.Panes (Current_Pane))
       and then Selected (Self.Panes (Current_Pane)).Kind = Listing.Directory_Entry);
@@ -38,6 +35,9 @@ package body Explore.Model is
      (if Directory'Length > 0 and then Directory (Directory'Last) = '/'
       then Directory & Name
       else Directory & "/" & Name);
+
+   function Folded (Text : String) return String is
+     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
 
    --  A pane for Path, waiting for its first entries.
    function New_Pane (Self : in out Browser; Path : String) return Pane is
@@ -421,6 +421,15 @@ package body Explore.Model is
       end if;
    end Scroll;
 
+   procedure Scroll_Panes (Self : in out Browser; Heights : Pane_Heights) is
+   begin
+      for Kind in Pane_Kind loop
+         if Heights (Kind) > 0 then
+            Scroll (Self.Panes (Kind), Heights (Kind));
+         end if;
+      end loop;
+   end Scroll_Panes;
+
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural) is
       Needle : constant String := Folded (Filter);
    begin
@@ -457,9 +466,9 @@ package body Explore.Model is
       end if;
    end Start_Visual;
 
-   function Targets (Self : Browser) return Path_Vectors.Vector is
+   function Targets (Self : Browser) return Explore.String_Vectors.Vector is
       Current : Pane renames Self.Panes (Current_Pane);
-      Result  : Path_Vectors.Vector;
+      Result  : Explore.String_Vectors.Vector;
    begin
       for Item of Current.Entries loop
          if Current.Marked.Contains (Unbounded.To_String (Item.Name)) then

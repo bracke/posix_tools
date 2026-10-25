@@ -3,14 +3,15 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
+with Explore.Files;
 with Explore.Input;
 with Explore.Keymap;
 with Explore.Launch;
-with Explore.Model;
 with Explore.Previews;
-with Explore.Render;
 with Explore.Screen;
 with Explore.Settings;
+with Explore.String_Vectors;
+with Explore.Themes;
 with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.Processes;
 
@@ -188,15 +189,19 @@ package body Settings_Tests is
          and then Loaded.Sort_Key = Posix_Tools.File_Operations.Listing.By_Modified,
          "options");
       AUnit.Assertions.Assert
-        (Loaded.Colors (Explore.Render.Directory_Role).Foreground = 10
-         and then Loaded.Colors (Explore.Render.Directory_Role).Background = 17
-         and then Loaded.Colors (Explore.Render.Directory_Role).Underline
-         and then not Loaded.Colors (Explore.Render.Directory_Role).Bold,
+        (Loaded.Colors (Explore.Themes.Directory_Role).Foreground = 10
+         and then Loaded.Colors (Explore.Themes.Directory_Role).Background = 17
+         and then Loaded.Colors (Explore.Themes.Directory_Role).Underline
+         and then not Loaded.Colors (Explore.Themes.Directory_Role).Bold,
          "a theme entry replaces the role's style");
       AUnit.Assertions.Assert
-        (Explore.Screen."=" (Loaded.Colors (Explore.Render.Link_Role),
-                             Explore.Render.Default_Theme (Explore.Render.Link_Role)),
+        (Explore.Screen."=" (Loaded.Colors (Explore.Themes.Link_Role),
+                             Explore.Themes.Default_Theme (Explore.Themes.Link_Role)),
          "roles left out keep their defaults");
+      AUnit.Assertions.Assert
+        (Explore.Themes.Role_Name (Explore.Themes.Header_Role) = "header"
+         and then Explore.Themes.Role_Name (Explore.Themes.Inactive_Cursor_Role) = "inactive_cursor",
+         "roles are named without their suffix");
       AUnit.Assertions.Assert (Meaning (Loaded.Keys, "J") = Keymap.Move_Bottom, "keys");
       AUnit.Assertions.Assert
         (Natural (Loaded.Openers.Length) = 1 and then Natural (Loaded.Openers (1).Patterns.Length) = 2
@@ -284,7 +289,7 @@ package body Settings_Tests is
       AUnit.Assertions.Assert (Has (Settings.Bad_Value, "preview[1].match"), "a previewer for every file");
       AUnit.Assertions.Assert (Natural (Problems.Length) = 9, "nothing else");
       AUnit.Assertions.Assert
-        (Meaning (Loaded.Keys, "k") = Keymap.Move_Up and then Loaded.Colors (Explore.Render.Cursor_Role).Bold
+        (Meaning (Loaded.Keys, "k") = Keymap.Move_Up and then Loaded.Colors (Explore.Themes.Cursor_Role).Bold
          and then Loaded.Openers.Is_Empty and then Loaded.Previewers.Is_Empty,
          "what could be read is kept");
    end Test_Problems;
@@ -292,7 +297,7 @@ package body Settings_Tests is
    procedure Test_Shell (T : in out Fixture) is
       pragma Unreferenced (T);
       Root   : constant String := Ada.Directories.Current_Directory & "/obj/shell fixture";
-      Files  : Explore.Model.Path_Vectors.Vector;
+      Files  : Explore.String_Vectors.Vector;
       Status : Integer;
       Text   : Unbounded.Unbounded_String;
       Ok     : Boolean;
@@ -309,7 +314,7 @@ package body Settings_Tests is
          and then Status = 0,
          "run in the shell");
 
-      Explore.Previews.Read_Head (Root & "/out", 1024, Text, Ok);
+      Explore.Files.Read_Head (Root & "/out", 1024, Text, Ok);
       AUnit.Assertions.Assert
         (Ok and then Unbounded.To_String (Text) = "2|it's ""quoted""|$(touch pwned) and spaces|",
          "in the directory, the files as parameters, never as text of the command");

@@ -1,6 +1,7 @@
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 with Explore.Images;
+with Explore.String_Vectors;
 with Explore.Syntax;
 
 --  What the preview pane shows of a file: its first lines when it is text,
@@ -10,7 +11,6 @@ with Explore.Syntax;
 --  screen from a bounded read of the file, so a large or slow file never
 --  holds the keyboard up.
 package Explore.Previews is
-   package Line_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
    type Preview_Kind is
      (No_Preview, Text_Preview, Binary_Preview, Archive_Preview, Image_Preview, Unreadable_Preview);
@@ -21,7 +21,7 @@ package Explore.Previews is
       --  What the file is, as the file command describes it.
       Description : Ada.Strings.Unbounded.Unbounded_String;
       --  Text lines, dump lines, or one line per archive member.
-      Lines       : Line_Vectors.Vector;
+      Lines       : Explore.String_Vectors.Vector;
       --  The language a text preview is coloured as.
       Language    : Explore.Syntax.Language := Explore.Syntax.No_Language;
       --  The image is a thumbnail made of the file, not the file itself.
@@ -47,7 +47,7 @@ package Explore.Previews is
    --  the file as "$1", whose output is shown as the preview of a file whose
    --  name one of Patterns matches, case ignored.
    type Preview_Rule is record
-      Patterns : Line_Vectors.Vector;
+      Patterns : Explore.String_Vectors.Vector;
       Run      : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
@@ -65,13 +65,6 @@ package Explore.Previews is
       Rules               : Rule_Vectors.Vector := Rule_Vectors.Empty_Vector;
       Thumbnails          : Boolean := True) return Preview;
 
-   --  At most Limit bytes from the start of the file at Path.
-   procedure Read_Head
-     (Path  : String;
-      Limit : Positive;
-      Data  : out Ada.Strings.Unbounded.Unbounded_String;
-      Ok    : out Boolean);
-
    --  Whether Data, the start of a file, is text: what is previewed as text,
    --  and opened in an editor.
    function Is_Text (Data : String) return Boolean;
@@ -83,8 +76,9 @@ package Explore.Previews is
    --  Whether Name has the extension of a video ffmpeg can take a frame of.
    function Is_Video (Name : String) return Boolean;
 
-   --  How long a thumbnailer is given, in milliseconds.
-   Thumbnail_Timeout_Ms : constant := 10_000;
+   --  How long a command run for a preview is given, in milliseconds: a
+   --  thumbnailer, or a previewer of the user's own.
+   Preview_Command_Timeout_Ms : constant := 10_000;
 
    --  The hex dump line for Data, at Offset into the file: the offset, up to
    --  sixteen bytes in hex, and those bytes as text.

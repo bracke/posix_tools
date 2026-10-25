@@ -4,7 +4,7 @@ with Ada.Strings.Unbounded;
 with Explore.Keymap;
 with Explore.Launch;
 with Explore.Previews;
-with Explore.Render;
+with Explore.Themes;
 with Posix_Tools.File_Operations.Listing;
 
 --  The user's configuration, read from a TOML file, and the bookmarks kept
@@ -22,7 +22,7 @@ package Explore.Settings is
         Posix_Tools.File_Operations.Listing.By_Natural_Name;
       Descending  : Boolean := False;
       Thumbnails  : Boolean := True;
-      Colors      : Explore.Render.Theme := Explore.Render.Default_Theme;
+      Colors      : Explore.Themes.Theme := Explore.Themes.Default_Theme;
       Keys        : Explore.Keymap.State;
       Openers     : Explore.Launch.Opener_Vectors.Vector;
       Previewers  : Explore.Previews.Rule_Vectors.Vector;

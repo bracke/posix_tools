@@ -39,10 +39,6 @@ package Explore.Search is
    --  Whether Name matches Pattern as a name search takes it.
    function Name_Matches (Pattern, Name : String) return Boolean;
 
-   --  Whether the file at Path contains Pattern, regardless of case. Binary
-   --  files are left out.
-   function Content_Matches (Pattern, Path : String) return Boolean;
-
    protected type Board is
       procedure Submit (Item : Request);
       --  Stop the search running, if any, without starting another.

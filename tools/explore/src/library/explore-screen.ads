@@ -98,10 +98,10 @@ package Explore.Screen is
    --  The longest prefix of the UTF-8 Text that takes at most Width cells.
    function Clipped (Text : String; Width : Natural) return String;
 
-   --  The output that brings a terminal showing Shown to show Wanted, and
-   --  Shown made a copy of Wanted. With Full, or when the two differ in size,
-   --  every cell is written.
-   function Render (Shown : in out Grid; Wanted : Grid; Full : Boolean := False) return String;
+   --  The output that brings a terminal showing Shown to show Wanted: only
+   --  the cells that differ are written, unless Full is set or the two differ
+   --  in size, when every cell is. Shown is made a copy of Wanted.
+   function Diff_Output (Shown : in out Grid; Wanted : Grid; Full : Boolean := False) return String;
 
 private
    package Cell_Vectors is new Ada.Containers.Vectors (Positive, Cell);

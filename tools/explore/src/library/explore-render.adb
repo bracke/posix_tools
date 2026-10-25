@@ -1,7 +1,7 @@
-with Ada.Characters.Handling;
 with Explore.Format;
 with Explore.Syntax;
 with Posix_Tools.File_Operations.Listing;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Render is
 
@@ -10,7 +10,10 @@ package body Explore.Render is
    package Previews renames Explore.Previews;
    package Syntax renames Explore.Syntax;
    package Screen renames Explore.Screen;
+   package Themes renames Explore.Themes;
    package Unbounded renames Ada.Strings.Unbounded;
+
+   use all type Themes.Theme_Role;
 
    use type Listing.Entry_Kind;
    use type Screen.Color;
@@ -19,7 +22,25 @@ package body Explore.Render is
    use type Previews.Preview_Kind;
    use type Unbounded.Unbounded_String;
 
-   function Token_Style (Colors : Theme; Kind : Syntax.Token_Kind) return Screen.Style is
+   --  Below this width a pane has no room for sizes beside the names.
+   Min_Size_Column_Width : constant := 20;
+
+   --  The jobs panel takes this share of the width, but never less than
+   --  Min_Panel_Width columns where the screen has them.
+   Panel_Share_Numerator   : constant := 3;
+   Panel_Share_Denominator : constant := 4;
+   Min_Panel_Width         : constant := 40;
+
+   --  The screen widths from which three panes are shown, and two.
+   Three_Pane_Columns : constant := 80;
+   Two_Pane_Columns   : constant := 50;
+
+   --  The owner-execute bit of a file's mode.
+   Owner_Execute_Bit : constant := 8#100#;
+
+   function Owner_Can_Execute (Mode : Natural) return Boolean is (Mode / Owner_Execute_Bit mod 2 = 1);
+
+   function Token_Style (Colors : Themes.Theme; Kind : Syntax.Token_Kind) return Screen.Style is
      (case Kind is
         when Syntax.Plain => Screen.Plain,
         when Syntax.Keyword => Colors (Keyword_Role),
@@ -48,13 +69,13 @@ package body Explore.Render is
 
    procedure Draw_Pane
      (Into   : in out Screen.Grid;
-      Item   : in out Model.Pane;
+      Item   : Model.Pane;
       Place  : Pane_Place;
       First  : Positive;
       Rows   : Natural;
       Active : Boolean;
       Text   : Labels;
-      Colors : Theme);
+      Colors : Themes.Theme);
 
    procedure Draw_Panel
      (Into    : in out Screen.Grid;
@@ -66,9 +87,15 @@ package body Explore.Render is
       Browser : Model.Browser;
       Context : Frame_Context);
 
-   function Entry_Style (Colors : Theme; Item : Listing.Listed_Entry) return Screen.Style;
+   function Entry_Style (Colors : Themes.Theme; Item : Listing.Listed_Entry) return Screen.Style;
 
-   function Image (Value : Natural) return String;
+   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
+
+   --  Whether the preview pane shows the selected file's details in place
+   --  of a listing.
+   function Shows_Details (Browser : Model.Browser) return Boolean is
+     (Browser.Panes (Model.Preview_Pane).State = Model.Empty
+      and then Model.Has_Selection (Browser.Panes (Model.Current_Pane)));
 
    --  Write Text at Row from Column on, clipped to Width cells.
    procedure Write
@@ -92,12 +119,13 @@ package body Explore.Render is
 
    procedure Draw
      (Into    : in out Screen.Grid;
-      Browser : in out Model.Browser;
+      Browser : Model.Browser;
       Context : Frame_Context)
    is
       Rows    : constant Natural := Screen.Rows (Into);
       Columns : constant Natural := Screen.Columns (Into);
       Shape   : constant Layout := Layout_For (Rows, Columns);
+      Heights : constant Model.Pane_Heights := Listed_Heights (Browser, Rows, Columns);
       Current : Model.Pane renames Browser.Panes (Model.Current_Pane);
    begin
       Screen.Clear (Into);
@@ -117,18 +145,15 @@ package body Explore.Render is
 
       for Kind in Model.Pane_Kind loop
          if Shape.Places (Kind).Shown and then Shape.Height > 0 then
-            if Kind = Model.Preview_Pane
-              and then Browser.Panes (Kind).State = Model.Empty
-              and then Model.Has_Selection (Current)
-            then
+            if Kind = Model.Preview_Pane and then Shows_Details (Browser) then
                Draw_Details (Into, Model.Selected (Current), Model.Selected_Path (Current), Context, Shape);
-            else
+            elsif Heights (Kind) > 0 then
                Draw_Pane
                  (Into,
                   Browser.Panes (Kind),
                   Shape.Places (Kind),
                   Shape.First_Row,
-                  Shape.Height,
+                  Heights (Kind),
                   Kind = Model.Current_Pane,
                   Context.Text,
                   Context.Colors);
@@ -216,22 +241,16 @@ package body Explore.Render is
 
    procedure Draw_Pane
      (Into   : in out Screen.Grid;
-      Item   : in out Model.Pane;
+      Item   : Model.Pane;
       Place  : Pane_Place;
       First  : Positive;
       Rows   : Natural;
       Active : Boolean;
       Text   : Labels;
-      Colors : Theme)
+      Colors : Themes.Theme)
    is
       Count : constant Natural := Model.Shown_Count (Item);
    begin
-      if Rows = 0 or else Place.Width = 0 then
-         return;
-      end if;
-
-      Model.Scroll (Item, Rows);
-
       if Count = 0 then
          case Item.State is
             when Model.Empty =>
@@ -266,7 +285,7 @@ package body Explore.Render is
                Style     : Screen.Style := Entry_Style (Colors, Shown);
                Size_Text : constant String :=
                  (if Active and then Shown.Kind = Listing.Regular_Entry and then Shown.Status.Available
-                    and then Place.Width >= 20
+                    and then Place.Width >= Min_Size_Column_Width
                   then Format.Size_Image (Shown.Status.Size)
                   else "");
                Line      : constant Positive := First + Row;
@@ -299,7 +318,9 @@ package body Explore.Render is
       Shape   : Layout)
    is
       Columns : constant Natural := Screen.Columns (Into);
-      Width   : constant Natural := Natural'Min (Columns, Natural'Max (40, Columns * 3 / 4));
+      Width   : constant Natural :=
+        Natural'Min
+          (Columns, Natural'Max (Min_Panel_Width, Columns * Panel_Share_Numerator / Panel_Share_Denominator));
       Left    : constant Positive := (Columns - Width) / 2 + 1;
       Lines   : constant Natural := Natural (Context.Panel_Lines.Length);
       Height  : constant Natural := Natural'Min (Shape.Height, Lines + 1);
@@ -405,7 +426,7 @@ package body Explore.Render is
       end;
    end Draw_Status;
 
-   function Entry_Style (Colors : Theme; Item : Listing.Listed_Entry) return Screen.Style is
+   function Entry_Style (Colors : Themes.Theme; Item : Listing.Listed_Entry) return Screen.Style is
    begin
       case Item.Kind is
          when Listing.Directory_Entry =>
@@ -419,7 +440,7 @@ package body Explore.Render is
          when Listing.Regular_Entry =>
             if Item.Is_Link then
                return Colors (Link_Role);
-            elsif Item.Status.Available and then Item.Status.Mode mod 8#1000# / 8#100# mod 2 = 1 then
+            elsif Item.Status.Available and then Owner_Can_Execute (Item.Status.Mode) then
                return Colors (Success_Role);
             else
                return Screen.Plain;
@@ -427,19 +448,13 @@ package body Explore.Render is
       end case;
    end Entry_Style;
 
-   function Image (Value : Natural) return String is
-      Text : constant String := Natural'Image (Value);
-   begin
-      return Text (Text'First + 1 .. Text'Last);
-   end Image;
-
    function Layout_For (Rows, Columns : Natural) return Layout is
       Result : Layout;
       Gap    : constant := 1;
    begin
       Result.Height := (if Rows >= 3 then Rows - 2 else 0);
 
-      if Columns >= 80 then
+      if Columns >= Three_Pane_Columns then
          declare
             Parent_Width  : constant Natural := Columns / 8;
             Current_Width : constant Natural := Columns / 2;
@@ -449,7 +464,7 @@ package body Explore.Render is
             Result.Places (Model.Preview_Pane) :=
               (True, Parent_Width + Current_Width + 2 * Gap + 1, Columns - Parent_Width - Current_Width - 2 * Gap);
          end;
-      elsif Columns >= 50 then
+      elsif Columns >= Two_Pane_Columns then
          declare
             Current_Width : constant Natural := (Columns - Gap) / 2;
          begin
@@ -463,11 +478,25 @@ package body Explore.Render is
       return Result;
    end Layout_For;
 
-   function Role_Name (Role : Theme_Role) return String is
-      Image : constant String := Ada.Characters.Handling.To_Lower (Theme_Role'Image (Role));
+   function Listed_Heights (Browser : Model.Browser; Rows, Columns : Natural) return Model.Pane_Heights is
+      Shape  : constant Layout := Layout_For (Rows, Columns);
+      Result : Model.Pane_Heights := [others => 0];
    begin
-      return Image (Image'First .. Image'Last - 5);
-   end Role_Name;
+      if Rows < Min_Rows or else Columns < Min_Columns then
+         return Result;
+      end if;
+
+      for Kind in Model.Pane_Kind loop
+         if Shape.Places (Kind).Shown
+           and then Shape.Places (Kind).Width > 0
+           and then not (Kind = Model.Preview_Pane and then Shows_Details (Browser))
+         then
+            Result (Kind) := Shape.Height;
+         end if;
+      end loop;
+
+      return Result;
+   end Listed_Heights;
 
    procedure Write
      (Into   : in out Screen.Grid;

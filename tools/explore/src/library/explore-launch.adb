@@ -35,7 +35,7 @@ package body Explore.Launch is
    function Shell_Arguments
      (Directory : String;
       Script    : String;
-      Files     : Explore.Model.Path_Vectors.Vector;
+      Files     : Explore.String_Vectors.Vector;
       Detach    : Boolean := False) return Posix_Tools.Arguments.Vector
    is
       LF     : constant Character := Character'Val (10);

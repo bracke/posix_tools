@@ -1,17 +1,13 @@
 with Ada.Calendar.Formatting;
 with Ada.Calendar.Time_Zones;
 with Posix_Tools.Text.File_Modes;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Format is
    package Listing renames Posix_Tools.File_Operations.Listing;
 
-   function Count_Image (Value : Long_Long_Integer) return String is
-      Text : constant String := Long_Long_Integer'Image (Value);
-   begin
-      return (if Value < 0 then Text else Text (Text'First + 1 .. Text'Last));
-   end Count_Image;
-
-   function Image (Value : Long_Long_Integer) return String renames Count_Image;
+   function Image (Value : Long_Long_Integer) return String
+     renames Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image;
 
    function Mode_Image (Item : Listing.Listed_Entry) return String is
       Kind : constant Character :=

@@ -9,7 +9,7 @@ with Posix_Tools.File_Operations.Listing;
 --  read per pane however fast the user moves; a read already running for a
 --  request that has been replaced stops at its next entry. Results wait in the
 --  slot until the screen collects them, newest only.
-package Explore.Tasks is
+package Explore.Directory_Readers is
    package Listing renames Posix_Tools.File_Operations.Listing;
 
    subtype Slot is Explore.Model.Pane_Kind;
@@ -66,8 +66,8 @@ package Explore.Tasks is
       Closed   : Boolean := False;
    end Board;
 
-   task type Worker (Jobs : not null access Board);
+   task type Worker (Readers : not null access Board);
 
    --  How many directories are read at once.
    Worker_Count : constant := 2;
-end Explore.Tasks;
+end Explore.Directory_Readers;

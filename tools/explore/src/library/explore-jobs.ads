@@ -1,6 +1,6 @@
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
-with Explore.Model;
+with Explore.String_Vectors;
 with Posix_Tools.File_Operations;
 
 --  File operations run away from the screen.
@@ -14,14 +14,12 @@ with Posix_Tools.File_Operations;
 --  asked what to do when a target already exists: the job waits for the
 --  answer, so nothing is overwritten that the user did not agree to.
 package Explore.Jobs is
-   package Path_Vectors renames Explore.Model.Path_Vectors;
-
    type Job_Kind is (Copy_Job, Move_Job, Link_Job, Delete_Job);
 
    type Job is record
       Kind    : Job_Kind := Copy_Job;
       --  Absolute paths of the entries to act on.
-      Sources : Path_Vectors.Vector;
+      Sources : Explore.String_Vectors.Vector;
       --  Where copies, moves, and links go; unused for deletion.
       Target  : Ada.Strings.Unbounded.Unbounded_String;
       --  Given by the board when the job is queued, from 1.
@@ -98,10 +96,11 @@ package Explore.Jobs is
    Max_Queued  : constant := 16;
    Max_History : constant := 16;
 
-   type Job_Array is array (Lane_Index) of Job;
-   type Flag_Array is array (Lane_Index) of Boolean;
-   type Answer_Array is array (Lane_Index) of Conflict_Answer;
-   type Result_Array is array (Lane_Index) of Result_View;
+   --  What the board keeps for each lane, for its own use.
+   type Job_Array is private;
+   type Flag_Array is private;
+   type Answer_Array is private;
+   type Result_Array is private;
 
    protected type Board is
       --  Queue a job. Accepted is False when the queue is full.
@@ -141,8 +140,8 @@ package Explore.Jobs is
       Queue     : Job_Vectors.Vector;
       Lanes     : Lane_Views;
       Running   : Job_Array;
-      Answered  : Flag_Array := [others => False];
-      Replies   : Answer_Array := [others => Skip_One];
+      Answered  : Flag_Array;
+      Replies   : Answer_Array;
       Results   : Result_Array;
       History   : Result_Vectors.Vector;
       Startable : Natural := 0;
@@ -160,4 +159,10 @@ package Explore.Jobs is
    --  Whether Left and Right touch the same paths: a path of one that is a
    --  path of the other, or lies inside one.
    function Overlap (Left, Right : Job) return Boolean;
+
+private
+   type Job_Array is array (Lane_Index) of Job;
+   type Flag_Array is array (Lane_Index) of Boolean with Default_Component_Value => False;
+   type Answer_Array is array (Lane_Index) of Conflict_Answer with Default_Component_Value => Skip_One;
+   type Result_Array is array (Lane_Index) of Result_View;
 end Explore.Jobs;

@@ -1,10 +1,13 @@
+with Explore.Model;
 with Posix_Tools.File_Operations.Copying;
 with Posix_Tools.File_Operations.Moving;
 with Posix_Tools.File_Operations.Removing;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Jobs is
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   package Model renames Explore.Model;
    package Ops renames Posix_Tools.File_Operations;
    package Unbounded renames Ada.Strings.Unbounded;
 
@@ -25,12 +28,6 @@ package body Explore.Jobs is
    overriding procedure Progress (Self : in out Job_Observer; Path : String; Copied : Long_Long_Integer);
    overriding function Resolve_Conflict
      (Self : in out Job_Observer; Source, Target : String) return Ops.Conflict_Choice;
-
-   function Join (Directory, Name : String) return String is
-     (if Directory'Length > 0 and then Directory (Directory'Last) = '/' then Directory & Name
-      else Directory & "/" & Name);
-
-   function Name_Of (Path : String) return String;
 
    --  Run one entry of a job.
    procedure Run_Item (Item : Job; Source : String; Watcher : in out Job_Observer'Class);
@@ -237,8 +234,7 @@ package body Explore.Jobs is
      (Self.Jobs.Cancel_Requested (Self.Lane));
 
    function Destination (Source, Directory : String) return String is
-      Name   : constant String := Name_Of (Source);
-      Wanted : constant String := Join (Directory, Name);
+      Wanted : constant String := Model.Child_Of (Directory, Model.Name_Of (Source));
    begin
       if Wanted /= Source then
          return Wanted;
@@ -246,8 +242,7 @@ package body Explore.Jobs is
 
       for N in 1 .. 10_000 loop
          declare
-            Image     : constant String := Natural'Image (N);
-            Candidate : constant String := Wanted & "_" & Image (Image'First + 1 .. Image'Last);
+            Candidate : constant String := Wanted & "_" & Posix_Tools.Text.Numeric_Images.Natural_Image (N);
          begin
             if not FS.Exists (Candidate) and then not FS.Is_Link (Candidate) then
                return Candidate;
@@ -258,22 +253,6 @@ package body Explore.Jobs is
       return Wanted;
    end Destination;
 
-   function Name_Of (Path : String) return String is
-      Last : Natural := Path'Last;
-   begin
-      while Last > Path'First and then Path (Last) = '/' loop
-         Last := Last - 1;
-      end loop;
-
-      for I in reverse Path'First .. Last loop
-         if Path (I) = '/' then
-            return Path (I + 1 .. Last);
-         end if;
-      end loop;
-
-      return Path (Path'First .. Last);
-   end Name_Of;
-
    function Overlap (Left, Right : Job) return Boolean is
       --  Whether Inner is Outer or lies inside it.
       function Within (Inner, Outer : String) return Boolean is
@@ -282,9 +261,9 @@ package body Explore.Jobs is
                   and then Inner (Inner'First .. Inner'First + Outer'Length - 1) = Outer
                   and then (Outer (Outer'Last) = '/' or else Inner (Inner'First + Outer'Length) = '/')));
 
-      function Paths (Item : Job) return Path_Vectors.Vector is
+      function Paths (Item : Job) return Explore.String_Vectors.Vector is
         (if Item.Kind = Delete_Job or else Unbounded.Length (Item.Target) = 0 then Item.Sources
-         else Path_Vectors."&" (Item.Sources, Unbounded.To_String (Item.Target)));
+         else Explore.String_Vectors."&" (Item.Sources, Unbounded.To_String (Item.Target)));
    begin
       for A of Paths (Left) loop
          for B of Paths (Right) loop
@@ -354,8 +333,8 @@ package body Explore.Jobs is
                Outcome);
          when Move_Job =>
             --  Moving into the directory it is already in moves nothing.
-            if Join (Directory, Name_Of (Source)) /= Source then
-               Ops.Moving.Move_Path (Source, Join (Directory, Name_Of (Source)), Watcher, Outcome);
+            if Model.Child_Of (Directory, Model.Name_Of (Source)) /= Source then
+               Ops.Moving.Move_Path (Source, Model.Child_Of (Directory, Model.Name_Of (Source)), Watcher, Outcome);
             end if;
          when Link_Job =>
             declare
@@ -416,7 +395,7 @@ package body Explore.Jobs is
    function View_Of (Item : Job) return Job_View is
      ((Id    => Item.Id,
        Kind  => Item.Kind,
-       First => Unbounded.To_Unbounded_String (if Item.Sources.Is_Empty then "" else Name_Of (Item.Sources (1))),
+       First => Unbounded.To_Unbounded_String (if Item.Sources.Is_Empty then "" else Model.Name_Of (Item.Sources (1))),
        Total => Natural (Item.Sources.Length)));
 
    task body Worker is

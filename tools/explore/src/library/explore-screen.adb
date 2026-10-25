@@ -2,6 +2,7 @@ with Ada.Strings.Unbounded;
 with Ada.Strings.UTF_Encoding.Wide_Wide_Strings;
 with Explore.Images;
 with Posix_Tools.Commands.Text_Helpers.Display;
+with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.UTF_8;
 
 package body Explore.Screen is
@@ -19,7 +20,11 @@ package body Explore.Screen is
       with procedure Action (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
    procedure For_Each_Shown (Text : String);
 
-   function Image (Value : Natural) return String;
+   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
+
+   --  Whether Code is a C0 or C1 control character: shown as a "?" in one
+   --  cell, never sent to the terminal as it is.
+   function Is_Control (Code : Long_Long_Integer) return Boolean is (Code < 32 or else Code in 127 .. 159);
 
    function Index (Self : Grid; Row, Column : Positive) return Positive is
      ((Row - 1) * Self.Width + Column);
@@ -49,7 +54,7 @@ package body Explore.Screen is
          if Status /= Posix_Tools.Text.UTF_8.Need_More then
             declare
                Cells : constant Natural :=
-                 (if Status = Posix_Tools.Text.UTF_8.Invalid or else Code < 32 or else Code in 127 .. 159 then 1
+                 (if Status = Posix_Tools.Text.UTF_8.Invalid or else Is_Control (Code) then 1
                   else Posix_Tools.Commands.Text_Helpers.Display.Display_Width (Code));
             begin
                exit when Taken + Cells > Width;
@@ -64,133 +69,7 @@ package body Explore.Screen is
 
    function Columns (Self : Grid) return Natural is (Self.Width);
 
-   procedure Fill
-     (Self       : in out Grid;
-      Row        : Positive;
-      Column     : Positive;
-      Width      : Natural;
-      Item_Style : Style)
-   is
-   begin
-      if Row > Self.Height then
-         return;
-      end if;
-
-      for C in Column .. Natural'Min (Self.Width, Column + Width - 1) loop
-         Self.Cells (Index (Self, Row, C)) :=
-           (Code => ' ', Item_Style => Item_Style, Continuation => False, others => <>);
-      end loop;
-   end Fill;
-
-   procedure For_Each_Shown (Text : String) is
-      Decoder : Posix_Tools.Text.UTF_8.Decoder;
-      Status  : Posix_Tools.Text.UTF_8.Decode_Status;
-      Code    : Long_Long_Integer;
-      Stop    : Boolean := False;
-   begin
-      for C of Text loop
-         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (C), Status, Code);
-
-         case Status is
-            when Posix_Tools.Text.UTF_8.Complete =>
-               if Code < 32 or else Code in 127 .. 159 then
-                  Action ('?', 1, Stop);
-               else
-                  declare
-                     Cells : constant Natural := Posix_Tools.Commands.Text_Helpers.Display.Display_Width (Code);
-                  begin
-                     if Cells > 0 then
-                        Action (Wide_Wide_Character'Val (Code), Cells, Stop);
-                     end if;
-                  end;
-               end if;
-            when Posix_Tools.Text.UTF_8.Invalid =>
-               Action (Replacement, 1, Stop);
-            when Posix_Tools.Text.UTF_8.Need_More =>
-               null;
-         end case;
-
-         exit when Stop;
-      end loop;
-   end For_Each_Shown;
-
-   function Image (Value : Natural) return String is
-      Text : constant String := Natural'Image (Value);
-   begin
-      return Text (Text'First + 1 .. Text'Last);
-   end Image;
-
-   procedure Put
-     (Self       : in out Grid;
-      Row        : Positive;
-      Column     : Positive;
-      Text       : String;
-      Item_Style : Style;
-      Width      : Natural;
-      Used       : out Natural)
-   is
-      Limit : constant Natural :=
-        (if Row > Self.Height or else Column > Self.Width then 0
-         else Natural'Min (Width, Self.Width - Column + 1));
-      At_Column : Positive := Column;
-
-      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
-
-      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean) is
-      begin
-         if At_Column - Column + Cells > Limit then
-            Stop := True;
-            return;
-         end if;
-
-         Self.Cells (Index (Self, Row, At_Column)) :=
-           (Code => Code, Item_Style => Item_Style, Continuation => False, others => <>);
-
-         if Cells = 2 then
-            Self.Cells (Index (Self, Row, At_Column + 1)) :=
-              (Code => ' ', Item_Style => Item_Style, Continuation => True, others => <>);
-         end if;
-
-         At_Column := At_Column + Cells;
-      end Place;
-
-      procedure Each is new For_Each_Shown (Place);
-   begin
-      if Limit > 0 then
-         Each (Text);
-      end if;
-
-      Used := At_Column - Column;
-   end Put;
-
-   procedure Put_Image
-     (Self    : in out Grid;
-      Row     : Positive;
-      Column  : Positive;
-      Id      : Positive;
-      Columns : Positive;
-      Rows    : Positive)
-   is
-      --  The placeholder's foreground colour names the image.
-      Style : constant Screen.Style := (Foreground => Color (Id), others => <>);
-   begin
-      for R in 0 .. Natural'Min (Rows, Explore.Images.Diacritic_Count) - 1 loop
-         exit when Row + R > Self.Height;
-
-         for C in 0 .. Natural'Min (Columns, Explore.Images.Diacritic_Count) - 1 loop
-            exit when Column + C > Self.Width;
-            Self.Cells (Index (Self, Row + R, Column + C)) :=
-              (Code         => Explore.Images.Placeholder,
-               Item_Style   => Style,
-               Continuation => False,
-               Image_Id     => Id,
-               Image_Row    => R,
-               Image_Column => C);
-         end loop;
-      end loop;
-   end Put_Image;
-
-   function Render (Shown : in out Grid; Wanted : Grid; Full : Boolean := False) return String is
+   function Diff_Output (Shown : in out Grid; Wanted : Grid; Full : Boolean := False) return String is
       Output      : Unbounded.Unbounded_String;
       Everything  : constant Boolean := Full or else Shown.Height /= Wanted.Height or else Shown.Width /= Wanted.Width;
       Cursor_Row  : Natural := 0;
@@ -266,7 +145,127 @@ package body Explore.Screen is
 
       Shown := Wanted;
       return Unbounded.To_String (Output);
-   end Render;
+   end Diff_Output;
+
+   procedure Fill
+     (Self       : in out Grid;
+      Row        : Positive;
+      Column     : Positive;
+      Width      : Natural;
+      Item_Style : Style)
+   is
+   begin
+      if Row > Self.Height then
+         return;
+      end if;
+
+      for C in Column .. Natural'Min (Self.Width, Column + Width - 1) loop
+         Self.Cells (Index (Self, Row, C)) :=
+           (Code => ' ', Item_Style => Item_Style, Continuation => False, others => <>);
+      end loop;
+   end Fill;
+
+   procedure For_Each_Shown (Text : String) is
+      Decoder : Posix_Tools.Text.UTF_8.Decoder;
+      Status  : Posix_Tools.Text.UTF_8.Decode_Status;
+      Code    : Long_Long_Integer;
+      Stop    : Boolean := False;
+   begin
+      for C of Text loop
+         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (C), Status, Code);
+
+         case Status is
+            when Posix_Tools.Text.UTF_8.Complete =>
+               if Is_Control (Code) then
+                  Action ('?', 1, Stop);
+               else
+                  declare
+                     Cells : constant Natural := Posix_Tools.Commands.Text_Helpers.Display.Display_Width (Code);
+                  begin
+                     if Cells > 0 then
+                        Action (Wide_Wide_Character'Val (Code), Cells, Stop);
+                     end if;
+                  end;
+               end if;
+            when Posix_Tools.Text.UTF_8.Invalid =>
+               Action (Replacement, 1, Stop);
+            when Posix_Tools.Text.UTF_8.Need_More =>
+               null;
+         end case;
+
+         exit when Stop;
+      end loop;
+   end For_Each_Shown;
+
+   procedure Put
+     (Self       : in out Grid;
+      Row        : Positive;
+      Column     : Positive;
+      Text       : String;
+      Item_Style : Style;
+      Width      : Natural;
+      Used       : out Natural)
+   is
+      Limit : constant Natural :=
+        (if Row > Self.Height or else Column > Self.Width then 0
+         else Natural'Min (Width, Self.Width - Column + 1));
+      At_Column : Positive := Column;
+
+      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
+
+      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean) is
+      begin
+         if At_Column - Column + Cells > Limit then
+            Stop := True;
+            return;
+         end if;
+
+         Self.Cells (Index (Self, Row, At_Column)) :=
+           (Code => Code, Item_Style => Item_Style, Continuation => False, others => <>);
+
+         if Cells = 2 then
+            Self.Cells (Index (Self, Row, At_Column + 1)) :=
+              (Code => ' ', Item_Style => Item_Style, Continuation => True, others => <>);
+         end if;
+
+         At_Column := At_Column + Cells;
+      end Place;
+
+      procedure Each is new For_Each_Shown (Place);
+   begin
+      if Limit > 0 then
+         Each (Text);
+      end if;
+
+      Used := At_Column - Column;
+   end Put;
+
+   procedure Put_Image
+     (Self    : in out Grid;
+      Row     : Positive;
+      Column  : Positive;
+      Id      : Positive;
+      Columns : Positive;
+      Rows    : Positive)
+   is
+      --  The placeholder's foreground colour names the image.
+      Style : constant Screen.Style := (Foreground => Color (Id), others => <>);
+   begin
+      for R in 0 .. Natural'Min (Rows, Explore.Images.Diacritic_Count) - 1 loop
+         exit when Row + R > Self.Height;
+
+         for C in 0 .. Natural'Min (Columns, Explore.Images.Diacritic_Count) - 1 loop
+            exit when Column + C > Self.Width;
+            Self.Cells (Index (Self, Row + R, Column + C)) :=
+              (Code         => Explore.Images.Placeholder,
+               Item_Style   => Style,
+               Continuation => False,
+               Image_Id     => Id,
+               Image_Row    => R,
+               Image_Column => C);
+         end loop;
+      end loop;
+   end Put_Image;
 
    procedure Resize (Self : in out Grid; Rows, Columns : Natural) is
    begin

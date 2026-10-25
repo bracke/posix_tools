@@ -96,26 +96,26 @@ package body Screen_Tests is
       Screen.Put (Wanted, 3, 1, "third", (Bold => True, others => <>), 20, Used);
 
       declare
-         Output : constant String := Screen.Render (Shown, Wanted);
+         Output : constant String := Screen.Diff_Output (Shown, Wanted);
       begin
          AUnit.Assertions.Assert
            (Ada.Strings.Fixed.Index (Output, ESC & "[2J") > 0, "a grid of a new size is drawn whole");
          AUnit.Assertions.Assert (Ada.Strings.Fixed.Index (Output, ESC & "[0;1m") > 0, "bold");
       end;
 
-      AUnit.Assertions.Assert (Screen.Render (Shown, Wanted) = "", "nothing changed, nothing written");
+      AUnit.Assertions.Assert (Screen.Diff_Output (Shown, Wanted) = "", "nothing changed, nothing written");
 
       Screen.Put (Wanted, 1, 2, "a", Screen.Plain, 1, Used);
 
       declare
-         Output : constant String := Screen.Render (Shown, Wanted);
+         Output : constant String := Screen.Diff_Output (Shown, Wanted);
       begin
          AUnit.Assertions.Assert
            (Output = ESC & "[1;2H" & ESC & "[0ma" & ESC & "[0m", "one cell changed, one cell written: " & Output);
       end;
 
       AUnit.Assertions.Assert
-        (Ada.Strings.Fixed.Index (Screen.Render (Shown, Wanted, Full => True), "third") > 0,
+        (Ada.Strings.Fixed.Index (Screen.Diff_Output (Shown, Wanted, Full => True), "third") > 0,
          "a full render writes everything again");
    end Test_Render_Writes_Only_Changes;
 

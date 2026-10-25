@@ -1,7 +1,7 @@
 with Ada.Containers.Indefinite_Ordered_Sets;
-with Ada.Containers.Indefinite_Vectors;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
+with Explore.String_Vectors;
 with Posix_Tools.File_Operations.Listing;
 
 --  What explore is showing, as data: the directory being browsed, its parent,
@@ -19,7 +19,6 @@ package Explore.Model is
 
    package Index_Vectors is new Ada.Containers.Vectors (Positive, Positive);
    package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
-   package Path_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
    type Pane is record
       Path       : Ada.Strings.Unbounded.Unbounded_String;
@@ -62,8 +61,8 @@ package Explore.Model is
       Last_Generation : Natural := 0;
       --  Directories visited before the current one, the latest last, and
       --  those gone back from, the latest last.
-      Back        : Path_Vectors.Vector;
-      Forward     : Path_Vectors.Vector;
+      Back        : Explore.String_Vectors.Vector;
+      Forward     : Explore.String_Vectors.Vector;
       --  Visual selection: the entry it started on, zero when it is off,
       --  and the marks there were before it started.
       Visual_Anchor : Natural := 0;
@@ -137,10 +136,17 @@ package Explore.Model is
    --  The parent directory of an absolute Path; Path itself for the root.
    function Parent_Of (Path : String) return String;
 
-   --  The last component of an absolute Path; empty for the root.
+   --  The last component of Path, any trailing slashes aside; empty for the
+   --  root.
    function Name_Of (Path : String) return String;
 
+   --  The path of Name in Directory, with one slash between them.
    function Child_Of (Directory, Name : String) return String;
+
+   --  Text with its ASCII letters in lower case and every other byte as it
+   --  is, as the filter and a name search compare names: a byte of a UTF-8
+   --  sequence is never mistaken for a letter.
+   function Folded (Text : String) return String;
 
    --  Hand a pane the entries read for Generation. Entries for any other
    --  generation are ignored. The cursor goes to the pane's wanted name, or
@@ -161,6 +167,12 @@ package Explore.Model is
 
    --  Keep the cursor of a pane within its Height rows on screen.
    procedure Scroll (Item : in out Pane; Height : Positive);
+
+   --  The rows each pane lists its entries in, zero for one not listed.
+   type Pane_Heights is array (Pane_Kind) of Natural;
+
+   --  Scroll every pane listed to its height; one not listed keeps its place.
+   procedure Scroll_Panes (Self : in out Browser; Heights : Pane_Heights);
 
    --  Whether the selected entry of the current pane is a directory to enter.
    function Can_Enter (Self : Browser) return Boolean;
@@ -195,5 +207,5 @@ package Explore.Model is
    --  What an operation acts on: the full paths of the marked entries of the
    --  current pane that are still there, or of the selected entry when none
    --  are marked.
-   function Targets (Self : Browser) return Path_Vectors.Vector;
+   function Targets (Self : Browser) return Explore.String_Vectors.Vector;
 end Explore.Model;

@@ -5,7 +5,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Explore.Archives;
 with Explore.Images;
-with Explore.Model;
+with Explore.String_Vectors;
 with Explore.Previews;
 with Explore.Syntax;
 with Posix_Tools.Host_Adapters.Executables;
@@ -35,7 +35,7 @@ package body Preview_Tests is
    function Zip_Of (Name, Data : String) return String;
 
    --  The members listed of the archive at Path, which holds Data.
-   function Lines_Of (Path, Data : String) return Explore.Model.Path_Vectors.Vector;
+   function Lines_Of (Path, Data : String) return Explore.String_Vectors.Vector;
 
    procedure Write (Name, Text : String);
 
@@ -68,8 +68,8 @@ package body Preview_Tests is
       & Big_Endian (13) & "IHDR" & Big_Endian (Width) & Big_Endian (Height) & Character'Val (8) & Character'Val (6)
       & Character'Val (0) & Character'Val (0) & Character'Val (0));
 
-   function Lines_Of (Path, Data : String) return Explore.Model.Path_Vectors.Vector is
-      Lines : Explore.Model.Path_Vectors.Vector;
+   function Lines_Of (Path, Data : String) return Explore.String_Vectors.Vector is
+      Lines : Explore.String_Vectors.Vector;
       Ok    : Boolean;
    begin
       Explore.Archives.List (Path, Data, 100, Lines, Ok);
@@ -123,7 +123,7 @@ package body Preview_Tests is
 
    procedure Test_Archives (T : in out Fixture) is
       pragma Unreferenced (T);
-      use type Explore.Model.Path_Vectors.Vector;
+      use type Explore.String_Vectors.Vector;
 
       Root    : constant String := Ada.Directories.Current_Directory & "/obj/archive-fixture";
       Content : constant String := "hello" & Character'Val (10);
@@ -132,7 +132,7 @@ package body Preview_Tests is
         & [1 .. 512 - Content'Length => NUL] & [1 .. 1024 => NUL];
       Packed  : Zlib.Byte_Array (0 .. Tar'Length - 1);
       Status  : Zlib.Status_Code;
-      Wanted  : Explore.Model.Path_Vectors.Vector;
+      Wanted  : Explore.String_Vectors.Vector;
       Item    : Previews.Preview;
    begin
       Ada.Directories.Create_Path (Root);

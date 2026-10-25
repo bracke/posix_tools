@@ -535,6 +535,10 @@ tools/explore/src/library/explore-application.adb
 tools/explore/src/library/explore-application.ads
 tools/explore/src/library/explore-archives.adb
 tools/explore/src/library/explore-archives.ads
+tools/explore/src/library/explore-directory_readers.adb
+tools/explore/src/library/explore-directory_readers.ads
+tools/explore/src/library/explore-files.adb
+tools/explore/src/library/explore-files.ads
 tools/explore/src/library/explore-format.adb
 tools/explore/src/library/explore-format.ads
 tools/explore/src/library/explore-images.adb
@@ -561,10 +565,11 @@ tools/explore/src/library/explore-search.adb
 tools/explore/src/library/explore-search.ads
 tools/explore/src/library/explore-settings.adb
 tools/explore/src/library/explore-settings.ads
+tools/explore/src/library/explore-string_vectors.ads
 tools/explore/src/library/explore-syntax.adb
 tools/explore/src/library/explore-syntax.ads
-tools/explore/src/library/explore-tasks.adb
-tools/explore/src/library/explore-tasks.ads
+tools/explore/src/library/explore-themes.adb
+tools/explore/src/library/explore-themes.ads
 tools/explore/src/library/explore.ads
 tools/explore/e2e/alire.toml
 tools/explore/e2e/posix_tools_explore_e2e.gpr

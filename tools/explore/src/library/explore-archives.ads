@@ -1,4 +1,4 @@
-with Explore.Model;
+with Explore.String_Vectors;
 
 --  What an archive holds, for the preview pane: one line per member, its size
 --  and its path inside the archive. ZIP, 7z, ar, cpio, ISO 9660, and RAR are
@@ -14,7 +14,7 @@ package Explore.Archives is
      (Path  : String;
       Head  : String;
       Limit : Positive;
-      Lines : out Explore.Model.Path_Vectors.Vector;
+      Lines : out Explore.String_Vectors.Vector;
       Ok    : out Boolean);
 
    --  The largest tar, plain or compressed, that is read into memory to be

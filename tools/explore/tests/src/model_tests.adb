@@ -4,7 +4,7 @@ with Ada.Strings.Unbounded;
 with Explore.Input;
 with Explore.Keymap;
 with Explore.Model;
-with Explore.Tasks;
+with Explore.Directory_Readers;
 with Posix_Tools.File_Operations.Listing;
 
 package body Model_Tests is
@@ -73,52 +73,52 @@ package body Model_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:filter", Test_Filter'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:history and visual", Test_History_And_Visual'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("keymap:bindings", Test_Keymap'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("tasks:board", Test_Board'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("directory_readers:board", Test_Board'Access));
       return Result;
    end Suite;
 
    procedure Test_Board (T : in out Fixture) is
       pragma Unreferenced (T);
-      Jobs    : Explore.Tasks.Board;
-      Item    : Explore.Tasks.Slot;
-      Work    : Explore.Tasks.Request;
+      Readers : Explore.Directory_Readers.Board;
+      Item    : Explore.Directory_Readers.Slot;
+      Work    : Explore.Directory_Readers.Request;
       Closed  : Boolean;
-      Outcome : Explore.Tasks.Result;
+      Outcome : Explore.Directory_Readers.Result;
       Found   : Boolean;
    begin
-      AUnit.Assertions.Assert (not Jobs.Busy, "idle at first");
+      AUnit.Assertions.Assert (not Readers.Busy, "idle at first");
 
-      Jobs.Submit (Model.Parent_Pane, (Generation => 1, others => <>));
-      Jobs.Submit (Model.Current_Pane, (Generation => 2, others => <>));
-      Jobs.Submit (Model.Current_Pane, (Generation => 3, others => <>));
-      AUnit.Assertions.Assert (Jobs.Busy, "busy with requests waiting");
+      Readers.Submit (Model.Parent_Pane, (Generation => 1, others => <>));
+      Readers.Submit (Model.Current_Pane, (Generation => 2, others => <>));
+      Readers.Submit (Model.Current_Pane, (Generation => 3, others => <>));
+      AUnit.Assertions.Assert (Readers.Busy, "busy with requests waiting");
 
-      Jobs.Take (Item, Work, Closed);
+      Readers.Take (Item, Work, Closed);
       AUnit.Assertions.Assert
         (not Closed and then Item = Model.Current_Pane and then Work.Generation = 3,
          "the current pane first, and only its newest request");
-      AUnit.Assertions.Assert (not Jobs.Is_Wanted (Model.Current_Pane, 2), "a replaced request is not wanted");
+      AUnit.Assertions.Assert (not Readers.Is_Wanted (Model.Current_Pane, 2), "a replaced request is not wanted");
 
-      Jobs.Submit (Model.Current_Pane, (Generation => 4, others => <>));
-      AUnit.Assertions.Assert (not Jobs.Is_Wanted (Model.Current_Pane, 3), "the running one is replaced too");
-      Jobs.Finish (Model.Current_Pane, (Generation => 3, others => <>));
-      Jobs.Collect (Model.Current_Pane, Outcome, Found);
+      Readers.Submit (Model.Current_Pane, (Generation => 4, others => <>));
+      AUnit.Assertions.Assert (not Readers.Is_Wanted (Model.Current_Pane, 3), "the running one is replaced too");
+      Readers.Finish (Model.Current_Pane, (Generation => 3, others => <>));
+      Readers.Collect (Model.Current_Pane, Outcome, Found);
       AUnit.Assertions.Assert (not Found, "the result of a replaced request is dropped");
 
-      Jobs.Take (Item, Work, Closed);
+      Readers.Take (Item, Work, Closed);
       AUnit.Assertions.Assert (Item = Model.Current_Pane and then Work.Generation = 4, "the replacement");
-      Jobs.Finish (Model.Current_Pane, (Generation => 4, Readable => True, others => <>));
-      Jobs.Collect (Model.Current_Pane, Outcome, Found);
+      Readers.Finish (Model.Current_Pane, (Generation => 4, Readable => True, others => <>));
+      Readers.Collect (Model.Current_Pane, Outcome, Found);
       AUnit.Assertions.Assert (Found and then Outcome.Generation = 4 and then Outcome.Readable, "collected");
 
-      Jobs.Take (Item, Work, Closed);
+      Readers.Take (Item, Work, Closed);
       AUnit.Assertions.Assert (Item = Model.Parent_Pane and then Work.Generation = 1, "then the parent");
-      Jobs.Finish (Model.Parent_Pane, (Generation => 1, others => <>));
-      Jobs.Collect (Model.Parent_Pane, Outcome, Found);
-      AUnit.Assertions.Assert (not Jobs.Busy, "idle once everything is collected");
+      Readers.Finish (Model.Parent_Pane, (Generation => 1, others => <>));
+      Readers.Collect (Model.Parent_Pane, Outcome, Found);
+      AUnit.Assertions.Assert (not Readers.Busy, "idle once everything is collected");
 
-      Jobs.Shut_Down;
-      Jobs.Take (Item, Work, Closed);
+      Readers.Shut_Down;
+      Readers.Take (Item, Work, Closed);
       AUnit.Assertions.Assert (Closed, "a shut-down board tells its workers to end");
    end Test_Board;
 
@@ -351,8 +351,16 @@ package body Model_Tests is
       AUnit.Assertions.Assert (Model.Name_Of ("/a/b") = "b", "name");
       AUnit.Assertions.Assert (Model.Name_Of ("/a/b/") = "b", "name, trailing slash");
       AUnit.Assertions.Assert (Model.Name_Of ("/") = "", "the root has no name");
+      AUnit.Assertions.Assert (Model.Name_Of ("//") = "", "nor has the root written twice");
+      AUnit.Assertions.Assert (Model.Name_Of ("/a//") = "a", "name, trailing slashes");
+      AUnit.Assertions.Assert (Model.Name_Of ("b") = "b", "a name alone");
       AUnit.Assertions.Assert (Model.Child_Of ("/", "a") = "/a", "child of the root");
       AUnit.Assertions.Assert (Model.Child_Of ("/a", "b") = "/a/b", "child");
+      AUnit.Assertions.Assert (Model.Child_Of ("/a/", "b") = "/a/b", "child of a path with a trailing slash");
+      AUnit.Assertions.Assert
+        (Model.Folded ("ReadMe" & Character'Val (16#C3#) & Character'Val (16#84#))
+         = "readme" & Character'Val (16#C3#) & Character'Val (16#84#),
+         "ASCII folded, UTF-8 bytes left alone");
    end Test_Paths;
 
    procedure Test_Stale_Entries_Dropped (T : in out Fixture) is

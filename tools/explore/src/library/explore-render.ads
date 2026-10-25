@@ -3,6 +3,8 @@ with Ada.Strings.Unbounded;
 with Explore.Model;
 with Explore.Previews;
 with Explore.Screen;
+with Explore.String_Vectors;
+with Explore.Themes;
 
 --  Drawing a frame: where the panes go for the terminal's width, and what
 --  each shows.
@@ -16,63 +18,6 @@ package Explore.Render is
       Filter     : Ada.Strings.Unbounded.Unbounded_String;
       Marked     : Ada.Strings.Unbounded.Unbounded_String;
    end record;
-
-   --  What each part of the screen is drawn in. The first six are the roles
-   --  terminal_styles names, for what they mean there: headers, information,
-   --  muted notes, errors, warnings, and success.
-   type Theme_Role is
-     (Header_Role,
-      Info_Role,
-      Muted_Role,
-      Error_Role,
-      Warning_Role,
-      Success_Role,
-      Status_Role,
-      Alert_Role,
-      Directory_Role,
-      Link_Role,
-      Missing_Role,
-      Marked_Role,
-      Cursor_Role,
-      Inactive_Cursor_Role,
-      Panel_Role,
-      Keyword_Role,
-      String_Role,
-      Comment_Role,
-      Number_Role,
-      Heading_Role);
-
-   type Theme is array (Theme_Role) of Explore.Screen.Style;
-
-   --  The title, the current path, notes, errors, special files, executable
-   --  files, the status line, a message that is an error, directories,
-   --  links, broken links, marked entries, the cursor in the current pane and
-   --  in the others, the jobs panel, and the parts of coloured source text.
-   --  Marked entries and the cursor are laid over an entry's own style.
-   Default_Theme : constant Theme :=
-     [Header_Role          => (Bold => True, others => <>),
-      Info_Role            => (Foreground => Explore.Screen.Blue, Bold => True, others => <>),
-      Muted_Role           => (Dim => True, others => <>),
-      Error_Role           => (Foreground => Explore.Screen.Red, others => <>),
-      Warning_Role         => (Foreground => Explore.Screen.Yellow, others => <>),
-      Success_Role         => (Foreground => Explore.Screen.Green, others => <>),
-      Status_Role          => (Inverse => True, others => <>),
-      Alert_Role           => (Foreground => Explore.Screen.Red, Inverse => True, others => <>),
-      Directory_Role       => (Foreground => Explore.Screen.Blue, Bold => True, others => <>),
-      Link_Role            => (Foreground => Explore.Screen.Cyan, others => <>),
-      Missing_Role         => (Foreground => Explore.Screen.Red, others => <>),
-      Marked_Role          => (Foreground => Explore.Screen.Magenta, Bold => True, others => <>),
-      Cursor_Role          => (Inverse => True, others => <>),
-      Inactive_Cursor_Role => (Background => Explore.Screen.Bright_Black, others => <>),
-      Panel_Role           => (Background => Explore.Screen.Bright_Black, others => <>),
-      Keyword_Role         => (Foreground => Explore.Screen.Magenta, Bold => True, others => <>),
-      String_Role          => (Foreground => Explore.Screen.Green, others => <>),
-      Comment_Role         => (Foreground => Explore.Screen.Bright_Black, others => <>),
-      Number_Role          => (Foreground => Explore.Screen.Yellow, others => <>),
-      Heading_Role         => (Foreground => Explore.Screen.Blue, Bold => True, others => <>)];
-
-   --  A role's name in the configuration: "header", "inactive_cursor", ...
-   function Role_Name (Role : Theme_Role) return String;
 
    type Pane_Place is record
       Shown  : Boolean := False;
@@ -108,7 +53,7 @@ package Explore.Render is
 
    type Frame_Context is record
       Text    : Labels;
-      Colors  : Theme := Default_Theme;
+      Colors  : Explore.Themes.Theme := Explore.Themes.Default_Theme;
       --  The owner and group of the selected entry, as names where known.
       Owner   : Ada.Strings.Unbounded.Unbounded_String;
       --  Typing into the filter: the status line shows what is typed.
@@ -143,7 +88,7 @@ package Explore.Render is
       --  for, zero for a line that stands for none.
       Panel_Open   : Boolean := False;
       Panel_Title  : Ada.Strings.Unbounded.Unbounded_String;
-      Panel_Lines  : Explore.Model.Path_Vectors.Vector;
+      Panel_Lines  : Explore.String_Vectors.Vector;
       Panel_Ids    : Id_Vectors.Vector;
       Panel_Cursor : Natural := 0;
    end record;
@@ -153,10 +98,15 @@ package Explore.Render is
    Min_Rows    : constant := 3;
    Min_Columns : constant := 12;
 
-   --  Draw the whole frame for Browser into Into, scrolling each pane so its
-   --  cursor is on screen.
+   --  The rows each pane of Browser lists its entries in on a screen of Rows
+   --  by Columns: none for a pane not shown, nor for a preview that shows a
+   --  file's details instead.
+   function Listed_Heights (Browser : Explore.Model.Browser; Rows, Columns : Natural) return Explore.Model.Pane_Heights;
+
+   --  Draw the whole frame for Browser into Into. Each pane is drawn from
+   --  where it is scrolled to, so scroll them to Listed_Heights first.
    procedure Draw
      (Into    : in out Explore.Screen.Grid;
-      Browser : in out Explore.Model.Browser;
+      Browser : Explore.Model.Browser;
       Context : Frame_Context);
 end Explore.Render;

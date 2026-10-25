@@ -3,6 +3,7 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Explore.Jobs;
+with Explore.String_Vectors;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Jobs_Tests is
@@ -18,7 +19,7 @@ package body Jobs_Tests is
    --  Root with a file, a directory holding a file, and an empty "into".
    procedure Make_Fixture;
 
-   function Sources (A : String; B : String := "") return Jobs.Path_Vectors.Vector;
+   function Sources (A : String; B : String := "") return Explore.String_Vectors.Vector;
 
    --  Wait until the board has finished Count jobs, answering every
    --  question with Answer.
@@ -41,8 +42,8 @@ package body Jobs_Tests is
       Write (Path ("dir/inner"), "inner");
    end Make_Fixture;
 
-   function Sources (A : String; B : String := "") return Jobs.Path_Vectors.Vector is
-      Result : Jobs.Path_Vectors.Vector;
+   function Sources (A : String; B : String := "") return Explore.String_Vectors.Vector is
+      Result : Explore.String_Vectors.Vector;
    begin
       Result.Append (A);
 
