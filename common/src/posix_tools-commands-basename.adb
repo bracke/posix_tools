@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Basename is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -17,10 +19,9 @@ package body Posix_Tools.Commands.Basename is
       end if;
 
       if Operand_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
       elsif Operand_Count > 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (First + 2) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
       else
          Context.Put
            (Posix_Tools.Paths.Basename

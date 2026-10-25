@@ -2,10 +2,12 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Display;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.Tab_Stops;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Expand is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    HT : constant Character := Character'Val (9);
@@ -100,14 +102,13 @@ package body Posix_Tools.Commands.Expand is
                exit;
             elsif Arg = "-t" then
                if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '-t'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
                   return;
                elsif not Posix_Tools.Commands.Text_Helpers.Tab_Stops.Parse
                  (Tab_Config, Context.Argument (First_File + 1))
                then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First_File + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First_File + 1));
                   return;
                end if;
                First_File := First_File + 2;
@@ -119,12 +120,12 @@ package body Posix_Tools.Commands.Expand is
                  (Tab_Config, Arg (Arg'First + 2 .. Arg'Last))
                then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Arg (Arg'First + 2 .. Arg'Last) & "'");
+                    (Context, Result, Invalid_Operand, Arg (Arg'First + 2 .. Arg'Last));
                   return;
                end if;
                First_File := First_File + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;

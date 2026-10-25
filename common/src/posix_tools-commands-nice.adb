@@ -1,9 +1,11 @@
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Nice_Fields;
 
 package body Posix_Tools.Commands.Nice is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -18,13 +20,13 @@ package body Posix_Tools.Commands.Nice is
       end if;
 
       if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
       if Context.Argument (First) = "-n" then
          if First = Context.Argument_Count then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-n'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-n");
             return;
          else
             declare
@@ -33,7 +35,7 @@ package body Posix_Tools.Commands.Nice is
             begin
                if not Parsed.Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                   return;
                end if;
                Adjustment := Parsed.Value;
@@ -49,8 +51,7 @@ package body Posix_Tools.Commands.Nice is
                 (Context.Argument (First) (3 .. Context.Argument (First)'Last));
          begin
             if not Parsed.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
                return;
             end if;
             Adjustment := Parsed.Value;
@@ -59,7 +60,7 @@ package body Posix_Tools.Commands.Nice is
       end if;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

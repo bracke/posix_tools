@@ -100,20 +100,7 @@ package body Posix_Tools.Commands.Printf_Execution is
       State   : in out Run_State);
 
    function Character_Locale (Context : Context_Class) return String is
-      LC_All   : constant String := Context.Environment_Value ("LC_ALL");
-      LC_Ctype : constant String := Context.Environment_Value ("LC_CTYPE");
-      Lang     : constant String := Context.Environment_Value ("LANG");
-   begin
-      if LC_All /= "" then
-         return LC_All;
-      elsif LC_Ctype /= "" then
-         return LC_Ctype;
-      elsif Lang /= "" then
-         return Lang;
-      else
-         return Context.Effective_Locale;
-      end if;
-   end Character_Locale;
+     (Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification));
 
    procedure Emit_Conversion
      (Context : in out Context_Class;
@@ -313,20 +300,7 @@ package body Posix_Tools.Commands.Printf_Execution is
    end Integer_Field;
 
    function Numeric_Locale (Context : Context_Class) return String is
-      LC_All     : constant String := Context.Environment_Value ("LC_ALL");
-      LC_Numeric : constant String := Context.Environment_Value ("LC_NUMERIC");
-      Lang       : constant String := Context.Environment_Value ("LANG");
-   begin
-      if LC_All /= "" then
-         return LC_All;
-      elsif LC_Numeric /= "" then
-         return LC_Numeric;
-      elsif Lang /= "" then
-         return Lang;
-      else
-         return Context.Effective_Locale;
-      end if;
-   end Numeric_Locale;
+     (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
 
    function Parse_Conversion (Format : String; Start : Positive) return Conversion_Spec is
       Spec : Conversion_Spec;

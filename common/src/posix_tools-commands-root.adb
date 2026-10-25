@@ -1,5 +1,6 @@
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Help;
 with Posix_Tools.Host_Adapters.Executables;
@@ -8,6 +9,7 @@ with Posix_Tools.Presentation;
 with Posix_Tools.Version;
 
 package body Posix_Tools.Commands.Root is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    function Local_Text
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Key     : String;
@@ -77,8 +79,7 @@ package body Posix_Tools.Commands.Root is
    is
    begin
       if Context.Argument_Count > Maximum then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (Maximum + 1) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (Maximum + 1));
          return True;
       end if;
 
@@ -157,16 +158,14 @@ package body Posix_Tools.Commands.Root is
          if Context.Argument_Count = 1 then
             Root_Help (Context);
          elsif not Posix_Tools.Command_Inventory.Contains_Executable (Context.Argument (2)) then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "unknown command '" & Context.Argument (2) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Command, Context.Argument (2));
             return;
          else
             Posix_Tools.Help.Render_Command_Help (Context, Context.Argument (2));
          end if;
          Result.Status := Root_Status (Context);
       else
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "unknown subcommand '" & Context.Argument (1) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Subcommand, Context.Argument (1));
       end if;
    end Run;
 end Posix_Tools.Commands.Root;

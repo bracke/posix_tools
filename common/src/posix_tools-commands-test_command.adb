@@ -3,6 +3,7 @@ with I18N.Collation;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Decimal_Parsing;
@@ -10,6 +11,8 @@ with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Test_Operators;
 
 package body Posix_Tools.Commands.Test_Command is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   subtype Usage_Message is Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
    use type Posix_Tools.Host_Adapters.File_System.Special_File_Kind;
 
@@ -23,9 +26,9 @@ package body Posix_Tools.Commands.Test_Command is
 
       --  The expression could not be parsed.
       Syntax_Error  : Boolean := False;
-      --  The usage diagnostic for it, when a more precise one than
-      --  "invalid expression" applies.
-      Syntax_Detail : Unbounded_String;
+      --  The usage diagnostic for it, and the argument it names.
+      Syntax_Message : Usage_Message := Invalid_Expression;
+      Syntax_Subject : Unbounded_String;
       --  The first operand of an integer comparison that is not an integer.
       Bad_Integer   : Unbounded_String;
       Has_Bad_Integer : Boolean := False;
@@ -40,7 +43,7 @@ package body Posix_Tools.Commands.Test_Command is
       function Collation_Locale return String;
       function Evaluate (First : Positive; Count : Natural) return Boolean;
       function Integer_Operand (Text : String) return Boolean;
-      procedure Invalid (Detail : String := "");
+      procedure Invalid (Message : Usage_Message := Invalid_Expression; Subject : String := "");
       function Parse_And return Boolean;
       function Parse_Expression (First, Final : Positive) return Boolean;
       function Parse_Not return Boolean;
@@ -76,20 +79,7 @@ package body Posix_Tools.Commands.Test_Command is
       end Binary_Test;
 
       function Collation_Locale return String is
-         LC_All     : constant String := Context.Environment_Value ("LC_ALL");
-         LC_Collate : constant String := Context.Environment_Value ("LC_COLLATE");
-         Lang       : constant String := Context.Environment_Value ("LANG");
-      begin
-         if LC_All /= "" then
-            return LC_All;
-         elsif LC_Collate /= "" then
-            return LC_Collate;
-         elsif Lang /= "" then
-            return Lang;
-         else
-            return Context.Effective_Locale;
-         end if;
-      end Collation_Locale;
+        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
 
       --  XCU test decides by the number of arguments before it parses: the
       --  rules for up to four arguments come first, so "x = -a" compares two
@@ -107,7 +97,7 @@ package body Posix_Tools.Commands.Test_Command is
                elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Arg (First)) then
                   return Unary_Test (Arg (First), Arg (First + 1));
                elsif Arg (First)'Length > 1 and then Arg (First) (Arg (First)'First) = '-' then
-                  Invalid ("unknown option '" & Arg (First) & "'");
+                  Invalid (Unknown_Option, Arg (First));
                else
                   Invalid;
                end if;
@@ -124,7 +114,7 @@ package body Posix_Tools.Commands.Test_Command is
                elsif Arg (First + 1)'Length > 0
                  and then Arg (First + 1) (Arg (First + 1)'First) in '-' | '=' | '<' | '>'
                then
-                  Invalid ("unknown operator '" & Arg (First + 1) & "'");
+                  Invalid (Unknown_Operator, Arg (First + 1));
                else
                   Invalid;
                end if;
@@ -156,11 +146,12 @@ package body Posix_Tools.Commands.Test_Command is
          return False;
       end Integer_Operand;
 
-      procedure Invalid (Detail : String := "") is
+      procedure Invalid (Message : Usage_Message := Invalid_Expression; Subject : String := "") is
       begin
          if not Syntax_Error then
             Syntax_Error := True;
-            Syntax_Detail := To_Unbounded_String (Detail);
+            Syntax_Message := Message;
+            Syntax_Subject := To_Unbounded_String (Subject);
          end if;
       end Invalid;
 
@@ -398,10 +389,7 @@ package body Posix_Tools.Commands.Test_Command is
       Truth := Evaluate (1, Context.Argument_Count);
 
       if Syntax_Error then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context,
-            Result,
-            (if Length (Syntax_Detail) > 0 then To_String (Syntax_Detail) else "invalid expression"));
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Syntax_Message, To_String (Syntax_Subject));
       elsif Has_Bad_Integer then
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context,

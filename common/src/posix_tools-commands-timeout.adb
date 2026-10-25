@@ -1,10 +1,12 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Duration_Fields;
 
 package body Posix_Tools.Commands.Timeout is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    procedure Run
@@ -24,8 +26,7 @@ package body Posix_Tools.Commands.Timeout is
 
       procedure Require_Operand (Option : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "missing option argument '" & Option & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Option);
       end Require_Operand;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -65,7 +66,7 @@ package body Posix_Tools.Commands.Timeout is
                begin
                   if not Parsed.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid duration '" & Context.Argument (First + 1) & "'");
+                       (Context, Result, Invalid_Duration, Context.Argument (First + 1));
                      return;
                   end if;
                   Kill_After_Ms := Parsed.Value;
@@ -79,14 +80,14 @@ package body Posix_Tools.Commands.Timeout is
                begin
                   if not Parsed.Valid then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid duration '" & Arg (Arg'First + 13 .. Arg'Last) & "'");
+                       (Context, Result, Invalid_Duration, Arg (Arg'First + 13 .. Arg'Last));
                      return;
                   end if;
                   Kill_After_Ms := Parsed.Value;
                end;
                First := First + 1;
             elsif Arg'Length > 0 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '" & Arg & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;
@@ -95,10 +96,10 @@ package body Posix_Tools.Commands.Timeout is
       end loop;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       elsif First = Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
@@ -107,15 +108,14 @@ package body Posix_Tools.Commands.Timeout is
            Posix_Tools.Text.Duration_Fields.Parse_Milliseconds (Context.Argument (First));
       begin
          if not Parsed.Valid then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid duration '" & Context.Argument (First) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Duration, Context.Argument (First));
             return;
          end if;
          Timeout_Ms := Parsed.Value;
       end;
 
       if To_String (Signal_Name) = "" then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand ''");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "");
          return;
       end if;
 

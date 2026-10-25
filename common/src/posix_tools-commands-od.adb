@@ -1,11 +1,13 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Od_Rendering;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.OD_Formats;
 
 package body Posix_Tools.Commands.Od is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Text.OD_Formats.Address_Base;
 
@@ -71,13 +73,11 @@ package body Posix_Tools.Commands.Od is
            Posix_Tools.Text.OD_Formats.Offset_Count (Text, Option = "-j");
       begin
          if not Present then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "missing option argument '" & Option & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Option);
             Valid := False;
             Target := 0;
          elsif not Parsed.Valid then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Text & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
             Valid := False;
             Target := 0;
          else
@@ -105,8 +105,7 @@ package body Posix_Tools.Commands.Od is
             if not Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Format
               (Formats, Context.Argument (First) (Context.Argument (First)'First + 1))
             then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
                return;
             end if;
             First := First + 1;
@@ -115,12 +114,11 @@ package body Posix_Tools.Commands.Od is
             First := First + 1;
          elsif Context.Argument (First) = "-A" then
             if First >= Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '-A'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-A");
                return;
             elsif not Set_Address_Base (Context.Argument (First + 1)) then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                return;
             end if;
             First := First + 2;
@@ -132,9 +130,10 @@ package body Posix_Tools.Commands.Od is
               (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
             then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '"
-                  & Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last)
-                  & "'");
+                 (Context,
+                  Result,
+                  Invalid_Operand,
+                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last));
                return;
             end if;
             First := First + 1;
@@ -208,12 +207,11 @@ package body Posix_Tools.Commands.Od is
             First := First + 1;
          elsif Context.Argument (First) = "-t" then
             if First >= Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '-t'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
                return;
             elsif not Append_Dump_Formats (Context.Argument (First + 1)) then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                return;
             end if;
             First := First + 2;
@@ -225,9 +223,10 @@ package body Posix_Tools.Commands.Od is
               (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
             then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '"
-                  & Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last)
-                  & "'");
+                 (Context,
+                  Result,
+                  Invalid_Operand,
+                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last));
                return;
             end if;
             First := First + 1;

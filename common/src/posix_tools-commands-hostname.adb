@@ -1,7 +1,9 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Hostname is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -37,8 +39,7 @@ package body Posix_Tools.Commands.Hostname is
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          end if;
       else
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (2) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (2));
       end if;
    end Run;
 end Posix_Tools.Commands.Hostname;

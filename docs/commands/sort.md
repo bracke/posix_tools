@@ -49,8 +49,10 @@ final sigma, and Latin ligatures, before comparisons. `-i` drops bytes outside A
 through `0x7e` from
 comparison keys without changing emitted line bytes. `-n` implements signed decimal integer, fractional, and exponent
 comparison for the selected key, canonicalizing localized numeric signs, decimal separators, and digit glyphs through
-the shared `i18n` CLDR data before comparison. Numerically equal keys compare equal. Without `-t`, sort fields are
-blank-delimited after leading blanks; with `-t`, consecutive separators create empty fields. Multiple `-k` operands are
+the shared `i18n` CLDR data before comparison. Numerically equal keys compare equal. Without `-t`, a sort field is a
+maximal run of non-blanks together with the blanks before it, so leading blanks belong to the field and count toward
+its character positions unless `-b` or a key's `b` modifier skips them; with `-t`, consecutive separators create empty
+fields. Multiple `-k` operands are
 applied as priority keys in command-line order. Per-key modifiers map to the same deterministic comparison policies as
 the corresponding global options. As POSIX specifies, global ordering options apply to every key that has none of its
 own, and a key with any modifier (`b`, `d`, `f`, `i`, `n`, or `r`) uses only its own, so `sort -r -k2n` does not

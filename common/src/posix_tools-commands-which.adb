@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Executables;
 
 package body Posix_Tools.Commands.Which is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package Exec renames Posix_Tools.Host_Adapters.Executables;
 
    procedure Run
@@ -21,7 +23,7 @@ package body Posix_Tools.Commands.Which is
       end if;
 
       if Context.Argument_Count < First then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

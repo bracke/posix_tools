@@ -1,9 +1,11 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.File_Modes;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Chmod is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Mode_Helpers renames Posix_Tools.Commands.Text_Helpers.File_Modes;
 
@@ -102,11 +104,10 @@ package body Posix_Tools.Commands.Chmod is
       end loop;
 
       if Context.Argument_Count < First + 1 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       elsif not Parse_Mode (Context.Argument (First)) then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
          return;
       end if;
 

@@ -1,8 +1,10 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Logname is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    procedure Run
@@ -16,8 +18,7 @@ package body Posix_Tools.Commands.Logname is
       end if;
 
       if Context.Argument_Count > 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (1) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (1));
          return;
       end if;
 

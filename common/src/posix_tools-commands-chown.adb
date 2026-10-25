@@ -1,9 +1,11 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Owner_Groups;
 
 package body Posix_Tools.Commands.Chown is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    procedure Run
@@ -99,7 +101,7 @@ package body Posix_Tools.Commands.Chown is
       end loop;
 
       if Context.Argument_Count < First + 1 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
@@ -108,8 +110,7 @@ package body Posix_Tools.Commands.Chown is
       begin
          Parse_Owner_Group (Context.Argument (First), Valid);
          if not Valid or else not (Owner_Set or else Group_Set) then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
             return;
          end if;
       end;

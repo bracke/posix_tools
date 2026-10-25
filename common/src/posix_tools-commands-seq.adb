@@ -2,12 +2,14 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 with I18N.Number_Format;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Seq_Formats;
 
 package body Posix_Tools.Commands.Seq is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
 
@@ -40,20 +42,7 @@ package body Posix_Tools.Commands.Seq is
       Has_Format  : Boolean := False;
 
       function Numeric_Locale return String is
-         LC_All     : constant String := Context.Environment_Value ("LC_ALL");
-         LC_Numeric : constant String := Context.Environment_Value ("LC_NUMERIC");
-         Lang       : constant String := Context.Environment_Value ("LANG");
-      begin
-         if LC_All /= "" then
-            return LC_All;
-         elsif LC_Numeric /= "" then
-            return LC_Numeric;
-         elsif Lang /= "" then
-            return Lang;
-         else
-            return Context.Effective_Locale;
-         end if;
-      end Numeric_Locale;
+        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
 
       function Localize_Decimal_Number (Text : String) return String is
          Locale  : constant String := Numeric_Locale;
@@ -119,7 +108,7 @@ package body Posix_Tools.Commands.Seq is
 
       procedure Invalid (Text : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
       end Invalid;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -144,8 +133,7 @@ package body Posix_Tools.Commands.Seq is
                   I := I + 1;
                elsif Arg = "-s" or else Arg = "-f" then
                   if I >= Context.Argument_Count then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing option argument '" & Arg & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                      return;
                   end if;
                   if Arg = "-s" then
@@ -166,7 +154,7 @@ package body Posix_Tools.Commands.Seq is
                  and then Arg (Arg'First) = '-'
                  and then not Posix_Tools.Text.Decimal_Parsing.Looks_Like_Negative_Number (Arg)
                then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                   return;
                else
                   Operands.Append (Arg);
@@ -177,7 +165,7 @@ package body Posix_Tools.Commands.Seq is
       end;
 
       if Operands.Length not in 1 .. 3 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand count");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand_Count);
          return;
       end if;
 

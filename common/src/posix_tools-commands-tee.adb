@@ -1,11 +1,13 @@
 with Ada.Streams;
 
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
 
 package body Posix_Tools.Commands.Tee is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Ada.Streams.Stream_Element_Offset;
 
    procedure Run
@@ -86,8 +88,7 @@ package body Posix_Tools.Commands.Tee is
                   when 'i' =>
                      Ignore_Interrupt := True;
                   when others =>
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "unknown option '-" & Ch & "'");
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                      return;
                end case;
             end loop;

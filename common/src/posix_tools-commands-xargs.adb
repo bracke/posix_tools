@@ -3,11 +3,13 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Xargs_Fields;
 with Posix_Tools.Text.Xargs_Parsing;
 
 package body Posix_Tools.Commands.Xargs is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
 
@@ -99,13 +101,14 @@ package body Posix_Tools.Commands.Xargs is
       function Set_Count (Option : Character; Text : String) return Boolean;
 
       function Set_Count (Option : Character; Text : String) return Boolean is
-         Subject : constant String := (if Option = 'n' then "argument count" else "command size");
+         Message : constant Posix_Tools.Commands.Usage_Messages.Usage_Message :=
+           (if Option = 'n' then Invalid_Argument_Count else Invalid_Command_Size);
          Value   : Natural;
       begin
-         if not Posix_Tools.Commands.Helpers.Parse_Natural_Operand (Context, Result, Text, Subject, Value) then
+         if not Posix_Tools.Commands.Helpers.Parse_Natural_Operand (Context, Result, Text, Message, Value) then
             return False;
          elsif Value = 0 then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid " & Subject & " '0'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Message, Text);
             return False;
          elsif Option = 'n' then
             Options.Batch_Size := Value;
@@ -138,8 +141,7 @@ package body Posix_Tools.Commands.Xargs is
             elsif Arg = "-x" then
                Options.Exit_If_Size_Exceeded := True;
             elsif Arg in "-I" | "-E" | "-n" | "-s" and then not Has_Arg then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '" & Arg & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                return False;
             elsif Arg = "-E" then
                Options.Has_Eof_Marker := True;
@@ -306,13 +308,13 @@ package body Posix_Tools.Commands.Xargs is
             when Posix_Tools.Text.Xargs_Parsing.Valid =>
                Input_Args := Parsed_Input.Items;
             when Posix_Tools.Text.Xargs_Parsing.Unmatched_Single_Quote =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unmatched single quote");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unmatched_Single_Quote);
                return;
             when Posix_Tools.Text.Xargs_Parsing.Unmatched_Double_Quote =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unmatched double quote");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unmatched_Double_Quote);
                return;
             when Posix_Tools.Text.Xargs_Parsing.Unfinished_Escape =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unfinished escape");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unfinished_Escape);
                return;
          end case;
       end;

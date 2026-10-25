@@ -1,9 +1,11 @@
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Numbers;
 
 package body Posix_Tools.Commands.Head is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Posix_Tools.Numbers.Parse_Status;
 
    procedure Run
@@ -32,11 +34,9 @@ package body Posix_Tools.Commands.Head is
          Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Text);
          if Parsed.Status /= Posix_Tools.Numbers.Valid then
             if Label = "line" then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid line count '" & Diagnostic_Text & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Line_Count, Diagnostic_Text);
             else
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid byte count '" & Diagnostic_Text & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Byte_Count, Diagnostic_Text);
             end if;
             Valid := False;
          else
@@ -64,8 +64,7 @@ package body Posix_Tools.Commands.Head is
             exit;
          elsif Context.Argument (Index) = "-n" then
             if Index = Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '-n'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-n");
                return;
             end if;
 
@@ -82,8 +81,7 @@ package body Posix_Tools.Commands.Head is
             Index := Index + 2;
          elsif Context.Argument (Index) = "-c" then
             if Index = Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '-c'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-c");
                return;
             end if;
 

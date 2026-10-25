@@ -1,10 +1,12 @@
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Ln is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    use type FS.File_Kind;
@@ -131,14 +133,14 @@ package body Posix_Tools.Commands.Ln is
                when 'v' =>
                   Verbose := True;
                when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                   return;
             end case;
          end loop;
          First := First + 1;
       end loop;
       if First > Context.Argument_Count or else Context.Argument_Count - First + 1 < 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

@@ -4,6 +4,7 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Text_Helpers.Folding;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Lines;
@@ -13,6 +14,7 @@ with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Uniq is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
@@ -213,7 +215,7 @@ package body Posix_Tools.Commands.Uniq is
          Value : Natural;
       begin
          if not Posix_Tools.Commands.Helpers.Parse_Natural_Operand
-           (Context, Result, Text, (if Option = 'f' then "field count" else "character count"), Value)
+           (Context, Result, Text, (if Option = 'f' then Invalid_Field_Count else Invalid_Character_Count), Value)
          then
             return False;
          elsif Option = 'f' then
@@ -241,8 +243,7 @@ package body Posix_Tools.Commands.Uniq is
                end loop;
                exit;
             elsif Arg in "-f" | "-s" and then I = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '" & Arg & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                return False;
             elsif Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) in "-f" | "-s" then
                if not Set_Skip
@@ -260,8 +261,7 @@ package body Posix_Tools.Commands.Uniq is
                      when 'i' => Options.Fold_Case := True;
                      when 'u' => Options.Unique_Only := True;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error
-                          (Context, Result, "unknown option '-" & Ch & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                         return False;
                   end case;
                end loop;
@@ -272,8 +272,7 @@ package body Posix_Tools.Commands.Uniq is
       end loop;
 
       if Options.Files.Length > 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Options.Files.Element (3) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Options.Files.Element (3));
          return False;
       end if;
       return True;
@@ -306,7 +305,9 @@ package body Posix_Tools.Commands.Uniq is
          declare
             Output : constant String :=
               Filter_Lines
-                (Options, Context.Effective_Locale, Posix_Tools.Streams.Lines.Split_LF_Records (Text));
+                (Options,
+                 Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation),
+                 Posix_Tools.Streams.Lines.Split_LF_Records (Text));
          begin
             if Options.Files.Length = 2 then
                Posix_Tools.Host_Adapters.File_System.Write_File (Options.Files.Element (2), Output, False, Ok);

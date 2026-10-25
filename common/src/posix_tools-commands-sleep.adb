@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Duration_Fields;
 
 package body Posix_Tools.Commands.Sleep is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -15,7 +17,7 @@ package body Posix_Tools.Commands.Sleep is
       end if;
 
       if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
@@ -26,13 +28,11 @@ package body Posix_Tools.Commands.Sleep is
                 (Context.Argument (I), Max_Duration_Seconds);
          begin
             if not Parsed.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
                return;
             end if;
             if Total_Seconds > Max_Duration_Seconds - Parsed.Value then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (I) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
                return;
             end if;
             Total_Seconds := Total_Seconds + Parsed.Value;

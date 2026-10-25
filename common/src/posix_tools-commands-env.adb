@@ -1,8 +1,10 @@
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Env is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -84,21 +86,20 @@ package body Posix_Tools.Commands.Env is
             First := First + 1;
          elsif not End_Options and then Context.Argument (First) = "-u" then
             if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-u'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-u");
                return;
             elsif Context.Argument (First + 1) = ""
               or else (for some Ch of Context.Argument (First + 1) => Ch = '=')
             then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                return;
             end if;
             Remove_Name (Context.Argument (First + 1));
             First := First + 2;
          elsif (for some Ch of Context.Argument (First) => Ch = '=') then
             if Context.Argument (First) (Context.Argument (First)'First) = '=' then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid operand '" & Context.Argument (First) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
                return;
             end if;
             Replace_Or_Append (Context.Argument (First));

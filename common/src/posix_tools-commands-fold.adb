@@ -2,10 +2,12 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Display;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Tab_Stops;
 
 package body Posix_Tools.Commands.Fold is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    HT : constant Character := Character'Val (9);
@@ -177,7 +179,7 @@ package body Posix_Tools.Commands.Fold is
 
       procedure Reject_Width (Text : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
       end Reject_Width;
 
       function Valid_Width (Text : String; Value : out Natural) return Boolean is
@@ -211,8 +213,7 @@ package body Posix_Tools.Commands.Fold is
                First_File := First_File + 1;
             elsif Arg = "-w" then
                if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '-w'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-w");
                   return;
                elsif not Valid_Width (Context.Argument (First_File + 1), Width) then
                   Reject_Width (Context.Argument (First_File + 1));
@@ -229,7 +230,7 @@ package body Posix_Tools.Commands.Fold is
                end if;
                First_File := First_File + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;

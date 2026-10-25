@@ -1,11 +1,13 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Paste_Delimiters;
 
 package body Posix_Tools.Commands.Paste is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
@@ -35,8 +37,7 @@ package body Posix_Tools.Commands.Paste is
                First := First + 1;
             elsif Arg = "-d" then
                if First >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '-d'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-d");
                   return;
                end if;
                Delimiters :=

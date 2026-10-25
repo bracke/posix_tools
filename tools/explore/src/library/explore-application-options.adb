@@ -1,7 +1,9 @@
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Localization;
+with Posix_Tools.Commands.Usage_Messages;
 
 package body Explore.Application.Options is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+
    package Unbounded renames Ada.Strings.Unbounded;
 
    procedure Parse
@@ -15,17 +17,16 @@ package body Explore.Application.Options is
       --  An option that takes a value was the last argument, without one.
       Missing       : Boolean := False;
 
-      --  Report the usage error of Key, with Name standing for Value in it.
-      procedure Refuse (Key, Name, Value, Default : String);
+      --  Report the usage error Message about Value.
+      procedure Refuse (Message : Posix_Tools.Commands.Usage_Messages.Usage_Message; Value : String);
 
       --  Whether Argument is the option Name, taking its value into Value:
       --  the rest of Argument after "Name=", or the next argument.
       function Takes (Argument, Name : String; Value : in out Unbounded.Unbounded_String) return Boolean;
 
-      procedure Refuse (Key, Name, Value, Default : String) is
+      procedure Refuse (Message : Posix_Tools.Commands.Usage_Messages.Usage_Message; Value : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, Posix_Tools.Localization.Text_1 (Context.Effective_Locale, Key, Name, Value, Default));
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Message, Value);
          Ok := False;
       end Refuse;
 
@@ -62,18 +63,14 @@ package body Explore.Application.Options is
                        or else Takes (Argument, "--cwd-file", Into.Cwd_File)
                        or else Takes (Argument, "--chooser-file", Into.Chooser_File))
                then
-                  Refuse
-                    ("posix_tools.diagnostic.option.unknown", "option", Argument, "unknown option '" & Argument & "'");
+                  Refuse (Unknown_Option, Argument);
                   return;
                elsif Missing then
-                  Refuse
-                    ("posix_tools.diagnostic.missing_option_argument", "option", Argument,
-                     "missing option argument '" & Argument & "'");
+                  Refuse (Missing_Option_Argument, Argument);
                   return;
                end if;
             elsif Unbounded.Length (Into.Directory) > 0 then
-               Refuse
-                 ("posix_tools.diagnostic.extra_operand", "operand", Argument, "extra operand '" & Argument & "'");
+               Refuse (Extra_Operand, Argument);
                return;
             else
                Into.Directory := Unbounded.To_Unbounded_String (Argument);

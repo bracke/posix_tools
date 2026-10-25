@@ -1,10 +1,12 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Portable_Paths;
 
 package body Posix_Tools.Commands.Pathchk is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -126,7 +128,7 @@ package body Posix_Tools.Commands.Pathchk is
                Portable_Mode := True;
                First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;
@@ -135,7 +137,7 @@ package body Posix_Tools.Commands.Pathchk is
       end loop;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

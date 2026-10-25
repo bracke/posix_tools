@@ -67,7 +67,7 @@ package body Posix_Tools.Commands.Sort_Keys.Comparison is
                (Rules.Fold_Case, Rules.Dictionary_Order, Rules.Ignore_Nonprinting));
    begin
       if Rules.Numeric_Sort then
-         return Posix_Tools.Text.Sort_Numeric.Numeric_Field (Locale, Selected);
+         return Posix_Tools.Text.Sort_Numeric.Numeric_Field (To_String (Options.Numeric_Locale), Selected);
       else
          return Selected;
       end if;

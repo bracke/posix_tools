@@ -29,7 +29,8 @@ Lists accept one-based numbers, open-ended ranges, and closed ranges separated b
 Exactly one of -b, -c, or -f may be selected. Supplying more than one list mode is invalid usage.
 The delimiter option -d and suppression option -s are valid only with field mode -f.
 .SH LOCALE BEHAVIOR
-The locale (LC_ALL, then LC_MESSAGES, then LANG) selects whether -c and -n see UTF-8 characters or bytes.
+The character-classification locale (LC_ALL, then LC_CTYPE, then LANG) selects whether -c and -n see
+UTF-8 characters or bytes.
 Data output is not localized. Help and diagnostics are localized.
 .SH IMPLEMENTATION-DEFINED CHOICES
 Characters are UTF-8 in every locale except C and POSIX without a UTF-8 codeset, where each byte is a character, so

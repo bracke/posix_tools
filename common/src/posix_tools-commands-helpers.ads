@@ -1,5 +1,6 @@
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Results;
+with Posix_Tools.Commands.Usage_Messages;
 
 package Posix_Tools.Commands.Helpers is
    function Escape_Untrusted (Text : String) return String;
@@ -9,16 +10,29 @@ package Posix_Tools.Commands.Helpers is
       Result  : out Posix_Tools.Commands.Results.Result;
       Conventional : Boolean := True) return Boolean;
 
+   --  Report Message, in the messages locale, as a usage error: the command
+   --  ends with the invalid-usage status.
    procedure Usage_Error
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
-      Message : String);
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message)
+     with Pre => not Posix_Tools.Commands.Usage_Messages.Has_Subject (Message);
 
+   --  Report Message as a usage error, with Subject, escaped, filling its
+   --  placeholder; a message without one leaves Subject out.
+   procedure Usage_Error
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result;
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
+      Subject : String);
+
+   --  Parse Text as a natural number into Value, or report Message with Text
+   --  as its subject as a usage error and return False.
    function Parse_Natural_Operand
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Text    : String;
-      Subject : String;
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
       Value   : out Natural) return Boolean;
 
    function Read_Affirmative_Response

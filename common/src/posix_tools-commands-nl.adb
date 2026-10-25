@@ -1,11 +1,13 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Nl_Numbering;
 with Posix_Tools.Commands.Text_Helpers;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.NL_Fields;
 
 package body Posix_Tools.Commands.Nl is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    procedure Run
@@ -35,7 +37,7 @@ package body Posix_Tools.Commands.Nl is
 
       procedure Invalid_Value (Text : String) is
       begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "invalid operand '" & Text & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
       end Invalid_Value;
 
       function Option_Value (Arg : String; Name : Character; Value_Text : out Unbounded_String) return Boolean is
@@ -112,8 +114,7 @@ package body Posix_Tools.Commands.Nl is
                First_File := First_File + 1;
             elsif Arg = "-b" or else Arg = "-h" or else Arg = "-f" then
                if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '" & Arg & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                   return;
                end if;
                Set_Mode_Option (Arg, Context.Argument (First_File + 1), Mode_Ok);
@@ -133,8 +134,7 @@ package body Posix_Tools.Commands.Nl is
                First_File := First_File + 1;
             elsif Arg = "-i" or else Arg = "-v" or else Arg = "-w" or else Arg = "-s" or else Arg = "-d" then
                if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "missing option argument '" & Arg & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
                   return;
                end if;
                Option_Arg := To_Unbounded_String (Context.Argument (First_File + 1));
@@ -212,7 +212,7 @@ package body Posix_Tools.Commands.Nl is
                end;
                First_File := First_File + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option " & Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
                return;
             else
                exit;

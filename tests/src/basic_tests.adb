@@ -30,7 +30,6 @@ with Posix_Tools.Text.DD_Conversion_Engine;
 with Posix_Tools.Text.DD_Conversions;
 with Posix_Tools.Text.DD_Operands;
 with Posix_Tools.Text.Decimal_Parsing;
-with Posix_Tools.Text.Diagnostic_Fields;
 with Posix_Tools.Text.Duration_Fields;
 with Posix_Tools.Text.Escaping;
 with Posix_Tools.Text.File_Modes;
@@ -1284,7 +1283,7 @@ package body Basic_Tests is
          use type Posix_Tools.Text.DD_Conversions.Case_Conversion_Kind;
 
          Options : Posix_Tools.Text.DD_Operands.Settings;
-         Error   : Ada.Strings.Unbounded.Unbounded_String;
+         Error   : Posix_Tools.Text.DD_Operands.Operand_Error;
          Parsed  : constant Boolean :=
            Posix_Tools.Text.DD_Operands.Parse_Argument ("if=input.bin", Options, Error)
            and then Posix_Tools.Text.DD_Operands.Parse_Argument ("of=out.bin", Options, Error)
@@ -1319,10 +1318,12 @@ package body Basic_Tests is
       declare
          Bad_Count : Posix_Tools.Text.DD_Operands.Settings;
          Missing_Cbs : Posix_Tools.Text.DD_Operands.Settings;
-         Error : Ada.Strings.Unbounded.Unbounded_String;
+         use type Posix_Tools.Text.DD_Operands.Operand_Error_Kind;
+
+         Error : Posix_Tools.Text.DD_Operands.Operand_Error;
          Empty_Count_Rejected : constant Boolean :=
            not Posix_Tools.Text.DD_Operands.Parse_Argument ("count=", Bad_Count, Error);
-         Empty_Count_Message : constant String := Ada.Strings.Unbounded.To_String (Error);
+         Empty_Count_Error : constant Posix_Tools.Text.DD_Operands.Operand_Error := Error;
          Block_Parsed : constant Boolean :=
            Posix_Tools.Text.DD_Operands.Parse_Argument ("conv=block", Missing_Cbs, Error);
          Missing_Cbs_Rejected : constant Boolean :=
@@ -1330,10 +1331,12 @@ package body Basic_Tests is
       begin
          AUnit.Assertions.Assert
            (Empty_Count_Rejected
-            and then Empty_Count_Message = "invalid count 'count='"
+            and then Empty_Count_Error.Kind = Posix_Tools.Text.DD_Operands.Invalid_Count
+            and then Ada.Strings.Unbounded.To_String (Empty_Count_Error.Subject) = "count="
             and then Block_Parsed
             and then Missing_Cbs_Rejected
-            and then Ada.Strings.Unbounded.To_String (Error) = "invalid block size 'cbs'",
+            and then Error.Kind = Posix_Tools.Text.DD_Operands.Invalid_Block_Size
+            and then Ada.Strings.Unbounded.To_String (Error.Subject) = "cbs",
             "dd operand parser rejects invalid operands");
       end;
       declare
@@ -2653,35 +2656,6 @@ package body Basic_Tests is
            (not M ("*a*a*a*a*a*a*a*a*a*a*a*a*b", Long),
             "many stars that cannot match end without trying every split");
       end;
-      declare
-         use type Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic_Kind;
-
-         Missing : constant Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic :=
-           Posix_Tools.Text.Diagnostic_Fields.Classify_Usage_Message
-             ("missing option argument '-n'");
-         Extra   : constant Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic :=
-           Posix_Tools.Text.Diagnostic_Fields.Classify_Usage_Message
-             ("extra operand 'file'");
-         Plain   : constant Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic :=
-           Posix_Tools.Text.Diagnostic_Fields.Classify_Usage_Message
-             ("unknown option -x");
-      begin
-         AUnit.Assertions.Assert
-           (Missing.Kind = Posix_Tools.Text.Diagnostic_Fields.Missing_Option_Argument
-            and then Missing.Payload_First = 26
-            and then Missing.Payload_Last = 27,
-            "diagnostic classifier finds missing option payload");
-         AUnit.Assertions.Assert
-           (Extra.Kind = Posix_Tools.Text.Diagnostic_Fields.Extra_Operand
-            and then Extra.Payload_First = 16
-            and then Extra.Payload_Last = 19,
-            "diagnostic classifier finds extra operand payload");
-         AUnit.Assertions.Assert
-           (Plain.Kind = Posix_Tools.Text.Diagnostic_Fields.Plain
-            and then not Posix_Tools.Text.Diagnostic_Fields.Has_Payload (Plain),
-            "diagnostic classifier leaves unquoted messages plain");
-      end;
-
       for Range_Value of Posix_Tools.Text.Whitespace_Data.White_Space_Ranges loop
          AUnit.Assertions.Assert
            (Posix_Tools.Text.Classification.Is_Whitespace (Range_Value.First),

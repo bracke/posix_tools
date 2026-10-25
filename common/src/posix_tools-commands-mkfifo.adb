@@ -1,9 +1,11 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Octal_Modes;
 
 package body Posix_Tools.Commands.Mkfifo is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    procedure Run
@@ -27,14 +29,14 @@ package body Posix_Tools.Commands.Mkfifo is
                Parsed_Mode : Posix_Tools.Text.Octal_Modes.Parsed_Mode;
             begin
                if First = Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing option argument '-m'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-m");
                   return;
                end if;
 
                Parsed_Mode := Posix_Tools.Text.Octal_Modes.Parse_Mode (Context.Argument (First + 1));
                if not Parsed_Mode.Valid then
                   Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "invalid operand '" & Context.Argument (First + 1) & "'");
+                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
                   return;
                end if;
 
@@ -42,8 +44,7 @@ package body Posix_Tools.Commands.Mkfifo is
                First := First + 2;
             end;
          elsif Context.Argument (First)'Length > 1 and then Context.Argument (First) (1) = '-' then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "unknown option '" & Context.Argument (First) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (First));
             return;
          else
             exit;
@@ -51,7 +52,7 @@ package body Posix_Tools.Commands.Mkfifo is
       end loop;
 
       if First > Context.Argument_Count then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 

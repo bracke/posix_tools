@@ -1,9 +1,11 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Host;
 
 package body Posix_Tools.Commands.Id is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
    package Host renames Posix_Tools.Host_Adapters.Host;
@@ -66,8 +68,7 @@ package body Posix_Tools.Commands.Id is
          begin
             if Arg = "--" then
                if I < Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, "extra operand '" & Context.Argument (I + 1) & "'");
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (I + 1));
                   return;
                end if;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
@@ -82,12 +83,12 @@ package body Posix_Tools.Commands.Id is
                      when 'n' =>
                         Show_Name := True;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "unknown option '-" & Ch & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
                         return;
                   end case;
                end loop;
             else
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "extra operand '" & Arg & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Arg);
                return;
             end if;
          end;

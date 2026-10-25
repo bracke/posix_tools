@@ -10,6 +10,9 @@ package Posix_Tools.Commands.Contexts is
 
    type Context is tagged private;
 
+   --  The locale categories a command consults.
+   type Locale_Category is (Character_Classification, Collation, Messages, Numeric, Time);
+
    procedure Initialize
      (Self         : in out Context;
       Command_Name : String;
@@ -18,6 +21,13 @@ package Posix_Tools.Commands.Contexts is
    function Command_Name (Self : Context) return String;
    function Argument_Count (Self : Context) return Natural;
    function Argument (Self : Context; Index : Positive) return String;
+   --  The locale of Category as POSIX settles it: LC_ALL, else the
+   --  category's own variable (LC_CTYPE, LC_COLLATE, LC_MESSAGES,
+   --  LC_NUMERIC or LC_TIME), else LANG, else Default_Locale.
+   function Category_Locale (Self : Context'Class; Category : Locale_Category) return String;
+   --  The locale when no environment variable names one.
+   function Default_Locale (Self : Context) return String;
+   --  The locale help and diagnostics are written in: the Messages one.
    function Effective_Locale (Self : Context) return String;
    function Environment_Pairs (Self : Context) return Posix_Tools.Arguments.Vector;
    function Environment_Defined (Self : Context; Name : String) return Boolean;

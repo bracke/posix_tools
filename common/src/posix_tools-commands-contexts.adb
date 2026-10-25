@@ -58,20 +58,38 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Environment.Defined (Name);
    end Environment_Defined;
 
-   function Effective_Locale (Self : Context) return String is
-      LC_All      : constant String := Self.Environment_Value ("LC_ALL");
-      LC_Messages : constant String := Self.Environment_Value ("LC_MESSAGES");
-      Lang        : constant String := Self.Environment_Value ("LANG");
+   function Category_Locale (Self : Context'Class; Category : Locale_Category) return String is
+      Variable : constant String :=
+        (case Category is
+            when Character_Classification => "LC_CTYPE",
+            when Collation                => "LC_COLLATE",
+            when Messages                 => "LC_MESSAGES",
+            when Numeric                  => "LC_NUMERIC",
+            when Time                     => "LC_TIME");
+      LC_All : constant String := Self.Environment_Value ("LC_ALL");
+      Own    : constant String := Self.Environment_Value (Variable);
+      Lang   : constant String := Self.Environment_Value ("LANG");
    begin
       if LC_All /= "" then
          return LC_All;
-      elsif LC_Messages /= "" then
-         return LC_Messages;
+      elsif Own /= "" then
+         return Own;
       elsif Lang /= "" then
          return Lang;
       else
-         return "en";
+         return Self.Default_Locale;
       end if;
+   end Category_Locale;
+
+   function Default_Locale (Self : Context) return String is
+      pragma Unreferenced (Self);
+   begin
+      return "en";
+   end Default_Locale;
+
+   function Effective_Locale (Self : Context) return String is
+   begin
+      return Category_Locale (Context'Class (Self), Messages);
    end Effective_Locale;
 
    function Physical_Current_Directory (Self : Context) return String is

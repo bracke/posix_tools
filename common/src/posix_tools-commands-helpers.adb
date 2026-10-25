@@ -8,7 +8,6 @@ with Posix_Tools.Localization;
 with Posix_Tools.Numbers;
 with Posix_Tools.Presentation;
 with Posix_Tools.Text.Decimal_Parsing;
-with Posix_Tools.Text.Diagnostic_Fields;
 with Posix_Tools.Text.Escaping;
 with Posix_Tools.Text.Numeric_Images;
 
@@ -23,123 +22,6 @@ package body Posix_Tools.Commands.Helpers is
    begin
       return Posix_Tools.Text.Escaping.Escape_Untrusted (Text);
    end Escape_Untrusted;
-
-   function Localized_Usage_Message
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
-      Message : String) return String
-   is
-      use type Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic_Kind;
-
-      Diagnostic : constant Posix_Tools.Text.Diagnostic_Fields.Usage_Diagnostic :=
-        Posix_Tools.Text.Diagnostic_Fields.Classify_Usage_Message (Message);
-
-      function Payload return String is
-      begin
-         if Posix_Tools.Text.Diagnostic_Fields.Has_Payload (Diagnostic) then
-            return Escape_Untrusted (Message (Diagnostic.Payload_First .. Diagnostic.Payload_Last));
-         end if;
-
-         return "";
-      end Payload;
-   begin
-      case Diagnostic.Kind is
-      when Posix_Tools.Text.Diagnostic_Fields.Missing_Operand =>
-         return Posix_Tools.Localization.Text
-           (Context.Effective_Locale,
-            "posix_tools.diagnostic.missing_operand",
-            Message);
-      when Posix_Tools.Text.Diagnostic_Fields.Missing_Option_Argument =>
-         declare
-            Option : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.missing_option_argument",
-               "option",
-               Option,
-               "missing option argument '" & Option & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Extra_Operand =>
-         declare
-            Operand : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.extra_operand",
-               "operand",
-               Operand,
-               "extra operand '" & Operand & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Operand =>
-         declare
-            Operand : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.operand.invalid",
-               "operand",
-               Operand,
-               "invalid operand '" & Operand & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Option =>
-         declare
-            Option : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.option.unknown",
-               "option",
-               Option,
-               "unknown option '" & Option & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Command =>
-         declare
-            Command : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.command.unknown",
-               "command",
-               Command,
-               "unknown command '" & Command & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Unknown_Subcommand =>
-         declare
-            Subcommand : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.subcommand.unknown",
-               "subcommand",
-               Subcommand,
-               "unknown subcommand '" & Subcommand & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Line_Count =>
-         declare
-            Count : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.line_count.invalid",
-               "count",
-               Count,
-               "invalid line count '" & Count & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Invalid_Count =>
-         declare
-            Count : constant String := Payload;
-         begin
-            return Posix_Tools.Localization.Text_1
-              (Context.Effective_Locale,
-               "posix_tools.diagnostic.count.invalid",
-               "count",
-               Count,
-               "invalid count '" & Count & "'");
-         end;
-      when Posix_Tools.Text.Diagnostic_Fields.Plain =>
-         return Message;
-      end case;
-   end Localized_Usage_Message;
 
    function Diagnostic_Line
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
@@ -179,11 +61,46 @@ package body Posix_Tools.Commands.Helpers is
    procedure Usage_Error
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
-      Message : String)
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message)
    is
    begin
-      Context.Put_Error_Line
-        (Diagnostic_Line (Context, Context.Command_Name & ": " & Localized_Usage_Message (Context, Message)));
+      Usage_Error (Context, Result, Message, "");
+   end Usage_Error;
+
+   procedure Usage_Error
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result;
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
+      Subject : String)
+   is
+      package Messages renames Posix_Tools.Commands.Usage_Messages;
+
+      Name    : constant String := Messages.Placeholder (Message);
+      Shown   : constant String := Escape_Untrusted (Subject);
+      Default : constant String := Messages.Default (Message);
+
+      function Filled_Default return String;
+
+      --  Default with its placeholder filled in by Shown.
+      function Filled_Default return String is
+         Marker : constant String := "{" & Name & "}";
+      begin
+         for I in Default'First .. Default'Last - Marker'Length + 1 loop
+            if Default (I .. I + Marker'Length - 1) = Marker then
+               return Default (Default'First .. I - 1) & Shown & Default (I + Marker'Length .. Default'Last);
+            end if;
+         end loop;
+         return Default;
+      end Filled_Default;
+
+      Text : constant String :=
+        (if Name = "" then
+            Posix_Tools.Localization.Text (Context.Effective_Locale, Messages.Key (Message), Default)
+         else
+            Posix_Tools.Localization.Text_1
+              (Context.Effective_Locale, Messages.Key (Message), Name, Shown, Filled_Default));
+   begin
+      Context.Put_Error_Line (Diagnostic_Line (Context, Context.Command_Name & ": " & Text));
       Result.Status := Posix_Tools.Exit_Status.Invalid_Usage;
    end Usage_Error;
 
@@ -191,7 +108,7 @@ package body Posix_Tools.Commands.Helpers is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Text    : String;
-      Subject : String;
+      Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
       Value   : out Natural) return Boolean
    is
       Parsed : constant Posix_Tools.Numbers.Parse_Result :=
@@ -200,7 +117,7 @@ package body Posix_Tools.Commands.Helpers is
       if Parsed.Status /= Posix_Tools.Numbers.Valid
         or else Parsed.Value > Posix_Tools.Numbers.Count (Natural'Last)
       then
-         Usage_Error (Context, Result, "invalid " & Subject & " '" & Text & "'");
+         Usage_Error (Context, Result, Message, Text);
          Value := 0;
          return False;
       end if;

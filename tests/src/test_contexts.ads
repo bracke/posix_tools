@@ -30,7 +30,7 @@ package Test_Contexts is
      (Self : Capturing_Context) return Posix_Tools.Arguments.Vector;
    overriding function Environment_Defined (Self : Capturing_Context; Name : String) return Boolean;
    overriding function Environment_Value (Self : Capturing_Context; Name : String) return String;
-   overriding function Effective_Locale (Self : Capturing_Context) return String;
+   overriding function Default_Locale (Self : Capturing_Context) return String;
    overriding function Physical_Current_Directory (Self : Capturing_Context) return String;
    overriding function Try_Physical_Current_Directory
      (Self : Capturing_Context;

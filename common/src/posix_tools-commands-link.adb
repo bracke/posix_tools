@@ -1,8 +1,10 @@
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Link is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    procedure Run
@@ -20,11 +22,10 @@ package body Posix_Tools.Commands.Link is
       end if;
 
       if Context.Argument_Count - First + 1 < 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, "missing operand");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       elsif Context.Argument_Count - First + 1 > 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error
-           (Context, Result, "extra operand '" & Context.Argument (First + 2) & "'");
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
          return;
       end if;
 

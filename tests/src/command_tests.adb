@@ -25,6 +25,7 @@ with Posix_Tools.Commands.Cut;
 with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Dd;
 with Posix_Tools.Commands.Df;
+with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Du;
 with Posix_Tools.Commands.Echo;
@@ -2791,7 +2792,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Dirname.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "Danish diagnostic status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "dirname: ekstra operand second" & LF,
+        (Test_Contexts.Error_Output (Context) = "dirname: ekstra operand 'second'" & LF,
          "Danish extra operand diagnostic");
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "Danish diagnostic stdout");
 
@@ -2802,7 +2803,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Danish missing option argument status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: mangler argument til valgmulighed -n" & LF,
+        (Test_Contexts.Error_Output (Context) = "head: mangler argument til valgmulighed '-n'" & LF,
          "Danish missing option argument diagnostic");
 
       Context.Initialize ("wc", One_Arg ("-z"));
@@ -2810,7 +2811,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "Danish unknown option status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: ukendt valgmulighed -z" & LF,
+        (Test_Contexts.Error_Output (Context) = "wc: ukendt valgmulighed '-z'" & LF,
          "Danish unknown option diagnostic");
 
       Context.Initialize ("head", One_Arg ("-nabc"));
@@ -2820,7 +2821,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Danish invalid line count status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal -nabc" & LF,
+        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal '-nabc'" & LF,
          "Danish invalid line count diagnostic");
 
       Context.Initialize ("cat", One_Arg (Missing));
@@ -2872,9 +2873,122 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Spanish unknown option status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: opcion desconocida -z" & LF,
+        (Test_Contexts.Error_Output (Context) = "wc: opcion desconocida '-z'" & LF,
          "Spanish unknown option diagnostic");
+
+      Context.Initialize ("seq", Two_Args ("-q", "3"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "seq: ukendt valgmulighed '-q'" & LF,
+         "Danish seq unknown option diagnostic");
+
+      Context.Initialize ("expr", Two_Args ("(", "1"));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "expr: mangler ')' i udtrykket" & LF,
+         "Danish expr missing parenthesis diagnostic");
+
+      Context.Initialize ("cut", Two_Args ("-b1", "-c1"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "cut: varias opciones de lista" & LF,
+         "Spanish cut multiple list options diagnostic");
+
+      Context.Initialize ("touch", Three_Args ("-d", "nonsense", "file"));
+      Test_Contexts.Set_Locale (Context, "es");
+      Posix_Tools.Commands.Touch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "touch: marca de tiempo no válida 'nonsense'" & LF,
+         "Spanish touch invalid timestamp diagnostic");
    end Test_Diagnostic_Locales;
+
+   procedure Test_Locale_Categories (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Contexts renames Posix_Tools.Commands.Contexts;
+
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      LF      : constant Character := Character'Val (10);
+      AE      : constant String := Character'Val (16#C3#) & Character'Val (16#A6#);
+      O_Slash : constant String := Character'Val (16#C3#) & Character'Val (16#B8#);
+      A_Ring  : constant String := Character'Val (16#C3#) & Character'Val (16#A5#);
+      --  Danish collates these as z, ae, o-slash, a-ring; bytes put a-ring first.
+      Danish_Letters : constant String := A_Ring & LF & "z" & LF & O_Slash & LF & AE & LF;
+   begin
+      --  Each category follows LC_ALL, then its own variable, then LANG.
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LANG", "C");
+      Test_Contexts.Set_Environment_Value (Context, "LC_MESSAGES", "da");
+      Test_Contexts.Set_Environment_Value (Context, "LC_COLLATE", "es");
+      AUnit.Assertions.Assert
+        (Context.Category_Locale (Contexts.Collation) = "es"
+         and then Context.Category_Locale (Contexts.Messages) = "da"
+         and then Context.Effective_Locale = "da"
+         and then Context.Category_Locale (Contexts.Character_Classification) = "C"
+         and then Context.Category_Locale (Contexts.Numeric) = "C"
+         and then Context.Category_Locale (Contexts.Time) = "C",
+         "each locale category reads its own variable before LANG");
+      Test_Contexts.Set_Environment_Value (Context, "LC_ALL", "en");
+      AUnit.Assertions.Assert
+        (Context.Category_Locale (Contexts.Collation) = "en"
+         and then Context.Category_Locale (Contexts.Messages) = "en",
+         "LC_ALL overrides every locale category");
+
+      --  The messages locale no longer decides collation.
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LC_MESSAGES", "da");
+      Test_Contexts.Set_Environment_Value (Context, "LANG", "C");
+      Test_Contexts.Set_Standard_Input (Context, Danish_Letters);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "z" & LF & A_Ring & LF & AE & LF & O_Slash & LF,
+         "sort collates by LANG, not LC_MESSAGES");
+
+      Context.Initialize ("sort", No_Args);
+      Test_Contexts.Set_Environment_Value (Context, "LC_MESSAGES", "C");
+      Test_Contexts.Set_Environment_Value (Context, "LC_COLLATE", "da");
+      Test_Contexts.Set_Standard_Input (Context, Danish_Letters);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "z" & LF & AE & LF & O_Slash & LF & A_Ring & LF,
+         "sort collates by LC_COLLATE whatever LC_MESSAGES says");
+
+      --  Nor character classification.
+      Context.Initialize ("cut", One_Arg ("-c2"));
+      Test_Contexts.Set_Environment_Value (Context, "LC_MESSAGES", "en_US.UTF-8");
+      Test_Contexts.Set_Environment_Value (Context, "LC_CTYPE", "C");
+      Test_Contexts.Set_Standard_Input (Context, "h" & Character'Val (16#C3#) & Character'Val (16#A9#) & LF);
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Character'Val (16#C3#) & LF,
+         "cut counts bytes under LC_CTYPE=C whatever LC_MESSAGES says");
+
+      --  And diagnostics follow LC_MESSAGES, not LC_COLLATE.
+      Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Environment_Value (Context, "LC_COLLATE", "da");
+      Posix_Tools.Commands.Dirname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "dirname: extra operand 'second'" & LF,
+         "diagnostics ignore LC_COLLATE");
+
+      Context.Initialize ("dirname", Two_Args ("first", "second"));
+      Test_Contexts.Set_Environment_Value (Context, "LANG", "C");
+      Test_Contexts.Set_Environment_Value (Context, "LC_MESSAGES", "da");
+      Posix_Tools.Commands.Dirname.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "dirname: ekstra operand 'second'" & LF,
+         "diagnostics follow LC_MESSAGES before LANG");
+   end Test_Locale_Categories;
 
    procedure Test_Presentation_Styling (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -3704,7 +3818,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "root localized unknown subcommand status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt underkommando bogus" & LF,
+        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt underkommando 'bogus'" & LF,
          "root localized unknown subcommand diagnostic");
 
       Context.Initialize ("posix-tools", Two_Args ("help", "bogus"));
@@ -3714,7 +3828,7 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "root localized unknown help topic status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt kommando bogus" & LF,
+        (Test_Contexts.Error_Output (Context) = "posix-tools: ukendt kommando 'bogus'" & LF,
          "root localized unknown help topic diagnostic");
 
       Context.Initialize ("posix-tools", No_Args);
@@ -4103,6 +4217,20 @@ package body Command_Tests is
              "sort key modifiers override the global -f");
       Check (No_Args, "b" & LF & "B" & LF & "a" & LF & "A" & LF, "A" & LF & "B" & LF & "a" & LF & "b" & LF,
              "sort uses byte order in the C locale");
+      Check (One_Arg ("-k1,1"), " b" & LF & "a" & LF, " b" & LF & "a" & LF,
+             "sort keeps the leading blanks of a field without -t");
+      Check (Two_Args ("-b", "-k1,1"), " b" & LF & "a" & LF, "a" & LF & " b" & LF,
+             "sort -b skips the leading blanks of a field");
+      Check (One_Arg ("-k1b,1"), " b" & LF & "a" & LF, "a" & LF & " b" & LF,
+             "sort key modifier b skips the leading blanks of a field");
+      Check (One_Arg ("-k2,2"), "x a" & LF & "x  b" & LF, "x  b" & LF & "x a" & LF,
+             "sort counts the blanks before a later field as part of it");
+      Check (Two_Args ("-b", "-k2,2"), "x  b" & LF & "x a" & LF, "x a" & LF & "x  b" & LF,
+             "sort -b skips the blanks before a later field");
+      Check (One_Arg ("-k1.2,1.2"), "yb" & LF & " az" & LF, " az" & LF & "yb" & LF,
+             "sort counts key characters from the leading blanks of a field");
+      Check (Two_Args ("-b", "-k1.2,1.2"), " az" & LF & "yb" & LF, "yb" & LF & " az" & LF,
+             "sort -b counts key characters after the leading blanks of a field");
 
       Context.Initialize ("sort", Two_Args ("-cu", "-n"));
       Test_Contexts.Set_Standard_Input (Context, "1" & LF & "01" & LF);
@@ -5043,6 +5171,43 @@ package body Command_Tests is
       Context.Initialize ("posix-tools", One_Arg ("unknown"));
       Posix_Tools.Commands.Root.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "root unknown status");
+
+      --  An unknown option is quoted and escaped like every other operand a
+      --  usage diagnostic names, whichever command reports it.
+      Context.Initialize ("seq", Two_Args ("-" & ESC & "[31m", "3"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "seq unknown option status");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "seq: unknown option '-\x1B[31m'" & LF,
+         "unknown option diagnostic escapes control characters");
+
+      Context.Initialize ("nl", One_Arg ("-q"));
+      Posix_Tools.Commands.Nl.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "nl: unknown option '-q'" & LF,
+         "nl unknown option diagnostic is quoted");
+
+      Context.Initialize ("touch", Three_Args ("-t", "bad" & LF, "file"));
+      Posix_Tools.Commands.Touch.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "touch: invalid timestamp 'bad\x0A'" & LF,
+         "touch invalid timestamp diagnostic escapes its operand");
+
+      Context.Initialize ("xargs", Two_Args ("-n", "0"));
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "xargs: invalid argument count '0'" & LF,
+         "xargs zero argument count diagnostic");
+
+      Context.Initialize ("dd", One_Arg ("skip=" & ESC));
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "dd: invalid skip 'skip=\x1B'" & LF,
+         "dd invalid skip diagnostic escapes its operand");
    end Test_Usage_Errors;
 
    procedure Test_True (T : in out Fixture) is

@@ -1,11 +1,13 @@
 with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Counts;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Du is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package String_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
@@ -167,8 +169,7 @@ package body Posix_Tools.Commands.Du is
                      when 's' => Summary_Only := True;
                      when 'k' => Unit_Size := 1024;
                      when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error
-                          (Context, Result, "unknown option '-" & Arg (I) & "'");
+                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Arg (I));
                         return;
                   end case;
                end loop;

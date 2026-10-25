@@ -7,6 +7,8 @@ REG-CP-0002,cp,render interactive overwrite prompts through messages-backed loca
 REG-CP-0003,cp,recreate FIFO special files through hostkit where the platform supports filesystem FIFOs,regression:REG-CP-0003 fifo recreation
 REG-CP-0004,cp,recreate Unix-domain socket files through hostkit where the platform supports filesystem sockets,regression:REG-CP-0004 socket recreation
 REG-DIAG-0001,all,escape control characters in untrusted diagnostic operands and subjects before terminal presentation,command:usage errors
+REG-DIAG-0002,all,render every usage diagnostic from a catalog message with its operand quoted and escaped instead of composing English text such as an unquoted unknown option,command:usage errors
+REG-LOCALE-0001,all,take each locale category from LC_ALL then its own variable then LANG so LC_MESSAGES no longer decides collation character classification numbers or dates,locale:categories
 REG-STREAMS-0001,head tail,preserve LF-delimited byte segments and final partial segments,streams:lf segment splitting
 REG-STDIN-0001,cat head tail wc,preserve standard input bytes and counts without adding a newline or rewinding repeated dash operands,command:cat standard input; command:head standard input; command:tail standard input; command:wc standard input
 REG-STDOUT-0001,basename dirname echo pwd,return operational failure when command-data stdout writes fail,command:simple output failures
@@ -60,6 +62,7 @@ REG-SORT-0006,sort,apply -r inside the comparison so -s keeps equal lines in inp
 REG-SORT-0007,sort,decide -u duplicates with the ordering comparison of the keys so -nu merges numerically equal keys,command:sort ordering rules
 REG-SORT-0008,sort,report an -o output file that cannot be written,command:sort ordering rules
 REG-SORT-0009,sort,use byte order in the C and POSIX locales whatever the letter case of the locale name,command:sort ordering rules
+REG-SORT-0010,sort,without -t keep the blanks before a field as part of it and skip them only under -b or a key's b modifier when locating keys and their character positions,command:sort ordering rules
 REG-UNIQ-0002,uniq,write nothing when -d and -u are both given,command:uniq filters
 REG-UNIQ-0003,uniq,report an output operand that cannot be written,command:uniq filters
 REG-UNIQ-0004,uniq,compare lines as bytes in the C locale,command:uniq filters

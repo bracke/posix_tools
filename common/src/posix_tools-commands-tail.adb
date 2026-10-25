@@ -1,5 +1,6 @@
 with Posix_Tools.Commands.File_Helpers.Tailing;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Tail_Bytes;
 with Posix_Tools.Commands.Tail_Follow;
 with Posix_Tools.Exit_Status;
@@ -7,6 +8,7 @@ with Posix_Tools.Numbers;
 with Posix_Tools.Tail_Counts;
 
 package body Posix_Tools.Commands.Tail is
+   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Posix_Tools.Commands.Tail_Follow.Follow_Mode;
    use type Posix_Tools.Numbers.Parse_Status;
    use type Posix_Tools.Tail_Counts.Count_Origin;
@@ -53,7 +55,7 @@ package body Posix_Tools.Commands.Tail is
          elsif Context.Argument (Index) = "-n" or else Context.Argument (Index) = "-c" then
             if Index = Count then
                Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "missing option argument '" & Context.Argument (Index) & "'");
+                 (Context, Result, Missing_Option_Argument, Context.Argument (Index));
                return;
             end if;
 
@@ -67,8 +69,7 @@ package body Posix_Tools.Commands.Tail is
                Origin := Parsed.Origin;
             end;
             if Parsed_Status /= Posix_Tools.Numbers.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid count '" & Context.Argument (Index + 1) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Count, Context.Argument (Index + 1));
                return;
             end if;
             Index := Index + 2;
@@ -87,16 +88,14 @@ package body Posix_Tools.Commands.Tail is
                Origin := Parsed.Origin;
             end;
             if Parsed_Status /= Posix_Tools.Numbers.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, "invalid count '" & Context.Argument (Index) & "'");
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Count, Context.Argument (Index));
                return;
             end if;
             Index := Index + 1;
          elsif Context.Argument (Index)'Length > 1
            and then Context.Argument (Index) (1) = '-'
          then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, "unknown option '" & Context.Argument (Index) & "'");
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (Index));
             return;
          else
             exit;
