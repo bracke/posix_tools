@@ -110,7 +110,7 @@ package body Performance_Tests is
          Pressed : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
       begin
          E2E_Rig.Send (Session, "ffile099999");
-         AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, " 1/1 "), "filtered to one:" & E2E_Rig.Screen (Session));
+         E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, " 1/1 "), "filtered to one");
          Filtered := Elapsed (Pressed);
       end;
 
@@ -123,7 +123,8 @@ package body Performance_Tests is
 
       Ada.Text_IO.Put_Line
         ("explore on" & Natural'Image (Entries) & " entries: first frame" & Natural'Image (First_Paint)
-         & " ms (" & Image (Launched) & " ms from launch), all listed" & Natural'Image (Listed) & " ms, to the bottom" & Natural'Image (To_Bottom)
+         & " ms (" & Image (Launched) & " ms from launch), all listed" & Natural'Image (Listed)
+         & " ms, to the bottom" & Natural'Image (To_Bottom)
          & " ms, slowest step" & Natural'Image (Worst_Step) & " ms, filter typed" & Natural'Image (Filtered) & " ms");
 
       AUnit.Assertions.Assert (Ended and then Code = 0, "quit");

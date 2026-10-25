@@ -1,6 +1,7 @@
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Assertions;
 with GNAT.OS_Lib;
 with Terminal.Common;
 with Terminal.Common.Bytes;
@@ -78,6 +79,13 @@ package body E2E_Rig is
    end Answer;
 
    function Clipboard (Self : Rig) return String is (Unbounded.To_String (Self.Clipped));
+
+   procedure Expect (Self : Rig; Condition : Boolean; What : String) is
+   begin
+      if not Condition then
+         AUnit.Assertions.Assert (False, What & ":" & Screen (Self));
+      end if;
+   end Expect;
 
    function Fixture (Name : String) return String is
       Path : constant String := Ada.Directories.Full_Name ("obj/fixtures/" & Name);

@@ -40,6 +40,11 @@ package E2E_Rig is
    --  The whole screen, a line per row, for a failed assertion to show.
    function Screen (Self : Rig) return String;
 
+   --  Assert Condition, showing the screen with What when it fails. The
+   --  screen is read here, after Condition was found -- in the arguments of
+   --  one call, it might be read before the wait that Condition holds.
+   procedure Expect (Self : Rig; Condition : Boolean; What : String);
+
    --  The cells holding image placeholders.
    function Placeholder_Cells (Self : Rig) return Natural;
 

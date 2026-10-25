@@ -36,8 +36,7 @@ package body Session_Tests is
    procedure Open (Session : in out E2E_Rig.Rig; Directory : String; Columns : Positive := 100) is
    begin
       E2E_Rig.Start (Session, Directory, Columns => Columns);
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For (Session, "q quit"), "explore drew its screen:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "q quit"), "explore drew its screen");
    end Open;
 
    procedure Quit (Session : in out E2E_Rig.Rig) is
@@ -73,21 +72,22 @@ package body Session_Tests is
       Open (Session, Root);
 
       --  Directories come first: beta is selected, and its listing previewed.
-      AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "inner/"), "beta's listing:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "inner/"), "beta's listing");
 
       E2E_Rig.Send (Session, "j");
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For (Session, "the first line") and then E2E_Rig.Wait_For (Session, "the second"),
-         "the text file previewed:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For (Session, "the first line") and then E2E_Rig.Wait_For (Session, "the second"),
+         "the text file previewed");
 
       E2E_Rig.Send (Session, "k" & "l");
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For_Row (Session, 1, Root & "/beta"), "into beta:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Row (Session, 1, Root & "/beta"), "into beta");
 
       E2E_Rig.Send (Session, "h");
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For_Row (Session, 1, Root) and then E2E_Rig.Wait_For (Session, "alpha.txt"),
-         "and back:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For_Row (Session, 1, Root) and then E2E_Rig.Wait_For (Session, "alpha.txt"),
+         "and back");
       Quit (Session);
    end Test_Browse_And_Preview;
 
@@ -116,7 +116,7 @@ package body Session_Tests is
       Ada.Directories.Create_Path (Root & "/target");
       E2E_Rig.Write_File (Root & "/source.txt", "copied text");
       Open (Session, Root);
-      AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "source.txt"), "listed:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "source.txt"), "listed");
 
       --  Yank the file, go into target, and paste.
       E2E_Rig.Send (Session, "j");
@@ -129,9 +129,10 @@ package body Session_Tests is
       AUnit.Assertions.Assert (E2E_Rig.Wait_For_Row (Session, 1, Root & "/target"), "into target");
       E2E_Rig.Send (Session, "p");
 
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For (Session, "source.txt") and then E2E_Rig.Wait_For (Session, "copied"),
-         "the copy listed, and reported done:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For (Session, "source.txt") and then E2E_Rig.Wait_For (Session, "copied"),
+         "the copy listed, and reported done");
       AUnit.Assertions.Assert
         (Ada.Directories.Exists (Root & "/target/source.txt")
          and then Ada.Directories.Size (Root & "/target/source.txt") = 11,
@@ -167,13 +168,17 @@ package body Session_Tests is
       Ada.Directories.Create_Path (Root & "/only");
       Open (Session, Root);
 
-      E2E_Rig.Resize (Session, 30, 60);
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For_Row (Session, 30, "q quit"), "the status line moved to the new last row:"
-         & E2E_Rig.Screen (Session));
-      AUnit.Assertions.Assert
-        (Ada.Strings.Fixed.Index (E2E_Rig.Row (Session, 2), "only/") in 1 .. 4,
-         "below 80 columns the current pane is the first:" & E2E_Rig.Screen (Session));
+      --  Too narrow for the selected entry's details beside the position and
+      --  the quit hint, whatever the owner's name: the details give way.
+      E2E_Rig.Resize (Session, 30, 50);
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For_Row (Session, 30, "q quit"),
+         "the status line moved to the new last row");
+      E2E_Rig.Expect
+        (Session,
+         Ada.Strings.Fixed.Index (E2E_Rig.Row (Session, 2), "only/") in 1 .. 4,
+         "below 80 columns the current pane is the first");
       Quit (Session);
    end Test_Resize;
 
@@ -191,14 +196,15 @@ package body Session_Tests is
       E2E_Rig.Send (Session, "!");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "echo ran; touch made" & CR);
-      AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "press Enter"), "waits:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "press Enter"), "waits");
       AUnit.Assertions.Assert
         (not E2E_Rig.Modes (Session).Alternate_Screen and then E2E_Rig.Wait_For (Session, "ran"),
          "on the main screen, with the command's output");
       E2E_Rig.Send (Session, "" & CR);
-      AUnit.Assertions.Assert
-        (E2E_Rig.Wait_For (Session, "made") and then E2E_Rig.Modes (Session).Alternate_Screen,
-         "back, with what the command made listed:" & E2E_Rig.Screen (Session));
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For (Session, "made") and then E2E_Rig.Modes (Session).Alternate_Screen,
+         "back, with what the command made listed");
       AUnit.Assertions.Assert (Ada.Directories.Exists (Root & "/made"), "made in the directory shown");
       Quit (Session);
    end Test_Shell_Command;

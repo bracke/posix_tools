@@ -170,6 +170,10 @@ package body Operation_Tests is
       Ok      : Boolean;
    begin
       Make_Tree (Root);
+
+      --  Followed, the link to nothing is an error, and the host's listing
+      --  order decides whether the copy reaches it before it is told to stop.
+      AUnit.Assertions.Assert (FS.Delete_Link (Path (Root, "src/broken")), "the link to nothing removed");
       Ops.Copying.Copy_Path (Path (Root, "src"), Path (Root, "copy"), (Recursive => True, others => <>), Watcher, Ok);
       AUnit.Assertions.Assert (not Ok and then Watcher.Errors = 0, "a cancelled copy fails without an error");
       AUnit.Assertions.Assert (Watcher.Done = 1, "and stops after the entry it was told to");

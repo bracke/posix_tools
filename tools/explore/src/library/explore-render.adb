@@ -354,6 +354,10 @@ package body Explore.Render is
         & "  " & Unbounded.To_String (Context.Text.Quit_Hint) & " ";
       Left    : Unbounded.Unbounded_String;
       Style   : Screen.Style := Context.Colors (Status_Role);
+
+      --  A prompt, a question or a message keeps all the room it needs; the
+      --  selected entry's details give way to the right side instead.
+      Details : Boolean := False;
    begin
       if Context.Prompting then
          Left := Unbounded.To_Unbounded_String
@@ -370,6 +374,7 @@ package body Explore.Render is
          declare
             Item : constant Listing.Listed_Entry := Model.Selected (Current);
          begin
+            Details := True;
             Left := Unbounded.To_Unbounded_String (" " & Format.Mode_Image (Item));
 
             if Item.Status.Available then
@@ -383,12 +388,18 @@ package body Explore.Render is
       end if;
 
       Screen.Fill (Into, Row, 1, Columns, Context.Colors (Status_Role));
-      Write (Into, Row, 1, Columns, Unbounded.To_String (Left), Style);
 
       declare
          Right_Width : constant Natural := Screen.Width_Of (Right);
+         Shown_Right : constant Boolean :=
+           Right_Width < Columns
+           and then (Details or else Right_Width + Screen.Width_Of (Unbounded.To_String (Left)) < Columns);
       begin
-         if Right_Width + Screen.Width_Of (Unbounded.To_String (Left)) < Columns then
+         Write
+           (Into, Row, 1, (if Shown_Right then Columns - Right_Width - 1 else Columns), Unbounded.To_String (Left),
+            Style);
+
+         if Shown_Right then
             Write (Into, Row, Columns - Right_Width + 1, Right_Width, Right, Context.Colors (Status_Role));
          end if;
       end;
