@@ -2,7 +2,6 @@ with Ada.Calendar;
 with Ada.Directories;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
-with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with GNAT.OS_Lib;
@@ -14,17 +13,9 @@ with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Arch;
 with Posix_Tools.Commands.Basename;
 with Posix_Tools.Commands.Cat;
-with Posix_Tools.Commands.Chgrp;
-with Posix_Tools.Commands.Chmod;
-with Posix_Tools.Commands.Chown;
-with Posix_Tools.Commands.Cksum;
-with Posix_Tools.Commands.Cmp;
-with Posix_Tools.Commands.Comm;
 with Posix_Tools.Commands.Cp;
 with Posix_Tools.Commands.Cut;
-with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Dd;
-with Posix_Tools.Commands.Df;
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Dirname;
 with Posix_Tools.Commands.Du;
@@ -34,46 +25,24 @@ with Posix_Tools.Commands.Expand;
 with Posix_Tools.Commands.Expr;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
-with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Fold;
-with Posix_Tools.Commands.Getconf;
 with Posix_Tools.Commands.Groups;
 with Posix_Tools.Commands.Head;
 with Posix_Tools.Commands.Hostname;
 with Posix_Tools.Commands.Id;
-with Posix_Tools.Commands.Kill;
-with Posix_Tools.Commands.Link;
 with Posix_Tools.Commands.Ln;
-with Posix_Tools.Commands.Locale;
 with Posix_Tools.Commands.Logname;
-with Posix_Tools.Commands.Ls;
-with Posix_Tools.Commands.Mkdir;
-with Posix_Tools.Commands.Mkfifo;
 with Posix_Tools.Commands.Mv;
-with Posix_Tools.Commands.Nice;
 with Posix_Tools.Commands.Nl;
-with Posix_Tools.Commands.Nohup;
-with Posix_Tools.Commands.Od;
-with Posix_Tools.Commands.Paste;
 with Posix_Tools.Commands.Pathchk;
-with Posix_Tools.Commands.Printenv;
-with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
-with Posix_Tools.Commands.Readlink;
-with Posix_Tools.Commands.Realpath;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
-with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Root;
 with Posix_Tools.Commands.Seq;
-with Posix_Tools.Commands.Sha256sum;
-with Posix_Tools.Commands.Sleep;
-with Posix_Tools.Commands.Split;
 with Posix_Tools.Commands.Sort;
-with Posix_Tools.Commands.Stat;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
-with Posix_Tools.Commands.Test_Command;
 with Posix_Tools.Commands.Timeout;
 with Posix_Tools.Commands.Touch;
 with Posix_Tools.Commands.Tr;
@@ -84,26 +53,21 @@ with Posix_Tools.Commands.Unlink;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Uniq;
 with Posix_Tools.Commands.Wc;
-with Posix_Tools.Commands.Which;
 with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Commands.Yes;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Help;
-with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Localization;
 with Posix_Tools.Paths;
 with Posix_Tools.Presentation;
 with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Test_Contexts;
+with Command_Tests.Dispatch;
 with Command_Tests.Scripting;
 
 package body Command_Tests is
-   use type Ada.Directories.File_Size;
    use type Ada.Directories.File_Kind;
-   use type Hostkit.Fs.Special_File_Kind;
-   use type Posix_Tools.Host_Adapters.Signals.Disposition;
    use type Posix_Tools.Exit_Status.Code;
    use Ada.Strings.Unbounded;
 
@@ -208,227 +172,6 @@ package body Command_Tests is
 
       return Count;
    end Occurrences;
-
-   procedure Run_Command_By_Name
-     (Name    : String;
-      Context : in out Test_Contexts.Capturing_Context;
-      Result  : out Posix_Tools.Commands.Results.Result) is
-   begin
-      if Name = "arch" then
-         Posix_Tools.Commands.Arch.Run (Context, Result);
-      elsif Name = "awk" then
-         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
-            Posix_Tools.Help.Render_Command_Help (Context, "awk");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
-            Posix_Tools.Help.Render_Version (Context, "awk");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1
-           and then Context.Argument (1) = "--posix-tools-identify"
-         then
-            Posix_Tools.Help.Render_Identity (Context, "awk");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         else
-            AUnit.Assertions.Assert (False, "awk is not context-dispatched");
-         end if;
-      elsif Name = "basename" then
-         Posix_Tools.Commands.Basename.Run (Context, Result);
-      elsif Name = "cat" then
-         Posix_Tools.Commands.Cat.Run (Context, Result);
-      elsif Name = "chgrp" then
-         Posix_Tools.Commands.Chgrp.Run (Context, Result);
-      elsif Name = "chmod" then
-         Posix_Tools.Commands.Chmod.Run (Context, Result);
-      elsif Name = "chown" then
-         Posix_Tools.Commands.Chown.Run (Context, Result);
-      elsif Name = "cksum" then
-         Posix_Tools.Commands.Cksum.Run (Context, Result);
-      elsif Name = "cmp" then
-         Posix_Tools.Commands.Cmp.Run (Context, Result);
-      elsif Name = "comm" then
-         Posix_Tools.Commands.Comm.Run (Context, Result);
-      elsif Name = "cp" then
-         Posix_Tools.Commands.Cp.Run (Context, Result);
-      elsif Name = "cut" then
-         Posix_Tools.Commands.Cut.Run (Context, Result);
-      elsif Name = "date" then
-         Posix_Tools.Commands.Date.Run (Context, Result);
-      elsif Name = "dd" then
-         Posix_Tools.Commands.Dd.Run (Context, Result);
-      elsif Name = "df" then
-         Posix_Tools.Commands.Df.Run (Context, Result);
-      elsif Name = "dirname" then
-         Posix_Tools.Commands.Dirname.Run (Context, Result);
-      elsif Name = "du" then
-         Posix_Tools.Commands.Du.Run (Context, Result);
-      elsif Name = "echo" then
-         Posix_Tools.Commands.Echo.Run (Context, Result);
-      elsif Name = "env" then
-         Posix_Tools.Commands.Env.Run (Context, Result);
-      elsif Name = "expand" then
-         Posix_Tools.Commands.Expand.Run (Context, Result);
-      elsif Name = "explore" then
-         --  explore is built in its own crate, which the test suite may not
-         --  depend on; its help, version, and identity come from the same
-         --  shared rendering it calls.
-         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
-            Posix_Tools.Help.Render_Command_Help (Context, "explore");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
-            Posix_Tools.Help.Render_Version (Context, "explore");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1
-           and then Context.Argument (1) = "--posix-tools-identify"
-         then
-            Posix_Tools.Help.Render_Identity (Context, "explore");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         else
-            AUnit.Assertions.Assert (False, "explore is not linked into the test suite");
-         end if;
-      elsif Name = "expr" then
-         Posix_Tools.Commands.Expr.Run (Context, Result);
-      elsif Name = "false" then
-         Posix_Tools.Commands.False_Command.Run (Context, Result);
-      elsif Name = "file" then
-         Posix_Tools.Commands.File.Run (Context, Result);
-      elsif Name = "find" then
-         Posix_Tools.Commands.Find.Run (Context, Result);
-      elsif Name = "fold" then
-         Posix_Tools.Commands.Fold.Run (Context, Result);
-      elsif Name = "getconf" then
-         Posix_Tools.Commands.Getconf.Run (Context, Result);
-      elsif Name = "groups" then
-         Posix_Tools.Commands.Groups.Run (Context, Result);
-      elsif Name = "grep" then
-         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
-            Posix_Tools.Help.Render_Command_Help (Context, "grep");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
-            Posix_Tools.Help.Render_Version (Context, "grep");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1
-           and then Context.Argument (1) = "--posix-tools-identify"
-         then
-            Posix_Tools.Help.Render_Identity (Context, "grep");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         else
-            AUnit.Assertions.Assert (False, "grep is not context-dispatched");
-         end if;
-      elsif Name = "head" then
-         Posix_Tools.Commands.Head.Run (Context, Result);
-      elsif Name = "hostname" then
-         Posix_Tools.Commands.Hostname.Run (Context, Result);
-      elsif Name = "id" then
-         Posix_Tools.Commands.Id.Run (Context, Result);
-      elsif Name = "kill" then
-         Posix_Tools.Commands.Kill.Run (Context, Result);
-      elsif Name = "link" then
-         Posix_Tools.Commands.Link.Run (Context, Result);
-      elsif Name = "ln" then
-         Posix_Tools.Commands.Ln.Run (Context, Result);
-      elsif Name = "locale" then
-         Posix_Tools.Commands.Locale.Run (Context, Result);
-      elsif Name = "logname" then
-         Posix_Tools.Commands.Logname.Run (Context, Result);
-      elsif Name = "ls" then
-         Posix_Tools.Commands.Ls.Run (Context, Result);
-      elsif Name = "mkdir" then
-         Posix_Tools.Commands.Mkdir.Run (Context, Result);
-      elsif Name = "mkfifo" then
-         Posix_Tools.Commands.Mkfifo.Run (Context, Result);
-      elsif Name = "mv" then
-         Posix_Tools.Commands.Mv.Run (Context, Result);
-      elsif Name = "nice" then
-         Posix_Tools.Commands.Nice.Run (Context, Result);
-      elsif Name = "nl" then
-         Posix_Tools.Commands.Nl.Run (Context, Result);
-      elsif Name = "nohup" then
-         Posix_Tools.Commands.Nohup.Run (Context, Result);
-      elsif Name = "od" then
-         Posix_Tools.Commands.Od.Run (Context, Result);
-      elsif Name = "paste" then
-         Posix_Tools.Commands.Paste.Run (Context, Result);
-      elsif Name = "pathchk" then
-         Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      elsif Name = "printenv" then
-         Posix_Tools.Commands.Printenv.Run (Context, Result);
-      elsif Name = "printf" then
-         Posix_Tools.Commands.Printf.Run (Context, Result);
-      elsif Name = "pwd" then
-         Posix_Tools.Commands.Pwd.Run (Context, Result);
-      elsif Name = "readlink" then
-         Posix_Tools.Commands.Readlink.Run (Context, Result);
-      elsif Name = "realpath" then
-         Posix_Tools.Commands.Realpath.Run (Context, Result);
-      elsif Name = "rm" then
-         Posix_Tools.Commands.Rm.Run (Context, Result);
-      elsif Name = "rmdir" then
-         Posix_Tools.Commands.Rmdir.Run (Context, Result);
-      elsif Name = "seq" then
-         Posix_Tools.Commands.Seq.Run (Context, Result);
-      elsif Name = "sed" then
-         if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
-            Posix_Tools.Help.Render_Command_Help (Context, "sed");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1 and then Context.Argument (1) = "--version" then
-            Posix_Tools.Help.Render_Version (Context, "sed");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         elsif Context.Argument_Count = 1
-           and then Context.Argument (1) = "--posix-tools-identify"
-         then
-            Posix_Tools.Help.Render_Identity (Context, "sed");
-            Result.Status := Posix_Tools.Exit_Status.Success;
-         else
-            AUnit.Assertions.Assert (False, "sed is not context-dispatched");
-         end if;
-      elsif Name = "sha256sum" then
-         Posix_Tools.Commands.Sha256sum.Run (Context, Result);
-      elsif Name = "sleep" then
-         Posix_Tools.Commands.Sleep.Run (Context, Result);
-      elsif Name = "split" then
-         Posix_Tools.Commands.Split.Run (Context, Result);
-      elsif Name = "sort" then
-         Posix_Tools.Commands.Sort.Run (Context, Result);
-      elsif Name = "stat" then
-         Posix_Tools.Commands.Stat.Run (Context, Result);
-      elsif Name = "tail" then
-         Posix_Tools.Commands.Tail.Run (Context, Result);
-      elsif Name = "tee" then
-         Posix_Tools.Commands.Tee.Run (Context, Result);
-      elsif Name = "test" then
-         Posix_Tools.Commands.Test_Command.Run (Context, Result);
-      elsif Name = "timeout" then
-         Posix_Tools.Commands.Timeout.Run (Context, Result);
-      elsif Name = "touch" then
-         Posix_Tools.Commands.Touch.Run (Context, Result);
-      elsif Name = "tr" then
-         Posix_Tools.Commands.Tr.Run (Context, Result);
-      elsif Name = "true" then
-         Posix_Tools.Commands.True_Command.Run (Context, Result);
-      elsif Name = "tty" then
-         Posix_Tools.Commands.Tty.Run (Context, Result);
-      elsif Name = "unexpand" then
-         Posix_Tools.Commands.Unexpand.Run (Context, Result);
-      elsif Name = "unlink" then
-         Posix_Tools.Commands.Unlink.Run (Context, Result);
-      elsif Name = "uname" then
-         Posix_Tools.Commands.Uname.Run (Context, Result);
-      elsif Name = "uniq" then
-         Posix_Tools.Commands.Uniq.Run (Context, Result);
-      elsif Name = "wc" then
-         Posix_Tools.Commands.Wc.Run (Context, Result);
-      elsif Name = "which" then
-         Posix_Tools.Commands.Which.Run (Context, Result);
-      elsif Name = "whoami" then
-         Posix_Tools.Commands.Whoami.Run (Context, Result);
-      elsif Name = "xargs" then
-         Posix_Tools.Commands.Xargs.Run (Context, Result);
-      elsif Name = "yes" then
-         Posix_Tools.Commands.Yes.Run (Context, Result);
-      else
-         AUnit.Assertions.Assert (False, "unknown command inventory entry " & Name);
-      end if;
-   end Run_Command_By_Name;
 
    procedure Assert_Inventory_Status_Lines (Output_Text, Label : String) is
       LF       : constant Character := Character'Val (10);
@@ -551,6 +294,46 @@ package body Command_Tests is
    begin
       Command_Tests.Scripting.Test_Test_Integer_Operands (T);
    end Test_Test_Integer_Operands;
+
+   procedure Test_Dispatch_Binds_Wrappers (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root : constant String := (if Ada.Directories.Exists ("tools") then "" else "../");
+
+      function Read_File (Path : String) return String is
+         File : Ada.Streams.Stream_IO.File_Type;
+      begin
+         Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
+         declare
+            Data : String (1 .. Natural (Ada.Streams.Stream_IO.Size (File)));
+         begin
+            String'Read (Ada.Streams.Stream_IO.Stream (File), Data);
+            Ada.Streams.Stream_IO.Close (File);
+            return Data;
+         end;
+      end Read_File;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+            Bound   : constant String := Command_Tests.Dispatch.Bound_Package (Command);
+         begin
+            if Command_Tests.Dispatch.Is_Rendering_Only (Command) then
+               AUnit.Assertions.Assert (Bound = "", Command & " is bound although it renders only");
+            else
+               AUnit.Assertions.Assert
+                 (Bound = Posix_Tools.Command_Inventory.Package_Name (Index),
+                  Command & " is bound to " & Bound & ", not the inventory's "
+                  & Posix_Tools.Command_Inventory.Package_Name (Index));
+               AUnit.Assertions.Assert
+                 (Contains
+                    (Read_File (Root & Posix_Tools.Command_Inventory.Wrapper_Path (Index)),
+                     "Posix_Tools.Host_Adapters.Run_Command" & Character'Val (10)
+                     & "     (""" & Command & """, " & Bound & ".Run);"),
+                  Command & " wrapper does not instantiate Run_Command with " & Bound & ".Run");
+            end if;
+         end;
+      end loop;
+   end Test_Dispatch_Binds_Wrappers;
 
    procedure Test_Xargs_Status_Bands (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -2715,7 +2498,7 @@ package body Command_Tests is
          if Locale /= "" then
             Test_Contexts.Set_Locale (Context, Locale);
          end if;
-         Run_Command_By_Name (Command, Context, Result);
+         Command_Tests.Dispatch.Run (Command, Context, Result);
          AUnit.Assertions.Assert
            (Result.Status = Posix_Tools.Exit_Status.Success,
             "version status " & Command & " " & Label);
@@ -3174,7 +2957,7 @@ package body Command_Tests is
          if Locale /= "" then
             Test_Contexts.Set_Locale (Context, Locale);
          end if;
-         Run_Command_By_Name (Command, Context, Result);
+         Command_Tests.Dispatch.Run (Command, Context, Result);
          AUnit.Assertions.Assert
            (Result.Status = Posix_Tools.Exit_Status.Success,
             "identity status " & Command & " " & Label);
@@ -3711,7 +3494,7 @@ package body Command_Tests is
             Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
          begin
             Direct_Context.Initialize (Command, One_Arg ("--help"));
-            Run_Command_By_Name (Command, Direct_Context, Direct_Result);
+            Command_Tests.Dispatch.Run (Command, Direct_Context, Direct_Result);
 
             Root_Context.Initialize ("posix-tools", Two_Args ("help", Command));
             Posix_Tools.Commands.Root.Run (Root_Context, Root_Result);

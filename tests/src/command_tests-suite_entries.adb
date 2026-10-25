@@ -232,6 +232,8 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file", Test_File'Access));
       Register_Surface_Commands (Result);
       AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("command:dispatch binds inventory wrappers", Test_Dispatch_Binds_Wrappers'Access));
+      AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
            ("command:verbose output failures",

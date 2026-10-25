@@ -101,6 +101,8 @@ begin
    Add_Entry ("common/src/posix_tools-commands-rmdir.ads");
    Add_Entry ("common/src/posix_tools-commands-root.adb");
    Add_Entry ("common/src/posix_tools-commands-root.ads");
+   Add_Entry ("common/src/posix_tools-commands-run_entry.adb");
+   Add_Entry ("common/src/posix_tools-commands-run_entry.ads");
    Add_Entry ("common/src/posix_tools-commands-sort.adb");
    Add_Entry ("common/src/posix_tools-commands-sort.ads");
    Add_Entry ("common/src/posix_tools-commands-sort_key_text.adb");
@@ -304,6 +306,8 @@ begin
    Add_Entry ("tests/src/operation_tests.ads");
    Add_Entry ("tests/src/basic_tests.adb");
    Add_Entry ("tests/src/basic_tests.ads");
+   Add_Entry ("tests/src/command_tests-dispatch.adb");
+   Add_Entry ("tests/src/command_tests-dispatch.ads");
    Add_Entry ("tests/src/command_tests-scripting.adb");
    Add_Entry ("tests/src/command_tests-scripting.ads");
    Add_Entry ("tests/src/command_tests-suite.adb");
