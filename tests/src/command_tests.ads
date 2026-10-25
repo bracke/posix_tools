@@ -38,7 +38,6 @@ package Command_Tests is
    procedure Test_Test_Extension_Operands (T : in out Fixture);
    procedure Test_Test_Integer_Operands (T : in out Fixture);
    procedure Test_File (T : in out Fixture);
-   procedure Test_Command_Surface_Smoke (T : in out Fixture);
    procedure Test_Command_Verbose_Output_Failures (T : in out Fixture);
    procedure Test_False (T : in out Fixture);
    procedure Test_False_Extension_Edges (T : in out Fixture);

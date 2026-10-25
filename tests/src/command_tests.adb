@@ -98,7 +98,6 @@ with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Test_Contexts;
 with Command_Tests.Scripting;
-with Command_Tests.Surface_Smoke;
 
 package body Command_Tests is
    use type Ada.Directories.File_Size;
@@ -552,11 +551,6 @@ package body Command_Tests is
    begin
       Command_Tests.Scripting.Test_Test_Integer_Operands (T);
    end Test_Test_Integer_Operands;
-
-   procedure Test_Command_Surface_Smoke (T : in out Fixture) is
-   begin
-      Command_Tests.Surface_Smoke.Test_Command_Surface_Smoke (T);
-   end Test_Command_Surface_Smoke;
 
    procedure Test_Xargs_Status_Bands (T : in out Fixture) is
       pragma Unreferenced (T);

@@ -34,25 +34,25 @@ REG-ROOT-0001,posix-tools,verify accepts rebuilt project command executables by 
 REG-ROOT-0002,posix-tools,return operational failure when root help output cannot be written,command:root output failure
 REG-ENV-0001,env,preserve env utility exit-status propagation and 126 or 127 execution-failure classification without invoking a shell,command:env utility status
 REG-VERBOSE-0001,cp ln mv rm,return operational failure when verbose command-data output cannot be written after a successful file operation,command:verbose output failures
-REG-OPTIONS-0002,cp ln mkdir mv rm rmdir sort tee touch uniq xargs,stop option parsing at the command-specific operand or utility boundary so later option-like words remain operands,command:extended utilities
-REG-SORT-0001,sort,write sorted data to the -o output file and return operational failure when that output file cannot be written,command:extended utilities
-REG-SORT-0002,sort,apply supported release-locale collation keys and Unicode special case-fold mappings consistently in sort output check and key comparison modes,command:extended utilities
-REG-UNIQ-0001,uniq,write filtered data to the output operand including option-like output names and return operational failure when that output file cannot be written,command:extended utilities
-REG-STDOUT-0002,find printf,return operational failure when command-data standard output cannot be written,command:extended utilities
-REG-STDOUT-0003,date env,return operational failure when date or environment-listing command-data standard output cannot be written,command:extended utilities
-REG-STDOUT-0004,dd,return operational failure without record-count diagnostics when standard-output data cannot be written,command:extended utilities
-REG-STDOUT-0005,tr,return operational failure when translated byte output cannot be written,command:extended utilities
-REG-TR-0001,tr,expand locale equivalence classes use locale collation order for complement translation and accept supported multibyte collating symbols,command:extended utilities
-REG-STDERR-0001,xargs,return operational failure when -t trace output cannot be written before utility execution,command:extended utilities
+REG-OPTIONS-0002,cp ln mkdir mv rm rmdir sort tee touch uniq xargs,stop option parsing at the command-specific operand or utility boundary so later option-like words remain operands,regression:REG-OPTIONS-0002 command option ordering; command:option operands surface; command:cp surface; command:mv multiple sources surface; command:sort surface; command:uniq output operand surface; command:xargs surface
+REG-SORT-0001,sort,write sorted data to the -o output file and return operational failure when that output file cannot be written,command:sort surface
+REG-SORT-0002,sort,apply supported release-locale collation keys and Unicode special case-fold mappings consistently in sort output check and key comparison modes,command:sort surface
+REG-UNIQ-0001,uniq,write filtered data to the output operand including option-like output names and return operational failure when that output file cannot be written,command:uniq output operand surface; command:uniq surface
+REG-STDOUT-0002,find printf,return operational failure when command-data standard output cannot be written,command:find surface; command:printf surface
+REG-STDOUT-0003,date env,return operational failure when date or environment-listing command-data standard output cannot be written,command:date surface; command:env surface
+REG-STDOUT-0004,dd,return operational failure without record-count diagnostics when standard-output data cannot be written,command:dd surface
+REG-STDOUT-0005,tr,return operational failure when translated byte output cannot be written,command:tr surface
+REG-TR-0001,tr,expand locale equivalence classes use locale collation order for complement translation and accept supported multibyte collating symbols,command:tr surface
+REG-STDERR-0001,xargs,return operational failure when -t trace output cannot be written before utility execution,command:xargs surface
 REG-XARGS-0001,xargs,preserve POSIX xargs utility exit-status band mapping for statuses 1 through 125 126 127 255 and missing utilities,command:xargs status bands
-REG-CMP-0001,cmp,report the correct byte and line for the first difference and report EOF on the shorter operand,command:extended utilities
-REG-COMM-0001,comm,honor grouped suppression options and -- before operands while preserving expected tab prefixes,command:extended utilities
-REG-CUT-0001,cut,reject multiple list-selection modes and field-only options outside field mode instead of silently using a mixed mode state,command:extended utilities
+REG-CMP-0001,cmp,report the correct byte and line for the first difference and report EOF on the shorter operand,command:cmp surface
+REG-COMM-0001,comm,honor grouped suppression options and -- before operands while preserving expected tab prefixes,command:comm surface
+REG-CUT-0001,cut,reject multiple list-selection modes and field-only options outside field mode instead of silently using a mixed mode state,command:cut surface
 REG-DU-0001,du,make -s suppress child output lines while still printing the requested directory summary,command:du
-REG-PASTE-0001,paste,interpret escaped delimiter-list entries for newline tab backslash and empty delimiter,command:extended utilities
-REG-SLEEP-0001,sleep,reject missing negative malformed and excessive duration operands while accepting fractional zero-duration operands,command:extended utilities
+REG-PASTE-0001,paste,interpret escaped delimiter-list entries for newline tab backslash and empty delimiter,command:paste surface
+REG-SLEEP-0001,sleep,reject missing negative malformed and excessive duration operands while accepting fractional zero-duration operands,command:sleep surface
 REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identity reads name resolution and node-name operations through command context services so command tests can use deterministic fake identity data,command:host identity commands
-REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls
+REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls surface
 REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,regression:REG-RM-0001 rm keeps link targets
 REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,regression:REG-CP-0005 cp keeps broken links
 REG-SORT-0003,sort,sort large inputs with a stable O(n log n) merge sort that builds each line's keys once,command:sort large input
@@ -95,7 +95,7 @@ REG-MV-0002,mv ln mkdir rm,report each failed entry with its reason such as no s
 REG-CP-0006,cp,diagnose a symbolic link back to a directory being copied as a file system loop and copy the rest instead of recursing without end,command:cp link loop
 REG-CP-0007,cp,follow only command-line symbolic links under -H and keep links as links by default with -R,command:cp link options
 REG-CP-0008,cp,refuse to copy a directory into itself when the target reaches it through a symbolic link,command:cp into itself through a link
-REG-CP-0009,cp,copy a special file's contents into a regular file without -R instead of recreating the special file,command:cp
+REG-CP-0009,cp,copy a special file's contents into a regular file without -R instead of recreating the special file,command:cp surface
 REG-CP-0010,cp,keep all twelve permission bits under -p and treat an owner that cannot be kept as no failure while clearing the set-ID bits,command:cp preserves mode bits
 REG-CP-0011,cp,remove a target that cannot be opened for writing under -f and copy afresh,command:cp force replaces unwritable target
 REG-CP-0012,cp,prompt under -i for each existing non-directory target inside a tree and never for a directory that is merged,command:cp interactive inside a tree

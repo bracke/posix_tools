@@ -1,13 +1,24 @@
 with AUnit.Test_Caller;
 with AUnit.Test_Suites;
+with Command_Tests.Surface_Smoke.Data;
+with Command_Tests.Surface_Smoke.Files;
+with Command_Tests.Surface_Smoke.Filters;
+with Command_Tests.Surface_Smoke.Metadata;
+with Command_Tests.Surface_Smoke.Host;
+with Command_Tests.Surface_Smoke.Text;
 with File_Command_Tests;
 
 package body Command_Tests.Suite_Entries is
    package Caller is new AUnit.Test_Caller (Command_Tests.Fixture);
    package File_Caller is new AUnit.Test_Caller (File_Command_Tests.Fixture);
+   package Surface_Caller is new AUnit.Test_Caller (Command_Tests.Surface_Smoke.Surface_Fixture);
 
    --  The file commands' tests, each under the command it holds to POSIX.
    procedure Register_File_Commands (Result : AUnit.Test_Suites.Access_Test_Suite);
+
+   --  The command surface tests, one per command or small family, in the
+   --  order the single surface test they replace ran them.
+   procedure Register_Surface_Commands (Result : AUnit.Test_Suites.Access_Test_Suite);
 
    procedure Register_File_Commands (Result : AUnit.Test_Suites.Access_Test_Suite) is
    begin
@@ -50,6 +61,89 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, File_Caller.Create ("command:wc utf-8 resynchronises", File_Command_Tests.Test_UTF_8_Resynchronises'Access));
    end Register_File_Commands;
+
+   procedure Register_Surface_Commands (Result : AUnit.Test_Suites.Access_Test_Suite) is
+      package Data renames Command_Tests.Surface_Smoke.Data;
+      package Files renames Command_Tests.Surface_Smoke.Files;
+      package Filters renames Command_Tests.Surface_Smoke.Filters;
+      package Metadata renames Command_Tests.Surface_Smoke.Metadata;
+      package Host renames Command_Tests.Surface_Smoke.Host;
+      package Text renames Command_Tests.Surface_Smoke.Text;
+   begin
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:cp surface", Files.Test_Cp'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:ln surface", Files.Test_Ln'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:link surface", Files.Test_Link'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:readlink surface", Files.Test_Readlink'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:realpath surface", Files.Test_Realpath'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:chmod surface", Files.Test_Chmod'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:chown and chgrp surface", Files.Test_Chown_Chgrp'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:uname surface", Host.Test_Uname'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:sleep surface", Host.Test_Sleep'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:id surface", Host.Test_Id'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:whoami surface", Host.Test_Whoami'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:logname surface", Host.Test_Logname'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:kill surface", Host.Test_Kill'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:mv surface", Files.Test_Mv'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:rm surface", Files.Test_Rm'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:mv end of options surface", Files.Test_Mv_End_Of_Options'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:rm directory surface", Files.Test_Rm_Directory'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:mkdir surface", Files.Test_Mkdir'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:arch surface", Host.Test_Arch'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:df surface", Host.Test_Df'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:getconf surface", Host.Test_Getconf'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:groups surface", Host.Test_Groups'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:locale surface", Host.Test_Locale'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:hostname surface", Host.Test_Hostname'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:mkfifo surface", Files.Test_Mkfifo'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:nice surface", Host.Test_Nice'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:nohup surface", Host.Test_Nohup'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:printenv surface", Host.Test_Printenv'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:which surface", Host.Test_Which'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:stat surface", Files.Test_Stat'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:cp multiple sources surface", Files.Test_Cp_Multiple_Sources'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:mv multiple sources surface", Files.Test_Mv_Multiple_Sources'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:rmdir surface", Files.Test_Rmdir'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:rm verbose surface", Files.Test_Rm_Verbose'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:option operands surface", Files.Test_Option_Operands'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:touch surface", Metadata.Test_Touch'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:dd surface", Text.Test_Dd'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:printf surface", Text.Test_Printf'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:sort surface", Text.Test_Sort'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Surface_Caller.Create ("command:uniq output operand surface", Filters.Test_Uniq_Output_Operand'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:tee surface", Filters.Test_Tee'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:tr surface", Filters.Test_Tr'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:uniq surface", Filters.Test_Uniq'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:xargs surface", Filters.Test_Xargs'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:date surface", Host.Test_Date'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:env surface", Host.Test_Env'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:find surface", Metadata.Test_Find'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:test surface", Metadata.Test_Test'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:cksum surface", Data.Test_Cksum'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Surface_Caller.Create ("command:sha256sum surface", Data.Test_Sha256sum'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:cmp surface", Data.Test_Cmp'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:paste surface", Data.Test_Paste'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:cut surface", Data.Test_Cut'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:comm surface", Data.Test_Comm'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:od surface", Data.Test_Od'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:ls surface", Metadata.Test_Ls'Access));
+      AUnit.Test_Suites.Add_Test (Result, Surface_Caller.Create ("command:split surface", Data.Test_Split'Access));
+   end Register_Surface_Commands;
 
    procedure Register (Result : AUnit.Test_Suites.Access_Test_Suite) is
    begin
@@ -136,97 +230,57 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:test integer operands", Test_Test_Integer_Operands'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file", Test_File'Access));
-      AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:extended utilities", Test_Command_Surface_Smoke'Access));
+      Register_Surface_Commands (Result);
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
            ("command:verbose output failures",
             Test_Command_Verbose_Output_Failures'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:arch", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cp", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cksum", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cmp", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:comm", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:cut", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:date", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:dd", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:df", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:du smoke", Test_Du'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:env", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expand smoke", Test_Expand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expr smoke", Test_Expr'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file smoke", Test_File'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:find", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:fold smoke", Test_Fold'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:getconf", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:groups", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:hostname", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ln", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:locale", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:ls", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkdir", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mkfifo", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:mv", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nice", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nl smoke", Test_Nl'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:nohup", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:od", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:paste", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:pathchk", Test_Pathchk'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:printenv", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:printf", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rm", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:rmdir", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:seq smoke", Test_Seq'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sha256sum", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:split", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:sort", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:stat", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tee", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:test", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:timeout", Test_Timeout_Statuses'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:touch", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tr", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:tty", Test_Tty'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unexpand smoke", Test_Unexpand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:unlink smoke", Test_Unlink'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:uniq", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:which", Test_Command_Surface_Smoke'Access));
-      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:xargs", Test_Command_Surface_Smoke'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:yes smoke", Test_Yes'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:xargs status bands", Test_Xargs_Status_Bands'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-OPTIONS-0002 command option ordering",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Files.Test_Option_Operands'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-CP-0001 bounded binary copy",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Files.Test_Cp'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-CP-0002 localized overwrite prompt",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Files.Test_Cp'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-CP-0003 fifo recreation",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Files.Test_Cp'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-CP-0004 socket recreation",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Files.Test_Cp'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-SORT-0001 stable unique sort",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Text.Test_Sort'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
@@ -239,9 +293,9 @@ package body Command_Tests.Suite_Entries is
             Test_Command_Verbose_Output_Failures'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-STDERR-0001 xargs trace failure",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Filters.Test_Xargs'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
@@ -249,24 +303,24 @@ package body Command_Tests.Suite_Entries is
             Test_Xargs_Status_Bands'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-STDOUT-0002 find output failure",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Metadata.Test_Find'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-STDOUT-0003 date output failure",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Host.Test_Date'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-STDOUT-0004 dd output failure",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Text.Test_Dd'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
-         Caller.Create
+         Surface_Caller.Create
            ("regression:REG-STDOUT-0005 tr output failure",
-            Test_Command_Surface_Smoke'Access));
+            Command_Tests.Surface_Smoke.Filters.Test_Tr'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:false", Test_False'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:false extension edges", Test_False_Extension_Edges'Access));

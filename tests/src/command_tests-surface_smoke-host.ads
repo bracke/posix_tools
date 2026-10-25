@@ -1,0 +1,20 @@
+package Command_Tests.Surface_Smoke.Host is
+   procedure Test_Arch (T : in out Surface_Fixture);
+   procedure Test_Date (T : in out Surface_Fixture);
+   procedure Test_Df (T : in out Surface_Fixture);
+   procedure Test_Env (T : in out Surface_Fixture);
+   procedure Test_Getconf (T : in out Surface_Fixture);
+   procedure Test_Groups (T : in out Surface_Fixture);
+   procedure Test_Hostname (T : in out Surface_Fixture);
+   procedure Test_Id (T : in out Surface_Fixture);
+   procedure Test_Kill (T : in out Surface_Fixture);
+   procedure Test_Locale (T : in out Surface_Fixture);
+   procedure Test_Logname (T : in out Surface_Fixture);
+   procedure Test_Nice (T : in out Surface_Fixture);
+   procedure Test_Nohup (T : in out Surface_Fixture);
+   procedure Test_Printenv (T : in out Surface_Fixture);
+   procedure Test_Sleep (T : in out Surface_Fixture);
+   procedure Test_Uname (T : in out Surface_Fixture);
+   procedure Test_Which (T : in out Surface_Fixture);
+   procedure Test_Whoami (T : in out Surface_Fixture);
+end Command_Tests.Surface_Smoke.Host;

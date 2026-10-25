@@ -1,0 +1,21 @@
+package Command_Tests.Surface_Smoke.Files is
+   procedure Test_Chmod (T : in out Surface_Fixture);
+   procedure Test_Chown_Chgrp (T : in out Surface_Fixture);
+   procedure Test_Cp (T : in out Surface_Fixture);
+   procedure Test_Cp_Multiple_Sources (T : in out Surface_Fixture);
+   procedure Test_Link (T : in out Surface_Fixture);
+   procedure Test_Ln (T : in out Surface_Fixture);
+   procedure Test_Mkdir (T : in out Surface_Fixture);
+   procedure Test_Mkfifo (T : in out Surface_Fixture);
+   procedure Test_Mv (T : in out Surface_Fixture);
+   procedure Test_Mv_End_Of_Options (T : in out Surface_Fixture);
+   procedure Test_Mv_Multiple_Sources (T : in out Surface_Fixture);
+   procedure Test_Option_Operands (T : in out Surface_Fixture);
+   procedure Test_Readlink (T : in out Surface_Fixture);
+   procedure Test_Realpath (T : in out Surface_Fixture);
+   procedure Test_Rm (T : in out Surface_Fixture);
+   procedure Test_Rm_Directory (T : in out Surface_Fixture);
+   procedure Test_Rm_Verbose (T : in out Surface_Fixture);
+   procedure Test_Rmdir (T : in out Surface_Fixture);
+   procedure Test_Stat (T : in out Surface_Fixture);
+end Command_Tests.Surface_Smoke.Files;
