@@ -18,6 +18,24 @@ is
         when '\'    => '\',
         when others => Ch);
 
+   --  The octal escape whose backslash is at Text'First + Processed, with a
+   --  digit after it: \0 and up to three more digits, as XCU printf gives %b
+   --  them, or else up to three digits.
+   function Lead (Text : String; Processed : Natural) return Natural is
+     (if Text (Text'First + Processed + 1) = '0' then 1 else 0)
+     with
+       Pre => Processed + 1 < Text'Length,
+       Post => Lead'Result <= 1;
+
+   function Octal_Escape
+     (Text      : String;
+      Processed : Natural) return Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix
+   is
+     (Posix_Tools.Text.Octal_Parsing.Prefix_Value
+        (Text (Text'First + Processed + 1 + Lead (Text, Processed) .. Text'Last), 3))
+     with
+       Pre => Processed + 1 < Text'Length;
+
    function Stop_Decoding (Text : String) return Boolean is
       Processed : Natural := 0;
    begin
@@ -35,10 +53,9 @@ is
             then
                declare
                   Parsed : constant Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix :=
-                    Posix_Tools.Text.Octal_Parsing.Prefix_Value
-                      (Text (Text'First + Processed + 1 .. Text'Last), 3);
+                    Octal_Escape (Text, Processed);
                   Step : constant Natural :=
-                    Natural'Min (Parsed.Count, Text'Length - Processed - 1);
+                    Natural'Min (Lead (Text, Processed) + Parsed.Count, Text'Length - Processed - 1);
                begin
                   Processed := Processed + Step + 1;
                end;
@@ -74,10 +91,9 @@ is
                   elsif Posix_Tools.Text.Byte_Classes.Is_ASCII_Octal_Digit (Escaped) then
                      declare
                         Parsed : constant Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix :=
-                          Posix_Tools.Text.Octal_Parsing.Prefix_Value
-                            (Text (Text'First + Processed + 1 .. Text'Last), 3);
+                          Octal_Escape (Text, Processed);
                         Step : constant Natural :=
-                          Natural'Min (Parsed.Count, Text'Length - Processed - 1);
+                          Natural'Min (Lead (Text, Processed) + Parsed.Count, Text'Length - Processed - 1);
                      begin
                         Result := Result + 1;
                         Processed := Processed + Step + 1;
@@ -119,10 +135,9 @@ is
                   elsif Posix_Tools.Text.Byte_Classes.Is_ASCII_Octal_Digit (Escaped) then
                      declare
                         Parsed : constant Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix :=
-                          Posix_Tools.Text.Octal_Parsing.Prefix_Value
-                            (Text (Text'First + Processed + 1 .. Text'Last), 3);
+                          Octal_Escape (Text, Processed);
                         Step : constant Natural :=
-                          Natural'Min (Parsed.Count, Text'Length - Processed - 1);
+                          Natural'Min (Lead (Text, Processed) + Parsed.Count, Text'Length - Processed - 1);
                      begin
                         pragma Assert (Last < Text'Length);
                         Last := Last + 1;

@@ -70,3 +70,15 @@ REG-TR-0004,tr,squeeze by the complemented SET1 for -c -s without SET2,command:t
 REG-XARGS-0002,xargs,continue after an invocation exits 1 through 125 and stop with accurate diagnostics for status 255 signals and missing utilities,command:xargs continues after failure
 REG-SEQ-0001,seq,write nothing for an empty sequence,command:seq empty range
 REG-TEE-0001,tee,open each output file once and write every chunk through it,command:tee opens each file once
+REG-FIND-0001,find,diagnose a path operand that names no file and continue with the remaining operands while a symbolic link to nothing is still a starting point,command:find missing operands
+REG-FIND-0002,find,follow no symbolic link by default with -H following path operands and -L every link and diagnosing loops while -type examines the link or its target accordingly,command:find symbolic links
+REG-FIND-0003,find,end -exec at + only when it follows {} and split batched pathnames over invocations within the argument size limit,command:find exec batches
+REG-TEST-0001,test,decide by argument count before parsing so that x = -a and ( = ( compare strings and ! alone is a nonempty string,command:test argument counts
+REG-TEST-0002,test,treat --help and --version as expression operands unless one is the sole argument,command:test extension operands
+REG-TEST-0003,test,diagnose an operand of an integer comparison that is not an integer and exit with status 2,command:test integer operands
+REG-EXPR-0001,expr,treat --help and --version as expression operands unless one is the sole argument,command:expr extension operands
+REG-PRINTF-0001,printf,read numeric arguments as C constants including octal hexadecimal and quoted characters and write the value converted so far with a diagnostic and status 1,command:printf numeric arguments
+REG-PRINTF-0002,printf,write a format \ddd of one to three octal digits as its byte and read \0ddd in %b arguments,command:printf escapes
+REG-PRINTF-0003,printf,write the whole first character of a %c argument in a UTF-8 locale,command:printf character conversion
+REG-PRINTF-0004,printf,use --help as the format unless it is the sole argument,command:printf extension operands
+REG-ROOT-0003,posix-tools,exit with status 1 from verify when any command is missing shadowed or of another version,command:root verify

@@ -46,7 +46,11 @@ package body Posix_Tools.Commands.Expr is
       Arguments  : Posix_Tools.Arguments.Vector;
       Evaluation : Exprs.Evaluation_Result;
    begin
-      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
+      --  Every argument is an operand of the expression, so the project
+      --  extensions are recognized only as a sole argument.
+      if Posix_Tools.Commands.Helpers.Intercept_Extension
+        (Context, Result, Conventional => False)
+      then
          return;
       end if;
 

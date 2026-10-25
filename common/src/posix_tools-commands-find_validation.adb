@@ -1,3 +1,4 @@
+with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Modes;
@@ -74,31 +75,17 @@ package body Posix_Tools.Commands.Find_Validation is
                I := I + 1;
             elsif Token = "-exec" or else Token = "-ok" then
                declare
-                  Terminator : Natural := 0;
+                  Terminator : constant Natural :=
+                    Posix_Tools.Commands.Find_Evaluation.Exec_Terminator
+                      (Expression, I + 1, Allow_Batch => Token = "-exec");
                begin
-                  for J in I + 1 .. Natural (Expression.Length) loop
-                     if Expression.Element (J) = ";"
-                       or else (Token = "-exec" and then Expression.Element (J) = "+")
-                     then
-                        Terminator := J;
-                        exit;
-                     end if;
-                  end loop;
-
                   if Terminator = 0 then
                      Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "missing option argument '-exec'");
+                       (Context, Result, "missing option argument '" & Token & "'");
                      return False;
                   elsif Terminator = I + 1 then
                      Posix_Tools.Commands.Helpers.Usage_Error
                        (Context, Result, "missing operand");
-                     return False;
-                  elsif Token = "-exec"
-                    and then Expression.Element (Terminator) = "+"
-                    and then Expression.Element (Terminator - 1) /= "{}"
-                  then
-                     Posix_Tools.Commands.Helpers.Usage_Error
-                       (Context, Result, "invalid operand '+'");
                      return False;
                   end if;
 

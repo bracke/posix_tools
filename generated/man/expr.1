@@ -8,7 +8,7 @@ Evaluates the supplied argument vector as a single expression and writes the res
 .SH OPERANDS
 expression: expression tokens supplied as separate command-line arguments.
 .SH OPTIONS
-Project extensions --help, --version, and --posix-tools-identify are recognized only by the common command wrapper.
+Project extensions --help, --version, and --posix-tools-identify are recognized only as sole arguments.
 .SH STANDARD INPUT
 Not used.
 .SH STANDARD OUTPUT
@@ -32,7 +32,7 @@ escaped literals, and first subexpression capture. POSIX escaped grouping \( and
 also accepted for compatibility with earlier V1 tests. When the pattern has a capturing group, the first captured text
 is returned; otherwise the matched length is returned.
 .SH EXTENSIONS
---help, --version, --posix-tools-identify.
+Sole-argument --help, --version, --posix-tools-identify; with any other argument they are operands, so expr --help = x compares strings.
 .SH EXAMPLES
 expr 1 + 2
 

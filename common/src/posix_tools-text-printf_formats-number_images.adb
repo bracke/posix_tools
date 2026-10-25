@@ -189,16 +189,21 @@ package body Posix_Tools.Text.Printf_Formats.Number_Images is
       Localize_Radix        : Boolean;
       Localize_Digit_Glyphs : Boolean := True) return String
    is
-      Radix  : constant String := I18N.Number_Format.Decimal_Separator (Locale);
-      Plus   : constant String := I18N.Number_Format.Plus_Sign (Locale);
-      Minus  : constant String := I18N.Number_Format.Minus_Sign (Locale);
+      --  Where the locale data cannot be found, the number keeps its own
+      --  spelling rather than losing its radix or sign.
+      function Or_Else (Localized : String; Default : String) return String is
+        (if Localized = "" then Default else Localized);
+
+      Radix  : constant String := Or_Else (I18N.Number_Format.Decimal_Separator (Locale), ".");
+      Plus   : constant String := Or_Else (I18N.Number_Format.Plus_Sign (Locale), "+");
+      Minus  : constant String := Or_Else (I18N.Number_Format.Minus_Sign (Locale), "-");
       Output : Unbounded_String;
    begin
       for I in Text'Range loop
          if Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I))
            and then Localize_Digit_Glyphs
          then
-            Append (Output, I18N.Number_Format.Digit_Text (Locale, Text (I)));
+            Append (Output, Or_Else (I18N.Number_Format.Digit_Text (Locale, Text (I)), Text (I .. I)));
          elsif Text (I) = '.' and then Localize_Radix then
             Append (Output, Radix);
          elsif Text (I) = '+' then

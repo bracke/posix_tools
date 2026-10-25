@@ -25,6 +25,17 @@ package Command_Tests is
    procedure Test_Env_Utility_Status (T : in out Fixture);
    procedure Test_Expand (T : in out Fixture);
    procedure Test_Expr (T : in out Fixture);
+   procedure Test_Expr_Extension_Operands (T : in out Fixture);
+   procedure Test_Find_Exec_Batches (T : in out Fixture);
+   procedure Test_Find_Missing_Operands (T : in out Fixture);
+   procedure Test_Find_Symbolic_Links (T : in out Fixture);
+   procedure Test_Printf_Character_Conversion (T : in out Fixture);
+   procedure Test_Printf_Escapes (T : in out Fixture);
+   procedure Test_Printf_Extension_Operands (T : in out Fixture);
+   procedure Test_Printf_Numeric_Arguments (T : in out Fixture);
+   procedure Test_Test_Argument_Counts (T : in out Fixture);
+   procedure Test_Test_Extension_Operands (T : in out Fixture);
+   procedure Test_Test_Integer_Operands (T : in out Fixture);
    procedure Test_File (T : in out Fixture);
    procedure Test_Command_Surface_Smoke (T : in out Fixture);
    procedure Test_Command_Verbose_Output_Failures (T : in out Fixture);

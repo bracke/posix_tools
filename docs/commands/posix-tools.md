@@ -35,12 +35,13 @@ Human-readable inventory, help, version, path, or verification output.
 Diagnostics for invalid subcommands or operational failures.
 
 ## Exit Status
-`0` success, `2` invalid usage, `125` internal failure.
+`0` success, `1` a `verify` check failed or output failed, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
 `verify` invokes candidate executables without a shell and checks the internal
 identity output. If a valid command next to the running `posix-tools` executable
 is hidden by a different PATH candidate, the command is reported as `shadowed`.
+`verify` exits `1` when any command is reported with a status other than `ok`.
 
 ## Locale Behavior
 Human-oriented management headings, verification status labels, and diagnostics

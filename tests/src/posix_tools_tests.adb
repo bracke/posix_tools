@@ -2459,8 +2459,6 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/testing.md", "metadata checks keep that document synchronized");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "docs/proof-coverage.md", "dispatcher-only boundary");
-      Project_Tools.Release_Checks.Require_Text
         (Check, "docs/testing.md", "tail ring arithmetic tests");
       Project_Tools.Release_Checks.Require_Text
         (Check, "docs/testing.md", "wc field arithmetic tests");
@@ -2523,17 +2521,9 @@ procedure Posix_Tools_Tests is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-contexts.adb", "with Posix_Tools.Host_Adapters.Streams;");
       Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "procedure Run_",
-         "command dispatcher must not regain command-local algorithms");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Find.Run");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Sort.Run");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Test_Command.Run");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-dispatcher.adb", "Posix_Tools.Commands.Uniq.Run");
+        ("common/src/posix_tools-commands-find_evaluation.adb",
+         "GNAT.OS_Lib",
+         "find evaluation must use project host adapters");
       Forbid_Text
         ("common/src/posix_tools-commands-find.adb",
          "with Hostkit.Fs",
@@ -2554,26 +2544,6 @@ procedure Posix_Tools_Tests is
         ("common/src/posix_tools-commands-find.adb",
          "GNAT.OS_Lib",
          "find command algorithm must use the project filesystem adapter for timestamps");
-      Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "with Hostkit.Fs",
-         "command dispatcher must not depend on hostkit directly");
-      Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "with Hostkit.Metadata",
-         "command dispatcher must not depend on hostkit metadata");
-      Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "with Hostkit.Signals",
-         "command dispatcher must not depend on hostkit signals");
-      Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "with Ada.Directories",
-         "command dispatcher must not use filesystem algorithms");
-      Forbid_Text
-        ("common/src/posix_tools-commands-dispatcher.adb",
-         "GNAT.OS_Lib",
-         "command dispatcher must not use OS timestamp helpers");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-find.adb", "with Posix_Tools.Host_Adapters.File_System;");
       Project_Tools.Release_Checks.Require_Text

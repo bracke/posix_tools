@@ -52,8 +52,6 @@ begin
    Add_Entry ("common/src/posix_tools-commands-dd.ads");
    Add_Entry ("common/src/posix_tools-commands-dirname.adb");
    Add_Entry ("common/src/posix_tools-commands-dirname.ads");
-   Add_Entry ("common/src/posix_tools-commands-dispatcher.adb");
-   Add_Entry ("common/src/posix_tools-commands-dispatcher.ads");
    Add_Entry ("common/src/posix_tools-commands-echo.adb");
    Add_Entry ("common/src/posix_tools-commands-echo.ads");
    Add_Entry ("common/src/posix_tools-commands-env.adb");
@@ -159,6 +157,8 @@ begin
    Add_Entry ("common/src/posix_tools-host_adapters-file_watches.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-file_system.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-file_system.ads");
+   Add_Entry ("common/src/posix_tools-host_adapters-path_separators.adb");
+   Add_Entry ("common/src/posix_tools-host_adapters-path_separators.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-run_command.adb");
    Add_Entry ("common/src/posix_tools-host_adapters-run_command.ads");
    Add_Entry ("common/src/posix_tools-host_adapters-signals.adb");
@@ -262,6 +262,8 @@ begin
    Add_Entry ("common/src/posix_tools-text-paste_delimiters.ads");
    Add_Entry ("common/src/posix_tools-text-portable_paths.adb");
    Add_Entry ("common/src/posix_tools-text-portable_paths.ads");
+   Add_Entry ("common/src/posix_tools-text-printf_arguments.adb");
+   Add_Entry ("common/src/posix_tools-text-printf_arguments.ads");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.adb");
    Add_Entry ("common/src/posix_tools-text-printf_escapes.ads");
    Add_Entry ("common/src/posix_tools-text-printf_formats-number_images-float_images.adb");
@@ -306,6 +308,8 @@ begin
    Add_Entry ("tests/src/operation_tests.ads");
    Add_Entry ("tests/src/basic_tests.adb");
    Add_Entry ("tests/src/basic_tests.ads");
+   Add_Entry ("tests/src/command_tests-scripting.adb");
+   Add_Entry ("tests/src/command_tests-scripting.ads");
    Add_Entry ("tests/src/command_tests-suite.adb");
    Add_Entry ("tests/src/command_tests-suite.ads");
    Add_Entry ("tests/src/command_tests-suite_entries.adb");
