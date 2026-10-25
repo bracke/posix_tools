@@ -178,17 +178,13 @@ package body Posix_Tools.Commands.Sort is
       Text := Null_Unbounded_String;
       Ok := True;
       if Options.Files.Is_Empty then
-         Text := To_Unbounded_String (Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
+         Text := To_Unbounded_String (Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Ok));
          return;
       end if;
 
       for Name of Options.Files loop
-         if Name = "-" then
-            Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
-         else
-            Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok));
-            exit when not Ok;
-         end if;
+         Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok));
+         exit when not Ok;
       end loop;
    end Read_Input;
 

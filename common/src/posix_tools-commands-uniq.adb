@@ -295,7 +295,7 @@ package body Posix_Tools.Commands.Uniq is
       declare
          Text : constant String :=
            (if Options.Files.Is_Empty or else Options.Files.Element (1) = "-"
-            then Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context)
+            then Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Ok)
             else Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Options.Files.Element (1), Ok));
       begin
          if not Ok then

@@ -25,13 +25,12 @@ package Posix_Tools.Commands.File_Helpers.Streaming is
       Data      : out Ada.Strings.Unbounded.Unbounded_String;
       Ok        : out Boolean);
 
+   --  The whole of File_Name, standard input for "-". Ok is False, and a
+   --  read failure has been reported, when it could not all be read.
    function Read_File
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
       Ok        : out Boolean) return String;
-
-   function Read_Standard_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class) return String;
 
    procedure Copy_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;

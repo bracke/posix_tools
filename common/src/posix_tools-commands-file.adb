@@ -64,8 +64,16 @@ package body Posix_Tools.Commands.File is
          procedure Read_File_Data is new FS.For_Each_File_Chunk (Collect);
       begin
          if Path = "-" then
-            return Content_Description
-              (Posix_Tools.Commands.File_Helpers.Streaming.Read_Standard_Input (Context));
+            declare
+               Input : constant String := Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Read_Ok);
+            begin
+               if not Read_Ok then
+                  All_Ok := False;
+                  return "";
+               end if;
+
+               return Content_Description (Input);
+            end;
          end if;
 
          case FS.Kind (Path) is

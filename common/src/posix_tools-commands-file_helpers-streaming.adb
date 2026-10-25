@@ -267,25 +267,6 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       return To_String (Text);
    end Read_File;
 
-   function Read_Standard_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class) return String
-   is
-      Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
-      Last   : Ada.Streams.Stream_Element_Offset;
-      Text   : Unbounded_String;
-   begin
-      loop
-         exit when not Context.Try_Read_Standard_Input (Buffer, Last);
-         exit when Last < Buffer'First;
-
-         for I in Buffer'First .. Last loop
-            Append (Text, Character'Val (Integer (Buffer (I))));
-         end loop;
-      end loop;
-
-      return To_String (Text);
-   end Read_Standard_Input;
-
    function To_String
      (Buffer : Ada.Streams.Stream_Element_Array;
       Last   : Ada.Streams.Stream_Element_Offset) return String
