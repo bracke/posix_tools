@@ -54,7 +54,7 @@ package body Posix_Tools.Commands.File_Helpers is
    is
    begin
       if Target_Is_Directory then
-         return FS.Join (Target, Posix_Tools.Paths.Basename (Source));
+         return FS.Child_Path (Target, Posix_Tools.Paths.Basename (Source));
       else
          return Target;
       end if;

@@ -55,11 +55,6 @@ package body Posix_Tools.Host_Adapters.File_System.Paths is
       return Ada.Directories.Full_Name (Path);
    end Full_Name;
 
-   function Join (Left : String; Right : String) return String is
-   begin
-      return Hostkit.Fs.Join (Left, Right);
-   end Join;
-
    function Physical_Current_Directory return String is
    begin
       return Ada.Directories.Current_Directory;

@@ -56,21 +56,6 @@ package body Posix_Tools.Host_Adapters.File_System.Metadata is
       return Hostkit.Metadata.Group_Id_For_Name (Name, Found);
    end Group_Id_For_Name;
 
-   function Group_Name_For_Current_User return String is
-      User      : Natural;
-      Group     : Natural;
-      Available : Boolean;
-   begin
-      Hostkit.Metadata.File_Ownership (Ada.Directories.Current_Directory, User, Group, Available);
-      if Available then
-         return Hostkit.Metadata.Group_Name_For_Id (Group);
-      end if;
-      return "";
-   exception
-      when others =>
-         return "";
-   end Group_Name_For_Current_User;
-
    function Group_Name_For_Id (Id : Natural) return String is
    begin
       return Hostkit.Metadata.Group_Name_For_Id (Id);
