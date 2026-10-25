@@ -63,7 +63,8 @@ package Explore.Screen is
 
    --  Write the UTF-8 Text from Column on, in at most Width cells; a wide
    --  character that would not fit whole is left out. Used is the number of
-   --  cells written. Cells beyond the grid are never written.
+   --  cells written. Cells beyond the grid are never written. A wide
+   --  character this, Fill or Put_Image overwrites half of is blanked whole.
    procedure Put
      (Self       : in out Grid;
       Row        : Positive;
@@ -94,9 +95,6 @@ package Explore.Screen is
 
    --  The number of cells the UTF-8 Text takes, as Put would write it.
    function Width_Of (Text : String) return Natural;
-
-   --  The longest prefix of the UTF-8 Text that takes at most Width cells.
-   function Clipped (Text : String; Width : Natural) return String;
 
    --  The output that brings a terminal showing Shown to show Wanted: only
    --  the cells that differ are written, unless Full is set or the two differ
