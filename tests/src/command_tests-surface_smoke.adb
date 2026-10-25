@@ -3,6 +3,7 @@ with Ada.Calendar.Formatting;
 with Ada.Calendar.Time_Zones;
 with Ada.Directories;
 with Ada.Strings.Fixed;
+with Ada.Strings.Maps;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Command_Tests.Surface_Smoke.Helpers;
@@ -339,6 +340,10 @@ package body Command_Tests.Surface_Smoke is
       if Hostkit.Fs.Create_Link (Source, Symlinked) then
          declare
             Target_Text : Unbounded_String;
+
+            --  Windows keeps a link's target in its own separators, the
+            --  only ones it follows a link by; the target is the same path.
+            Slashes : constant Ada.Strings.Maps.Character_Mapping := Ada.Strings.Maps.To_Mapping ("\", "/");
          begin
             Remove_Any (Target);
             Context.Initialize ("cp", Three_Args ("-P", Symlinked, Cp_Symlinked));
@@ -347,7 +352,8 @@ package body Command_Tests.Surface_Smoke is
               (Result.Status = Posix_Tools.Exit_Status.Success
                and then Hostkit.Fs.Is_Link (Cp_Symlinked)
                and then Hostkit.Fs.Read_Link_Target (Cp_Symlinked, Target_Text)
-               and then To_String (Target_Text) = Source,
+               and then Ada.Strings.Fixed.Translate (To_String (Target_Text), Slashes) =
+                          Ada.Strings.Fixed.Translate (Source, Slashes),
                "cp -P copies symbolic link itself");
 
             Remove_Any (Symlinked);
