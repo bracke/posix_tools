@@ -676,7 +676,7 @@ tests/src/metadata_checks-packaging.adb bytes= 31077 fnv1a64=a767768ee5ebc5d6
 tests/src/metadata_checks-packaging.ads bytes= 224 fnv1a64=ce20178e2abe830d
 tests/src/metadata_checks-requirements.adb bytes= 9648 fnv1a64=73b12bfaeb3181ad
 tests/src/metadata_checks-requirements.ads bytes= 160 fnv1a64=73868310d1a39b88
-tests/src/metadata_checks-source_rules.adb bytes= 48646 fnv1a64=e22f753f76a5f3a7
+tests/src/metadata_checks-source_rules.adb bytes= 50575 fnv1a64=d22dcf93979c0873
 tests/src/metadata_checks-source_rules.ads bytes= 172 fnv1a64=4e29bd14befbc143
 tests/src/metadata_checks-test_coverage.adb bytes= 36375 fnv1a64=25140f877a42e68e
 tests/src/metadata_checks-test_coverage.ads bytes= 184 fnv1a64=de916819cd8bfa30

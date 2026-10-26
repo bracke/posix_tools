@@ -351,119 +351,172 @@ package body Metadata_Checks.Source_Rules is
          "standard stream adapter must use hostkit descriptors for byte-oriented process streams");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/build_checks.adb", "build common crate");
-      --  The proof-target labels below occur nowhere but in these checks; they
-      --  name this file, as they named posix_tools_tests.adb when the checks
-      --  lived there, so each still holds what it held then.
+      --  Each unit must stay in the proof driver's table at its level.
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools root");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.version");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.version""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.command_inventory");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.command_inventory""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.numbers");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.numbers""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.paths");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.paths""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.utf_8");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.utf_8""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.classification");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.classification""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.whitespace_data");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.whitespace_data""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.streams.counting");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.streams.counting""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.counts");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.counts""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.tail_rings");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.tail_rings""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.tail_counts");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.tail_counts""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.wc_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.wc_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.exit_status");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.exit_status""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.commands.results");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.commands.results""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.commands");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.commands""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.streams");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.streams""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.escaping");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.escaping""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.checksum_lines");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.checksum_lines""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.checksums");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.checksums""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.cut_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.cut_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.dd_conversions");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.dd_conversions""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.duration_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.duration_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.file_magic_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.file_magic_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.line_breaks");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.line_breaks""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.byte_classes");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.byte_classes""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.matching");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.matching""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.nice_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.nice_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.base_parsing");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.base_parsing""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.suffixes");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.suffixes""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.tab_stops");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.tab_stops""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.logical_paths");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.logical_paths""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.portable_paths");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.portable_paths""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.test_operators");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.test_operators""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.hex_digests");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.hex_digests""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.sort_modifiers");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.sort_modifiers""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.paste_delimiters");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.paste_delimiters""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.printf_escapes");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.printf_escapes""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.seq_formats");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.seq_formats""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.find_expressions");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.find_expressions""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.od_formats");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.od_formats""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.signal_names");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.signal_names""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.nl_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.nl_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.decimal_parsing");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.decimal_parsing""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.file_modes");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.file_modes""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.file_modes level 2");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.file_modes""), To_Unbounded_String (""2""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.numeric_images");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.numeric_images""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.option_parsing");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.option_parsing""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.octal_modes");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.octal_modes""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.octal_parsing");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.octal_parsing""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.owner_groups");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.owner_groups""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.time_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.time_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.touch_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.touch_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/metadata_checks-source_rules.adb", "proof target posix_tools.text.xargs_fields");
+        (Check, "tests/src/proof_targets.adb",
+         "(To_Unbounded_String (""posix_tools.text.xargs_fields""), To_Unbounded_String (""1""))");
       Project_Tools.Release_Checks.Require_Text
         (Check, "tests/src/posix_tools_tests.adb", "--prover=z3");
       Project_Tools.Release_Checks.Require_Text
