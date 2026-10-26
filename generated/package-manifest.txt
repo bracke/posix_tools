@@ -235,7 +235,7 @@ common/src/posix_tools-counts.ads bytes= 1647 fnv1a64=649f9a7706fc548a
 common/src/posix_tools-exit_status.ads bytes= 1988 fnv1a64=a74741ca82e87640
 common/src/posix_tools-extension_options.adb bytes= 777 fnv1a64=d0e924d35f7b9072
 common/src/posix_tools-extension_options.ads bytes= 747 fnv1a64=dea83ebfd5a265a4
-common/src/posix_tools-file_operations-copying.adb bytes= 16388 fnv1a64=d29f1d1f7625c84d
+common/src/posix_tools-file_operations-copying.adb bytes= 16506 fnv1a64=b20a860af09385cb
 common/src/posix_tools-file_operations-copying.ads bytes= 2191 fnv1a64=9827859853db6af3
 common/src/posix_tools-file_operations-listing.adb bytes= 12286 fnv1a64=c284786a5c659ddc
 common/src/posix_tools-file_operations-listing.ads bytes= 3072 fnv1a64=d7c012b17821bf73
@@ -684,7 +684,7 @@ tests/src/metadata_checks-tooling_docs.adb bytes= 13597 fnv1a64=b643fee77da4fa87
 tests/src/metadata_checks-tooling_docs.ads bytes= 234 fnv1a64=f08636e8dfe4ac1d
 tests/src/metadata_checks.adb bytes= 3096 fnv1a64=dcb5b1a9eb6744e2
 tests/src/metadata_checks.ads bytes= 701 fnv1a64=056f9b0cc51e81fa
-tests/src/operation_tests.adb bytes= 20132 fnv1a64=4f615be2543dadb5
+tests/src/operation_tests.adb bytes= 20277 fnv1a64=1447bd664b23da2b
 tests/src/operation_tests.ads bytes= 751 fnv1a64=38c2f1cc8776cc47
 tests/src/package_entries.adb bytes= 3705 fnv1a64=47dd79e0fed0c15f
 tests/src/package_entries.ads bytes= 956 fnv1a64=de11d7076b110865
@@ -867,7 +867,7 @@ tools/explore/e2e/src/e2e_suites.ads bytes= 125 fnv1a64=2db9203ab048e499
 tools/explore/e2e/src/explore_e2e.adb bytes= 493 fnv1a64=0b95d6f683c5fa08
 tools/explore/e2e/src/performance_tests.adb bytes= 5568 fnv1a64=a7428144d385c987
 tools/explore/e2e/src/performance_tests.ads bytes= 372 fnv1a64=92402d3b1d7f64e2
-tools/explore/e2e/src/session_tests.adb bytes= 20824 fnv1a64=48fe71ac4c3045f8
+tools/explore/e2e/src/session_tests.adb bytes= 20913 fnv1a64=0405bd77eddcf645
 tools/explore/e2e/src/session_tests.ads bytes= 881 fnv1a64=11b71bbb15766c24
 tools/explore/posix_tools_explore.gpr bytes= 653 fnv1a64=0dae4f06bba57558
 tools/explore/src/explore_main.adb bytes= 236 fnv1a64=e2b5b4919879482d

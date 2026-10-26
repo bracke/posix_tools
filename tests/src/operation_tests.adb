@@ -239,7 +239,8 @@ package body Operation_Tests is
             and then
               (not Hostkit.Metadata.Mode_Bits_Are_Native
                or else FS.File_Permission_Bits (Path (Root, "sub"), Known) mod 8#1000# = 8#555#),
-            "a read-only directory is copied whole, and read-only");
+            "a read-only directory is copied whole, and read-only:" & Watcher.Errors'Image & " errors, last "
+            & Watcher.Last_Error'Image & " at " & Ada.Strings.Unbounded.To_String (Watcher.Last_Path));
          AUnit.Assertions.Assert
            (FS.Set_Permissions (Path (Root, "src/sub"), 8#755#)
             and then FS.Set_Permissions (Path (Root, "sub"), 8#755#),

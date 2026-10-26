@@ -247,7 +247,8 @@ package body Session_Tests is
          Ada.Streams.Stream_IO.Close (Big);
       end;
 
-      Open (Session, Root);
+      --  Wide enough that the path heading the screen is not cut short.
+      Open (Session, Root, Columns => 160);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "big"), "listed");
 
       --  Directories come first: down to the file, yank, up to target, in.

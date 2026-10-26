@@ -113,18 +113,20 @@ package body Posix_Tools.File_Operations.Copying is
             Mode := Mode - ((Mode / 8#2000#) mod 4) * 8#2000#;
          end if;
 
-         if FS.Permissions_Supported
-           and then Available
-           and then not FS.Set_Permissions (Target, Mode)
-         then
-            Fail (Target, Cannot_Open);
-         end if;
-
+         --  Times first: where a read-only mode is an ACL, as on Windows, it
+         --  also forbids setting them.
          if Source_Times_Available then
             if not FS.Set_File_Times (Target, Source_Access_Time, Source_Modification_Time) then
                Fail (Target, Cannot_Open);
             end if;
          elsif not FS.Copy_File_Times (Source, Target) then
+            Fail (Target, Cannot_Open);
+         end if;
+
+         if FS.Permissions_Supported
+           and then Available
+           and then not FS.Set_Permissions (Target, Mode)
+         then
             Fail (Target, Cannot_Open);
          end if;
       exception
