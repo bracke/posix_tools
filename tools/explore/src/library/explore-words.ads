@@ -24,6 +24,7 @@ package Explore.Words is
       Cut           : Ada.Strings.Unbounded.Unbounded_String;
       Queue_Full    : Ada.Strings.Unbounded.Unbounded_String;
       Cancelled     : Ada.Strings.Unbounded.Unbounded_String;
+      Confirm_Quit  : Ada.Strings.Unbounded.Unbounded_String;
       Exists        : Ada.Strings.Unbounded.Unbounded_String;
       Invalid_Mode  : Ada.Strings.Unbounded.Unbounded_String;
       --  Patterns: of {count}; of {done} and {what}; of {verb} and {what},

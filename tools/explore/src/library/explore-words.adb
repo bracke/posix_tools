@@ -156,6 +156,7 @@ package body Explore.Words is
          Cut           => Pattern ("cut", "count", "{count} cut"),
          Queue_Full    => Word ("queue_full", "too many operations waiting"),
          Cancelled     => Word ("cancelled", "cancelled"),
+         Confirm_Quit  => Word ("confirm_quit", "operations are still running; quit and stop them? y/n"),
          Exists        => Word ("exists", "already exists"),
          Invalid_Mode  => Word ("invalid_mode", "not a valid permission mode"),
          Errors        => Pattern ("errors", "count", "{count} errors"),

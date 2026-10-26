@@ -64,6 +64,9 @@ package body Explore.Application.Controller is
    --  Delete the entries in Pending when Item says yes.
    procedure Confirm_Delete (State : in out Session; Item : Input.Event);
 
+   --  Quits on y; anything else keeps the jobs, and explore, running.
+   procedure Confirm_Quit (State : in out Session; Item : Input.Event);
+
    --  Put the paths of the entries the next command is for on the
    --  clipboard, or only their names, one to a line.
    procedure Copy_Targets (State : in out Session; Names_Only : Boolean);
@@ -326,6 +329,15 @@ package body Explore.Application.Controller is
       Leave_Mode (State);
    end Confirm_Delete;
 
+   procedure Confirm_Quit (State : in out Session; Item : Input.Event) is
+   begin
+      if Input.Is_Character (Item, 'y') or else Input.Is_Character (Item, 'Y') then
+         State.Quit := True;
+      end if;
+
+      Leave_Mode (State);
+   end Confirm_Quit;
+
    procedure Copy_Targets (State : in out Session; Names_Only : Boolean) is
       Text : Unbounded.Unbounded_String;
    begin
@@ -470,6 +482,8 @@ package body Explore.Application.Controller is
             Edit_Prompt (State, Item);
          when Confirming_Delete =>
             Confirm_Delete (State, Item);
+         when Confirming_Quit =>
+            Confirm_Quit (State, Item);
          when Answering =>
             if Item.Kind = Input.Key_Event then
                Answer_Conflict (State, Item);
@@ -654,7 +668,14 @@ package body Explore.Application.Controller is
          when Keymap.No_Action =>
             null;
          when Keymap.Quit =>
-            State.Quit := True;
+            --  Quitting stops what is copying, moving or deleting, so ask first.
+            if Explore.Jobs.Any_Running (State.Workers.Last_Job)
+              or else not State.Workers.Last_Job.Queued.Is_Empty
+            then
+               Ask (State, Confirming_Quit, Unbounded.To_String (Words.Confirm_Quit));
+            else
+               State.Quit := True;
+            end if;
          when Movement =>
             Move_Cursor (State, Item.Kind);
          when Keymap.Enter_Directory =>

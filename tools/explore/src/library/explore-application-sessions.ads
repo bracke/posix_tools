@@ -42,6 +42,7 @@ private package Explore.Application.Sessions is
       --  Renaming, changing modes and shell commands act on Pending: the
       --  entries as they were when asked, whatever a reload does meanwhile.
       Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
+      Confirming_Quit,   --  y quits and stops the jobs still running or waiting.
       Answering,         --  A running job asks about a target that exists.
       Viewing_Jobs);     --  The jobs panel is open.
 

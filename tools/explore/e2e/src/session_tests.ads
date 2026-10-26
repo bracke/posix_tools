@@ -15,6 +15,7 @@ package Session_Tests is
    procedure Test_Conflicts (T : in out Fixture);
    procedure Test_Rename (T : in out Fixture);
    procedure Test_Quit_While_Previewing (T : in out Fixture);
+   procedure Test_Quit_While_Copying (T : in out Fixture);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 end Session_Tests;

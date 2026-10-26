@@ -3,6 +3,7 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
+with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with E2E_Rig;
 with GNAT.OS_Lib;
@@ -72,6 +73,8 @@ package body Session_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:rename", Test_Rename'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("session:quit while previewing", Test_Quit_While_Previewing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("session:quit while copying", Test_Quit_While_Copying'Access));
       return Result;
    end Suite;
 
@@ -223,6 +226,59 @@ package body Session_Tests is
         (E2E_Rig.Placeholder_Cells (Session) > 0, "and placed in the preview pane with placeholders");
       Quit (Session);
    end Test_Image;
+
+   procedure Test_Quit_While_Copying (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root    : constant String := E2E_Rig.Fixture ("quit-copying");
+      Session : E2E_Rig.Rig;
+      Ended   : Boolean;
+      Code    : Integer;
+   begin
+      Ada.Directories.Create_Path (Root & "/target");
+
+      --  Two gigabytes that cost nothing to make, as a hole, and take a while
+      --  to copy, since every byte of the hole is read.
+      declare
+         Big : Ada.Streams.Stream_IO.File_Type;
+      begin
+         Ada.Streams.Stream_IO.Create (Big, Ada.Streams.Stream_IO.Out_File, Root & "/big");
+         Ada.Streams.Stream_IO.Set_Index (Big, Ada.Streams.Stream_IO.Positive_Count'(2_147_483_648));
+         Ada.Streams.Stream_IO.Write (Big, [1 => 0]);
+         Ada.Streams.Stream_IO.Close (Big);
+      end;
+
+      Open (Session, Root);
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "big"), "listed");
+
+      --  Directories come first: down to the file, yank, up to target, in.
+      E2E_Rig.Send (Session, "j");
+      E2E_Rig.Pump (Session, 50);
+      E2E_Rig.Send (Session, "y");
+      E2E_Rig.Pump (Session, 50);
+      E2E_Rig.Send (Session, "k");
+      E2E_Rig.Pump (Session, 50);
+      E2E_Rig.Send (Session, "l");
+      AUnit.Assertions.Assert (E2E_Rig.Wait_For_Row (Session, 1, Root & "/target"), "into target");
+      E2E_Rig.Send (Session, "p");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "copying"), "the copy running");
+
+      E2E_Rig.Send (Session, "q");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "quit and stop them?"), "quitting asks first");
+
+      --  No keeps explore, and the copy, going.
+      E2E_Rig.Send (Session, "n");
+      E2E_Rig.Wait_Exit (Session, Ended, Code, Timeout_Ms => 300);
+      AUnit.Assertions.Assert (not Ended, "n does not quit");
+
+      --  The copy may have finished meanwhile; then q quits without asking.
+      E2E_Rig.Send (Session, "q");
+      if E2E_Rig.Wait_For (Session, "quit and stop them?", Timeout_Ms => 1_000) then
+         E2E_Rig.Send (Session, "y");
+      end if;
+      E2E_Rig.Wait_Exit (Session, Ended, Code);
+      AUnit.Assertions.Assert (Ended, "y quits");
+      Ada.Directories.Delete_Tree (Root);
+   end Test_Quit_While_Copying;
 
    procedure Test_Quit_While_Previewing (T : in out Fixture) is
       pragma Unreferenced (T);
