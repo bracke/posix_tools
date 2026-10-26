@@ -13,6 +13,9 @@ package body Posix_Tools.Host_Adapters.File_System is
    --  Whole seconds since 1970-01-01 UTC.
    function Epoch_Seconds (Time : File_Time) return Long_Long_Integer;
 
+   --  Whether following Path, a link, reaches a file that exists.
+   function Resolves (Path : String) return Boolean;
+
    function Access_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
       Available : Boolean := False;
    begin
@@ -637,9 +640,11 @@ package body Posix_Tools.Host_Adapters.File_System is
    function Kind (Path : String) return File_Kind is
    begin
       --  Windows answers Exists for the link itself, so a link to nothing
-      --  would read as a file; resolving it says what stat(2) would.
+      --  would read as a file. Resolving it says what stat(2) would: there,
+      --  Real_Path names a missing target rather than giving up as realpath(3)
+      --  does, so the resolved path must also exist.
       if not Ada.Directories.Exists (Path)
-        or else (Hostkit.Fs.Is_Link (Path) and then Hostkit.Fs.Real_Path (Path) = "")
+        or else (Hostkit.Fs.Is_Link (Path) and then not Resolves (Path))
       then
          return Missing_File;
       end if;
@@ -741,6 +746,12 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       Ada.Directories.Rename (Old_Path, New_Path);
    end Rename;
+
+   function Resolves (Path : String) return Boolean is
+      Target : constant String := Hostkit.Fs.Real_Path (Path);
+   begin
+      return Target /= "" and then Ada.Directories.Exists (Target);
+   end Resolves;
 
    function Same_File (Left : String; Right : String) return Boolean is
    begin
