@@ -2,6 +2,7 @@ with Ada.Directories;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with Hostkit.Metadata;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Cp;
 with Posix_Tools.Commands.Mv;
@@ -232,12 +233,16 @@ package body Operation_Tests is
          Ops.Copying.Copy_Path
            (Path (Root, "src/sub"), Path (Root, "sub"), (Recursive => True, Preserve_Mode => True, others => <>),
             Watcher, Outcome);
+         --  A mode rendered from an ACL, as on Windows, need not read back as set.
          AUnit.Assertions.Assert
            (Outcome = Ops.Done and then Watcher.Errors = 0 and then Read (Path (Root, "sub/b")) = "beta"
-            and then FS.File_Permission_Bits (Path (Root, "sub"), Known) mod 8#1000# = 8#555#,
+            and then
+              (not Hostkit.Metadata.Mode_Bits_Are_Native
+               or else FS.File_Permission_Bits (Path (Root, "sub"), Known) mod 8#1000# = 8#555#),
             "a read-only directory is copied whole, and read-only");
          AUnit.Assertions.Assert
-           (FS.Set_Permissions (Path (Root, "src/sub"), 8#755#) and then FS.Set_Permissions (Path (Root, "sub"), 8#755#),
+           (FS.Set_Permissions (Path (Root, "src/sub"), 8#755#)
+            and then FS.Set_Permissions (Path (Root, "sub"), 8#755#),
             "fixture made writable again");
       end if;
 
