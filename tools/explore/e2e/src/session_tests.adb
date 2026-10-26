@@ -256,7 +256,8 @@ package body Session_Tests is
          E2E_Rig.Pump (Session, 10);
       end loop;
 
-      E2E_Rig.Write_File (Root & "/mode.sh", "test ""$(stat -c %a ""$1"")"" = 700" & LF);
+      --  ls, not stat: macOS's stat has no -c, and both print the same mode.
+      E2E_Rig.Write_File (Root & "/mode.sh", "test ""$(ls -ld ""$1"" | cut -c1-10)"" = drwx------" & LF);
 
       declare
          Script    : aliased String := Root & "/mode.sh";

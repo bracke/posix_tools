@@ -40,6 +40,16 @@ package body Command_Tests.Surface_Smoke.Files is
    use Command_Tests.Surface_Smoke.Fixtures;
    use Command_Tests.Surface_Smoke.Helpers;
 
+   --  Windows keeps a link's target in its own separators, the only ones it
+   --  follows a link by; the target is the same path.
+   function Same_Path (Left, Right : String) return Boolean;
+
+   function Same_Path (Left, Right : String) return Boolean is
+      Slashes : constant Ada.Strings.Maps.Character_Mapping := Ada.Strings.Maps.To_Mapping ("\", "/");
+   begin
+      return Ada.Strings.Fixed.Translate (Left, Slashes) = Ada.Strings.Fixed.Translate (Right, Slashes);
+   end Same_Path;
+
    procedure Test_Chmod (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
@@ -193,10 +203,6 @@ package body Command_Tests.Surface_Smoke.Files is
       if Hostkit.Fs.Create_Link (Source, Symlinked) then
          declare
             Target_Text : Unbounded_String;
-
-            --  Windows keeps a link's target in its own separators, the
-            --  only ones it follows a link by; the target is the same path.
-            Slashes : constant Ada.Strings.Maps.Character_Mapping := Ada.Strings.Maps.To_Mapping ("\", "/");
          begin
             Remove_Any (Target);
             Context.Initialize ("cp", Three_Args ("-P", Symlinked, Cp_Symlinked));
@@ -205,8 +211,7 @@ package body Command_Tests.Surface_Smoke.Files is
               (Result.Status = Posix_Tools.Exit_Status.Success
                and then Hostkit.Fs.Is_Link (Cp_Symlinked)
                and then Hostkit.Fs.Read_Link_Target (Cp_Symlinked, Target_Text)
-               and then Ada.Strings.Fixed.Translate (To_String (Target_Text), Slashes) =
-                          Ada.Strings.Fixed.Translate (Source, Slashes),
+               and then Same_Path (To_String (Target_Text), Source),
                "cp -P copies symbolic link itself");
 
             Remove_Any (Symlinked);
@@ -514,7 +519,7 @@ package body Command_Tests.Surface_Smoke.Files is
             AUnit.Assertions.Assert (Hostkit.Fs.Is_Link (Symlinked), "ln -s creates symbolic link");
             AUnit.Assertions.Assert
               (Hostkit.Fs.Read_Link_Target (Symlinked, Target_Text)
-               and then To_String (Target_Text) = Source,
+               and then Same_Path (To_String (Target_Text), Source),
                "ln -s records requested target");
          end;
       else
@@ -874,7 +879,7 @@ package body Command_Tests.Surface_Smoke.Files is
          Posix_Tools.Commands.Readlink.Run (Context, Result);
          AUnit.Assertions.Assert
            (Result.Status = Posix_Tools.Exit_Status.Success
-            and then Test_Contexts.Output (Context) = Source & EOL,
+            and then Same_Path (Test_Contexts.Output (Context), Source & EOL),
             "readlink writes symbolic link target");
       end if;
    end Test_Readlink;

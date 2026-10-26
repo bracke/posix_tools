@@ -601,7 +601,8 @@ package body File_Command_Tests is
       Context.Initialize ("mkdir", Args ("-m", "g-w", Made));
       Posix_Tools.Commands.Mkdir.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Success and then FS.Exists (Made), "mkdir -m g-w status");
-      if FS.Permissions_Supported then
+      --  A mode rendered from an ACL, as on Windows, has no group bits apart.
+      if FS.Permissions_Supported and then Hostkit.Metadata.Mode_Bits_Are_Native then
          AUnit.Assertions.Assert
            (Mode (Made) mod 8#1000# = 8#757#, "mkdir -m takes + and - from a=rwx, whatever the umask");
       end if;
@@ -836,6 +837,7 @@ package body File_Command_Tests is
       Odd     : constant String := Path (Root, "new" & EOL & "line");
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
+      Odd_Made : Boolean;
    begin
       Fresh (Root);
       Write (A, "a");
@@ -857,23 +859,27 @@ package body File_Command_Tests is
         (Result.Status = Success and then Test_Contexts.Error_Output (Context) = "mv: overskriv '" & B & "'?" & EOL,
          "mv -i asks in the locale's words");
 
-      Write (Odd, "odd");
-      Context.Initialize ("rm", Args ("-i", Odd));
-      Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
-      Posix_Tools.Commands.Rm.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) /= Odd
-         and then Test_Contexts.Error_Output (Context) =
-           "rm: remove '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
-         "rm -i shows a name with a control character escaped");
+      --  A host that keeps control characters out of names, as Windows
+      --  does, has no such name to show.
+      FS.Write_File (Odd, "odd", False, Odd_Made);
+      if Odd_Made then
+         Context.Initialize ("rm", Args ("-i", Odd));
+         Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
+         Posix_Tools.Commands.Rm.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) /= Odd
+            and then Test_Contexts.Error_Output (Context) =
+              "rm: remove '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
+            "rm -i shows a name with a control character escaped");
 
-      Context.Initialize ("mv", Args ("-i", A, Odd));
-      Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
-      Posix_Tools.Commands.Mv.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) =
-           "mv: overwrite '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
-         "mv -i shows a name with a control character escaped");
+         Context.Initialize ("mv", Args ("-i", A, Odd));
+         Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
+         Posix_Tools.Commands.Mv.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Error_Output (Context) =
+              "mv: overwrite '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
+            "mv -i shows a name with a control character escaped");
+      end if;
 
       Context.Initialize ("rm", Args ("-v", A));
       Posix_Tools.Commands.Rm.Run (Context, Result);

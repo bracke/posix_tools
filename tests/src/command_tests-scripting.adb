@@ -274,9 +274,13 @@ package body Command_Tests.Scripting is
             "find -L follows links and diagnoses a loop");
       end;
 
-      AUnit.Assertions.Assert
-        (Run_Find ([+"-L", +D, +"-type", +"l"], Status, Errors) = D & "/dangle" & EOL,
-         "find -L -type l is only a link to nothing");
+      declare
+         Output : constant String := Run_Find ([+"-L", +D, +"-type", +"l"], Status, Errors);
+      begin
+         AUnit.Assertions.Assert
+           (Output = D & "/dangle" & EOL,
+            "find -L -type l is only a link to nothing, not: " & Output & To_String (Errors));
+      end;
 
       AUnit.Assertions.Assert
         (Sorted (Run_Find ([+"-H", +(D & "/lsub")], Status, Errors)) = D & "/lsub" & EOL & D & "/lsub/g" & EOL
@@ -384,7 +388,8 @@ package body Command_Tests.Scripting is
              Posix_Tools.Exit_Status.Success, "printf reads floating constants");
       Check ([+"%d", +""], "0", "", Posix_Tools.Exit_Status.Success, "printf takes an empty argument as zero");
 
-      Context.Initialize ("printf", Args ([+"%d", +(Character'Val (39) & Character'Val (16#C3#) & Character'Val (16#A9#))]));
+      Context.Initialize
+        ("printf", Args ([+"%d", +(Character'Val (39) & Character'Val (16#C3#) & Character'Val (16#A9#))]));
       Test_Contexts.Set_Environment_Value (Context, "LC_CTYPE", "C.UTF-8");
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert

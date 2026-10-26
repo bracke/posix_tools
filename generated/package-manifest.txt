@@ -633,7 +633,7 @@ tests/src/build_checks.adb bytes= 3009 fnv1a64=71f29e8017703ccd
 tests/src/build_checks.ads bytes= 76 fnv1a64=80078369870becde
 tests/src/command_tests-dispatch.adb bytes= 17481 fnv1a64=65e98cc515759fc4
 tests/src/command_tests-dispatch.ads bytes= 1086 fnv1a64=acc96e7370379817
-tests/src/command_tests-scripting.adb bytes= 22718 fnv1a64=ee950548bf71a32f
+tests/src/command_tests-scripting.adb bytes= 22854 fnv1a64=00ca144d17b607da
 tests/src/command_tests-scripting.ads bytes= 936 fnv1a64=21dda24e93253a56
 tests/src/command_tests-suite.adb bytes= 391 fnv1a64=b8dbc9546f1745a4
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
@@ -641,7 +641,7 @@ tests/src/command_tests-suite_entries.adb bytes= 33312 fnv1a64=1387219846172737
 tests/src/command_tests-suite_entries.ads bytes= 167 fnv1a64=e662dd775a700727
 tests/src/command_tests-surface_smoke-data.adb bytes= 29767 fnv1a64=258f84f0c2923b23
 tests/src/command_tests-surface_smoke-data.ads bytes= 510 fnv1a64=2285622d80dac39c
-tests/src/command_tests-surface_smoke-files.adb bytes= 50788 fnv1a64=3476e91905b0fbb7
+tests/src/command_tests-surface_smoke-files.adb bytes= 50950 fnv1a64=2aa0d5f445b4425a
 tests/src/command_tests-surface_smoke-files.ads bytes= 1171 fnv1a64=dee7c86c3138245e
 tests/src/command_tests-surface_smoke-filters.adb bytes= 37985 fnv1a64=cf85a00ad311e203
 tests/src/command_tests-surface_smoke-filters.ads bytes= 366 fnv1a64=db8def68a724690a
@@ -658,7 +658,7 @@ tests/src/command_tests-surface_smoke.adb bytes= 482 fnv1a64=dd646ff1ee5f6ecd
 tests/src/command_tests-surface_smoke.ads bytes= 521 fnv1a64=2b1737e65f3c6409
 tests/src/command_tests.adb bytes= 263413 fnv1a64=a2b92816a9c99d4c
 tests/src/command_tests.ads bytes= 7004 fnv1a64=0c353ab9598470f5
-tests/src/file_command_tests.adb bytes= 41357 fnv1a64=9ac8b0d9c9d35631
+tests/src/file_command_tests.adb bytes= 41730 fnv1a64=97c76022d1acd114
 tests/src/file_command_tests.ads bytes= 1519 fnv1a64=d752ed41839ab540
 tests/src/file_operations_tests.adb bytes= 13313 fnv1a64=6da41f8852fbca22
 tests/src/file_operations_tests.ads bytes= 461 fnv1a64=4597d082d0eabd3a
@@ -867,7 +867,7 @@ tools/explore/e2e/src/e2e_suites.ads bytes= 125 fnv1a64=2db9203ab048e499
 tools/explore/e2e/src/explore_e2e.adb bytes= 493 fnv1a64=0b95d6f683c5fa08
 tools/explore/e2e/src/performance_tests.adb bytes= 5568 fnv1a64=a7428144d385c987
 tools/explore/e2e/src/performance_tests.ads bytes= 372 fnv1a64=92402d3b1d7f64e2
-tools/explore/e2e/src/session_tests.adb bytes= 18326 fnv1a64=40b00b4225f3db68
+tools/explore/e2e/src/session_tests.adb bytes= 18420 fnv1a64=0925637bf3ddc59a
 tools/explore/e2e/src/session_tests.ads bytes= 822 fnv1a64=35cfc4688debc94b
 tools/explore/posix_tools_explore.gpr bytes= 653 fnv1a64=0dae4f06bba57558
 tools/explore/src/explore_main.adb bytes= 236 fnv1a64=e2b5b4919879482d
