@@ -47,10 +47,16 @@ package body Posix_Tools.Host_Adapters.Terminal_IO is
    begin
       Last := Into'First - 1;
 
-      if not Hostkit.Descriptors.Wait_Readable (Input, Timeout_Ms) then
-         Outcome := Read_Timeout;
-         return;
-      end if;
+      case Hostkit.Descriptors.Wait_For_Readable (Input, Timeout_Ms) is
+         when Hostkit.Descriptors.Wait_Ready =>
+            null;
+         when Hostkit.Descriptors.Wait_Timed_Out =>
+            Outcome := Read_Timeout;
+            return;
+         when Hostkit.Descriptors.Wait_Failed =>
+            Outcome := Read_Failed;
+            return;
+      end case;
 
       case Hostkit.Descriptors.Read (Input, Into, Last) is
          when Hostkit.Descriptors.Transfer_Ok =>
