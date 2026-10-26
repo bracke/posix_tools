@@ -636,7 +636,11 @@ package body Posix_Tools.Host_Adapters.File_System is
 
    function Kind (Path : String) return File_Kind is
    begin
-      if not Ada.Directories.Exists (Path) then
+      --  Windows answers Exists for the link itself, so a link to nothing
+      --  would read as a file; resolving it says what stat(2) would.
+      if not Ada.Directories.Exists (Path)
+        or else (Hostkit.Fs.Is_Link (Path) and then Hostkit.Fs.Real_Path (Path) = "")
+      then
          return Missing_File;
       end if;
 
