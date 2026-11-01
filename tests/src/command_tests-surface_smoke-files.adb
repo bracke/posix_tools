@@ -896,6 +896,14 @@ package body Command_Tests.Surface_Smoke.Files is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Hostkit.Fs.Real_Path (Source) & EOL,
          "realpath writes resolved path");
+
+      Context.Initialize ("realpath", One_Arg (Work_Path ("realpath-missing/child")));
+      Posix_Tools.Commands.Realpath.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Contains (Test_Contexts.Error_Output (Context), "cannot resolve path"),
+         "realpath reports an operand that does not resolve instead of an empty line");
    end Test_Realpath;
 
    procedure Test_Rm (T : in out Surface_Fixture) is
