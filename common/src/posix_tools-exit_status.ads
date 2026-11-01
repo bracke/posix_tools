@@ -19,6 +19,10 @@ is
    --  output it could not write, is this.
    Cmp_Trouble : constant Code := 2;
 
+   --  tty: standard input not a terminal is 1; an error, such as output it
+   --  could not write, is this.
+   Tty_Error : constant Code := 2;
+
    --  expr: a null or zero result is 1, an invalid expression 2 and any
    --  other error, such as output it could not write, this.
    Expr_Error : constant Code := 3;

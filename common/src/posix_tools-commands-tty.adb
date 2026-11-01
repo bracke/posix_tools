@@ -49,7 +49,7 @@ package body Posix_Tools.Commands.Tty is
          if not Silent then
             Context.Put_Line (Context.Standard_Input_Terminal_Name);
          end if;
-         Posix_Tools.Commands.Helpers.Finish (Context, Result);
+         Result.Status := Posix_Tools.Exit_Status.Success;
       else
          if not Silent then
             Context.Put_Line ("not a tty");
@@ -57,8 +57,9 @@ package body Posix_Tools.Commands.Tty is
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
       end if;
 
+      --  POSIX: an error is a status above 1, which "not a tty" has.
       if Context.Output_Failed then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         Result.Status := Posix_Tools.Exit_Status.Tty_Error;
       end if;
    end Run;
 end Posix_Tools.Commands.Tty;

@@ -5207,6 +5207,13 @@ package body Command_Tests is
          and then Test_Contexts.Output (Context) = "",
          "tty -s suppresses output");
 
+      Context.Initialize ("tty", No_Args);
+      Test_Contexts.Set_Standard_Input_Is_Terminal (Context, True);
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Tty_Error, "tty exits above 1 when its output fails");
+
       Context.Initialize ("tty", One_Arg ("-x"));
       Posix_Tools.Commands.Tty.Run (Context, Result);
       AUnit.Assertions.Assert
