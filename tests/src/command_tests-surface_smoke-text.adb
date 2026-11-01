@@ -213,8 +213,9 @@ package body Command_Tests.Surface_Smoke.Text is
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Test_Contexts.Output (Context) = "",
-         "dd input failure without noerror status");
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "dd: 'standard input': cannot read file" & EOL,
+         "dd reports a standard input failure without noerror");
 
       Context.Initialize ("dd", One_Arg ("conv=noerror"));
       Test_Contexts.Set_Standard_Input (Context, "abc");
@@ -222,8 +223,15 @@ package body Command_Tests.Surface_Smoke.Text is
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "ab",
-         "dd conv=noerror retains readable prefix");
+         and then Test_Contexts.Output (Context) = "ab"
+         and then Occurrences (Test_Contexts.Error_Output (Context), "cannot read file") = 1,
+         "dd conv=noerror retains readable prefix and reports the failure once");
+
+      Context.Initialize ("dd", Two_Args ("if=" & Work_Path ("dd-missing-input"), "conv=noerror"));
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Occurrences (Test_Contexts.Error_Output (Context), "cannot read file") = 1,
+         "dd conv=noerror reports an if= failure once");
 
       Context.Initialize ("dd", Two_Args ("ibs=4", "conv=noerror"));
       Test_Contexts.Set_Standard_Input (Context, "abcdef");
