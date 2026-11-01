@@ -3,12 +3,6 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Contexts;
 
 package Posix_Tools.Commands.File_Helpers.Streaming is
-   procedure For_Each_Line
-     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
-      File_Name : String;
-      Action    : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok        : out Boolean);
-
    generic
       with procedure Action
         (Context : in out Posix_Tools.Commands.Contexts.Context'Class;

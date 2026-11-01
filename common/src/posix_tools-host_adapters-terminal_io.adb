@@ -28,15 +28,6 @@ package body Posix_Tools.Host_Adapters.Terminal_IO is
       return True;
    end Enter_Raw;
 
-   function Is_Interactive return Boolean is
-   begin
-      return Hostkit.Descriptors.Is_Terminal (Hostkit.Descriptors.Standard_Input)
-        and then Hostkit.Descriptors.Is_Terminal (Hostkit.Descriptors.Standard_Output);
-   exception
-      when others =>
-         return False;
-   end Is_Interactive;
-
    procedure Read
      (Into       : out Ada.Streams.Stream_Element_Array;
       Last       : out Ada.Streams.Stream_Element_Offset;

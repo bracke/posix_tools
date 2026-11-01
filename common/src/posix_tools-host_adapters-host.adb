@@ -98,11 +98,6 @@ package body Posix_Tools.Host_Adapters.Host is
       return Hostkit.Host.Login_Name;
    end Login_Name;
 
-   function Own_Process_Id return Integer is
-   begin
-      return Hostkit.Host.Own_Process_Id;
-   end Own_Process_Id;
-
    function System_Name return String is
    begin
       return Hostkit.Host.System_Name;

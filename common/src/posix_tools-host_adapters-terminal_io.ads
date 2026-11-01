@@ -7,14 +7,11 @@ private with Hostkit.Terminal_Control;
 --  cells, and unbuffered reads and writes on the standard streams.
 --
 --  Input is read from standard input and output written to standard output;
---  both must be the terminal, which Is_Interactive answers.
+--  both must be the terminal.
 package Posix_Tools.Host_Adapters.Terminal_IO is
    use type Ada.Streams.Stream_Element_Offset;
 
    type Saved_Mode is private;
-
-   --  Whether standard input and standard output are both a terminal.
-   function Is_Interactive return Boolean;
 
    --  Save the terminal's settings into Saved and switch it to raw mode: no
    --  line buffering, no echo, and no interpretation of control keys into

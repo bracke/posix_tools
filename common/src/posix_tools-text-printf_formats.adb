@@ -2,70 +2,11 @@ with Ada.Strings.Unbounded;
 with I18N.Number_Format;
 with Posix_Tools.Numbers;
 with Posix_Tools.Text.Byte_Classes;
-with Posix_Tools.Text.Decimal_Parsing;
 
 package body Posix_Tools.Text.Printf_Formats is
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Numbers.Count;
    use type Posix_Tools.Numbers.Parse_Status;
-
-   function Canonical_Decimal (Text : String; Ok : out Boolean) return String is
-      First    : Positive := Text'First;
-      Negative : Boolean := False;
-      Parsed   : Posix_Tools.Numbers.Parse_Result;
-   begin
-      Ok := False;
-      if Text = "" then
-         return "";
-      elsif Text (First) = '-' or else Text (First) = '+' then
-         Negative := Text (First) = '-';
-         First := First + 1;
-         if First > Text'Last then
-            return "";
-         end if;
-      end if;
-
-      Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Text (First .. Text'Last));
-      if Parsed.Status /= Posix_Tools.Numbers.Valid then
-         return "";
-      end if;
-
-      Ok := True;
-      declare
-         Magnitude : constant String := Posix_Tools.Numbers.Count_Image (Parsed.Value);
-      begin
-         if Negative and then Parsed.Value /= 0 then
-            return "-" & Magnitude;
-         else
-            return Magnitude;
-         end if;
-      end;
-   end Canonical_Decimal;
-
-   function Canonical_Unsigned (Text : String; Ok : out Boolean) return String is
-      First  : Positive := Text'First;
-      Parsed : Posix_Tools.Numbers.Parse_Result;
-   begin
-      Ok := False;
-      if Text = "" then
-         return "";
-      elsif Text (First) = '+' then
-         First := First + 1;
-         if First > Text'Last then
-            return "";
-         end if;
-      elsif Text (First) = '-' then
-         return "";
-      end if;
-
-      Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Text (First .. Text'Last));
-      if Parsed.Status /= Posix_Tools.Numbers.Valid then
-         return "";
-      end if;
-
-      Ok := True;
-      return Posix_Tools.Numbers.Count_Image (Parsed.Value);
-   end Canonical_Unsigned;
 
    function Decimal_With_Precision
      (Image         : String;
@@ -190,30 +131,6 @@ package body Posix_Tools.Text.Printf_Formats is
 
       return To_String (Output);
    end Localize_Decimal_Number;
-
-   function Parse_Checked_Signed
-     (Text : String;
-      Ok   : out Boolean) return Long_Long_Integer
-   is
-      Image : constant String := Canonical_Decimal (Text, Ok);
-   begin
-      if not Ok or else Image = "" then
-         Ok := False;
-         return 0;
-      end if;
-
-      declare
-         Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Long_Long :=
-           Posix_Tools.Text.Decimal_Parsing.Long_Long_Value (Image);
-      begin
-         if Parsed.Valid then
-            return Parsed.Value;
-         else
-            Ok := False;
-            return 0;
-         end if;
-      end;
-   end Parse_Checked_Signed;
 
    function Unsigned_Image
      (Text  : String;

@@ -18,7 +18,6 @@ package Posix_Tools.Host_Adapters.Host is
       with Post => Last <= Groups'Length;
    function Native_Locale return String;
    function Login_Name return String;
-   function Own_Process_Id return Integer;
    function System_Name return String;
    function Node_Name return String;
    function Set_Node_Name (Name : String) return Boolean;

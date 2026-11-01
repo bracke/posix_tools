@@ -8,56 +8,9 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
    Buffer_Size : constant := 16 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
 
-   procedure Append_Buffer_To_Lines
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Buffer  : Ada.Streams.Stream_Element_Array;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Current : in out Unbounded_String;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : in out Boolean);
-
-   procedure Finish_Line_Scan
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Current : in out Unbounded_String;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : in out Boolean);
-
-   procedure For_Each_Standard_Input_Line
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : out Boolean);
-
    function To_String
      (Buffer : Ada.Streams.Stream_Element_Array;
       Last   : Ada.Streams.Stream_Element_Offset) return String;
-
-   procedure Append_Buffer_To_Lines
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Buffer  : Ada.Streams.Stream_Element_Array;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Current : in out Unbounded_String;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : in out Boolean)
-   is
-      Ch : Character;
-   begin
-      if Last < Buffer'First then
-         return;
-      end if;
-
-      for I in Buffer'First .. Last loop
-         Ch := Character'Val (Integer (Buffer (I)));
-         Append (Current, Ch);
-         if Ch = Character'Val (10) then
-            Action (Context, To_String (Current));
-            if Context.Output_Failed then
-               Ok := False;
-               return;
-            end if;
-            Current := Null_Unbounded_String;
-         end if;
-      end loop;
-   end Append_Buffer_To_Lines;
 
    procedure Copy_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -83,23 +36,6 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
          end if;
       end loop;
    end Copy_Standard_Input;
-
-   procedure Finish_Line_Scan
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Current : in out Unbounded_String;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : in out Boolean)
-   is
-   begin
-      if Length (Current) > 0 then
-         Action (Context, To_String (Current));
-         if Context.Output_Failed then
-            Ok := False;
-            return;
-         end if;
-         Current := Null_Unbounded_String;
-      end if;
-   end Finish_Line_Scan;
 
    procedure For_Each_Chunk
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -153,77 +89,6 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
           "posix_tools.diagnostic.file.read_failed", "cannot read file");
       end if;
    end For_Each_Chunk;
-
-   procedure For_Each_Line
-     (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
-      File_Name : String;
-      Action    : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok        : out Boolean)
-   is
-      Current : Unbounded_String;
-
-      procedure Scan_Chunk
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean);
-
-      procedure Scan_Chunk
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean)
-      is
-      begin
-         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
-         Stop := not Ok;
-      end Scan_Chunk;
-   begin
-      Ok := True;
-
-      if File_Name = "-" then
-         For_Each_Standard_Input_Line (Context, Action, Ok);
-      else
-         declare
-            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
-              (Action => Scan_Chunk);
-         begin
-            Iterate (File_Name, Ok);
-         end;
-         if Ok then
-            Finish_Line_Scan (Context, Current, Action, Ok);
-         end if;
-      end if;
-
-      if not Ok and then not Context.Output_Failed then
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-          (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
-           "posix_tools.diagnostic.file.read_failed", "cannot read file");
-      end if;
-   end For_Each_Line;
-
-   procedure For_Each_Standard_Input_Line
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Action  : Posix_Tools.Commands.File_Helpers.Line_Action;
-      Ok      : out Boolean)
-   is
-      Buffer  : Byte_Buffer;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Current : Unbounded_String;
-   begin
-      Ok := True;
-      loop
-         if not Context.Try_Read_Standard_Input (Buffer, Last) then
-            Ok := False;
-            return;
-         end if;
-         exit when Last < Buffer'First;
-         Append_Buffer_To_Lines (Context, Buffer, Last, Current, Action, Ok);
-         exit when not Ok;
-      end loop;
-
-      if Ok then
-         Finish_Line_Scan (Context, Current, Action, Ok);
-      end if;
-   end For_Each_Standard_Input_Line;
 
    procedure Read_All
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
