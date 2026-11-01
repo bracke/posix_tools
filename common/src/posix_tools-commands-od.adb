@@ -11,21 +11,33 @@ package body Posix_Tools.Commands.Od is
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Text.OD_Formats.Address_Base;
 
-   procedure Run
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result)
-   is
-      Address : Posix_Tools.Text.OD_Formats.Address_Base := Posix_Tools.Text.OD_Formats.Octal_Address;
-      Formats : Posix_Tools.Commands.Od_Rendering.Dump_Spec_Vectors.Vector;
-      Skip    : Natural := 0;
-      Limit   : Natural := 0;
+   --  What od's options ask for.
+   type Settings is record
+      Address   : Posix_Tools.Text.OD_Formats.Address_Base := Posix_Tools.Text.OD_Formats.Octal_Address;
+      --  The -t formats and shorthands, in order; one octal word without any.
+      Formats   : Posix_Tools.Commands.Od_Rendering.Dump_Spec_Vectors.Vector;
+      Skip      : Natural := 0;
+      Limit     : Natural := 0;
       Has_Limit : Boolean := False;
-      Verbose : Boolean := False;
-      First : Positive;
-      Valid : Boolean;
-      Data  : Unbounded_String;
-      Ok    : Boolean := True;
+      Verbose   : Boolean := False;
+   end record;
 
+   --  Read od's options into Options; First is the first operand. Valid is
+   --  False, with the usage error given, when one is wrong.
+   procedure Parse_Options
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Options : out Settings;
+      First   : out Positive;
+      Valid   : out Boolean);
+
+   procedure Parse_Options
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Options : out Settings;
+      First   : out Positive;
+      Valid   : out Boolean)
+   is
       function Set_Address_Base (Spec : String) return Boolean is
          Parsed : constant Posix_Tools.Text.OD_Formats.Parsed_Address_Base :=
            Posix_Tools.Text.OD_Formats.Address_Base_For (Spec);
@@ -33,7 +45,7 @@ package body Posix_Tools.Commands.Od is
          if not Parsed.Valid then
             return False;
          end if;
-         Address := Parsed.Base;
+         Options.Address := Parsed.Base;
          return True;
       end Set_Address_Base;
 
@@ -53,7 +65,7 @@ package body Posix_Tools.Commands.Od is
                   return False;
                end if;
 
-               Posix_Tools.Commands.Od_Rendering.Append_Dump_Format (Formats, Parsed);
+               Posix_Tools.Commands.Od_Rendering.Append_Dump_Format (Options.Formats, Parsed);
                if Parsed.At_End then
                   exit;
                end if;
@@ -95,17 +107,17 @@ package body Posix_Tools.Commands.Od is
          Valid := True;
          case Name is
             when 'v' =>
-               Verbose := True;
+               Options.Verbose := True;
             when 'A' =>
                if not Set_Address_Base (Value) then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
                   Valid := False;
                end if;
             when 'j' =>
-               Set_Number_Option (Value, True, Skip, Result, Valid);
+               Set_Number_Option (Value, True, Options.Skip, Result, Valid);
             when 'N' =>
-               Set_Number_Option (Value, False, Limit, Result, Valid);
-               Has_Limit := True;
+               Set_Number_Option (Value, False, Options.Limit, Result, Valid);
+               Options.Has_Limit := True;
             when 't' =>
                if not Append_Dump_Formats (Value) then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
@@ -114,7 +126,7 @@ package body Posix_Tools.Commands.Od is
             when others =>
                --  One of the shorthand formats, -a, -b, -c, -d, -o, -s
                --  or -x.
-               if not Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Format (Formats, Name) then
+               if not Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Format (Options.Formats, Name) then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "-" & Name);
                   Valid := False;
                end if;
@@ -123,19 +135,33 @@ package body Posix_Tools.Commands.Od is
 
       procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
+      Options := (others => <>);
+      Parse (Context, Result, "AabcdjNostvx", "AjNt", First, Valid);
+      if Valid and then Options.Formats.Is_Empty then
+         Options.Formats.Append
+           (Posix_Tools.Commands.Od_Rendering.Dump_Spec'
+              (Kind => Posix_Tools.Commands.Od_Rendering.Octal_Integer,
+               Size => 2));
+      end if;
+   end Parse_Options;
+
+   procedure Run
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Options : Settings;
+      First   : Positive;
+      Valid   : Boolean;
+      Data    : Unbounded_String;
+      Ok      : Boolean := True;
+   begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      Parse (Context, Result, "AabcdjNostvx", "AjNt", First, Valid);
+      Parse_Options (Context, Result, Options, First, Valid);
       if not Valid then
          return;
-      end if;
-      if Formats.Is_Empty then
-         Formats.Append
-           (Posix_Tools.Commands.Od_Rendering.Dump_Spec'
-              (Kind => Posix_Tools.Commands.Od_Rendering.Octal_Integer,
-               Size => 2));
       end if;
       if Context.Argument_Count < First then
          Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, "-", Data, Ok);
@@ -157,14 +183,15 @@ package body Posix_Tools.Commands.Od is
 
       declare
          Source : constant String := To_String (Data);
-         Actual_Skip : constant Natural := Natural'Min (Skip, Source'Length);
+         Actual_Skip : constant Natural := Natural'Min (Options.Skip, Source'Length);
          Available : constant Natural := Source'Length - Actual_Skip;
-         Selected_Length : constant Natural := (if Has_Limit then Natural'Min (Limit, Available) else Available);
+         Selected_Length : constant Natural :=
+           (if Options.Has_Limit then Natural'Min (Options.Limit, Available) else Available);
          Text   : constant String :=
            (if Selected_Length = 0 then ""
             else Source (Source'First + Actual_Skip .. Source'First + Actual_Skip + Selected_Length - 1));
       begin
-         if Skip > Source'Length then
+         if Options.Skip > Source'Length then
             Posix_Tools.Commands.Helpers.Operational_Error
               (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
@@ -175,9 +202,9 @@ package body Posix_Tools.Commands.Od is
            (Context     => Context,
             Text        => Text,
             Actual_Skip => Actual_Skip,
-            Address     => Address,
-            Formats     => Formats,
-            Verbose     => Verbose);
+            Address     => Options.Address,
+            Formats     => Options.Formats,
+            Verbose     => Options.Verbose);
       end;
       Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
