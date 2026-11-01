@@ -8,6 +8,7 @@ package Posix_Tools.Commands.Usage_Messages is
      (Count_Overflow,
       Division_By_Zero,
       Extra_Operand,
+      Integer_Expected,
       Invalid_Argument_Count,
       Invalid_Block_Size,
       Invalid_Byte_Count,

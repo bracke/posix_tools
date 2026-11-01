@@ -371,12 +371,7 @@ package body Posix_Tools.Commands.Test_Command is
       if Syntax_Error then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Syntax_Message, To_String (Syntax_Subject));
       elsif Has_Bad_Integer then
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context,
-            To_String (Bad_Integer),
-            "posix_tools.diagnostic.integer.expected",
-            "integer expression expected");
-         Result.Status := Posix_Tools.Exit_Status.Invalid_Usage;
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Integer_Expected, To_String (Bad_Integer));
       else
          Result.Status :=
            (if Truth then Posix_Tools.Exit_Status.Success

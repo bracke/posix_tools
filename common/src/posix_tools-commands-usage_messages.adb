@@ -8,6 +8,8 @@ package body Posix_Tools.Commands.Usage_Messages is
             return "division by zero";
          when Extra_Operand =>
             return "extra operand '{operand}'";
+         when Integer_Expected =>
+            return "'{operand}': integer expression expected";
          when Invalid_Argument_Count =>
             return "invalid argument count '{count}'";
          when Invalid_Block_Size =>
@@ -100,6 +102,8 @@ package body Posix_Tools.Commands.Usage_Messages is
             return "posix_tools.diagnostic.expr.division_by_zero";
          when Extra_Operand =>
             return "posix_tools.diagnostic.extra_operand";
+         when Integer_Expected =>
+            return "posix_tools.diagnostic.integer.expected";
          when Invalid_Argument_Count =>
             return "posix_tools.diagnostic.argument_count.invalid";
          when Invalid_Block_Size =>
@@ -191,6 +195,8 @@ package body Posix_Tools.Commands.Usage_Messages is
          when Division_By_Zero =>
             return "";
          when Extra_Operand =>
+            return "operand";
+         when Integer_Expected =>
             return "operand";
          when Invalid_Argument_Count =>
             return "count";
