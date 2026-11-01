@@ -37,8 +37,7 @@ Diagnostics are written to standard error.
 
 ## Exit Status
 
-`0` when standard input is a terminal. `1` when it is not. `2` for invalid usage, or when the output cannot be
-written.
+`0` when standard input is a terminal. `1` when it is not. `2` for invalid usage, or when the output cannot be written.
 
 ## Behavioral Details
 

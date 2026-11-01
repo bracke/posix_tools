@@ -192,6 +192,8 @@ common/src/posix_tools-commands-text_helpers-folding.adb
 common/src/posix_tools-commands-text_helpers-folding.ads
 common/src/posix_tools-commands-text_helpers-tab_stops.adb
 common/src/posix_tools-commands-text_helpers-tab_stops.ads
+common/src/posix_tools-commands-text_helpers-tr_sets.adb
+common/src/posix_tools-commands-text_helpers-tr_sets.ads
 common/src/posix_tools-commands-text_helpers.adb
 common/src/posix_tools-commands-text_helpers.ads
 common/src/posix_tools-commands-timeout.adb
@@ -200,8 +202,6 @@ common/src/posix_tools-commands-touch.adb
 common/src/posix_tools-commands-touch.ads
 common/src/posix_tools-commands-touch_time_parsing.adb
 common/src/posix_tools-commands-touch_time_parsing.ads
-common/src/posix_tools-commands-touch_times.adb
-common/src/posix_tools-commands-touch_times.ads
 common/src/posix_tools-commands-tr.adb
 common/src/posix_tools-commands-tr.ads
 common/src/posix_tools-commands-true_command.adb
@@ -291,6 +291,8 @@ common/src/posix_tools-presentation.adb
 common/src/posix_tools-presentation.ads
 common/src/posix_tools-process_entry.adb
 common/src/posix_tools-process_entry.ads
+common/src/posix_tools-streams-bytes.adb
+common/src/posix_tools-streams-bytes.ads
 common/src/posix_tools-streams-counting.adb
 common/src/posix_tools-streams-counting.ads
 common/src/posix_tools-streams-lines.adb
