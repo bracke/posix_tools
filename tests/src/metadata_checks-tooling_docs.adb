@@ -1,187 +1,160 @@
-with Ada.Strings.Fixed;
 with Posix_Tools.Version;
-with Project_Tools.Files;
-with Project_Tools.Release_Checks;
-with Tooling_Support;
+with Tooling_Checks;
+with Tooling_Steps;
 
 package body Metadata_Checks.Tooling_Docs is
-   use Tooling_Support;
-
    procedure Run (Writes_Release_Checksums : Boolean) is
-      procedure Require_Text_Before
-        (Path          : String;
-         Earlier_Text  : String;
-         Later_Text    : String;
-         Failure_Label : String)
-      is
-         Content : constant String :=
-           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
-         Earlier : constant Natural := Ada.Strings.Fixed.Index (Content, Earlier_Text);
-         Later   : constant Natural := Ada.Strings.Fixed.Index (Content, Later_Text);
+      --  What the subcommands run, checked on the step lists the driver
+      --  runs rather than on the driver's source text.
+      procedure Require_Subcommand_Steps is
+         use Tooling_Steps;
+
+         function Image (Item : Step) return String is (Step'Image (Item));
+
+         procedure Require_Step (Item : Subcommand; Wanted : Step) is
+         begin
+            if not Contains (Steps (Item), Wanted) then
+               Tooling_Checks.Fail (Name (Item) & " does not run " & Image (Wanted));
+            end if;
+         end Require_Step;
+
+         procedure Forbid_Step (Item : Subcommand; Unwanted : Step) is
+         begin
+            if Contains (Steps (Item), Unwanted) then
+               Tooling_Checks.Fail (Name (Item) & " must not run " & Image (Unwanted));
+            end if;
+         end Forbid_Step;
+
+         --  Later runs after Earlier in Item.
+         procedure Require_Order (Item : Subcommand; Earlier : Step; Later : Step) is
+            List : constant Step_List := Steps (Item);
+         begin
+            if Position (List, Earlier) = 0 or else Position (List, Later) <= Position (List, Earlier) then
+               Tooling_Checks.Fail (Name (Item) & " must run " & Image (Later) & " after " & Image (Earlier));
+            end if;
+         end Require_Order;
+
+         Release_Check_Steps : constant Step_List := Steps (Release_Check_Command);
+         Release_Steps       : constant Step_List := Steps (Release_Command);
       begin
-         if Earlier = 0 then
-            Project_Tools.Release_Checks.Fail (Failure_Label & ": missing earlier marker");
-         elsif Later = 0 then
-            Project_Tools.Release_Checks.Fail (Failure_Label & ": missing later marker");
-         elsif Earlier >= Later then
-            Project_Tools.Release_Checks.Fail (Failure_Label & ": markers are out of order");
+         for Item in Subcommand loop
+            Tooling_Checks.Require_Text (Check, "docs/testing.md", "`" & Name (Item) & "`");
+            if Steps (Item)'Length = 0 then
+               Tooling_Checks.Fail (Name (Item) & " runs nothing");
+            end if;
+
+            --  A step that writes files checks nothing; whatever writes
+            --  generated files must be followed by the checks of them.
+            if Contains (Steps (Item), Generate_Docs) then
+               Require_Order (Item, Generate_Docs, Run_Metadata_Checks);
+            end if;
+            if Contains (Steps (Item), Generate_Package_Manifest) then
+               Require_Order (Item, Generate_Package_Manifest, Run_Metadata_Checks);
+            end if;
+         end loop;
+
+         --  release-check is the whole gate short of a release: every
+         --  step but the clean-tree check and the checksums.
+         for Item in Step loop
+            if Item not in Require_Clean_Source_Tree | Generate_Release_Checksums then
+               Require_Step (Release_Check_Command, Item);
+            end if;
+         end loop;
+         Require_Order (Release_Check_Command, Run_Build, Run_Test_Selector_Smoke);
+         Require_Order (Release_Check_Command, Run_Build, Run_Staged_Verification);
+         Require_Order (Release_Check_Command, Run_Build, Run_Executable_Integration_Smoke);
+         Require_Order (Release_Check_Command, Generate_Release_Archive, Run_Metadata_Checks);
+         Forbid_Step (Release_Check_Command, Require_Clean_Source_Tree);
+         Forbid_Step (Release_Check_Command, Generate_Release_Checksums);
+
+         --  release is release-check on a clean tree that also records
+         --  the checksums of what it built.
+         if Release_Steps'Length = 0 or else Release_Steps (Release_Steps'First) /= Require_Clean_Source_Tree then
+            Tooling_Checks.Fail ("release must check for a clean source tree first");
          end if;
-      end Require_Text_Before;
+         declare
+            Without_Release_Only : Step_List (1 .. Release_Steps'Length);
+            Count                : Natural := 0;
+         begin
+            for Item of Release_Steps loop
+               if Item not in Require_Clean_Source_Tree | Generate_Release_Checksums then
+                  Count := Count + 1;
+                  Without_Release_Only (Count) := Item;
+               end if;
+            end loop;
+
+            if Without_Release_Only (1 .. Count) /= Release_Check_Steps then
+               Tooling_Checks.Fail ("release must run the release-check steps in their order");
+            end if;
+         end;
+         Require_Order (Release_Command, Generate_Release_Archive, Generate_Release_Checksums);
+         Require_Order (Release_Command, Run_Build, Generate_Release_Checksums);
+
+         for Item of Steps (Check_Command) loop
+            Require_Step (Release_Check_Command, Item);
+         end loop;
+         Require_Step (Check_Command, Run_Tests);
+         Require_Step (Check_Command, Run_Metadata_Checks);
+      end Require_Subcommand_Steps;
    begin
-      Project_Tools.Release_Checks.Require_File (Check, "docs/ai.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/architecture.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/conformance.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/development.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/portability.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/proof-coverage.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/release-process.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/security.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/testing.md");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_File (Check, "docs/ai.md");
+      Tooling_Checks.Require_File (Check, "docs/architecture.md");
+      Tooling_Checks.Require_File (Check, "docs/conformance.md");
+      Tooling_Checks.Require_File (Check, "docs/development.md");
+      Tooling_Checks.Require_File (Check, "docs/portability.md");
+      Tooling_Checks.Require_File (Check, "docs/proof-coverage.md");
+      Tooling_Checks.Require_File (Check, "docs/release-process.md");
+      Tooling_Checks.Require_File (Check, "docs/security.md");
+      Tooling_Checks.Require_File (Check, "docs/testing.md");
+      Tooling_Checks.Require_Text
         (Check, "docs/release-process.md", "Node 24-compatible checkout action");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/development.md", "Node 24-compatible checkout action");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/portability.md", "Node 24-compatible checkout action");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Repository Map");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Package Map");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Allowed Imports");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Prohibited Imports");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Project Invariants");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Command Workflow");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Test Requirements");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Localization Rules");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Styling Rules");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Repository Map");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Package Map");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Dependency Rules");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Allowed Imports");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Prohibited Imports");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Project Invariants");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Command Workflow");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Test Requirements");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Localization Rules");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Styling Rules");
+      Tooling_Checks.Require_Text
         (Check, "docs/ai.md", "Help, root headings, and human diagnostics may be styled");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/ai.md", "stderr terminal status for diagnostics");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Resource Policies");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Completion Criteria");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Resource Policies");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Completion Criteria");
+      Tooling_Checks.Require_Text (Check, "docs/ai.md", "## Rejected Architectures");
+      Tooling_Checks.Require_Text
         (Check, "docs/ai.md", "Direct Hostkit use from command algorithms");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/ai.md", "Shell, Python, JavaScript, Make, CMake, or PowerShell project tooling");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`posix_tools_tests`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --suite <name>`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`test --category unit`");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`posix_tools_tests`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`test --suite <name>`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`test --category unit`");
+      Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`test --category integration`");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`test --category conformance`");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`test --category regression`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`build`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`check`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`format-check`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`docs`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`prove`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`package`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
-      Project_Tools.Release_Checks.Require_Text (Check, "docs/testing.md", "`release`");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`build`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`check`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`format-check`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`docs`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`prove`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`package`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
+      Tooling_Checks.Require_Text (Check, "docs/testing.md", "`release`");
+      Tooling_Checks.Require_Text
         (Check,
          "docs/testing.md",
          "`posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/format_checks.adb", "function Has_Tab");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/format_checks.adb", "function Has_Trailing_Whitespace");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/format_checks.adb", "function Has_Multiple_Blank_Lines");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/format_checks.adb", "function Is_Checked_Text_File");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""test""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""check""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""release-check""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "elsif Command = ""release-check"" then");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Run_Test_Selector_Smoke;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Run_Staged_Verification;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Run_Executable_Integration_Smoke;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "root executable help");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Executable & "" executable help""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "cp executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "date executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "dd executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "env executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "find executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "ln executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "mkdir executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "mv executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "printf executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "rm executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "rmdir executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "sort executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "tee executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "test executable status");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "touch executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "tr executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "uniq executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "xargs executable data");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Generate_Release_Archive;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Generate_Release_Checksums;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Run_Proof_Checks;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""release""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "elsif Command = ""release"" then");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Require_Clean_Source_Tree;");
-      Project_Tools.Release_Checks.Require_Text
-        (Check,
-         "tests/src/posix_tools_tests.adb",
-         "Require_Clean_Source_Tree;" & Character'Val (10) & "      Generate_Docs;");
-      Require_Text_Before
-        ("tests/src/posix_tools_tests.adb",
-         "elsif Command = ""release"" then",
-         "Ada.Text_IO.Put_Line (""release: completed by Ada project_tools driver"");",
-         "release branch must run clean-tree-gated release work before completion");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "release: completed by Ada project_tools driver");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""build""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""conformance""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""format-check""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""docs""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""prove""");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Command = ""package""");
+      Require_Subcommand_Steps;
       Require_Synchronized_Version ("alire.toml");
       Require_Synchronized_Version ("common/alire.toml");
       Require_Synchronized_Version ("tests/alire.toml");
@@ -189,7 +162,11 @@ package body Metadata_Checks.Tooling_Docs is
       Require_Synchronized_Version ("CHANGELOG.md");
       Require_Synchronized_Version ("generated/manual-index.md");
       Require_Synchronized_Version ("generated/package-manifest.txt");
-      Require_Synchronized_Version ("generated/release-checksums.txt");
+      --  Only a release writes the release checksums; between releases
+      --  the file is the last release's record and names its version.
+      if Writes_Release_Checksums then
+         Require_Synchronized_Version ("generated/release-checksums.txt");
+      end if;
       Require_Exact_Line
         ("alire.toml",
          "version = """ & Posix_Tools.Version.Version_String & """",

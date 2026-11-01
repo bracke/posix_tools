@@ -6,9 +6,9 @@ with Tooling_Support;
 package body Metadata_Checks is
    use Tooling_Support;
 
-   function Check return Project_Tools.Release_Checks.Checker is
+   function Check return Tooling_Checks.Checker is
    begin
-      return Project_Tools.Release_Checks.Create (Root);
+      return Tooling_Checks.Create (Root);
    end Check;
 
    function Count_Exact_Lines (Text : String; Expected : String) return Natural is
@@ -45,7 +45,7 @@ package body Metadata_Checks is
    procedure Forbid_Text (Path : String; Text : String; Message : String) is
    begin
       if Project_Tools.Files.File_Contains (Project_Tools.Files.Join (Root, Path), Text) then
-         Project_Tools.Release_Checks.Fail (Message);
+         Tooling_Checks.Fail (Message);
       end if;
    end Forbid_Text;
 
@@ -54,15 +54,15 @@ package body Metadata_Checks is
       Name         : String;
       Project_File : String) is
    begin
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "name = """ & Name & """");
+      Tooling_Checks.Require_Text (Check, Path, "name = """ & Name & """");
       Require_Synchronized_Version (Path);
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "authors =");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "maintainers =");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "maintainers-logins =");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "licenses = ""MIT""");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "project-files = [""" & Project_File & """]");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, "[build-profiles]");
-      Project_Tools.Release_Checks.Require_Text (Check, Path, """*"" = ""development""");
+      Tooling_Checks.Require_Text (Check, Path, "authors =");
+      Tooling_Checks.Require_Text (Check, Path, "maintainers =");
+      Tooling_Checks.Require_Text (Check, Path, "maintainers-logins =");
+      Tooling_Checks.Require_Text (Check, Path, "licenses = ""MIT""");
+      Tooling_Checks.Require_Text (Check, Path, "project-files = [""" & Project_File & """]");
+      Tooling_Checks.Require_Text (Check, Path, "[build-profiles]");
+      Tooling_Checks.Require_Text (Check, Path, """*"" = ""development""");
    end Require_Crate_Metadata;
 
    procedure Require_Exact_Line (Path : String; Line : String; Description : String) is
@@ -70,15 +70,15 @@ package body Metadata_Checks is
       Count   : constant Natural := Count_Exact_Lines (Content, Line);
    begin
       if Count = 0 then
-         Project_Tools.Release_Checks.Fail (Description & " missing or stale in " & Path);
+         Tooling_Checks.Fail (Description & " missing or stale in " & Path);
       elsif Count > 1 then
-         Project_Tools.Release_Checks.Fail (Description & " duplicated in " & Path);
+         Tooling_Checks.Fail (Description & " duplicated in " & Path);
       end if;
    end Require_Exact_Line;
 
    procedure Require_Synchronized_Version (Path : String) is
    begin
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, Path, Posix_Tools.Version.Version_String);
    end Require_Synchronized_Version;
 end Metadata_Checks;

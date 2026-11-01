@@ -3,7 +3,7 @@ with GNAT.OS_Lib;
 with Posix_Tools.Command_Inventory;
 with Project_Tools.Files;
 with Project_Tools.Processes;
-with Project_Tools.Release_Checks;
+with Tooling_Checks;
 
 package body Build_Checks is
    procedure Build_Crate (Alire : String; Directory : String; Label : String) is
@@ -17,7 +17,7 @@ package body Build_Checks is
                Project_Tools.Processes.Argument ("build")]));
    begin
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail (Label & " failed");
+         Tooling_Checks.Fail (Label & " failed");
       end if;
    end Build_Crate;
 
@@ -36,7 +36,7 @@ package body Build_Checks is
            Args    => Project_Tools.Processes.Arguments ([]));
 
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail (Label & " failed");
+         Tooling_Checks.Fail (Label & " failed");
       end if;
    end Run_Crate_Tests;
 
@@ -44,7 +44,7 @@ package body Build_Checks is
       Alire : constant String := Project_Tools.Processes.Locate_Command ("alr");
    begin
       if Alire = "" then
-         Project_Tools.Release_Checks.Fail ("alr command not found");
+         Tooling_Checks.Fail ("alr command not found");
       end if;
 
       Build_Crate (Alire, Project_Tools.Files.Join (Root, "common"), "build common crate");

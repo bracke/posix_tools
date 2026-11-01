@@ -13,7 +13,8 @@ with Terminal.PTY.Backend;
 package E2E_Rig is
    type Rig is limited private;
 
-   --  Start explore on Directory with Options before it, in a terminal of
+   --  Start explore on Directory with Options -- shell words, each quoted
+   --  as Quoted quotes it where it needs to be -- before it, in a terminal of
    --  Rows by Columns cells of 10 by 20 pixels, its configuration and state
    --  directories empty fixtures of their own.
    procedure Start
@@ -29,6 +30,14 @@ package E2E_Rig is
 
    --  Pump until Text is on the screen, at most Timeout_Ms; whether it came.
    function Wait_For (Self : in out Rig; Text : String; Timeout_Ms : Natural := 5_000) return Boolean;
+
+   --  Pump until the first row, which shows the current directory, ends
+   --  with Suffix: the end of a path is shown however long the path.
+   function Wait_For_Header (Self : in out Rig; Suffix : String; Timeout_Ms : Natural := 5_000) return Boolean;
+
+   --  Whether the first row shows Path: whole, or, too long for the screen,
+   --  its end after an ellipsis.
+   function Header_Shows (Self : Rig; Path : String) return Boolean;
 
    --  Pump until row Row of the screen has Text in it.
    function Wait_For_Row
@@ -75,8 +84,16 @@ package E2E_Rig is
 
    procedure Stop (Self : in out Rig);
 
-   --  A fresh, empty directory for one test's files, below the crate's obj.
+   --  A fresh, empty directory for one test's files, below the crate's obj
+   --  wherever the tests were started from, with links resolved as explore
+   --  shows paths.
    function Fixture (Name : String) return String;
+
+   --  The same, but kept between runs as it is, for what is costly to make.
+   function Kept_Fixture (Name : String) return String;
+
+   --  Text quoted for the shell, whatever is in it.
+   function Quoted (Text : String) return String;
 
    --  Write Text to the file at Path.
    procedure Write_File (Path, Text : String);

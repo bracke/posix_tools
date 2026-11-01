@@ -87,6 +87,9 @@ package body Posix_Tools.File_Operations.Listing is
       return Item;
    end Describe;
 
+   function Look_Up (Directory, Name : String) return Listed_Entry is
+     (Describe (Directory, Name, FS.Listed_Unknown, With_Status => True));
+
    function Extension (Name : String) return String is
    begin
       for I in reverse Name'First + 1 .. Name'Last loop

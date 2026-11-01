@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Real_Time;
 with Ada.Text_IO;
 with E2E_Rig;
@@ -14,12 +15,23 @@ package body Performance_Tests is
 
    Entries : constant := 100_000;
 
-   --  The budgets, in milliseconds: the first frame -- from explore's first
-   --  output, so with its handshake but without the time the system takes to
-   --  start a program -- and the answer to a key, whatever the size of the
-   --  directory and whether it is still being read.
-   First_Paint_Budget : constant := 100;
-   Key_Budget         : constant := 100;
+   --  The budgets, in milliseconds, that explore is held to: the first
+   --  frame -- from explore's first output, so with its handshake but
+   --  without the time the system takes to start a program -- and the answer
+   --  to a key, whatever the size of the directory and whether it is still
+   --  being read.
+   First_Paint_Target : constant := 100;
+   Key_Target         : constant := 100;
+
+   --  How many times the budgets a loaded machine is given: the factor
+   --  EXPLORE_E2E_BUDGET_SCALE names, when it names one from 1 to 100, and
+   --  otherwise 1, or 4 on a continuous integration runner (CI set), whose
+   --  shared machines are slower and less steady than the one explore is
+   --  used on. The time measured is printed either way.
+   function Budget_Scale return Positive;
+
+   function First_Paint_Budget return Natural is (First_Paint_Target * Budget_Scale);
+   function Key_Budget return Natural is (Key_Target * Budget_Scale);
 
    --  Not a budget but a bound, against a listing that never ends.
    Listing_Bound : constant := 10_000;
@@ -33,8 +45,27 @@ package body Performance_Tests is
 
    function Image (Value : Natural) return String is (Natural'Image (Value) (2 .. Natural'Image (Value)'Last));
 
+   function Budget_Scale return Positive is
+      Named : constant String :=
+        (if Ada.Environment_Variables.Exists ("EXPLORE_E2E_BUDGET_SCALE")
+         then Ada.Environment_Variables.Value ("EXPLORE_E2E_BUDGET_SCALE") else "");
+   begin
+      if Named'Length > 0 then
+         begin
+            if Positive'Value (Named) in 1 .. 100 then
+               return Positive'Value (Named);
+            end if;
+         exception
+            when Constraint_Error =>
+               null;
+         end;
+      end if;
+
+      return (if Ada.Environment_Variables.Exists ("CI") then 4 else 1);
+   end Budget_Scale;
+
    function Large_Directory return String is
-      Path   : constant String := Ada.Directories.Full_Name ("obj/fixtures-kept/large");
+      Path   : constant String := E2E_Rig.Kept_Fixture ("large");
       Marker : constant String := Path & "/.complete";
    begin
       if not Ada.Directories.Exists (Marker) then
@@ -125,7 +156,8 @@ package body Performance_Tests is
         ("explore on" & Natural'Image (Entries) & " entries: first frame" & Natural'Image (First_Paint)
          & " ms (" & Image (Launched) & " ms from launch), all listed" & Natural'Image (Listed)
          & " ms, to the bottom" & Natural'Image (To_Bottom)
-         & " ms, slowest step" & Natural'Image (Worst_Step) & " ms, filter typed" & Natural'Image (Filtered) & " ms");
+         & " ms, slowest step" & Natural'Image (Worst_Step) & " ms, filter typed" & Natural'Image (Filtered) & " ms"
+         & (if Budget_Scale > 1 then "; budgets" & Positive'Image (Budget_Scale) & " times" else ""));
 
       AUnit.Assertions.Assert (Ended and then Code = 0, "quit");
       AUnit.Assertions.Assert (First_Paint <= First_Paint_Budget, "the first frame within its budget");

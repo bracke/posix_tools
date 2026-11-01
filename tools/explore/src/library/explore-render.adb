@@ -97,6 +97,10 @@ package body Explore.Render is
      (Browser.Panes (Model.Preview_Pane).State = Model.Empty
       and then Model.Has_Selection (Browser.Panes (Model.Current_Pane)));
 
+   --  Text as it fits in Width cells: whole when it does, and otherwise its
+   --  end after an ellipsis, as the end of a path is the part that tells.
+   function Tail_Of (Text : String; Width : Natural) return String;
+
    --  Write Text at Row from Column on, clipped to Width cells.
    procedure Write
      (Into   : in out Screen.Grid;
@@ -140,7 +144,8 @@ package body Explore.Render is
       begin
          Write (Into, 1, 2, Width, Tabs, Context.Colors (Header_Role));
          Write
-           (Into, 1, 2 + Width, Columns - 1 - Width, Unbounded.To_String (Current.Path), Context.Colors (Info_Role));
+           (Into, 1, 2 + Width, Columns - 1 - Width,
+            Tail_Of (Unbounded.To_String (Current.Path), Columns - 1 - Width), Context.Colors (Info_Role));
       end;
 
       for Kind in Model.Pane_Kind loop
@@ -493,6 +498,28 @@ package body Explore.Render is
 
       return Result;
    end Listed_Heights;
+
+   function Tail_Of (Text : String; Width : Natural) return String is
+      Ellipsis : constant String := Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#);
+   begin
+      if Screen.Width_Of (Text) <= Width then
+         return Text;
+      elsif Width = 0 then
+         return "";
+      end if;
+
+      --  The longest end that leaves a cell for the ellipsis, starting at
+      --  the first byte of a character.
+      for First in Text'Range loop
+         if Character'Pos (Text (First)) not in 16#80# .. 16#BF#
+           and then Screen.Width_Of (Text (First .. Text'Last)) < Width
+         then
+            return Ellipsis & Text (First .. Text'Last);
+         end if;
+      end loop;
+
+      return Ellipsis;
+   end Tail_Of;
 
    procedure Write
      (Into   : in out Screen.Grid;

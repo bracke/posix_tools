@@ -42,7 +42,7 @@ package body Explore.Application.Terminals is
       if Terminal_IO.Size (Measured) then
          Explore.Application.Display.Resize (State, Measured.Rows, Measured.Columns);
       elsif Anyway then
-         Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
+         Explore.Application.Display.Refit (State);
       end if;
    end Fit_To_Window;
 

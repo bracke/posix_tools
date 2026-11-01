@@ -8,6 +8,7 @@ The executable accepts:
 
 - `test`
 - `test --suite <name>`
+- `test --suite property`
 - `test --category unit`
 - `test --category integration`
 - `test --category conformance`
@@ -25,14 +26,49 @@ The executable accepts:
 - `release`
 
 Invoking `posix_tools_tests` with no arguments runs the normal AUnit suite.
-The `--suite` selector maps to AUnit test-name prefixes such as `basic`,
-`streams`, `root`, `wc`, `tail`, and other command names. `command` selects all
-command-package tests. Unknown suite names fail with usage status instead of
+The `--suite` selector names a group of tests or one command's tests. The
+groups `basic` (or `common`), `streams`, `regression`, `locale`,
+`presentation`, `property`, and `command` (all command-package tests) select
+every test whose name starts with the group. A command name such as `wc`,
+`tail`, or `root` selects that command's tests by their whole name: `tr` selects
+`command:tr ...` but not `command:true ...`, and `id` does not select
+`command:identity ...`. Unknown suite names fail with usage status instead of
 running an empty AUnit selection. Category selectors map `unit` to the full suite,
 `integration` to root-command integration-shaped tests, `conformance` to
 inventory/conformance metadata tests, and `regression` to regression-prefixed
 tests. `locale` selects locale-dependent help and diagnostic tests.
 `presentation` selects terminal styling boundary tests.
+
+## What each subcommand runs
+
+Each subcommand runs a fixed list of steps, in order. The lists are in
+`tests/src/tooling_steps.ads`; the driver runs exactly those lists, and the
+metadata checks hold the lists to their rules (release is release-check on a
+clean tree plus the release checksums, the build comes before the smoke tests,
+and whatever writes generated files is followed by the metadata checks).
+
+- `test`: the AUnit suite, or the part of it a selector names.
+- `check`: the metadata checks, the format checks, the conformance metadata
+  checks, and the AUnit suite.
+- `build`: builds the common crate, the root crate, every command crate and
+  the tests crate through Alire, and on POSIX hosts builds and runs explore's
+  two test crates; then the metadata checks.
+- `format-check`: the metadata checks, then the format checks.
+- `conformance`: the metadata checks, then the conformance metadata checks.
+- `prove`: the metadata checks, then the GNATprove targets.
+- `docs`: writes `docs/commands/index.md`, `generated/command_inventory.csv`,
+  `generated/manual-index.md`, and `generated/man/*.1` from the compiled
+  inventory and `docs/commands/*.md`; then the metadata checks.
+- `package`: writes `generated/package-files.txt` and
+  `generated/package-manifest.txt`, then writes and integrity-tests
+  `dist/posix-tools-<version>-source.7z`, which needs `7z` or `7zz` on the
+  path; then the metadata checks.
+- `release-check`: `docs` and the package manifest, the build, the selector
+  smoke, staged identity verification, the executable smoke, and the release
+  archive; then the metadata, format, conformance metadata, and proof checks
+  and the AUnit suite.
+- `release`: requires a clean source tree, then runs the release-check steps
+  with `generated/release-checksums.txt` written after the archive.
 
 Current registered suites include path tests, numeric tests, tail ring arithmetic tests, and wc field arithmetic tests.
 They also include stream LF segment tests, stream byte and UTF-8 counting tests, command-package tests, root-command
@@ -41,7 +77,7 @@ ordering, `env` utility status propagation, verbose output failures in `cp`, `ln
 classification, `head`, `tail`, and `wc`.
 
 Deterministic property coverage uses fixed seeds that are reported in assertion
-labels. The initial property suite exercises generated slash-only pathname
+labels, which are built from the seed constant each test starts from. The initial property suite exercises generated slash-only pathname
 invariants for `basename` and `dirname` with seed `0x50540001`, and generated
 byte-stream LF segment split/reassembly with seed `0x50540002`. Shared parser
 coverage generates grouped short options and unknown options with seed
@@ -77,11 +113,6 @@ mutating process global streams. It can also force stdout failure after a
 selected byte count so command tests can verify partial-write handling and
 aggregate failure status.
 
-`posix_tools_tests check` validates metadata, runs format checks, validates
-conformance metadata, and runs the AUnit suite. `posix_tools_tests docs` writes
-`generated/manual-index.md` from the compiled command inventory and writes
-`generated/man/*.1` from the compiled inventory plus `docs/commands/*.md`, then
-runs metadata validation.
 `posix_tools_tests build` invokes Alire through `project_tools` for the root
 crate, every command subcrate, and the tests crate. It also runs `explore`'s
 own two test crates. `tools/explore/tests` tests explore's packages directly.
@@ -99,9 +130,13 @@ end, typing a filter -- answered within 100 milliseconds whether or not the
 directory is still being read. It needs the `terminal` repository checked out
 beside this one.
 The release gates run selector smoke tests for `--suite cat`, `--suite cp`,
-`--suite command`, `--category unit`, `--category integration`, `--category conformance`,
-`--category regression`, `--category locale`, and `--category presentation`
-through `project_tools` process execution after the tests executable is built.
+`--suite tr`, `--suite id`, `--suite xargs`, `--suite root`, `--suite command`,
+`--suite property`, `--category unit`, `--category integration`,
+`--category conformance`, `--category regression`, `--category locale`, and
+`--category presentation` through `project_tools` process execution after the
+tests executable is built. Each selector runs once, and its report must name
+the tests it selects and none it does not: `--suite cat` runs no `command:cp`
+test, `--suite tr` no `command:true` test, and the categories no command tests.
 They also verify that incomplete or unknown selectors fail with usage status 2
 instead of silently broadening or ignoring the requested filter.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,

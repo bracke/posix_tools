@@ -5,6 +5,9 @@ package Model_Tests is
    type Fixture is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
    procedure Test_Paths (T : in out Fixture);
+   procedure Test_Prompt_Paths (T : in out Fixture);
+   procedure Test_Jump_Places (T : in out Fixture);
+   procedure Test_File_Preview (T : in out Fixture);
    procedure Test_Open_And_Deliver (T : in out Fixture);
    procedure Test_Stale_Entries_Dropped (T : in out Fixture);
    procedure Test_Enter_And_Leave (T : in out Fixture);

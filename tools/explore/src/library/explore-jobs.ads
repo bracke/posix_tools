@@ -90,8 +90,30 @@ package Explore.Jobs is
 
    function Any_Running (Item : Snapshot) return Boolean is (for some Lane of Item.Lanes => Lane.Running);
 
+   --  Whether any job runs or waits to.
+   function Any_Active (Item : Snapshot) return Boolean is (Any_Running (Item) or else not Item.Queued.Is_Empty);
+
    --  The lane whose job waits for an answer; zero when none does.
    function Asking_Lane (Item : Snapshot) return Natural;
+
+   --  What the screen does about the jobs' questions.
+   type Question_Step is
+     (Leave_Alone,  --  Nothing asks, and nothing is being answered.
+      Ask_Now,      --  Ask the question.
+      --  Already answering: a job answered has asked again, and its new
+      --  question takes the place of the one shown.
+      Ask_Again,
+      --  Wait until what is typed or confirmed is done with; the job waits
+      --  for its answer meanwhile.
+      Hold,
+      Take_Down);   --  No job asks any more: stop answering.
+
+   --  The step when a job is Asking, with the screen in a mode that can ask
+   --  a question (Can_Ask), or already Answering one.
+   function Question_Step_For (Asking, Can_Ask, Answering : Boolean) return Question_Step is
+     (if Asking then (if Answering then Ask_Again elsif Can_Ask then Ask_Now else Hold)
+      elsif Answering then Take_Down
+      else Leave_Alone);
 
    --  Counts the changes to what Status shows, so that the screen can tell
    --  that nothing changed without taking a snapshot. It goes round.
@@ -117,10 +139,17 @@ package Explore.Jobs is
       --  Cancel every running job.
       procedure Cancel_Running;
 
-      --  Answer the question of the lane Asking_Lane names.
-      procedure Answer (Choice : Conflict_Answer);
+      --  Answer the question of Lane with Choice, if it still asks about
+      --  Conflict: a job answered can ask again at once, about another
+      --  target, and an answer meant for the one before must not answer it.
+      procedure Answer (Lane : Lane_Index; Conflict : Ada.Strings.Unbounded.Unbounded_String; Choice : Conflict_Answer);
 
       function Status return Snapshot;
+
+      --  Whether a running or queued job touches any of Paths, as Overlap
+      --  tells: what is done to them at once, away from the board, must
+      --  wait until it is not.
+      function Touches (Paths : Explore.String_Vectors.Vector) return Boolean;
 
       --  Changed whenever Status would show something else; the same may
       --  still show the same, as when progress is reported twice alike.

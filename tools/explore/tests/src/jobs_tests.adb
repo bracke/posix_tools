@@ -64,8 +64,27 @@ package body Jobs_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:queue bound", Test_Queue_Bound'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:overlap", Test_Overlap'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:version", Test_Version'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:answer checked", Test_Answer_Checked'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:question policy", Test_Question_Policy'Access));
       return Result;
    end Suite;
+
+   procedure Test_Answer_Checked (T : in out Fixture) is
+      pragma Unreferenced (T);
+      function U (Text : String) return Unbounded.Unbounded_String renames Unbounded.To_Unbounded_String;
+
+      Board : Jobs.Board;
+   begin
+      --  No worker: the lane asks as a job's would.
+      Board.Ask (1, "/into/a");
+      Board.Answer (1, U ("/into/b"), Jobs.Overwrite_One);
+      AUnit.Assertions.Assert (Jobs.Asking_Lane (Board.Status) = 1, "an answer about another target answers nothing");
+      Board.Answer (2, U ("/into/a"), Jobs.Overwrite_One);
+      AUnit.Assertions.Assert (Jobs.Asking_Lane (Board.Status) = 1, "nor one for another lane");
+      Board.Answer (1, U ("/into/a"), Jobs.Skip_One);
+      AUnit.Assertions.Assert (Jobs.Asking_Lane (Board.Status) = 0, "the lane's own question is answered");
+      Board.Shut_Down;
+   end Test_Answer_Checked;
 
    procedure Test_Cancel (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -215,6 +234,28 @@ package body Jobs_Tests is
       Board.Shut_Down;
    end Test_Overlap;
 
+   procedure Test_Question_Policy (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Jobs.Question_Step;
+   begin
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => True, Answering => False) = Jobs.Ask_Now,
+         "asked while browsing");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => False, Answering => False) = Jobs.Hold,
+         "held while a prompt is typed");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => False, Answering => True) = Jobs.Ask_Again,
+         "a question asked again replaces the one shown");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => False, Can_Ask => False, Answering => True) = Jobs.Take_Down,
+         "taken down once no job asks");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => False, Can_Ask => True, Answering => False) = Jobs.Leave_Alone
+         and then Jobs.Question_Step_For (Asking => False, Can_Ask => False, Answering => False) = Jobs.Leave_Alone,
+         "nothing to do when nothing asks");
+   end Test_Question_Policy;
+
    procedure Test_Queue_Bound (T : in out Fixture) is
       pragma Unreferenced (T);
       Board    : Jobs.Board;
@@ -270,9 +311,14 @@ package body Jobs_Tests is
       for Attempt in 1 .. 1000 loop
          exit when Board.Status.Completed >= Count;
 
-         if Jobs.Asking_Lane (Board.Status) > 0 then
-            Board.Answer (Answer);
-         end if;
+         declare
+            Now  : constant Jobs.Snapshot := Board.Status;
+            Lane : constant Natural := Jobs.Asking_Lane (Now);
+         begin
+            if Lane > 0 then
+               Board.Answer (Lane, Now.Lanes (Lane).Conflict, Answer);
+            end if;
+         end;
 
          delay 0.01;
       end loop;

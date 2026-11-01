@@ -155,6 +155,7 @@ package body Explore.Previews is
       begin
          Result.Modified := Status.Modified_Seconds;
          Result.File_Size := Status.Size;
+         Result.Text := Is_Text (Data);
 
          --  The user's own previewers come first, and write where thumbnails do.
          if Thumbnail_Directory'Length > 0 then

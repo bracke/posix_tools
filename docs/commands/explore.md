@@ -20,7 +20,7 @@ The screen has three panes: the parent of the current directory on the left, the
 on the right a preview of the selected entry: the listing of a directory, or, for a file, what it is as `file`
 describes it and then its first lines when it is text, coloured by its language, the members of an archive, the image
 of a PNG, JPEG, or GIF, a thumbnail of a PDF or a video, or else a hex dump of its first bytes. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
-current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
+current directory, or the end of it after an ellipsis when it is too long for the line; the status line shows the selected entry's mode, owner, size, and modification time, its position,
 and any filter or pending prefix key.
 
 Each tab browses on its own, with its own directories, history, filter, and marks; the title line lists the tabs
@@ -29,7 +29,9 @@ when there is more than one, the current one in brackets.
 A search shows its results in the current pane as it finds them, each by its path below the directory searched, and
 the status line says what it looks for and, once it ends, how many it found. Results can be entered, previewed,
 marked, and operated on like any entries; `h` goes back to the directory searched, and going elsewhere stops the
-search. A search walks the tree on a worker task of its own without following symbolic links, at most 64 levels deep,
+search. A result renamed is shown by its new name at once; once the search has ended, the results are looked up again
+whenever the directory searched would be read again, so that those changed show as they are and those gone are left
+out. A search walks the tree on a worker task of its own without following symbolic links, at most 64 levels deep,
 and keeps at most 10,000 results; it leaves out entries starting with a dot unless they are shown. Text is searched
 for with greplib, line by line, and files with a NUL byte in them are taken as binary and left out.
 
@@ -140,7 +142,9 @@ every key is answered within 100 milliseconds while the directory is read and so
 the end-to-end tests hold explore to these budgets.
 
 A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of an image of up to
-16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. An image is
+16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built, and moving off files
+stops it. The preview is built again when the directory the file is in is read again, as when it changes or a
+program `explore` ran ends, and the one shown stays until then. An image is
 sent to the terminal through Kitty graphics and placed in the pane with Unicode placeholders, scaled down to fit
 without stretching and never enlarged, using the cell size the terminal reports with its size. PNG goes as Kitty's
 `f=100`; JPEG and GIF go as bracke-terminal's private `f=1001` and `f=1002`, and only when the terminal advertises
@@ -171,7 +175,8 @@ shows the first running operation, its file, and how far the copy of that file i
 to sixteen wait their turn. When an operation ends the panes are read again and the status line says how it went: done,
 cancelled, or with how many errors and the first of them. The last sixteen that ended are listed in the operations
 panel. Renaming, creating, and changing permissions
-happen at once.
+happen at once, but never to a path that a running or waiting operation touches as the operations' own order goes: the
+status line says so and nothing is done. A symbolic permission change leaves alone an entry whose mode cannot be read.
 
 ### Configuration
 

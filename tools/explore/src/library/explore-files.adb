@@ -1,4 +1,5 @@
 with Ada.Streams;
+with Explore.Paths;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Explore.Files is
@@ -6,6 +7,37 @@ package body Explore.Files is
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Ada.Streams.Stream_Element_Offset;
+   use type FS.File_Kind;
+
+   procedure Locate
+     (Path      : String;
+      Directory : out Ada.Strings.Unbounded.Unbounded_String;
+      Name      : out Ada.Strings.Unbounded.Unbounded_String;
+      Found     : out Boolean)
+   is
+   begin
+      Directory := Unbounded.Null_Unbounded_String;
+      Name := Unbounded.Null_Unbounded_String;
+      Found := FS.Exists (Path);
+
+      if not Found then
+         return;
+      end if;
+
+      declare
+         Real : constant String := FS.Real_Path (Path);
+      begin
+         if FS.Kind (Path) = FS.Directory then
+            Directory := Unbounded.To_Unbounded_String (Real);
+         else
+            Directory := Unbounded.To_Unbounded_String (Explore.Paths.Parent_Of (Real));
+            Name := Unbounded.To_Unbounded_String (Explore.Paths.Name_Of (Real));
+         end if;
+      end;
+   exception
+      when others =>
+         Found := False;
+   end Locate;
 
    procedure Read_Head
      (Path  : String;

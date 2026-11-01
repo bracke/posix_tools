@@ -29,8 +29,7 @@ package Explore.Search is
    type Progress is record
       Generation : Natural := 0;
       Found      : Listing.Entry_Vectors.Vector;
-      --  Directories read so far, and whether the walk has ended.
-      Scanned    : Natural := 0;
+      --  Whether the walk has ended.
       Finished   : Boolean := False;
       --  More was found than a search keeps.
       Truncated  : Boolean := False;

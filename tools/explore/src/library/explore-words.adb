@@ -159,6 +159,7 @@ package body Explore.Words is
          Confirm_Quit  => Word ("confirm_quit", "operations are still running; quit and stop them? y/n"),
          Exists        => Word ("exists", "already exists"),
          Invalid_Mode  => Word ("invalid_mode", "not a valid permission mode"),
+         In_Use        => Word ("in_use", "in use by an operation; try again once it ends"),
          Errors        => Pattern ("errors", "count", "{count} errors"),
          Done_Line     => Pattern ("job.done", "done what", "{done} {what}"),
          Cancel_Line   => Pattern ("job.cancelled", "verb what", "{verb} {what}: cancelled"),

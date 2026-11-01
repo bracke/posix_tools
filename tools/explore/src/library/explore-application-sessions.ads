@@ -71,7 +71,6 @@ private package Explore.Application.Sessions is
    --  The terminal, and what it shows.
    type Terminal_State is record
       In_Tmux     : Boolean := False;
-      Size        : Terminal_IO.Window_Size;
       Decoder     : Explore.Input.Decoder;
       Identity    : Explore.Protocol.Identity;
       --  Its settings as they were found, for handing it to another program
@@ -81,7 +80,9 @@ private package Explore.Application.Sessions is
       Cell_Width  : Positive := 8;
       Cell_Height : Positive := 16;
       Images      : Explore.Image_Cache.Cache;
-      --  What the terminal shows, and what the next frame should show.
+      --  What the terminal shows, and what the next frame should show. The
+      --  size of Wanted is the terminal's size, as last measured or
+      --  reported: the one place it is kept.
       Shown       : Explore.Screen.Grid;
       Wanted      : Explore.Screen.Grid;
       --  Repaint every cell, not only those that changed.
@@ -109,13 +110,9 @@ private package Explore.Application.Sessions is
       Submitted  : Generation_Array := [others => 0];
       Watches    : Watch_Array;
       Watching   : Path_Array;
-      --  The file whose preview was asked for, and for which generation.
-      Previewing : Unbounded.Unbounded_String;
-      Preview_Generation : Natural := 0;
-      --  The generation of the search last started; its results go to the
-      --  current pane while it shows them.
-      Search_Generation : Natural := 0;
-      Search_Found      : Natural := 0;
+      --  The generation of the preview pane the previewer was last asked
+      --  for, zero for none: the pane's path is the file's.
+      Preview_Asked : Natural := 0;
    end record;
 
    --  What the session was started with.

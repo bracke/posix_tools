@@ -1,5 +1,6 @@
 with Explore.Application.Sessions;
 with Explore.Jobs;
+with Explore.Render;
 
 --  What the session shows: the frame, drawn from the browser and the frame
 --  context, the jobs panel's lines, and the preview's image.
@@ -15,6 +16,12 @@ private package Explore.Application.Display is
 
    --  Draw for a screen of Rows by Columns, every cell afresh.
    procedure Resize (State : in out Session; Rows, Columns : Natural);
+
+   --  Draw every cell afresh, for the screen's size as it was last known.
+   procedure Refit (State : in out Session);
+
+   --  Where the panes are on the screen as it was last known to be.
+   function Shape (State : Session) return Explore.Render.Layout;
 
    --  Send the preview's image to the terminal, placed to fit the pane, in
    --  place of any image shown before.

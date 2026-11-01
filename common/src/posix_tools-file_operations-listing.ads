@@ -51,6 +51,10 @@ package Posix_Tools.File_Operations.Listing is
       Outcome        : out Read_Outcome;
       Stop_Requested : access function return Boolean := null);
 
+   --  The entry Name below Directory -- Name may be a path of several names
+   --  -- looked up afresh with its status, as Read_Directory describes one.
+   function Look_Up (Directory, Name : String) return Listed_Entry;
+
    type Sort_Key is
      (By_Natural_Name,
       By_Name,

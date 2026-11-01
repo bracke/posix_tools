@@ -54,18 +54,16 @@ package body Explore.Jobs is
    end Asking_Lane;
 
    protected body Board is
-      procedure Answer (Choice : Conflict_Answer) is
+      procedure Answer (Lane : Lane_Index; Conflict : Unbounded.Unbounded_String; Choice : Conflict_Answer) is
+         use type Unbounded.Unbounded_String;
       begin
-         for Lane in Lanes'Range loop
-            if Lanes (Lane).Asking then
-               Replies (Lane) := Choice;
-               Answered (Lane) := True;
-               Lanes (Lane).Asking := False;
-               Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
-               Changed;
-               return;
-            end if;
-         end loop;
+         if Lanes (Lane).Asking and then Lanes (Lane).Conflict = Conflict then
+            Replies (Lane) := Choice;
+            Answered (Lane) := True;
+            Lanes (Lane).Asking := False;
+            Lanes (Lane).Conflict := Unbounded.Null_Unbounded_String;
+            Changed;
+         end if;
       end Answer;
 
       procedure Ask (Lane : Lane_Index; Target : String) is
@@ -243,6 +241,13 @@ package body Explore.Jobs is
          Recount;
          Changed;
       end Take;
+
+      function Touches (Paths : Explore.String_Vectors.Vector) return Boolean is
+         Probe : constant Job := (Kind => Delete_Job, Sources => Paths, others => <>);
+      begin
+         return (for some Lane in Lanes'Range => Lanes (Lane).Running and then Overlap (Running (Lane), Probe))
+           or else (for some Item of Queue => Overlap (Item, Probe));
+      end Touches;
 
       function Version return Version_Number is (Changes);
 

@@ -4,6 +4,7 @@ with Explore.Model;
 with Explore.Paths;
 with Explore.Previews;
 with Explore.Search;
+with Explore.String_Vectors;
 with Explore.Words;
 with Posix_Tools.Host_Adapters.File_Watches;
 
@@ -11,9 +12,21 @@ package body Explore.Application.Workers is
    package File_Watches renames Posix_Tools.Host_Adapters.File_Watches;
    package Model renames Explore.Model;
 
+   use type Explore.Jobs.Question_Step;
    use type Explore.Jobs.Snapshot;
    use type Explore.Jobs.Version_Number;
    use type Explore.Previews.Preview_Kind;
+
+   --  Ask, ask again, or take down the question of the job that asks in Now,
+   --  as Explore.Jobs.Question_Step_For says.
+   procedure Follow_Question (State : in out Session; Now : Explore.Jobs.Snapshot; Can_Ask : Boolean);
+
+   --  The names of Item's entries, in their order.
+   function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector;
+
+   --  Read again what the jobs changed, and say how the latest that ended
+   --  went.
+   procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot);
 
    function Busy (State : Session; Readers : in out Explore.Directory_Readers.Board) return Boolean is
      (Readers.Busy
@@ -35,6 +48,46 @@ package body Explore.Application.Workers is
       end loop;
    end Collect;
 
+   procedure Follow_Question (State : in out Session; Now : Explore.Jobs.Snapshot; Can_Ask : Boolean) is
+      Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
+      Step : constant Explore.Jobs.Question_Step :=
+        Explore.Jobs.Question_Step_For
+          (Asking => Lane > 0, Can_Ask => Can_Ask, Answering => State.Interaction.Mode = Answering);
+   begin
+      State.Workers.Question_Waiting := Step = Explore.Jobs.Hold;
+
+      case Step is
+         when Explore.Jobs.Ask_Now | Explore.Jobs.Ask_Again =>
+            declare
+               Question : constant String :=
+                 Explore.Words.Conflict_Question
+                   (Unbounded.To_String (State.Config.Locale),
+                    Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)));
+            begin
+               if Step = Explore.Jobs.Ask_Again then
+                  State.Frame.Question := Unbounded.To_Unbounded_String (Question);
+               else
+                  Ask (State, Answering, Question);
+               end if;
+
+               State.Workers.Asked_About := Now.Lanes (Lane).Conflict;
+            end;
+         when Explore.Jobs.Take_Down =>
+            Leave_Mode (State);
+         when Explore.Jobs.Leave_Alone | Explore.Jobs.Hold =>
+            null;
+      end case;
+   end Follow_Question;
+
+   function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector is
+   begin
+      return Result : Explore.String_Vectors.Vector do
+         for Listed of Item.Entries loop
+            Result.Append (Unbounded.To_String (Listed.Name));
+         end loop;
+      end return;
+   end Names_Of;
+
    procedure Release_Watches (State : in out Session) is
    begin
       for Watched in Watched_Pane loop
@@ -42,6 +95,33 @@ package body Explore.Application.Workers is
          State.Workers.Watching (Watched) := Unbounded.Null_Unbounded_String;
       end loop;
    end Release_Watches;
+
+   procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot) is
+      use type Explore.Jobs.Outcome;
+   begin
+      Model.Reload_All (State.Browser);
+
+      if Now.History.Is_Empty then
+         return;
+      end if;
+
+      declare
+         Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
+      begin
+         if Latest.Ended = Explore.Jobs.Failed then
+            Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
+
+            if Latest.Errors > 1 then
+               Warn
+                 (State,
+                  Explore.Words.Errors_With_First
+                    (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
+            end if;
+         else
+            Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));
+         end if;
+      end;
+   end Report_Ended;
 
    procedure Sync (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
       use type Unbounded.Unbounded_String;
@@ -60,8 +140,16 @@ package body Explore.Application.Workers is
                   (Path       => Item.Path,
                    Generation => Item.Generation,
                    Options    => (Include_Hidden => State.Browser.Show_Hidden, With_Status => True),
-                   Order      => State.Browser.Order));
+                   Order      => State.Browser.Order,
+                   Look_Again => Item.Is_Search,
+                   Names      => (if Item.Is_Search then Names_Of (Item) else Explore.String_Vectors.Empty_Vector)));
                State.Workers.Submitted (Kind) := Item.Generation;
+            elsif not Item.Pending and then State.Workers.Submitted (Kind) /= 0 then
+               --  Nothing is waited for: a read still running, as for a pane
+               --  that went empty or was replaced, is stopped, and what it
+               --  would hand back is dropped.
+               Readers.Cancel (Kind);
+               State.Workers.Submitted (Kind) := 0;
             end if;
          end;
       end loop;
@@ -94,7 +182,9 @@ package body Explore.Application.Workers is
    procedure Watch_Jobs (State : in out Session) is
       Version : constant Explore.Jobs.Version_Number := State.Workers.Operations.Version;
 
-      --  Whether a question can be asked now, rather than waiting.
+      --  Whether a question can be asked now, rather than waiting. The
+      --  filter, which is typed as the panes are browsed, does not keep it
+      --  waiting.
       Can_Ask : constant Boolean := State.Interaction.Mode in Browsing | Filtering | Viewing_Jobs;
       Overdue : constant Boolean := State.Workers.Question_Waiting and then Can_Ask;
    begin
@@ -107,9 +197,7 @@ package body Explore.Application.Workers is
       State.Workers.Job_Version := Version;
 
       declare
-         Now  : constant Explore.Jobs.Snapshot := State.Workers.Operations.Status;
-         Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
-         Mode : constant Interaction_Mode := State.Interaction.Mode;
+         Now : constant Explore.Jobs.Snapshot := State.Workers.Operations.Status;
       begin
          if Now = State.Workers.Last_Job and then not Overdue then
             return;
@@ -117,60 +205,12 @@ package body Explore.Application.Workers is
 
          State.Dirty := True;
          State.Frame.Job_Line := Unbounded.To_Unbounded_String (Explore.Words.Job_Line (State.Config.Words, Now));
+         Follow_Question (State, Now, Can_Ask);
 
-         --  A question waits until what is being typed or confirmed is done
-         --  with: the job it is about waits for its answer meanwhile. The
-         --  filter, which is typed as the panes are browsed, does not keep it
-         --  waiting.
-         State.Workers.Question_Waiting := Lane > 0 and then not Can_Ask and then Mode /= Answering;
-
-         if Lane > 0 and then (Can_Ask or else Mode = Answering) then
-            declare
-               Question : constant String :=
-                 Explore.Words.Conflict_Question
-                   (Unbounded.To_String (State.Config.Locale),
-                    Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)));
-            begin
-               --  Already answering: the job was answered and has asked again
-               --  before the last question was taken down, so the new one
-               --  takes its place.
-               if Mode = Answering then
-                  State.Frame.Question := Unbounded.To_Unbounded_String (Question);
-               else
-                  Ask (State, Answering, Question);
-               end if;
-
-               State.Workers.Asked_About := Now.Lanes (Lane).Conflict;
-            end;
-         elsif Lane = 0 and then Mode = Answering then
-            Leave_Mode (State);
-         end if;
-
+         --  Whatever the jobs changed is read again, and the latest one to
+         --  end says how it went.
          if Now.Completed /= State.Workers.Last_Job.Completed then
-            --  Whatever the jobs changed is read again, and the latest one to
-            --  end says how it went.
-            Model.Reload_All (State.Browser);
-
-            if not Now.History.Is_Empty then
-               declare
-                  use type Explore.Jobs.Outcome;
-
-                  Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
-               begin
-                  if Latest.Ended = Explore.Jobs.Failed then
-                     Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
-
-                     if Latest.Errors > 1 then
-                        Warn
-                          (State,
-                           Explore.Words.Errors_With_First
-                             (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
-                     end if;
-                  else
-                     Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));
-                  end if;
-               end;
-            end if;
+            Report_Ended (State, Now);
          end if;
 
          if State.Interaction.Mode = Viewing_Jobs then
@@ -182,32 +222,39 @@ package body Explore.Application.Workers is
    end Watch_Jobs;
 
    procedure Watch_Preview (State : in out Session) is
-      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
-      Target  : constant String :=
-        (if Model.Has_Selection (Current) and then not Model.Can_Enter (State.Browser)
-         then Model.Selected_Path (Current) else "");
-      Ready   : Explore.Previews.Preview;
-      Found   : Boolean;
-   begin
-      if Target /= Unbounded.To_String (State.Workers.Previewing) then
-         State.Workers.Previewing := Unbounded.To_Unbounded_String (Target);
-         State.Frame.Preview := (others => <>);
-         Explore.Application.Display.Hide_Image (State);
+      use type Unbounded.Unbounded_String;
 
-         if Target'Length > 0 then
-            State.Workers.Preview_Generation := State.Workers.Preview_Generation + 1;
+      Shown  : Model.Pane renames State.Browser.Panes (Model.Preview_Pane);
+      Wanted : constant Natural := Model.File_Preview (State.Browser);
+      Ready  : Explore.Previews.Preview;
+      Found  : Boolean;
+   begin
+      if Wanted /= State.Workers.Preview_Asked then
+         State.Workers.Preview_Asked := Wanted;
+
+         --  The same file's preview stays shown while it is built again;
+         --  another file's is not shown in its place meanwhile.
+         if Wanted = 0 or else State.Frame.Preview.Path /= Shown.Path then
+            State.Frame.Preview := (others => <>);
+            Explore.Application.Display.Hide_Image (State);
+         end if;
+
+         if Wanted = 0 then
+            --  A preview no longer wanted is stopped, a previewer it runs too.
+            State.Workers.Previewer.Cancel (Explore.Previews.Only);
+         else
             State.Workers.Previewer.Submit
               (Explore.Previews.Only,
-               (Path       => Unbounded.To_Unbounded_String (Target),
+               (Path       => Shown.Path,
                 Rules      => State.Config.Previewers,
                 Thumbnails => State.Config.Thumbnails,
-                Generation => State.Workers.Preview_Generation));
+                Generation => Wanted));
          end if;
       end if;
 
       State.Workers.Previewer.Collect (Explore.Previews.Only, Ready, Found);
 
-      if Found and then Ready.Generation = State.Workers.Preview_Generation then
+      if Found and then Wanted > 0 and then Ready.Generation = Wanted then
          State.Frame.Preview := Ready;
          State.Dirty := True;
 
@@ -222,10 +269,10 @@ package body Explore.Application.Workers is
       Results : Explore.Search.Progress;
       Found   : Boolean;
    begin
+      --  The search runs for the current pane's generation, whose results it
+      --  takes; a newer one, as when a tab is gone back to, replaces it.
       if Current.Is_Search and then State.Browser.Search_Wanted then
          State.Browser.Search_Wanted := False;
-         State.Workers.Search_Generation := Current.Generation;
-         State.Workers.Search_Found := 0;
          State.Workers.Searcher.Submit
            (Explore.Search.Only,
             (Root           => Current.Path,
@@ -236,8 +283,9 @@ package body Explore.Application.Workers is
              Generation     => Current.Generation));
       end if;
 
-      if not Current.Is_Search or else Current.Generation /= State.Workers.Search_Generation then
-         --  Gone elsewhere: what the search would find has nowhere to go.
+      if not Model.Search_Running (State.Browser) then
+         --  Gone elsewhere, or ended: what the search would find has nowhere
+         --  to go.
          if State.Workers.Searcher.Busy then
             State.Workers.Searcher.Cancel (Explore.Search.Only);
          end if;
@@ -247,15 +295,15 @@ package body Explore.Application.Workers is
 
       State.Workers.Searcher.Collect (Explore.Search.Only, Results, Found);
 
-      if Found and then Results.Generation = State.Workers.Search_Generation then
-         State.Workers.Search_Found := State.Workers.Search_Found + Natural (Results.Found.Length);
+      if Found and then Results.Generation = Current.Generation then
          Model.Add_Results (State.Browser, Results.Generation, Results.Found, Results.Finished);
          State.Dirty := True;
 
          if Results.Finished then
             Say
               (State,
-               Explore.Words.Search_Result (State.Config.Words, State.Workers.Search_Found, Results.Truncated));
+               Explore.Words.Search_Result
+                 (State.Config.Words, Natural (Current.Entries.Length), Results.Truncated));
          end if;
       end if;
    end Watch_Search;

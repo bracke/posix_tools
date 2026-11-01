@@ -3,7 +3,6 @@ with AUnit.Test_Caller;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
-with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with E2E_Rig;
 with GNAT.OS_Lib;
@@ -97,12 +96,12 @@ package body Session_Tests is
          "the text file previewed");
 
       E2E_Rig.Send (Session, "k" & "l");
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Row (Session, 1, Root & "/beta"), "into beta");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Header (Session, "/browse/beta"), "into beta");
 
       E2E_Rig.Send (Session, "h");
       E2E_Rig.Expect
         (Session,
-         E2E_Rig.Wait_For_Row (Session, 1, Root) and then E2E_Rig.Wait_For (Session, "alpha.txt"),
+         E2E_Rig.Wait_For_Header (Session, "/browse") and then E2E_Rig.Wait_For (Session, "alpha.txt"),
          "and back");
       Quit (Session);
    end Test_Browse_And_Preview;
@@ -117,7 +116,12 @@ package body Session_Tests is
       AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "item"), "listed");
 
       E2E_Rig.Send (Session, "cc");
-      E2E_Rig.Pump (Session, 200);
+
+      for Step in 1 .. 500 loop
+         exit when E2E_Rig.Clipboard (Session)'Length > 0;
+         E2E_Rig.Pump (Session, 10);
+      end loop;
+
       AUnit.Assertions.Assert
         (E2E_Rig.Clipboard (Session) = Root & "/item",
          "the terminal put the selected path on the clipboard: " & E2E_Rig.Clipboard (Session));
@@ -142,16 +146,16 @@ package body Session_Tests is
       E2E_Rig.Send (Session, "j");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "l");
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Row (Session, 1, Root & "/src"), "into src");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Header (Session, "/conflicts/src"), "into src");
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "b"), "src listed");
       E2E_Rig.Send (Session, "  y");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "h");
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Row (Session, 1, Root), "back");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Header (Session, "/conflicts"), "back");
       E2E_Rig.Send (Session, "k");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "l");
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Row (Session, 1, Root & "/dst"), "into dst");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For_Header (Session, "/conflicts/dst"), "into dst");
 
       --  Pasted with the jobs panel opened at once, before the job asks.
       E2E_Rig.Send (Session, "pw");
@@ -193,12 +197,14 @@ package body Session_Tests is
       E2E_Rig.Send (Session, "k");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "l");
-      AUnit.Assertions.Assert (E2E_Rig.Wait_For_Row (Session, 1, Root & "/target"), "into target");
+      AUnit.Assertions.Assert (E2E_Rig.Wait_For_Header (Session, "/copy/target"), "into target");
       E2E_Rig.Send (Session, "p");
 
+      --  Done is said in the status line, the last row; the file's preview
+      --  says "copied text", and must not be taken for it.
       E2E_Rig.Expect
         (Session,
-         E2E_Rig.Wait_For (Session, "source.txt") and then E2E_Rig.Wait_For (Session, "copied"),
+         E2E_Rig.Wait_For (Session, "source.txt") and then E2E_Rig.Wait_For_Row (Session, 24, " copied source.txt"),
          "the copy listed, and reported done");
       AUnit.Assertions.Assert
         (Ada.Directories.Exists (Root & "/target/source.txt")
@@ -234,22 +240,14 @@ package body Session_Tests is
       Ended   : Boolean;
       Code    : Integer;
    begin
+      --  The copy finds its target there already and waits for an answer:
+      --  it runs, however fast the machine, until it gets one or explore
+      --  quits.
       Ada.Directories.Create_Path (Root & "/target");
-
-      --  Two gigabytes that cost nothing to make, as a hole, and take a while
-      --  to copy, since every byte of the hole is read.
-      declare
-         Big : Ada.Streams.Stream_IO.File_Type;
-      begin
-         Ada.Streams.Stream_IO.Create (Big, Ada.Streams.Stream_IO.Out_File, Root & "/big");
-         Ada.Streams.Stream_IO.Set_Index (Big, Ada.Streams.Stream_IO.Positive_Count'(2_147_483_648));
-         Ada.Streams.Stream_IO.Write (Big, [1 => 0]);
-         Ada.Streams.Stream_IO.Close (Big);
-      end;
-
-      --  Wide enough that the path heading the screen is not cut short.
-      Open (Session, Root, Columns => 160);
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "big"), "listed");
+      E2E_Rig.Write_File (Root & "/item", "new");
+      E2E_Rig.Write_File (Root & "/target/item", "old");
+      Open (Session, Root);
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "item"), "listed");
 
       --  Directories come first: down to the file, yank, up to target, in.
       E2E_Rig.Send (Session, "j");
@@ -259,26 +257,28 @@ package body Session_Tests is
       E2E_Rig.Send (Session, "k");
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send (Session, "l");
-      AUnit.Assertions.Assert (E2E_Rig.Wait_For_Row (Session, 1, Root & "/target"), "into target");
-      E2E_Rig.Send (Session, "p");
-      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "copying"), "the copy running");
+      AUnit.Assertions.Assert (E2E_Rig.Wait_For_Header (Session, "/quit-copying/target"), "into target");
 
-      E2E_Rig.Send (Session, "q");
+      --  Quit typed with the paste, before the copy can ask its question,
+      --  which would take the keys: the copy is on the board already, so
+      --  quitting asks first.
+      E2E_Rig.Send (Session, "pq");
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "quit and stop them?"), "quitting asks first");
 
-      --  No keeps explore, and the copy, going.
-      E2E_Rig.Send (Session, "n");
+      --  No keeps explore, and the copy, going; quit asked again at once,
+      --  before the copy's question is shown, asks again.
+      E2E_Rig.Send (Session, "nq");
       E2E_Rig.Wait_Exit (Session, Ended, Code, Timeout_Ms => 300);
       AUnit.Assertions.Assert (not Ended, "n does not quit");
+      E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "quit and stop them?"), "asked again");
 
-      --  The copy may have finished meanwhile; then q quits without asking.
-      E2E_Rig.Send (Session, "q");
-      if E2E_Rig.Wait_For (Session, "quit and stop them?", Timeout_Ms => 1_000) then
-         E2E_Rig.Send (Session, "y");
-      end if;
+      --  Yes quits, stopping the copy where it waits.
+      E2E_Rig.Send (Session, "y");
       E2E_Rig.Wait_Exit (Session, Ended, Code);
-      AUnit.Assertions.Assert (Ended, "y quits");
-      Ada.Directories.Delete_Tree (Root);
+      E2E_Rig.Stop (Session);
+      AUnit.Assertions.Assert (Ended and then Code = 0, "y quits");
+      AUnit.Assertions.Assert
+        (Ada.Directories.Size (Root & "/target/item") = 3, "and the copy was stopped before it overwrote anything");
    end Test_Quit_While_Copying;
 
    procedure Test_Quit_While_Previewing (T : in out Fixture) is
@@ -304,7 +304,7 @@ package body Session_Tests is
       --  Thumbnails, and what previewers print, go to a directory made below
       --  TMPDIR, whose first name is taken.
       Ada.Environment_Variables.Set ("TMPDIR", Scratch);
-      E2E_Rig.Start (Session, Root & "/files", Options => "--config '" & Root & "/explore.toml'");
+      E2E_Rig.Start (Session, Root & "/files", Options => "--config " & E2E_Rig.Quoted (Root & "/explore.toml"));
       Ada.Environment_Variables.Clear ("TMPDIR");
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "x.slow"), "listed, and its previewer running");
 
@@ -449,7 +449,9 @@ package body Session_Tests is
             "the alternate screen, mouse, paste, focus, resize reports, and disambiguated keys");
       end;
 
-      AUnit.Assertions.Assert (E2E_Rig.Row (Session, 1) = " " & Root, "the directory on the first line");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Header_Shows (Session, Root) and then E2E_Rig.Wait_For_Header (Session, "/start"),
+         "the directory on the first line: " & E2E_Rig.Row (Session, 1));
 
       E2E_Rig.Send (Session, "q");
       E2E_Rig.Wait_Exit (Session, Ended, Code);

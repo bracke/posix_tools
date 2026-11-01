@@ -10,6 +10,7 @@ with Explore.Input;
 with Explore.Jobs;
 with Explore.Model;
 with Explore.Previews;
+with Explore.Screen;
 with Explore.Search;
 with Explore.Settings;
 with Explore.Settings.Storage;
@@ -127,8 +128,8 @@ package body Explore.Application is
          Explore.Application.Workers.Collect (State, Readers);
          Explore.Application.Workers.Watch_Jobs (State);
          Explore.Application.Workers.Watch_Search (State);
-         Explore.Application.Workers.Watch_Preview (State);
          Explore.Application.Workers.Sync (State, Readers);
+         Explore.Application.Workers.Watch_Preview (State);
 
          if State.Dirty then
             Explore.Application.Display.Draw (State, Ok);
@@ -202,9 +203,15 @@ package body Explore.Application is
 
       Configure (State, Context, Unbounded.To_String (Given.Config_Path));
 
-      if not Terminal_IO.Size (State.Terminal.Size) then
-         State.Terminal.Size := (Rows => 24, Columns => 80);
-      end if;
+      declare
+         Measured : Terminal_IO.Window_Size;
+      begin
+         if not Terminal_IO.Size (Measured) then
+            Measured := (Rows => 24, Columns => 80);
+         end if;
+
+         Explore.Screen.Resize (State.Terminal.Wanted, Measured.Rows, Measured.Columns);
+      end;
 
       Run_Session (State, Outcome);
 
@@ -303,9 +310,11 @@ package body Explore.Application is
          State.Workers.Operations := Operations'Unchecked_Access;
          State.Workers.Previewer := Previewer'Unchecked_Access;
          State.Workers.Searcher := Searcher'Unchecked_Access;
-         Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
 
+         --  Everything from here on is guarded: the block cannot be left
+         --  while the workers run, so whatever is raised stops them first.
          begin
+            Explore.Application.Display.Refit (State);
             Main_Loop (State, Readers);
          exception
             when others =>

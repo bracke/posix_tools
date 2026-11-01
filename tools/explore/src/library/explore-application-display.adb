@@ -4,7 +4,6 @@ with Explore.Keymap;
 with Explore.Model;
 with Explore.Previews;
 with Explore.Protocol;
-with Explore.Render;
 with Explore.Screen;
 with Explore.Tabs;
 with Explore.Words;
@@ -97,9 +96,13 @@ package body Explore.Application.Display is
       end;
    end Name_For;
 
+   procedure Refit (State : in out Session) is
+   begin
+      Resize (State, Explore.Screen.Rows (State.Terminal.Wanted), Explore.Screen.Columns (State.Terminal.Wanted));
+   end Refit;
+
    procedure Resize (State : in out Session; Rows, Columns : Natural) is
    begin
-      State.Terminal.Size := (Rows => Rows, Columns => Columns);
       Explore.Screen.Resize (State.Terminal.Wanted, Rows, Columns);
       State.Terminal.Repaint := True;
       State.Dirty := True;
@@ -110,12 +113,15 @@ package body Explore.Application.Display is
       end if;
    end Resize;
 
+   function Shape (State : Session) return Explore.Render.Layout is
+     (Explore.Render.Layout_For
+        (Explore.Screen.Rows (State.Terminal.Wanted), Explore.Screen.Columns (State.Terminal.Wanted)));
+
    procedure Show_Image (State : in out Session) is
       use type Explore.Images.Image_Format;
 
       Preview : Explore.Previews.Preview renames State.Frame.Preview;
-      Content : constant Explore.Render.Area :=
-        Explore.Render.Content_Area (Explore.Render.Layout_For (State.Terminal.Size.Rows, State.Terminal.Size.Columns));
+      Content : constant Explore.Render.Area := Explore.Render.Content_Area (Shape (State));
       Caps    : Explore.Protocol.Capability_Set renames State.Terminal.Identity.Capabilities;
       Columns, Rows : Positive;
       Id      : Positive;
