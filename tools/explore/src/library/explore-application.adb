@@ -303,9 +303,11 @@ package body Explore.Application is
          State.Workers.Operations := Operations'Unchecked_Access;
          State.Workers.Previewer := Previewer'Unchecked_Access;
          State.Workers.Searcher := Searcher'Unchecked_Access;
-         Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
 
+         --  Everything from here on is guarded: the block cannot be left
+         --  while the workers run, so whatever is raised stops them first.
          begin
+            Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
             Main_Loop (State, Readers);
          exception
             when others =>
