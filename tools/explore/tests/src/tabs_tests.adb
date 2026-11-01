@@ -122,7 +122,8 @@ package body Tabs_Tests is
       declare
          Searched : Natural;
       begin
-         Model.Begin_Search (Browser, "/srv/b", "x", Contents => False, Generation => Searched);
+         Model.Begin_Search (Browser, "/srv/b", "x", Contents => False);
+         Searched := Browser.Panes (Model.Current_Pane).Generation;
          Browser.Search_Wanted := False;
          Tabs.Switch_To (Set, Browser, 1);
          Tabs.Switch_To (Set, Browser, 2);

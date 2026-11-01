@@ -66,7 +66,6 @@ package body Explore.Search is
    begin
       Held.Generation := Outcome.Generation;
       Held.Found.Append (Outcome.Found);
-      Held.Scanned := Outcome.Scanned;
       Held.Finished := Outcome.Finished;
       Held.Truncated := Outcome.Truncated;
    end Merge;
@@ -99,7 +98,6 @@ package body Explore.Search is
             Set       : constant Greplib.Patterns.Compiled_Pattern_Set := Compile (Pattern);
             Batch     : Listing.Entry_Vectors.Vector;
             Count     : Natural := 0;
-            Scanned   : Natural := 0;
             Truncated : Boolean := False;
 
             function Stopped return Boolean is (not Jobs.Is_Wanted (Taken, Item.Generation) or else Truncated);
@@ -111,7 +109,7 @@ package body Explore.Search is
 
             procedure Hand_Over is
             begin
-               Jobs.Deliver (Taken, (Generation => Item.Generation, Found => Batch, Scanned => Scanned, others => <>));
+               Jobs.Deliver (Taken, (Generation => Item.Generation, Found => Batch, others => <>));
                Batch.Clear;
             end Hand_Over;
 
@@ -122,7 +120,6 @@ package body Explore.Search is
                Listing.Read_Directory
                  (Directory, (Include_Hidden => Item.Include_Hidden, With_Status => True), Entries, Outcome,
                   Stopped'Access);
-               Scanned := Scanned + 1;
 
                if Outcome /= Listing.Read_Complete then
                   return;
@@ -182,7 +179,6 @@ package body Explore.Search is
             Jobs.Finish
               (Taken,
                (Generation => Item.Generation,
-                Scanned    => Scanned,
                 Finished   => True,
                 Truncated  => Truncated,
                 others     => <>));

@@ -72,6 +72,12 @@ package body Explore.Model is
 
       if Finished then
          Current.State := Loaded;
+
+         --  What changed while the search ran is caught up with now.
+         if Self.Search_Stale then
+            Self.Search_Stale := False;
+            Reload (Self, Current_Pane);
+         end if;
       end if;
    end Add_Results;
 
@@ -82,27 +88,26 @@ package body Explore.Model is
    end Apply_Filter;
 
    procedure Begin_Search
-     (Self       : in out Browser;
-      Root       : String;
-      Label      : String;
-      Contents   : Boolean;
-      Generation : out Natural)
+     (Self     : in out Browser;
+      Root     : String;
+      Label    : String;
+      Contents : Boolean)
    is
    begin
       End_Visual (Self);
       Clear_Marks (Self);
       Self.Filter := Unbounded.Null_Unbounded_String;
       Note_Visit (Self, Unbounded.To_String (Self.Panes (Current_Pane).Path));
-      Generation := Next_Generation (Self);
       Self.Panes (Current_Pane) :=
         (Path       => Unbounded.To_Unbounded_String (Root),
          State      => Loading,
-         Generation => Generation,
+         Generation => Next_Generation (Self),
          Is_Search  => True,
          others     => <>);
       Self.Search_Label := Unbounded.To_Unbounded_String (Label);
       Self.Search_Contents := Contents;
       Self.Search_Wanted := True;
+      Self.Search_Stale := False;
       --  Beside the results, the directory they were found in.
       Self.Panes (Parent_Pane) := New_Pane (Self, Root);
       Self.Panes (Preview_Pane) := (others => <>);
@@ -160,10 +165,25 @@ package body Explore.Model is
 
       declare
          Target : constant String := Selected_Path (Self.Panes (Current_Pane));
+         Folder : constant String := Paths.Parent_Of (Target);
       begin
          Self.Filter := Unbounded.Null_Unbounded_String;
-         Self.Panes (Parent_Pane) := Self.Panes (Current_Pane);
-         Show (Self.Panes (Parent_Pane), "", Selected_Name (Self.Panes (Parent_Pane)), 0);
+
+         if not Self.Panes (Current_Pane).Is_Search then
+            Self.Panes (Parent_Pane) := Self.Panes (Current_Pane);
+            Show (Self.Panes (Parent_Pane), "", Selected_Name (Self.Panes (Parent_Pane)), 0);
+         elsif Unbounded.To_String (Self.Panes (Parent_Pane).Path) = Folder
+           and then Self.Panes (Parent_Pane).State in Loaded | Failed
+         then
+            --  A result in the directory searched: its listing is beside the
+            --  results already.
+            Show (Self.Panes (Parent_Pane), "", Paths.Name_Of (Target), 0);
+         else
+            --  Search results are no directory's listing: the parent is the
+            --  directory the result is in.
+            Self.Panes (Parent_Pane) := New_Pane (Self, Folder);
+            Self.Panes (Parent_Pane).Wanted := Unbounded.To_Unbounded_String (Paths.Name_Of (Target));
+         end if;
 
          if Self.Panes (Preview_Pane).Path = Target
            and then Self.Panes (Preview_Pane).State in Loaded | Failed
@@ -388,7 +408,10 @@ package body Explore.Model is
    procedure Reload (Self : in out Browser; Kind : Pane_Kind) is
       Item : Pane renames Self.Panes (Kind);
    begin
-      if Item.State /= Empty and then not Item.Is_Search then
+      if Item.Is_Search and then Item.State = Loading then
+         --  The search is still finding what to look up again.
+         Self.Search_Stale := True;
+      elsif Item.State /= Empty then
          Item.Generation := Next_Generation (Self);
          Item.Pending := True;
       end if;
@@ -406,6 +429,28 @@ package body Explore.Model is
       end loop;
    end Reload_All;
 
+   procedure Rename_Result (Self : in out Browser; Old_Name, New_Name : String) is
+      Current : Pane renames Self.Panes (Current_Pane);
+   begin
+      if not Current.Is_Search then
+         return;
+      end if;
+
+      for Item of Current.Entries loop
+         if Unbounded.To_String (Item.Name) = Old_Name then
+            Item.Name := Unbounded.To_Unbounded_String (New_Name);
+         end if;
+      end loop;
+
+      if Current.Marked.Contains (Old_Name) then
+         Current.Marked.Delete (Old_Name);
+         Current.Marked.Include (New_Name);
+      end if;
+
+      Show (Current, Unbounded.To_String (Self.Filter), New_Name, Current.Cursor);
+      Current.Wanted := Unbounded.To_Unbounded_String (New_Name);
+   end Rename_Result;
+
    procedure Resume_Search (Self : in out Browser) is
       Current : Pane renames Self.Panes (Current_Pane);
    begin
@@ -418,6 +463,7 @@ package body Explore.Model is
          Current.Top := 1;
          Current.Generation := Next_Generation (Self);
          Self.Search_Wanted := True;
+         Self.Search_Stale := False;
       end if;
    end Resume_Search;
 

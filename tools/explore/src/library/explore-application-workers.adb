@@ -4,6 +4,7 @@ with Explore.Model;
 with Explore.Paths;
 with Explore.Previews;
 with Explore.Search;
+with Explore.String_Vectors;
 with Explore.Words;
 with Posix_Tools.Host_Adapters.File_Watches;
 
@@ -14,6 +15,9 @@ package body Explore.Application.Workers is
    use type Explore.Jobs.Snapshot;
    use type Explore.Jobs.Version_Number;
    use type Explore.Previews.Preview_Kind;
+
+   --  The names of Item's entries, in their order.
+   function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector;
 
    function Busy (State : Session; Readers : in out Explore.Directory_Readers.Board) return Boolean is
      (Readers.Busy
@@ -34,6 +38,15 @@ package body Explore.Application.Workers is
          end if;
       end loop;
    end Collect;
+
+   function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector is
+   begin
+      return Result : Explore.String_Vectors.Vector do
+         for Listed of Item.Entries loop
+            Result.Append (Unbounded.To_String (Listed.Name));
+         end loop;
+      end return;
+   end Names_Of;
 
    procedure Release_Watches (State : in out Session) is
    begin
@@ -60,7 +73,9 @@ package body Explore.Application.Workers is
                   (Path       => Item.Path,
                    Generation => Item.Generation,
                    Options    => (Include_Hidden => State.Browser.Show_Hidden, With_Status => True),
-                   Order      => State.Browser.Order));
+                   Order      => State.Browser.Order,
+                   Look_Again => Item.Is_Search,
+                   Names      => (if Item.Is_Search then Names_Of (Item) else Explore.String_Vectors.Empty_Vector)));
                State.Workers.Submitted (Kind) := Item.Generation;
             elsif not Item.Pending and then State.Workers.Submitted (Kind) /= 0 then
                --  Nothing is waited for: a read still running, as for a pane
@@ -235,10 +250,10 @@ package body Explore.Application.Workers is
       Results : Explore.Search.Progress;
       Found   : Boolean;
    begin
+      --  The search runs for the current pane's generation, whose results it
+      --  takes; a newer one, as when a tab is gone back to, replaces it.
       if Current.Is_Search and then State.Browser.Search_Wanted then
          State.Browser.Search_Wanted := False;
-         State.Workers.Search_Generation := Current.Generation;
-         State.Workers.Search_Found := 0;
          State.Workers.Searcher.Submit
            (Explore.Search.Only,
             (Root           => Current.Path,
@@ -249,8 +264,9 @@ package body Explore.Application.Workers is
              Generation     => Current.Generation));
       end if;
 
-      if not Current.Is_Search or else Current.Generation /= State.Workers.Search_Generation then
-         --  Gone elsewhere: what the search would find has nowhere to go.
+      if not Model.Search_Running (State.Browser) then
+         --  Gone elsewhere, or ended: what the search would find has nowhere
+         --  to go.
          if State.Workers.Searcher.Busy then
             State.Workers.Searcher.Cancel (Explore.Search.Only);
          end if;
@@ -260,15 +276,15 @@ package body Explore.Application.Workers is
 
       State.Workers.Searcher.Collect (Explore.Search.Only, Results, Found);
 
-      if Found and then Results.Generation = State.Workers.Search_Generation then
-         State.Workers.Search_Found := State.Workers.Search_Found + Natural (Results.Found.Length);
+      if Found and then Results.Generation = Current.Generation then
          Model.Add_Results (State.Browser, Results.Generation, Results.Found, Results.Finished);
          State.Dirty := True;
 
          if Results.Finished then
             Say
               (State,
-               Explore.Words.Search_Result (State.Config.Words, State.Workers.Search_Found, Results.Truncated));
+               Explore.Words.Search_Result
+                 (State.Config.Words, Natural (Current.Entries.Length), Results.Truncated));
          end if;
       end if;
    end Watch_Search;

@@ -89,7 +89,8 @@ package body Search_Tests is
       Model.Open (Browser, "/home/user");
       Model.Deliver
         (Browser, Model.Current_Pane, Browser.Panes (Model.Current_Pane).Generation, Found, Readable => True);
-      Model.Begin_Search (Browser, "/home/user", "*.md", Contents => False, Generation => Generation);
+      Model.Begin_Search (Browser, "/home/user", "*.md", Contents => False);
+      Generation := Browser.Panes (Model.Current_Pane).Generation;
       AUnit.Assertions.Assert
         (Model.Is_Searching (Browser) and then Browser.Panes (Model.Current_Pane).State = Model.Loading
          and then not Browser.Panes (Model.Current_Pane).Pending,
@@ -105,7 +106,10 @@ package body Search_Tests is
          "a result is a path below the root");
 
       Model.Reload (Browser, Model.Current_Pane);
-      AUnit.Assertions.Assert (not Browser.Panes (Model.Current_Pane).Pending, "results are never read again");
+      AUnit.Assertions.Assert
+        (not Browser.Panes (Model.Current_Pane).Pending and then Browser.Search_Stale
+         and then Browser.Panes (Model.Current_Pane).Generation = Generation,
+         "results are not read again while the search runs");
 
       --  Handed to the searcher, as the workers do; then stopped unfinished.
       Browser.Search_Wanted := False;
@@ -117,12 +121,58 @@ package body Search_Tests is
       Generation := Browser.Panes (Model.Current_Pane).Generation;
       Browser.Search_Wanted := False;
 
+      --  Asked to be read again while it runs, it is once it has ended.
+      Model.Reload (Browser, Model.Current_Pane);
       Model.Add_Results (Browser, Generation, Found, Finished => True);
-      AUnit.Assertions.Assert (Browser.Panes (Model.Current_Pane).State = Model.Loaded, "finished");
+      AUnit.Assertions.Assert
+        (Browser.Panes (Model.Current_Pane).State = Model.Loaded and then Browser.Panes (Model.Current_Pane).Pending
+         and then not Browser.Search_Stale,
+         "finished, and its results to be looked up again");
+      Generation := Browser.Panes (Model.Current_Pane).Generation;
       Model.Resume_Search (Browser);
       AUnit.Assertions.Assert
         (not Browser.Search_Wanted and then Browser.Panes (Model.Current_Pane).Generation = Generation,
          "a finished search is not begun again");
+
+      --  Looked up again: a result gone is left out, the cursor kept.
+      Found.Append (Listing.Listed_Entry'(Name => Unbounded.To_Unbounded_String ("b.md"), others => <>));
+      Model.Deliver (Browser, Model.Current_Pane, Generation, Found, Readable => True);
+      Model.Move_To (Browser, 2);
+      Found.Delete_First;
+      Model.Reload (Browser, Model.Current_Pane);
+      Model.Deliver
+        (Browser, Model.Current_Pane, Browser.Panes (Model.Current_Pane).Generation, Found, Readable => True);
+      AUnit.Assertions.Assert
+        (Model.Is_Searching (Browser) and then Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 1
+         and then Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "b.md",
+         "results looked up again replace those shown");
+
+      --  A result renamed is shown by its new name at once.
+      Found.Clear;
+      Found.Append (Listing.Listed_Entry'(Name => Unbounded.To_Unbounded_String ("docs/a.md"), others => <>));
+      Found.Append
+        (Listing.Listed_Entry'
+           (Name => Unbounded.To_Unbounded_String ("docs/sub"), Kind => Listing.Directory_Entry, others => <>));
+      Model.Reload (Browser, Model.Current_Pane);
+      Model.Deliver
+        (Browser, Model.Current_Pane, Browser.Panes (Model.Current_Pane).Generation, Found, Readable => True);
+      Model.Move_To (Browser, 1);
+      Model.Rename_Result (Browser, "docs/a.md", "docs/c.md");
+      AUnit.Assertions.Assert
+        (Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "docs/c.md",
+         "a renamed result keeps the cursor, by its new name");
+
+      --  Entered, a result's parent is its own directory, not the results.
+      Model.Move_To (Browser, 2);
+      Model.Enter (Browser);
+      AUnit.Assertions.Assert
+        (not Model.Is_Searching (Browser)
+         and then Ada.Strings.Unbounded.To_String (Browser.Panes (Model.Current_Pane).Path) = "/home/user/docs/sub"
+         and then Ada.Strings.Unbounded.To_String (Browser.Panes (Model.Parent_Pane).Path) = "/home/user/docs"
+         and then not Browser.Panes (Model.Parent_Pane).Is_Search
+         and then Browser.Panes (Model.Parent_Pane).Pending,
+         "the directory of a result entered is read as its parent");
+      Model.Begin_Search (Browser, "/home/user", "*.md", Contents => False);
 
       Model.Leave (Browser);
       AUnit.Assertions.Assert
@@ -131,7 +181,7 @@ package body Search_Tests is
          "leaving results goes back to the directory searched");
 
       Model.Open (Browser, "/");
-      Model.Begin_Search (Browser, "/", "*.md", Contents => False, Generation => Generation);
+      Model.Begin_Search (Browser, "/", "*.md", Contents => False);
       Model.Leave (Browser);
       AUnit.Assertions.Assert
         (not Model.Is_Searching (Browser)

@@ -851,15 +851,13 @@ package body Explore.Application.Controller is
    end Set_Bookmark;
 
    procedure Start_Search (State : in out Session; Text : String) is
-      Generation : Natural;
    begin
       --  The searcher is handed it with the workers, as a search begun again is.
       Model.Begin_Search
         (State.Browser,
          Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path),
          Text,
-         Contents   => State.Interaction.Mode = Finding_Text,
-         Generation => Generation);
+         Contents => State.Interaction.Mode = Finding_Text);
    end Start_Search;
 
    procedure Take_Clipboard (State : in out Session; Cutting : Boolean) is

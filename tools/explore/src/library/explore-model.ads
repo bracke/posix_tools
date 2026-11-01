@@ -44,7 +44,8 @@ package Explore.Model is
       --  Names marked for an operation.
       Marked     : Name_Sets.Set;
       --  The pane holds search results, each named by its path below Path,
-      --  instead of a directory's entries; it is never read again.
+      --  instead of a directory's entries. Once the search has ended, it is
+      --  read again by looking each result up again.
       Is_Search  : Boolean := False;
    end record;
 
@@ -78,6 +79,9 @@ package Explore.Model is
       --  The search is yet to be handed to the searcher: it was just begun,
       --  or is to begin again.
       Search_Wanted   : Boolean := False;
+      --  The current pane was to be read again while its search ran: its
+      --  results are looked up again once the search ends.
+      Search_Stale    : Boolean := False;
    end record;
 
    --  How many directories back history keeps.
@@ -121,15 +125,14 @@ package Explore.Model is
    function In_Visual (Self : Browser) return Boolean is (Self.Visual);
 
    --  Show the results of a search below Root in the current pane, as a
-   --  visit, and return the generation the results must carry. Label says
-   --  what is searched for, and Contents whether in files' contents. The
-   --  search is then wanted.
+   --  visit; the results must carry the pane's generation. Label says what
+   --  is searched for, and Contents whether in files' contents. The search is
+   --  then wanted.
    procedure Begin_Search
-     (Self       : in out Browser;
-      Root       : String;
-      Label      : String;
-      Contents   : Boolean;
-      Generation : out Natural);
+     (Self     : in out Browser;
+      Root     : String;
+      Label    : String;
+      Contents : Boolean);
 
    --  Begin the search the current pane shows again, with a new generation,
    --  when it had not finished: what it found after it was stopped -- as when
@@ -146,7 +149,18 @@ package Explore.Model is
 
    function Is_Searching (Self : Browser) return Boolean is (Self.Panes (Current_Pane).Is_Search);
 
+   --  Whether the current pane shows a search that has not ended.
+   function Search_Running (Self : Browser) return Boolean is
+     (Self.Panes (Current_Pane).Is_Search and then Self.Panes (Current_Pane).State = Loading);
+
+   --  The search result Old_Name of the current pane was renamed New_Name:
+   --  it is shown by its new name at once, the cursor staying on it.
+   procedure Rename_Result (Self : in out Browser; Old_Name, New_Name : String);
+
    --  Ask for a pane's entries again, keeping what it shows until they come.
+   --  Reloading the current pane or the preview also asks for the preview
+   --  of the file selected again, as the file may have changed. Search
+   --  results are looked up again, once their search has ended.
    procedure Reload (Self : in out Browser; Kind : Pane_Kind);
 
    --  Ask for every pane's entries again, as after the sort order or the
@@ -184,7 +198,8 @@ package Explore.Model is
 
    --  Make the selected directory the current one: the current pane becomes
    --  the parent, and the preview, if it already shows that directory, the
-   --  current. Panes that changed are left Loading for their entries.
+   --  current. Panes that changed are left Loading for their entries. From
+   --  search results, the parent is the directory the result is in.
    procedure Enter (Self : in out Browser);
 
    --  Whether the current directory has a parent to go up to, or the current

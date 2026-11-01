@@ -1,5 +1,6 @@
 with Ada.Strings.Unbounded;
 with Explore.Model;
+with Explore.String_Vectors;
 with Explore.Work_Boards;
 with Posix_Tools.File_Operations.Listing;
 
@@ -20,6 +21,11 @@ package Explore.Directory_Readers is
       Generation : Natural := 0;
       Options    : Listing.Read_Options;
       Order      : Listing.Sort_Order;
+      --  Instead of Path being read, each of Names -- a path below Path, as
+      --  a search result is named -- is looked up again, in the order given,
+      --  and those no longer there left out.
+      Look_Again : Boolean := False;
+      Names      : Explore.String_Vectors.Vector;
    end record;
 
    type Result is record

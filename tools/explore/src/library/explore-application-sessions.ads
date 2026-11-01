@@ -112,10 +112,6 @@ private package Explore.Application.Sessions is
       --  The generation of the preview pane the previewer was last asked
       --  for, zero for none: the pane's path is the file's.
       Preview_Asked : Natural := 0;
-      --  The generation of the search last started; its results go to the
-      --  current pane while it shows them.
-      Search_Generation : Natural := 0;
-      Search_Found      : Natural := 0;
    end record;
 
    --  What the session was started with.
