@@ -633,7 +633,7 @@ tests/src/build_checks.adb bytes= 2953 fnv1a64=b32d1b8aa49f4ecd
 tests/src/build_checks.ads bytes= 76 fnv1a64=80078369870becde
 tests/src/command_tests-dispatch.adb bytes= 17481 fnv1a64=65e98cc515759fc4
 tests/src/command_tests-dispatch.ads bytes= 1086 fnv1a64=acc96e7370379817
-tests/src/command_tests-scripting.adb bytes= 22571 fnv1a64=3d6bd0bf30cc4f46
+tests/src/command_tests-scripting.adb bytes= 22715 fnv1a64=51d07c5156138631
 tests/src/command_tests-scripting.ads bytes= 936 fnv1a64=21dda24e93253a56
 tests/src/command_tests-suite.adb bytes= 391 fnv1a64=b8dbc9546f1745a4
 tests/src/command_tests-suite.ads bytes= 148 fnv1a64=b70222b5a7ba1506
@@ -641,7 +641,7 @@ tests/src/command_tests-suite_entries.adb bytes= 33312 fnv1a64=1387219846172737
 tests/src/command_tests-suite_entries.ads bytes= 167 fnv1a64=e662dd775a700727
 tests/src/command_tests-surface_smoke-data.adb bytes= 29767 fnv1a64=258f84f0c2923b23
 tests/src/command_tests-surface_smoke-data.ads bytes= 510 fnv1a64=2285622d80dac39c
-tests/src/command_tests-surface_smoke-files.adb bytes= 50950 fnv1a64=2aa0d5f445b4425a
+tests/src/command_tests-surface_smoke-files.adb bytes= 51180 fnv1a64=173988ce0ddff68e
 tests/src/command_tests-surface_smoke-files.ads bytes= 1171 fnv1a64=dee7c86c3138245e
 tests/src/command_tests-surface_smoke-filters.adb bytes= 37985 fnv1a64=cf85a00ad311e203
 tests/src/command_tests-surface_smoke-filters.ads bytes= 366 fnv1a64=db8def68a724690a
@@ -660,7 +660,7 @@ tests/src/command_tests.adb bytes= 259451 fnv1a64=3146c5303457c430
 tests/src/command_tests.ads bytes= 7004 fnv1a64=0c353ab9598470f5
 tests/src/conformance_checks.adb bytes= 35699 fnv1a64=a3263ad8d93ec6e5
 tests/src/conformance_checks.ads bytes= 279 fnv1a64=bbf61351bbe0f159
-tests/src/file_command_tests.adb bytes= 41730 fnv1a64=97c76022d1acd114
+tests/src/file_command_tests.adb bytes= 42022 fnv1a64=b3065d1751bb9faa
 tests/src/file_command_tests.ads bytes= 1519 fnv1a64=d752ed41839ab540
 tests/src/file_operations_tests.adb bytes= 13313 fnv1a64=6da41f8852fbca22
 tests/src/file_operations_tests.ads bytes= 461 fnv1a64=4597d082d0eabd3a
@@ -703,8 +703,8 @@ tests/src/suite_filters.adb bytes= 1260 fnv1a64=6e6d2b317b1e35b6
 tests/src/suite_filters.ads bytes= 1181 fnv1a64=becf5473cf57c361
 tests/src/test_contexts.adb bytes= 29098 fnv1a64=cc087ef14aacba7e
 tests/src/test_contexts.ads bytes= 10452 fnv1a64=3d1ad5c9bae26c1d
-tests/src/test_support.adb bytes= 6907 fnv1a64=c2fd0e90a2b85d8b
-tests/src/test_support.ads bytes= 2303 fnv1a64=a8026ea1e826142f
+tests/src/test_support.adb bytes= 7353 fnv1a64=81969077f8b5d739
+tests/src/test_support.ads bytes= 2772 fnv1a64=741f151b6d2b3f45
 tests/src/tooling_checks.adb bytes= 2217 fnv1a64=c41126b995a1d077
 tests/src/tooling_checks.ads bytes= 1396 fnv1a64=d05f42ddc3973782
 tests/src/tooling_steps.adb bytes= 563 fnv1a64=5dad6e41374430da

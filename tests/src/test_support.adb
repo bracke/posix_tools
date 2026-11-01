@@ -6,6 +6,7 @@ with AUnit.Assertions;
 with Hostkit.Fs;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Text.Matching;
+with GNAT.OS_Lib;
 
 package body Test_Support is
    use type Ada.Directories.File_Kind;
@@ -180,6 +181,19 @@ package body Test_Support is
          end if;
       end if;
    end Delete_If_Exists;
+
+   function Symbolic_Links_Expected return Boolean is
+     (GNAT.OS_Lib.Directory_Separator = '/');
+
+   function FIFOs_Expected return Boolean is
+     (GNAT.OS_Lib.Directory_Separator = '/');
+
+   procedure Skip_Without_Links (Label : String) is
+   begin
+      AUnit.Assertions.Assert
+        (not Symbolic_Links_Expected,
+         Label & ": could not make a symbolic link on a host that has them");
+   end Skip_Without_Links;
 
    procedure Advance (Seed : in out Word_32) is
    begin

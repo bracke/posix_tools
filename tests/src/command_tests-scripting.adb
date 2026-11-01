@@ -210,6 +210,7 @@ package body Command_Tests.Scripting is
    begin
       if not Make_Tree (Root) then
          Remove_Tree (Root);
+         Test_Support.Skip_Without_Links ("Test_Find_Missing_Operands");
          return;
       end if;
       declare
@@ -244,6 +245,7 @@ package body Command_Tests.Scripting is
    begin
       if not Make_Tree (Root) then
          Remove_Tree (Root);
+         Test_Support.Skip_Without_Links ("Test_Find_Symbolic_Links");
          return;
       end if;
 

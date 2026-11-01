@@ -29,6 +29,16 @@ package Test_Support is
    --  Remove Path, a file or a whole directory tree, if it exists.
    procedure Delete_If_Exists (Path : String);
 
+   --  Whether the host must be able to make symbolic links and FIFOs.
+   --  Every POSIX host can; Windows may refuse links for want of privilege
+   --  and has no FIFOs.
+   function Symbolic_Links_Expected return Boolean;
+   function FIFOs_Expected return Boolean;
+
+   --  For a test about to skip because it could not make a symbolic link:
+   --  fail where links must work, so that only a host without them skips.
+   procedure Skip_Without_Links (Label : String);
+
    --  The property tests' generators: a fixed seed, advanced by a linear
    --  congruential step, so a failing case can be named and replayed.
    type Word_32 is mod 2 ** 32;
