@@ -16,27 +16,35 @@ package body Explore.Application.Controller.Programs is
 
    use type FS.File_Kind;
 
-   --  Whether the file at Path is text, as its start says.
+   --  Whether the file at Path is text, as its preview found when it shows
+   --  that file, so that what is opened agrees with what was shown.
    function Is_Text (State : Session; Path : String) return Boolean;
 
    --  Write Targets down for the program explore chooses files for, and quit.
    procedure Write_Choice (State : in out Session; Targets : Explore.String_Vectors.Vector);
 
    function Is_Text (State : Session; Path : String) return Boolean is
-      pragma Unreferenced (State);
+      use type Explore.Previews.Preview_Kind;
 
-      Head : Unbounded.Unbounded_String;
-      Read : Boolean;
+      Shown : Explore.Previews.Preview renames State.Frame.Preview;
+      Head  : Unbounded.Unbounded_String;
+      Read  : Boolean;
    begin
+      if Unbounded.To_String (Shown.Path) = Path and then Shown.Kind /= Explore.Previews.No_Preview then
+         return Shown.Text;
+      end if;
+
+      --  Not previewed yet: the file is read as its preview would read it.
       --  Only a plain file is looked into: reading a pipe or a device could
       --  wait for ever, and this is the screen's own thread.
       if FS.Kind (Path) = FS.Special_File then
          return False;
       end if;
 
-      Explore.Files.Read_Head (Path, 4096, Head, Read);
+      Explore.Files.Read_Head (Path, Explore.Previews.Head_Bytes, Head, Read);
       return Read and then Explore.Previews.Is_Text (Unbounded.To_String (Head));
    end Is_Text;
+
    procedure Open_Targets (State : in out Session) is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
       Targets : constant Explore.String_Vectors.Vector := Model.Targets (State.Browser);
@@ -108,6 +116,8 @@ package body Explore.Application.Controller.Programs is
          Warn (State, Explore.Words.Exit_Line (State.Config.Words, Natural'Max (0, Status)));
       end if;
 
+      --  The program may have changed anything: the panes are read again,
+      --  and the file previewed is previewed again.
       Model.Reload_All (State.Browser);
       State.Dirty := True;
    end Run_Program;

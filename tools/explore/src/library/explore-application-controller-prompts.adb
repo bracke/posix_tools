@@ -1,4 +1,5 @@
 with Explore.Application.Controller.Programs;
+with Explore.Files;
 with Explore.Launch;
 with Explore.Line_Editor;
 with Explore.Model;
@@ -15,7 +16,6 @@ package body Explore.Application.Controller.Prompts is
    package Modes renames Posix_Tools.Text.File_Modes;
 
    use type Explore.Keymap.Action;
-   use type FS.File_Kind;
 
    --  Carry out what was typed into the prompt the session is in.
    procedure Commit (State : in out Session);
@@ -28,6 +28,10 @@ package body Explore.Application.Controller.Prompts is
    --  it ends in a slash, an empty file otherwise.
    procedure Commit_Name (State : in out Session; Text : String)
      with Pre => Text'Length > 0;
+
+   --  Whether a running or waiting operation touches any of Paths; if one
+   --  does, the status line says so.
+   function In_Use (State : in out Session; Paths : Explore.String_Vectors.Vector) return Boolean;
 
    --  Search below the current directory for Text, by name or by content as
    --  the prompt was for, showing the results in the current pane.
@@ -93,21 +97,36 @@ package body Explore.Application.Controller.Prompts is
       use type Modes.Permission_Mode_Status;
 
       Parsed : constant Modes.Parsed_Permission_Mode := Modes.Parse_Permission_Mode (Text);
+      Octal  : constant Boolean := Parsed.Status = Modes.Octal_Permission_Mode;
    begin
+      if Parsed.Status = Modes.Invalid_Permission_Mode then
+         Warn (State, Text & ": " & Unbounded.To_String (State.Config.Words.Invalid_Mode));
+         return;
+      elsif In_Use (State, State.Interaction.Pending) then
+         return;
+      end if;
+
       for Path of State.Interaction.Pending loop
          declare
-            Known   : Boolean;
-            Old     : constant Natural := FS.File_Permission_Bits (Path, Known) mod 8#10000#;
-            Applied : constant Modes.Symbolic_Mode_Result :=
-              (if Parsed.Status = Modes.Octal_Permission_Mode
-               then (Valid => True, Mode => Parsed.Mode)
-               else Modes.Apply_Symbolic_Mode (Text, Old));
+            Known : Boolean;
+            Old   : constant Natural := FS.File_Permission_Bits (Path, Known) mod 8#10000#;
          begin
-            if not Applied.Valid then
-               Warn (State, Text & ": " & Unbounded.To_String (State.Config.Words.Invalid_Mode));
-               return;
-            elsif not FS.Set_Permissions (Path, Applied.Mode) then
-               Complain (State, Path, Posix_Tools.File_Operations.Cannot_Open);
+            --  A symbolic mode changes the mode there is: one that cannot be
+            --  read is not taken to be zero.
+            if not Octal and then not Known then
+               Complain (State, Path, Posix_Tools.File_Operations.Cannot_Read);
+            else
+               declare
+                  Applied : constant Modes.Symbolic_Mode_Result :=
+                    (if Octal then (Valid => True, Mode => Parsed.Mode) else Modes.Apply_Symbolic_Mode (Text, Old));
+               begin
+                  if not Applied.Valid then
+                     Warn (State, Text & ": " & Unbounded.To_String (State.Config.Words.Invalid_Mode));
+                     return;
+                  elsif not FS.Set_Permissions (Path, Applied.Mode) then
+                     Complain (State, Path, Posix_Tools.File_Operations.Cannot_Open);
+                  end if;
+               end;
             end if;
          end;
       end loop;
@@ -115,30 +134,38 @@ package body Explore.Application.Controller.Prompts is
       Model.Clear_Marks (State.Browser);
       Model.Reload (State.Browser, Model.Current_Pane);
    end Commit_Mode;
+
    procedure Commit_Name (State : in out Session; Text : String) is
       Current   : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
+      Root      : constant String := Unbounded.To_String (Current.Path);
       Is_Rename : constant Boolean := State.Interaction.Mode = Renaming;
       Directory : constant Boolean := State.Interaction.Mode = Creating and then Text (Text'Last) = '/';
       Name      : constant String := (if Directory then Text (Text'First .. Text'Last - 1) else Text);
+      Source    : constant String := (if Is_Rename then State.Interaction.Pending.First_Element else "");
       --  A rename stays in the directory of what it renames, which in search
       --  results is not the directory shown.
-      Folder    : constant String :=
-        (if Is_Rename then Explore.Paths.Parent_Of (State.Interaction.Pending.First_Element)
-         else Unbounded.To_String (Current.Path));
+      Folder    : constant String := (if Is_Rename then Explore.Paths.Parent_Of (Source) else Root);
       Target    : constant String := Explore.Paths.Child_Of (Folder, Name);
+      Touched   : Explore.String_Vectors.Vector := Explore.String_Vectors.To_Vector (Target, 1);
       Written   : Boolean := True;
    begin
-      if Name'Length = 0 or else Name = "." or else Name = ".." or else (for some C of Name => C = '/') then
+      if Is_Rename then
+         Touched.Append (Source);
+      end if;
+
+      if not Explore.Paths.Is_Plain_Name (Name) then
          Complain (State, Text, Posix_Tools.File_Operations.Cannot_Open);
          return;
       elsif FS.Exists (Target) or else FS.Is_Link (Target) then
          Warn (State, Name & ": " & Unbounded.To_String (State.Config.Words.Exists));
          return;
+      elsif In_Use (State, Touched) then
+         return;
       end if;
 
       begin
          if Is_Rename then
-            FS.Rename (State.Interaction.Pending.First_Element, Target);
+            FS.Rename (Source, Target);
          elsif Directory then
             FS.Create_Path (Target);
          else
@@ -154,13 +181,20 @@ package body Explore.Application.Controller.Prompts is
          return;
       end if;
 
+      --  A search result is shown by its new name at once, and looked up
+      --  again with the rest once its search has ended.
+      if Is_Rename then
+         Model.Rename_Result (State.Browser, Explore.Paths.Below (Source, Root), Explore.Paths.Below (Target, Root));
+      end if;
+
       --  The cursor goes to what was made once the directory is read again.
       Model.Reload (State.Browser, Model.Current_Pane);
 
-      if Folder = Unbounded.To_String (Current.Path) then
+      if Folder = Root then
          Current.Wanted := Unbounded.To_Unbounded_String (Name);
       end if;
    end Commit_Name;
+
    procedure Edit_Prompt (State : in out Session; Item : Explore.Input.Event) is
       Result : Explore.Line_Editor.Outcome;
    begin
@@ -177,31 +211,37 @@ package body Explore.Application.Controller.Prompts is
       end case;
    end Edit_Prompt;
 
-   procedure Jump_To (State : in out Session; Text : String) is
-      Current : constant String := Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path);
-      Home    : constant String := Unbounded.To_String (State.Config.Home);
-      Path    : constant String :=
-        (if Text = "~" then Home
-         elsif Text'Length >= 2 and then Text (Text'First .. Text'First + 1) = "~/"
-         then Explore.Paths.Child_Of (Home, Text (Text'First + 2 .. Text'Last))
-         elsif Text (Text'First) = '/' then Text
-         else Explore.Paths.Child_Of (Current, Text));
+   function In_Use (State : in out Session; Paths : Explore.String_Vectors.Vector) return Boolean is
    begin
-      if FS.Kind (Path) = FS.Directory then
-         Model.Jump (State.Browser, FS.Real_Path (Path));
-      elsif FS.Exists (Path) then
-         declare
-            Real : constant String := FS.Real_Path (Path);
-         begin
-            Model.Jump (State.Browser, Explore.Paths.Parent_Of (Real), Explore.Paths.Name_Of (Real));
-         end;
+      if not State.Workers.Operations.Touches (Paths) then
+         return False;
+      end if;
+
+      Warn
+        (State,
+         Explore.Paths.Name_Of (Paths.First_Element) & ": " & Unbounded.To_String (State.Config.Words.In_Use));
+      return True;
+   end In_Use;
+
+   procedure Jump_To (State : in out Session; Text : String) is
+      Path      : constant String :=
+        Explore.Paths.Resolve
+          (Text,
+           Current => Unbounded.To_String (State.Browser.Panes (Model.Current_Pane).Path),
+           Home    => Unbounded.To_String (State.Config.Home));
+      Directory : Unbounded.Unbounded_String;
+      Name      : Unbounded.Unbounded_String;
+      Found     : Boolean;
+   begin
+      Explore.Files.Locate (Path, Directory, Name, Found);
+
+      if Found then
+         Model.Jump (State.Browser, Unbounded.To_String (Directory), Unbounded.To_String (Name));
       else
          Complain (State, Text, Posix_Tools.File_Operations.Not_A_Directory);
       end if;
-   exception
-      when others =>
-         Complain (State, Text, Posix_Tools.File_Operations.Cannot_Open);
    end Jump_To;
+
    procedure Start_Search (State : in out Session; Text : String) is
    begin
       --  The searcher is handed it with the workers, as a search begun again is.

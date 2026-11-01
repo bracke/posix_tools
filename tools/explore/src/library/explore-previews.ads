@@ -29,6 +29,9 @@ package Explore.Previews is
       --  once here so that drawing the preview does not tokenize it again.
       --  Lines past the last of them have none.
       Spans       : Explore.Syntax.Line_Span_Vectors.Vector;
+      --  The file's first bytes are text, as Is_Text tells: a file an editor
+      --  opens. Whatever is shown of it, a previewer's output included.
+      Text        : Boolean := False;
       --  The image is a thumbnail made of the file, not the file itself.
       Thumbnail   : Boolean := False;
       --  The image data, its encoding, and its size in pixels, for an image.

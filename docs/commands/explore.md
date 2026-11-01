@@ -29,7 +29,7 @@ when there is more than one, the current one in brackets.
 A search shows its results in the current pane as it finds them, each by its path below the directory searched, and
 the status line says what it looks for and, once it ends, how many it found. Results can be entered, previewed,
 marked, and operated on like any entries; `h` goes back to the directory searched, and going elsewhere stops the
-search. Once the search has ended, the results are looked up again
+search. A result renamed is shown by its new name at once; once the search has ended, the results are looked up again
 whenever the directory searched would be read again, so that those changed show as they are and those gone are left
 out. A search walks the tree on a worker task of its own without following symbolic links, at most 64 levels deep,
 and keeps at most 10,000 results; it leaves out entries starting with a dot unless they are shown. Text is searched
@@ -175,7 +175,8 @@ shows the first running operation, its file, and how far the copy of that file i
 to sixteen wait their turn. When an operation ends the panes are read again and the status line says how it went: done,
 cancelled, or with how many errors and the first of them. The last sixteen that ended are listed in the operations
 panel. Renaming, creating, and changing permissions
-happen at once.
+happen at once, but never to a path that a running or waiting operation touches as the operations' own order goes: the
+status line says so and nothing is done. A symbolic permission change leaves alone an entry whose mode cannot be read.
 
 ### Configuration
 

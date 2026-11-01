@@ -242,6 +242,13 @@ package body Explore.Jobs is
          Changed;
       end Take;
 
+      function Touches (Paths : Explore.String_Vectors.Vector) return Boolean is
+         Probe : constant Job := (Kind => Delete_Job, Sources => Paths, others => <>);
+      begin
+         return (for some Lane in Lanes'Range => Lanes (Lane).Running and then Overlap (Running (Lane), Probe))
+           or else (for some Item of Queue => Overlap (Item, Probe));
+      end Touches;
+
       function Version return Version_Number is (Changes);
 
       entry Wait_Answer (for Lane in Lane_Index) (Choice : out Conflict_Answer)

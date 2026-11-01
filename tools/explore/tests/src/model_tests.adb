@@ -1,12 +1,15 @@
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with AUnit.Test_Caller;
+with Ada.Directories;
 with Explore.Directory_Readers;
+with Explore.Files;
 with Explore.Input;
 with Explore.Keymap;
 with Explore.Model;
 with Explore.Paths;
 with Posix_Tools.File_Operations.Listing;
+with Posix_Tools.Host_Adapters.File_System;
 
 package body Model_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
@@ -66,6 +69,8 @@ package body Model_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite := AUnit.Test_Suites.New_Suite;
    begin
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:paths", Test_Paths'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:prompt paths", Test_Prompt_Paths'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:jump places", Test_Jump_Places'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:file preview", Test_File_Preview'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:open and deliver", Test_Open_And_Deliver'Access));
       AUnit.Test_Suites.Add_Test
@@ -324,6 +329,49 @@ package body Model_Tests is
       AUnit.Assertions.Assert (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 4, "filter cleared");
    end Test_Filter;
 
+   procedure Test_Jump_Places (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root      : constant String := Ada.Directories.Current_Directory & "/obj/jump-fixture";
+      Real      : Unbounded.Unbounded_String;
+      Directory : Unbounded.Unbounded_String;
+      Name      : Unbounded.Unbounded_String;
+      Found     : Boolean;
+   begin
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("~", "/here", "/home/u") = "/home/u", "~ is home");
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("~/a/b", "/here", "/home/u") = "/home/u/a/b", "~/ is below it");
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("~x", "/here", "/home/u") = "/here/~x", "~x is a name");
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("/etc", "/here", "/home/u") = "/etc", "absolute");
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("sub/x", "/here", "/home/u") = "/here/sub/x", "relative");
+      AUnit.Assertions.Assert (Explore.Paths.Resolve ("x", "/", "/home/u") = "/x", "relative to the root");
+
+      if Ada.Directories.Exists (Root) then
+         Ada.Directories.Delete_Tree (Root);
+      end if;
+
+      Ada.Directories.Create_Path (Root & "/dir");
+      declare
+         Ok : Boolean;
+      begin
+         Posix_Tools.Host_Adapters.File_System.Write_File (Root & "/dir/file", "", Append_Mode => False, Ok => Ok);
+         AUnit.Assertions.Assert (Ok, "fixture file");
+      end;
+      Real := Unbounded.To_Unbounded_String (Posix_Tools.Host_Adapters.File_System.Real_Path (Root));
+
+      Explore.Files.Locate (Root & "/dir", Directory, Name, Found);
+      AUnit.Assertions.Assert
+        (Found and then Unbounded.To_String (Directory) = Unbounded.To_String (Real) & "/dir"
+         and then Unbounded.Length (Name) = 0,
+         "a directory is gone to");
+      Explore.Files.Locate (Root & "/dir/../dir/file", Directory, Name, Found);
+      AUnit.Assertions.Assert
+        (Found and then Unbounded.To_String (Directory) = Unbounded.To_String (Real) & "/dir"
+         and then Unbounded.To_String (Name) = "file",
+         "a file is gone to in its directory, with the cursor on it");
+      Explore.Files.Locate (Root & "/nothing", Directory, Name, Found);
+      AUnit.Assertions.Assert (not Found, "nothing is found where nothing is");
+      Ada.Directories.Delete_Tree (Root);
+   end Test_Jump_Places;
+
    procedure Test_Keymap (T : in out Fixture) is
       pragma Unreferenced (T);
       Keys    : Explore.Keymap.State;
@@ -413,6 +461,26 @@ package body Model_Tests is
          = "readme" & Character'Val (16#C3#) & Character'Val (16#84#),
          "ASCII folded, UTF-8 bytes left alone");
    end Test_Paths;
+
+   procedure Test_Prompt_Paths (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
+      AUnit.Assertions.Assert (Explore.Paths.Is_Plain_Name ("notes.txt"), "a name");
+      AUnit.Assertions.Assert
+        (not Explore.Paths.Is_Plain_Name ("") and then not Explore.Paths.Is_Plain_Name (".")
+         and then not Explore.Paths.Is_Plain_Name (".."),
+         "neither nothing, nor . or ..");
+      AUnit.Assertions.Assert
+        (not Explore.Paths.Is_Plain_Name ("a/b") and then not Explore.Paths.Is_Plain_Name ("a/"),
+         "nor a path");
+      AUnit.Assertions.Assert (Explore.Paths.Renamed ("docs/a.md", "b.md") = "docs/b.md", "a result renamed");
+      AUnit.Assertions.Assert (Explore.Paths.Renamed ("a.md", "b.md") = "b.md", "a name renamed");
+      AUnit.Assertions.Assert (Explore.Paths.Below ("/r/docs/a", "/r") = "docs/a", "a path below a directory");
+      AUnit.Assertions.Assert (Explore.Paths.Below ("/a", "/") = "a", "below the root");
+      AUnit.Assertions.Assert
+        (Explore.Paths.Below ("/rx/a", "/r") = "" and then Explore.Paths.Below ("/r", "/r") = "",
+         "neither beside it, nor itself");
+   end Test_Prompt_Paths;
 
    procedure Test_Stale_Entries_Dropped (T : in out Fixture) is
       pragma Unreferenced (T);

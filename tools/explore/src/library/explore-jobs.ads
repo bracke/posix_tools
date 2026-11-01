@@ -146,6 +146,11 @@ package Explore.Jobs is
 
       function Status return Snapshot;
 
+      --  Whether a running or queued job touches any of Paths, as Overlap
+      --  tells: what is done to them at once, away from the board, must
+      --  wait until it is not.
+      function Touches (Paths : Explore.String_Vectors.Vector) return Boolean;
+
       --  Changed whenever Status would show something else; the same may
       --  still show the same, as when progress is reported twice alike.
       function Version return Version_Number;

@@ -4,7 +4,8 @@ with Explore.Keymap;
 --  The line typed at the foot of the screen, and what Enter does with it:
 --  rename, create, change permissions, go to a path, search, or run a shell
 --  command. Renaming, creating and changing permissions happen at once, on
---  the screen's thread.
+--  the screen's thread, but never to a path a running or waiting operation
+--  touches.
 private package Explore.Application.Controller.Prompts is
    --  Open the prompt for Kind -- a rename, a creation, or a permission
    --  change -- when there is something for it to act on.

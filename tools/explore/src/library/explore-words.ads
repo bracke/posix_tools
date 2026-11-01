@@ -27,6 +27,7 @@ package Explore.Words is
       Confirm_Quit  : Ada.Strings.Unbounded.Unbounded_String;
       Exists        : Ada.Strings.Unbounded.Unbounded_String;
       Invalid_Mode  : Ada.Strings.Unbounded.Unbounded_String;
+      In_Use        : Ada.Strings.Unbounded.Unbounded_String;
       --  Patterns: of {count}; of {done} and {what}; of {verb} and {what},
       --  and {count} too; and of {count} and the {message} of the first.
       Errors        : Ada.Strings.Unbounded.Unbounded_String;

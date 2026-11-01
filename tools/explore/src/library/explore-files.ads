@@ -10,4 +10,13 @@ package Explore.Files is
       Limit : Positive;
       Data  : out Ada.Strings.Unbounded.Unbounded_String;
       Ok    : out Boolean);
+
+   --  Where Path leads, as a path to go to is followed: to the directory it
+   --  names, Name empty, or to the directory of the file it names, Name the
+   --  file's; both with links resolved. Found is False when it names nothing.
+   procedure Locate
+     (Path      : String;
+      Directory : out Ada.Strings.Unbounded.Unbounded_String;
+      Name      : out Ada.Strings.Unbounded.Unbounded_String;
+      Found     : out Boolean);
 end Explore.Files;
