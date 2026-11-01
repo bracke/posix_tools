@@ -1,8 +1,160 @@
+with Ada.Containers.Indefinite_Ordered_Sets;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
+with Posix_Tools.Text.Line_Breaks;
+with Project_Tools.Files;
 with Tooling_Checks;
+with Tooling_Support;
 
 package body Metadata_Checks.Continuous_Integration is
-   procedure Run is
+   use Ada.Strings.Unbounded;
+   use Tooling_Support;
+
+   package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
+
+   Workflow : constant String := ".github/workflows/ci.yml";
+
+   --  Path joined onto Dir with "." and ".." resolved; both are relative to
+   --  the project root, and a result outside it starts with "../".
+   function Resolve (Dir : String; Path : String) return String is
+      Parts  : array (1 .. 64) of Unbounded_String;
+      Count  : Natural := 0;
+      Text   : constant String := (if Dir = "" then Path else Dir & "/" & Path);
+      Start  : Positive := Text'First;
+      Result : Unbounded_String;
+
+      procedure Take (Part : String) is
+      begin
+         if Part = "" or else Part = "." then
+            null;
+         elsif Part = ".." and then Count > 0 and then Parts (Count) /= ".." then
+            Count := Count - 1;
+         else
+            Count := Count + 1;
+            Parts (Count) := To_Unbounded_String (Part);
+         end if;
+      end Take;
    begin
+      for I in Text'Range loop
+         if Text (I) = '/' then
+            Take (Text (Start .. I - 1));
+            Start := I + 1;
+         end if;
+      end loop;
+      Take (Text (Start .. Text'Last));
+
+      for I in 1 .. Count loop
+         Append (Result, (if I = 1 then "" else "/") & Parts (I));
+      end loop;
+
+      return To_String (Result);
+   end Resolve;
+
+   function Directory_Of (Path : String) return String is
+      Last : constant Natural := Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward);
+   begin
+      return (if Last = 0 then "" else Path (Path'First .. Last - 1));
+   end Directory_Of;
+
+   --  The repositories beside this one that the crates' path pins reach,
+   --  followed through the pinned manifests the checkouts hold.
+   function Sibling_Checkouts return Name_Sets.Set is
+      Siblings : Name_Sets.Set;
+      Seen     : Name_Sets.Set;
+
+      procedure Visit (Manifest : String) is
+         Full : constant String := Project_Tools.Files.Join (Root, Manifest);
+      begin
+         if Seen.Contains (Manifest) or else not Project_Tools.Files.File_Exists (Full) then
+            return;
+         end if;
+         Seen.Insert (Manifest);
+
+         declare
+            Content : constant String := Project_Tools.Files.Read_Raw_File (Full);
+            Marker  : constant String := "path = """;
+            Start   : Positive := Content'First;
+         begin
+            for I in Content'Range loop
+               if Content (I) = Character'Val (10) or else I = Content'Last then
+                  declare
+                     Line  : constant String :=
+                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                         (Content (Start .. (if Content (I) = Character'Val (10) then I - 1 else I)));
+                     At_Marker : constant Natural := Ada.Strings.Fixed.Index (Line, Marker);
+                  begin
+                     if At_Marker /= 0 then
+                        declare
+                           From  : constant Positive := At_Marker + Marker'Length;
+                           Close : constant Natural := Ada.Strings.Fixed.Index (Line (From .. Line'Last), """");
+                           Pin   : constant String :=
+                             Resolve (Directory_Of (Manifest), Line (From .. Close - 1));
+                        begin
+                           if Close = 0 then
+                              Tooling_Checks.Fail (Manifest & " has an unterminated path pin");
+                           end if;
+
+                           if Pin'Length > 3 and then Pin (Pin'First .. Pin'First + 2) = "../" then
+                              declare
+                                 Rest  : constant String := Pin (Pin'First + 3 .. Pin'Last);
+                                 Slash : constant Natural := Ada.Strings.Fixed.Index (Rest, "/");
+                              begin
+                                 Siblings.Include (if Slash = 0 then Rest else Rest (Rest'First .. Slash - 1));
+                              end;
+                           end if;
+
+                           Visit (Pin & "/alire.toml");
+                        end;
+                     end if;
+                  end;
+                  Start := I + 1;
+               end if;
+            end loop;
+         end;
+      end Visit;
+
+      Manifests : constant Project_Tools.Files.Path_List :=
+        Project_Tools.Files.List_Tree
+          (Root,
+           Name_Pattern => "alire.toml",
+           Skip_Entries =>
+             [To_Unbounded_String ("alire"),
+              To_Unbounded_String ("bin"),
+              To_Unbounded_String ("config"),
+              To_Unbounded_String ("obj"),
+              To_Unbounded_String (".git")]);
+   begin
+      for Manifest of Manifests loop
+         declare
+            Path : constant String := To_String (Manifest);
+         begin
+            Visit
+              (if Path'Length > Root'Length + 1
+                 and then Path (Path'First .. Path'First + Root'Length) = Root & "/"
+               then Path (Path'First + Root'Length + 1 .. Path'Last)
+               else Path);
+         end;
+      end loop;
+
+      return Siblings;
+   end Sibling_Checkouts;
+
+   procedure Run is
+      Siblings : constant Name_Sets.Set := Sibling_Checkouts;
+   begin
+      if Siblings.Is_Empty then
+         Tooling_Checks.Fail ("no sibling checkouts found in the crates' path pins");
+      end if;
+
+      --  Every repository a path pin reaches is checked out beside this one.
+      for Name of Siblings loop
+         Require_Exact_Line (Workflow, "          repository: bracke/" & Name, "checkout of " & Name);
+         Require_Exact_Line (Workflow, "          path: " & Name, "checkout path of " & Name);
+      end loop;
+      Require_Exact_Line (Workflow, "          path: posix_tools", "checkout path of posix_tools");
+      Require_Exact_Line
+        (Workflow, "        run: git config --global core.autocrlf false", "line ending setting before checkout");
+
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
@@ -12,39 +164,6 @@ package body Metadata_Checks.Continuous_Integration is
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "timeout-minutes: 60");
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "fail-fast: false");
       Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: posix_tools");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/hostkit");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: hostkit");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/messages");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: messages");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/i18n");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: i18n");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/awklib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: awklib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/greplib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: greplib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/sedlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: sedlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/regexp");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: regexp");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/httpclient");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: httpclient");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/zlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: zlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/tarlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: tarlib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/cryptolib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: cryptolib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/ssllib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: ssllib");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "repository: bracke/truststores");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: truststores");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "repository: bracke/terminal_styles");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: terminal_styles");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "repository: bracke/project_tools");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "path: project_tools");
       Forbid_Text
         (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
       Forbid_Text
@@ -64,8 +183,11 @@ package body Metadata_Checks.Continuous_Integration is
         (Check, ".github/workflows/ci.yml", "working-directory: posix_tools/tests");
       Tooling_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "release-check");
+      --  The gate itself, not merely the job named after it.
+      Require_Exact_Line
+        (Workflow, "        run: ${{ matrix.test_runner }} release-check", "release gate step");
+      Require_Exact_Line
+        (Workflow, "        run: git diff --exit-code", "generated file drift check");
       Tooling_Checks.Require_Text
         (Check, ".github/workflows/ci.yml", "alr -n install gnatprove");
       Tooling_Checks.Require_Text

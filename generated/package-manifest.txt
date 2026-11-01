@@ -1,6 +1,6 @@
 posix-tools package manifest 0.1.0
 .gitattributes bytes= 212 fnv1a64=ed34e649fc0e6dcf
-.github/workflows/ci.yml bytes= 4115 fnv1a64=66eb07c7b380ad26
+.github/workflows/ci.yml bytes= 4842 fnv1a64=1f3bf95cfd9598c5
 CHANGELOG.md bytes= 1091 fnv1a64=5757008b84a9a7bc
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 README.md bytes= 1408 fnv1a64=7b7c6675246112b6
@@ -670,7 +670,7 @@ tests/src/integration_smoke.adb bytes= 26570 fnv1a64=9792f791512e45ee
 tests/src/integration_smoke.ads bytes= 178 fnv1a64=b0150042551fd289
 tests/src/metadata_checks-command_inventory.adb bytes= 13367 fnv1a64=c61548b883ad9205
 tests/src/metadata_checks-command_inventory.ads bytes= 185 fnv1a64=781125b744ced3e4
-tests/src/metadata_checks-continuous_integration.adb bytes= 6466 fnv1a64=df435debdfb5df1f
+tests/src/metadata_checks-continuous_integration.adb bytes= 9831 fnv1a64=c484b4e98d23ce0d
 tests/src/metadata_checks-continuous_integration.ads bytes= 152 fnv1a64=c2aae07f8cdb3ee3
 tests/src/metadata_checks-dependencies.adb bytes= 7731 fnv1a64=d08c7c7659e9bc81
 tests/src/metadata_checks-dependencies.ads bytes= 170 fnv1a64=876c9886deb601ab
