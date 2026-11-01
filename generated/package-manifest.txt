@@ -871,7 +871,7 @@ tools/explore/e2e/src/session_tests.adb bytes= 20913 fnv1a64=0405bd77eddcf645
 tools/explore/e2e/src/session_tests.ads bytes= 881 fnv1a64=11b71bbb15766c24
 tools/explore/posix_tools_explore.gpr bytes= 653 fnv1a64=0dae4f06bba57558
 tools/explore/src/explore_main.adb bytes= 236 fnv1a64=e2b5b4919879482d
-tools/explore/src/library/explore-application-controller.adb bytes= 36420 fnv1a64=b34ab7359795aa6b
+tools/explore/src/library/explore-application-controller.adb bytes= 36785 fnv1a64=c1f1fe51afc7354f
 tools/explore/src/library/explore-application-controller.ads bytes= 580 fnv1a64=cb52ad1008815d1b
 tools/explore/src/library/explore-application-display.adb bytes= 6562 fnv1a64=c405a7f11564a61d
 tools/explore/src/library/explore-application-display.ads bytes= 1072 fnv1a64=8cd0b753583fb963
@@ -899,8 +899,8 @@ tools/explore/src/library/explore-images.adb bytes= 12213 fnv1a64=a923438dcf43c5
 tools/explore/src/library/explore-images.ads bytes= 3407 fnv1a64=4aa1d9d413bda26f
 tools/explore/src/library/explore-input.adb bytes= 23098 fnv1a64=78b5b1a712e87169
 tools/explore/src/library/explore-input.ads bytes= 4241 fnv1a64=4dce265365fc1442
-tools/explore/src/library/explore-jobs.adb bytes= 15929 fnv1a64=e2757a4ef709e02f
-tools/explore/src/library/explore-jobs.ads bytes= 6917 fnv1a64=d22502b7f71c980f
+tools/explore/src/library/explore-jobs.adb bytes= 15974 fnv1a64=264691733e2ef587
+tools/explore/src/library/explore-jobs.ads bytes= 7305 fnv1a64=4db48404f29c13bf
 tools/explore/src/library/explore-keymap.adb bytes= 18421 fnv1a64=36a50c3ac5c2daed
 tools/explore/src/library/explore-keymap.ads bytes= 4923 fnv1a64=1e02b58a7728fdff
 tools/explore/src/library/explore-launch.adb bytes= 1785 fnv1a64=894fa16d989a0d37
@@ -946,8 +946,8 @@ tools/explore/tests/src/image_cache_tests.adb bytes= 6519 fnv1a64=7732ee5188d6ee
 tools/explore/tests/src/image_cache_tests.ads bytes= 543 fnv1a64=2eb88a9fb86b42ba
 tools/explore/tests/src/input_tests.adb bytes= 17077 fnv1a64=6648680f99fa8996
 tools/explore/tests/src/input_tests.ads bytes= 752 fnv1a64=0bb81422377d6b44
-tools/explore/tests/src/jobs_tests.adb bytes= 12396 fnv1a64=42334e04516dc669
-tools/explore/tests/src/jobs_tests.ads bytes= 588 fnv1a64=e02eb35f3aad6317
+tools/explore/tests/src/jobs_tests.adb bytes= 13552 fnv1a64=406deb822f779551
+tools/explore/tests/src/jobs_tests.ads bytes= 643 fnv1a64=75c7a514541d71f3
 tools/explore/tests/src/line_editor_tests.adb bytes= 5201 fnv1a64=d7b18c40e5a5e820
 tools/explore/tests/src/line_editor_tests.ads bytes= 436 fnv1a64=c18a121a8fced0b7
 tools/explore/tests/src/model_tests.adb bytes= 22414 fnv1a64=a27d788fc9f228c5

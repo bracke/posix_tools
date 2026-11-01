@@ -156,14 +156,15 @@ package body Explore.Application.Controller is
          return;
       end if;
 
+      --  The board answers only if the lane still asks about that target.
       if Input.Is_Character (Item, 'o') then
-         Operations.Answer (Explore.Jobs.Overwrite_One);
+         Operations.Answer (Lane, Now.Lanes (Lane).Conflict, Explore.Jobs.Overwrite_One);
       elsif Input.Is_Character (Item, 'O') then
-         Operations.Answer (Explore.Jobs.Overwrite_All);
+         Operations.Answer (Lane, Now.Lanes (Lane).Conflict, Explore.Jobs.Overwrite_All);
       elsif Input.Is_Character (Item, 's') or else Item.Key = Input.Escape then
-         Operations.Answer (Explore.Jobs.Skip_One);
+         Operations.Answer (Lane, Now.Lanes (Lane).Conflict, Explore.Jobs.Skip_One);
       elsif Input.Is_Character (Item, 'S') then
-         Operations.Answer (Explore.Jobs.Skip_All);
+         Operations.Answer (Lane, Now.Lanes (Lane).Conflict, Explore.Jobs.Skip_All);
       elsif Item.Mods.Control and then Item.Code = 'c' then
          Operations.Cancel (Now.Lanes (Lane).Job.Id);
       end if;
@@ -668,10 +669,10 @@ package body Explore.Application.Controller is
          when Keymap.No_Action =>
             null;
          when Keymap.Quit =>
-            --  Quitting stops what is copying, moving or deleting, so ask first.
-            if Explore.Jobs.Any_Running (State.Workers.Last_Job)
-              or else not State.Workers.Last_Job.Queued.Is_Empty
-            then
+            --  Quitting stops what is copying, moving or deleting, so ask
+            --  first. The board is asked as it is now: a paste typed just
+            --  before is on it, though the screen has not shown it yet.
+            if Explore.Jobs.Any_Active (State.Workers.Operations.Status) then
                Ask (State, Confirming_Quit, Unbounded.To_String (Words.Confirm_Quit));
             else
                State.Quit := True;
@@ -733,7 +734,8 @@ package body Explore.Application.Controller is
          when Keymap.Rename_Entry | Keymap.Create_Entry | Keymap.Change_Mode =>
             Ask_For_Name (State, Item.Kind);
          when Keymap.Cancel_Job =>
-            if Explore.Jobs.Any_Running (State.Workers.Last_Job) then
+            --  Asked as the board is now, not as the screen last showed it.
+            if Explore.Jobs.Any_Running (State.Workers.Operations.Status) then
                State.Workers.Operations.Cancel_Running;
                Say (State, Unbounded.To_String (Words.Cancelled));
             end if;

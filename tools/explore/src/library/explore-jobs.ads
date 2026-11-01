@@ -90,6 +90,9 @@ package Explore.Jobs is
 
    function Any_Running (Item : Snapshot) return Boolean is (for some Lane of Item.Lanes => Lane.Running);
 
+   --  Whether any job runs or waits to.
+   function Any_Active (Item : Snapshot) return Boolean is (Any_Running (Item) or else not Item.Queued.Is_Empty);
+
    --  The lane whose job waits for an answer; zero when none does.
    function Asking_Lane (Item : Snapshot) return Natural;
 
@@ -117,8 +120,10 @@ package Explore.Jobs is
       --  Cancel every running job.
       procedure Cancel_Running;
 
-      --  Answer the question of the lane Asking_Lane names.
-      procedure Answer (Choice : Conflict_Answer);
+      --  Answer the question of Lane with Choice, if it still asks about
+      --  Conflict: a job answered can ask again at once, about another
+      --  target, and an answer meant for the one before must not answer it.
+      procedure Answer (Lane : Lane_Index; Conflict : Ada.Strings.Unbounded.Unbounded_String; Choice : Conflict_Answer);
 
       function Status return Snapshot;
 
