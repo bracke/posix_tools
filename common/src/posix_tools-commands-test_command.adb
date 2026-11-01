@@ -14,348 +14,254 @@ package body Posix_Tools.Commands.Test_Command is
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
    use type Posix_Tools.Host_Adapters.File_System.Special_File_Kind;
 
+   use Ada.Strings.Unbounded;
+
    package FS renames Posix_Tools.Host_Adapters.File_System;
+
+   --  The parse of one test expression: where it has got to, and the first
+   --  error found on the way, reported once the whole expression is read.
+   type Parser_State (Context : not null access Posix_Tools.Commands.Contexts.Context'Class) is limited record
+      --  The expression could not be parsed.
+      Syntax_Error    : Boolean := False;
+      --  The usage diagnostic for it, and the argument it names.
+      Syntax_Message  : Usage_Message := Invalid_Expression;
+      Syntax_Subject  : Unbounded_String;
+      --  The first operand of an integer comparison that is not an integer.
+      Bad_Integer     : Unbounded_String;
+      Has_Bad_Integer : Boolean := False;
+      --  The general grammar for more than four arguments (XSI): '!' binds
+      --  tighter than -a, -a tighter than -o, and parentheses group.
+      Position        : Positive := 1;
+      Last            : Natural := 0;
+   end record;
+
+   function Arg (State : Parser_State; Index : Positive) return String is (State.Context.Argument (Index));
+   function Binary_Test (State : in out Parser_State; Left, Op, Right : String) return Boolean;
+   function Collation_Locale (State : Parser_State) return String;
+   function Evaluate (State : in out Parser_State; First : Positive; Count : Natural) return Boolean;
+   function Integer_Operand (State : in out Parser_State; Text : String) return Boolean;
+   procedure Invalid
+     (State   : in out Parser_State;
+      Message : Usage_Message := Invalid_Expression;
+      Subject : String := "");
+   function Parse_And (State : in out Parser_State) return Boolean;
+   function Parse_Expression (State : in out Parser_State; First, Final : Positive) return Boolean;
+   function Parse_Not (State : in out Parser_State) return Boolean;
+   function Parse_Or (State : in out Parser_State) return Boolean;
+   function Parse_Primary (State : in out Parser_State) return Boolean;
+   function String_Comparison (State : Parser_State; Left, Op, Right : String) return Boolean;
+   function Unary_Test
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Op      : String;
+      Operand : String) return Boolean;
+
+   --  A binary primary of $2 between $1 and $3; -a and -o are the XSI
+   --  binary primaries "both nonempty" and "either nonempty".
+   function Binary_Test (State : in out Parser_State; Left, Op, Right : String) return Boolean is
+   begin
+      if Op = "-a" then
+         return Left /= "" and then Right /= "";
+      elsif Op = "-o" then
+         return Left /= "" or else Right /= "";
+      elsif Op = "=" then
+         return Left = Right;
+      elsif Op = "!=" then
+         return Left /= Right;
+      elsif Op = "<" or else Op = ">" then
+         return String_Comparison (State, Left, Op, Right);
+      elsif Op = "-ef" then
+         return FS.Same_File (Left, Right);
+      elsif not Integer_Operand (State, Left) or else not Integer_Operand (State, Right) then
+         return False;
+      else
+         return Posix_Tools.Text.Test_Operators.Numeric_Comparison (Left, Op, Right);
+      end if;
+   exception
+      when Constraint_Error =>
+         return False;
+   end Binary_Test;
+
+   function Collation_Locale (State : Parser_State) return String is
+     (State.Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
+
+   --  XCU test decides by the number of arguments before it parses: the
+   --  rules for up to four arguments come first, so "x = -a" compares two
+   --  strings and "( = (" is true.
+   function Evaluate (State : in out Parser_State; First : Positive; Count : Natural) return Boolean is
+   begin
+      case Count is
+         when 0 =>
+            return False;
+         when 1 =>
+            return Arg (State, First) /= "";
+         when 2 =>
+            if Arg (State, First) = "!" then
+               return Arg (State, First + 1) = "";
+            elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Arg (State, First)) then
+               return Unary_Test (State.Context.all, Arg (State, First), Arg (State, First + 1));
+            elsif Arg (State, First)'Length > 1 and then Arg (State, First) (Arg (State, First)'First) = '-' then
+               Invalid (State, Unknown_Option, Arg (State, First));
+            else
+               Invalid (State);
+            end if;
+            return False;
+         when 3 =>
+            if Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (State, First + 1))
+              or else Arg (State, First + 1) in "-a" | "-o"
+            then
+               return Binary_Test (State, Arg (State, First), Arg (State, First + 1), Arg (State, First + 2));
+            elsif Arg (State, First) = "!" then
+               return not Evaluate (State, First + 1, 2);
+            elsif Arg (State, First) = "(" and then Arg (State, First + 2) = ")" then
+               return Evaluate (State, First + 1, 1);
+            elsif Arg (State, First + 1)'Length > 0
+              and then Arg (State, First + 1) (Arg (State, First + 1)'First) in '-' | '=' | '<' | '>'
+            then
+               Invalid (State, Unknown_Operator, Arg (State, First + 1));
+            else
+               Invalid (State);
+            end if;
+            return False;
+         when 4 =>
+            if Arg (State, First) = "!" then
+               return not Evaluate (State, First + 1, 3);
+            elsif Arg (State, First) = "(" and then Arg (State, First + 3) = ")" then
+               return Evaluate (State, First + 1, 2);
+            else
+               return Parse_Expression (State, First, First + 3);
+            end if;
+         when others =>
+            return Parse_Expression (State, First, First + Count - 1);
+      end case;
+   end Evaluate;
+
+   --  Is Text an integer for -eq and its kind? The first one that is not
+   --  is kept for the diagnostic.
+   function Integer_Operand (State : in out Parser_State; Text : String) return Boolean is
+   begin
+      if Posix_Tools.Text.Decimal_Parsing.Long_Long_Value (Text).Valid then
+         return True;
+      end if;
+      if not State.Has_Bad_Integer then
+         State.Has_Bad_Integer := True;
+         State.Bad_Integer := To_Unbounded_String (Text);
+      end if;
+      return False;
+   end Integer_Operand;
+
+   procedure Invalid
+     (State   : in out Parser_State;
+      Message : Usage_Message := Invalid_Expression;
+      Subject : String := "")
+   is
+   begin
+      if not State.Syntax_Error then
+         State.Syntax_Error := True;
+         State.Syntax_Message := Message;
+         State.Syntax_Subject := To_Unbounded_String (Subject);
+      end if;
+   end Invalid;
+
+   function Parse_And (State : in out Parser_State) return Boolean is
+      Value : Boolean := Parse_Not (State);
+   begin
+      while not State.Syntax_Error
+        and then State.Position <= State.Last
+        and then Arg (State, State.Position) = "-a"
+      loop
+         State.Position := State.Position + 1;
+         declare
+            Right : constant Boolean := Parse_Not (State);
+         begin
+            Value := Value and Right;
+         end;
+      end loop;
+      return Value;
+   end Parse_And;
+
+   function Parse_Expression (State : in out Parser_State; First, Final : Positive) return Boolean is
+      Value : Boolean;
+   begin
+      State.Position := First;
+      State.Last := Final;
+      Value := Parse_Or (State);
+      if not State.Syntax_Error and then State.Position <= State.Last then
+         Invalid (State);
+      end if;
+      return Value;
+   end Parse_Expression;
+
+   function Parse_Not (State : in out Parser_State) return Boolean is
+   begin
+      if State.Position <= State.Last and then Arg (State, State.Position) = "!" then
+         State.Position := State.Position + 1;
+         return not Parse_Not (State);
+      end if;
+      return Parse_Primary (State);
+   end Parse_Not;
+
+   function Parse_Or (State : in out Parser_State) return Boolean is
+      Value : Boolean := Parse_And (State);
+   begin
+      while not State.Syntax_Error
+        and then State.Position <= State.Last
+        and then Arg (State, State.Position) = "-o"
+      loop
+         State.Position := State.Position + 1;
+         declare
+            Right : constant Boolean := Parse_And (State);
+         begin
+            Value := Value or Right;
+         end;
+      end loop;
+      return Value;
+   end Parse_Or;
+
+   function Parse_Primary (State : in out Parser_State) return Boolean is
+   begin
+      if State.Position > State.Last then
+         Invalid (State);
+         return False;
+      end if;
+
+      declare
+         Token : constant String := Arg (State, State.Position);
+      begin
+         if State.Position + 2 <= State.Last
+           and then Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (State, State.Position + 1))
+         then
+            State.Position := State.Position + 3;
+            return Binary_Test (State, Token, Arg (State, State.Position - 2), Arg (State, State.Position - 1));
+         elsif Token = "(" then
+            State.Position := State.Position + 1;
+            declare
+               Value : constant Boolean := Parse_Or (State);
+            begin
+               if State.Syntax_Error or else State.Position > State.Last or else Arg (State, State.Position) /= ")" then
+                  Invalid (State);
+                  return False;
+               end if;
+               State.Position := State.Position + 1;
+               return Value;
+            end;
+         elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Token) and then State.Position < State.Last then
+            State.Position := State.Position + 2;
+            return Unary_Test (State.Context.all, Token, Arg (State, State.Position - 1));
+         elsif Token in ")" | "-a" | "-o" then
+            Invalid (State);
+            return False;
+         else
+            State.Position := State.Position + 1;
+            return Token /= "";
+         end if;
+      end;
+   end Parse_Primary;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      use Ada.Strings.Unbounded;
-
-      --  The expression could not be parsed.
-      Syntax_Error  : Boolean := False;
-      --  The usage diagnostic for it, and the argument it names.
-      Syntax_Message : Usage_Message := Invalid_Expression;
-      Syntax_Subject : Unbounded_String;
-      --  The first operand of an integer comparison that is not an integer.
-      Bad_Integer   : Unbounded_String;
-      Has_Bad_Integer : Boolean := False;
-
-      --  The general grammar for more than four arguments (XSI): '!' binds
-      --  tighter than -a, -a tighter than -o, and parentheses group.
-      Position : Positive := 1;
-      Last     : Natural := 0;
-
-      function Arg (Index : Positive) return String is (Context.Argument (Index));
-      function Binary_Test (Left, Op, Right : String) return Boolean;
-      function Collation_Locale return String;
-      function Evaluate (First : Positive; Count : Natural) return Boolean;
-      function Integer_Operand (Text : String) return Boolean;
-      procedure Invalid (Message : Usage_Message := Invalid_Expression; Subject : String := "");
-      function Parse_And return Boolean;
-      function Parse_Expression (First, Final : Positive) return Boolean;
-      function Parse_Not return Boolean;
-      function Parse_Or return Boolean;
-      function Parse_Primary return Boolean;
-      function String_Comparison (Left, Op, Right : String) return Boolean;
-      function Unary_Test (Op, Operand : String) return Boolean;
-
-      --  A binary primary of $2 between $1 and $3; -a and -o are the XSI
-      --  binary primaries "both nonempty" and "either nonempty".
-      function Binary_Test (Left, Op, Right : String) return Boolean is
-      begin
-         if Op = "-a" then
-            return Left /= "" and then Right /= "";
-         elsif Op = "-o" then
-            return Left /= "" or else Right /= "";
-         elsif Op = "=" then
-            return Left = Right;
-         elsif Op = "!=" then
-            return Left /= Right;
-         elsif Op = "<" or else Op = ">" then
-            return String_Comparison (Left, Op, Right);
-         elsif Op = "-ef" then
-            return FS.Same_File (Left, Right);
-         elsif not Integer_Operand (Left) or else not Integer_Operand (Right) then
-            return False;
-         else
-            return Posix_Tools.Text.Test_Operators.Numeric_Comparison (Left, Op, Right);
-         end if;
-      exception
-         when Constraint_Error =>
-            return False;
-      end Binary_Test;
-
-      function Collation_Locale return String is
-        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
-
-      --  XCU test decides by the number of arguments before it parses: the
-      --  rules for up to four arguments come first, so "x = -a" compares two
-      --  strings and "( = (" is true.
-      function Evaluate (First : Positive; Count : Natural) return Boolean is
-      begin
-         case Count is
-            when 0 =>
-               return False;
-            when 1 =>
-               return Arg (First) /= "";
-            when 2 =>
-               if Arg (First) = "!" then
-                  return Arg (First + 1) = "";
-               elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Arg (First)) then
-                  return Unary_Test (Arg (First), Arg (First + 1));
-               elsif Arg (First)'Length > 1 and then Arg (First) (Arg (First)'First) = '-' then
-                  Invalid (Unknown_Option, Arg (First));
-               else
-                  Invalid;
-               end if;
-               return False;
-            when 3 =>
-               if Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (First + 1))
-                 or else Arg (First + 1) in "-a" | "-o"
-               then
-                  return Binary_Test (Arg (First), Arg (First + 1), Arg (First + 2));
-               elsif Arg (First) = "!" then
-                  return not Evaluate (First + 1, 2);
-               elsif Arg (First) = "(" and then Arg (First + 2) = ")" then
-                  return Evaluate (First + 1, 1);
-               elsif Arg (First + 1)'Length > 0
-                 and then Arg (First + 1) (Arg (First + 1)'First) in '-' | '=' | '<' | '>'
-               then
-                  Invalid (Unknown_Operator, Arg (First + 1));
-               else
-                  Invalid;
-               end if;
-               return False;
-            when 4 =>
-               if Arg (First) = "!" then
-                  return not Evaluate (First + 1, 3);
-               elsif Arg (First) = "(" and then Arg (First + 3) = ")" then
-                  return Evaluate (First + 1, 2);
-               else
-                  return Parse_Expression (First, First + 3);
-               end if;
-            when others =>
-               return Parse_Expression (First, First + Count - 1);
-         end case;
-      end Evaluate;
-
-      --  Is Text an integer for -eq and its kind? The first one that is not
-      --  is kept for the diagnostic.
-      function Integer_Operand (Text : String) return Boolean is
-      begin
-         if Posix_Tools.Text.Decimal_Parsing.Long_Long_Value (Text).Valid then
-            return True;
-         end if;
-         if not Has_Bad_Integer then
-            Has_Bad_Integer := True;
-            Bad_Integer := To_Unbounded_String (Text);
-         end if;
-         return False;
-      end Integer_Operand;
-
-      procedure Invalid (Message : Usage_Message := Invalid_Expression; Subject : String := "") is
-      begin
-         if not Syntax_Error then
-            Syntax_Error := True;
-            Syntax_Message := Message;
-            Syntax_Subject := To_Unbounded_String (Subject);
-         end if;
-      end Invalid;
-
-      function Parse_And return Boolean is
-         Value : Boolean := Parse_Not;
-      begin
-         while not Syntax_Error and then Position <= Last and then Arg (Position) = "-a" loop
-            Position := Position + 1;
-            declare
-               Right : constant Boolean := Parse_Not;
-            begin
-               Value := Value and Right;
-            end;
-         end loop;
-         return Value;
-      end Parse_And;
-
-      function Parse_Expression (First, Final : Positive) return Boolean is
-         Value : Boolean;
-      begin
-         Position := First;
-         Last := Final;
-         Value := Parse_Or;
-         if not Syntax_Error and then Position <= Last then
-            Invalid;
-         end if;
-         return Value;
-      end Parse_Expression;
-
-      function Parse_Not return Boolean is
-      begin
-         if Position <= Last and then Arg (Position) = "!" then
-            Position := Position + 1;
-            return not Parse_Not;
-         end if;
-         return Parse_Primary;
-      end Parse_Not;
-
-      function Parse_Or return Boolean is
-         Value : Boolean := Parse_And;
-      begin
-         while not Syntax_Error and then Position <= Last and then Arg (Position) = "-o" loop
-            Position := Position + 1;
-            declare
-               Right : constant Boolean := Parse_And;
-            begin
-               Value := Value or Right;
-            end;
-         end loop;
-         return Value;
-      end Parse_Or;
-
-      function Parse_Primary return Boolean is
-      begin
-         if Position > Last then
-            Invalid;
-            return False;
-         end if;
-
-         declare
-            Token : constant String := Arg (Position);
-         begin
-            if Position + 2 <= Last
-              and then Posix_Tools.Text.Test_Operators.Is_Binary_Operator (Arg (Position + 1))
-            then
-               Position := Position + 3;
-               return Binary_Test (Token, Arg (Position - 2), Arg (Position - 1));
-            elsif Token = "(" then
-               Position := Position + 1;
-               declare
-                  Value : constant Boolean := Parse_Or;
-               begin
-                  if Syntax_Error or else Position > Last or else Arg (Position) /= ")" then
-                     Invalid;
-                     return False;
-                  end if;
-                  Position := Position + 1;
-                  return Value;
-               end;
-            elsif Posix_Tools.Text.Test_Operators.Is_Unary_Operator (Token) and then Position < Last then
-               Position := Position + 2;
-               return Unary_Test (Token, Arg (Position - 1));
-            elsif Token in ")" | "-a" | "-o" then
-               Invalid;
-               return False;
-            else
-               Position := Position + 1;
-               return Token /= "";
-            end if;
-         end;
-      end Parse_Primary;
-
-      function String_Comparison (Left, Op, Right : String) return Boolean is
-         Compared : constant Integer :=
-           Posix_Tools.Commands.Text_Helpers.Collation.Compare (Collation_Locale, Left, Right);
-      begin
-         return
-           (if Op = "<" then Compared < 0
-            elsif Op = ">" then Compared > 0
-            else False);
-      exception
-         when Constraint_Error =>
-            return
-              (if Op = "<" then Left < Right
-               elsif Op = ">" then Left > Right
-               else False);
-      end String_Comparison;
-
-      function Unary_Test (Op, Operand : String) return Boolean is
-         function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean;
-         function Terminal_File_Descriptor return Boolean;
-
-         function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean is
-         begin
-            return Posix_Tools.Text.File_Modes.Has_Any_Mode_Bit (Mode, Mask);
-         end Has_Any_Mode_Bit;
-
-         function Terminal_File_Descriptor return Boolean is
-         begin
-            if Operand = "0" then
-               return Context.Standard_Input_Is_Terminal;
-            elsif Operand = "1" then
-               return Context.Standard_Output_Is_Terminal;
-            elsif Operand = "2" then
-               return Context.Standard_Error_Is_Terminal;
-            else
-               return False;
-            end if;
-         end Terminal_File_Descriptor;
-      begin
-         if Op = "-e" then
-            return FS.Exists (Operand);
-         elsif Op = "-h" or else Op = "-L" then
-            return FS.Is_Link (Operand);
-         elsif Op = "-n" then
-            return Operand /= "";
-         elsif Op = "-z" then
-            return Operand = "";
-         elsif Op = "-d" then
-            return FS.Kind (Operand) = FS.Directory;
-         elsif Op = "-f" then
-            return FS.Kind (Operand) = FS.Ordinary_File;
-         elsif Op in "-b" | "-c" | "-p" | "-S" then
-            declare
-               Info : constant FS.Special_File_Info := FS.Special_File_Info_Of (Operand);
-            begin
-               return Info.Available
-                 and then
-                   (if Op = "-b" then Info.Kind = FS.Block_Device
-                    elsif Op = "-c" then Info.Kind = FS.Character_Device
-                    elsif Op = "-p" then Info.Kind = FS.FIFO
-                    else Info.Kind = FS.Socket);
-            end;
-         elsif Op = "-s" then
-            return FS.Kind (Operand) = FS.Ordinary_File
-              and then FS.Size (Operand) > 0;
-         elsif Op = "-t" then
-            return Terminal_File_Descriptor;
-         elsif Op in "-g" | "-k" | "-u" then
-            declare
-               Available : Boolean;
-               Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
-               Mask      : constant Natural :=
-                 (if Op = "-u" then 8#4000#
-                  elsif Op = "-g" then 8#2000#
-                  else 8#1000#);
-            begin
-               return FS.Permissions_Supported
-                 and then Available
-                 and then (Mode / Mask) mod 2 = 1;
-            end;
-         elsif Op = "-r" then
-            --  Whether it could be opened for reading, not read: a device
-            --  such as /dev/zero never ends. Opening a FIFO waits for a
-            --  writer, and Windows opens no directory as a file, so those
-            --  answer by their permission bits, as -w and -x do.
-            if FS.Kind (Operand) = FS.Directory
-              or else FS.Special_File_Info_Of (Operand).Kind = FS.FIFO
-            then
-               declare
-                  Available : Boolean;
-                  Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
-               begin
-                  return not FS.Permissions_Supported
-                    or else (Available and then Has_Any_Mode_Bit (Mode, 8#444#));
-               end;
-            end if;
-            return FS.Can_Open_For_Read (Operand);
-         elsif Op = "-w" or else Op = "-x" then
-            declare
-               Available : Boolean;
-               Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
-               Mask      : constant Natural := (if Op = "-w" then 8#222# else 8#111#);
-            begin
-               return FS.Permissions_Supported
-                 and then Available
-                 and then Has_Any_Mode_Bit (Mode, Mask);
-            end;
-         else
-            return False;
-         end if;
-      exception
-         when others =>
-            return False;
-      end Unary_Test;
-
+      State : Parser_State (Context'Access);
       Truth : Boolean;
    begin
       --  Every argument is an operand of the expression, so the project
@@ -366,16 +272,135 @@ package body Posix_Tools.Commands.Test_Command is
          return;
       end if;
 
-      Truth := Evaluate (1, Context.Argument_Count);
+      Truth := Evaluate (State, 1, Context.Argument_Count);
 
-      if Syntax_Error then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Syntax_Message, To_String (Syntax_Subject));
-      elsif Has_Bad_Integer then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Integer_Expected, To_String (Bad_Integer));
+      if State.Syntax_Error then
+         Posix_Tools.Commands.Helpers.Usage_Error
+           (Context, Result, State.Syntax_Message, To_String (State.Syntax_Subject));
+      elsif State.Has_Bad_Integer then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Integer_Expected, To_String (State.Bad_Integer));
       else
          Result.Status :=
            (if Truth then Posix_Tools.Exit_Status.Success
             else Posix_Tools.Exit_Status.Operational_Failure);
       end if;
    end Run;
+
+   function String_Comparison (State : Parser_State; Left, Op, Right : String) return Boolean is
+      Compared : constant Integer :=
+        Posix_Tools.Commands.Text_Helpers.Collation.Compare (Collation_Locale (State), Left, Right);
+   begin
+      return
+        (if Op = "<" then Compared < 0
+         elsif Op = ">" then Compared > 0
+         else False);
+   exception
+      when Constraint_Error =>
+         return
+           (if Op = "<" then Left < Right
+            elsif Op = ">" then Left > Right
+            else False);
+   end String_Comparison;
+
+   function Unary_Test
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Op      : String;
+      Operand : String) return Boolean
+   is
+      function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean;
+      function Terminal_File_Descriptor return Boolean;
+
+      function Has_Any_Mode_Bit (Mode, Mask : Natural) return Boolean is
+      begin
+         return Posix_Tools.Text.File_Modes.Has_Any_Mode_Bit (Mode, Mask);
+      end Has_Any_Mode_Bit;
+
+      function Terminal_File_Descriptor return Boolean is
+      begin
+         if Operand = "0" then
+            return Context.Standard_Input_Is_Terminal;
+         elsif Operand = "1" then
+            return Context.Standard_Output_Is_Terminal;
+         elsif Operand = "2" then
+            return Context.Standard_Error_Is_Terminal;
+         else
+            return False;
+         end if;
+      end Terminal_File_Descriptor;
+   begin
+      if Op = "-e" then
+         return FS.Exists (Operand);
+      elsif Op = "-h" or else Op = "-L" then
+         return FS.Is_Link (Operand);
+      elsif Op = "-n" then
+         return Operand /= "";
+      elsif Op = "-z" then
+         return Operand = "";
+      elsif Op = "-d" then
+         return FS.Kind (Operand) = FS.Directory;
+      elsif Op = "-f" then
+         return FS.Kind (Operand) = FS.Ordinary_File;
+      elsif Op in "-b" | "-c" | "-p" | "-S" then
+         declare
+            Info : constant FS.Special_File_Info := FS.Special_File_Info_Of (Operand);
+         begin
+            return Info.Available
+              and then
+                (if Op = "-b" then Info.Kind = FS.Block_Device
+                 elsif Op = "-c" then Info.Kind = FS.Character_Device
+                 elsif Op = "-p" then Info.Kind = FS.FIFO
+                 else Info.Kind = FS.Socket);
+         end;
+      elsif Op = "-s" then
+         return FS.Kind (Operand) = FS.Ordinary_File
+           and then FS.Size (Operand) > 0;
+      elsif Op = "-t" then
+         return Terminal_File_Descriptor;
+      elsif Op in "-g" | "-k" | "-u" then
+         declare
+            Available : Boolean;
+            Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
+            Mask      : constant Natural :=
+              (if Op = "-u" then 8#4000#
+               elsif Op = "-g" then 8#2000#
+               else 8#1000#);
+         begin
+            return FS.Permissions_Supported
+              and then Available
+              and then (Mode / Mask) mod 2 = 1;
+         end;
+      elsif Op = "-r" then
+         --  Whether it could be opened for reading, not read: a device
+         --  such as /dev/zero never ends. Opening a FIFO waits for a
+         --  writer, and Windows opens no directory as a file, so those
+         --  answer by their permission bits, as -w and -x do.
+         if FS.Kind (Operand) = FS.Directory
+           or else FS.Special_File_Info_Of (Operand).Kind = FS.FIFO
+         then
+            declare
+               Available : Boolean;
+               Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
+            begin
+               return not FS.Permissions_Supported
+                 or else (Available and then Has_Any_Mode_Bit (Mode, 8#444#));
+            end;
+         end if;
+         return FS.Can_Open_For_Read (Operand);
+      elsif Op = "-w" or else Op = "-x" then
+         declare
+            Available : Boolean;
+            Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
+            Mask      : constant Natural := (if Op = "-w" then 8#222# else 8#111#);
+         begin
+            return FS.Permissions_Supported
+              and then Available
+              and then Has_Any_Mode_Bit (Mode, Mask);
+         end;
+      else
+         return False;
+      end if;
+   exception
+      when others =>
+         return False;
+   end Unary_Test;
 end Posix_Tools.Commands.Test_Command;
