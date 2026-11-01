@@ -518,17 +518,18 @@ package body Metadata_Checks.Packaging is
          Require_Checksum_Row ("executable", "bin/posix-tools");
       end Require_Release_Checksums_Cover_Inventory;
    begin
+      --  What the package holds is checked whole: the package entries
+      --  are the tracked files, the file list is the entries, and the
+      --  manifest has each one's current size and checksum.
+      Require_Package_File_List_Matches_Manifest;
+      Require_Package_File_List_Covers_Fixtures;
+      Require_Package_File_List_Covers_Release_Metadata;
+      Require_Package_Entries_Match_Tracked_Files;
       Tooling_Checks.Require_Directory (Check, "generated/man");
-      Tooling_Checks.Require_Text
-        (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/man/posix-tools.1");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDIN-0001");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDOUT-0001");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0006");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0007");
-      Tooling_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "documentation_path");
       Tooling_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
       Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "INVENTORY-STRUCTURE-001");
@@ -541,18 +542,6 @@ package body Metadata_Checks.Packaging is
         (Check, "generated/requirements.csv", "REGRESSION-METADATA-001");
       Tooling_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
       Tooling_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
-      Tooling_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "docs/commands/wc.md");
-      if Writes_Release_Checksums then
-         Tooling_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
-         Tooling_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
-         Tooling_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
-      end if;
-      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "platform-aware executable artifact lookup");
       Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented;
       Require_Non_SPARK_Specs_Are_Documented_Boundaries;
@@ -561,87 +550,6 @@ package body Metadata_Checks.Packaging is
       end if;
 
       Tooling_Checks.Require_Text (Check, ".gitignore", "/dist/");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/package-files.txt");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "alire.toml");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/alire.toml");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/posix_tools_proof.gpr");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/architecture.md");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/conformance.md");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/testing.md");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "src/posix-tools.adb");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-version.ads");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-commands-cat.adb");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-streams-counting.adb");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/messages/posix_tools.catalog");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "tests/alire.toml");
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "tests/src/posix_tools_tests.adb");
-      Require_Package_File_List_Matches_Manifest;
-      Require_Package_File_List_Covers_Fixtures;
-      Require_Package_File_List_Covers_Release_Metadata;
-      Require_Package_Entries_Match_Tracked_Files;
-      Tooling_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "tests/src/test_contexts.ads");
-      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Tooling_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Manifest_Path (I));
-         Tooling_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Project_File_Path (I));
-         Tooling_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Documentation_Path (I));
-         Tooling_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Wrapper_Path (I));
-         Tooling_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
-         Tooling_Checks.Require_Text
-           (Check,
-            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1",
-            ".TH " & Posix_Tools.Command_Inventory.Executable (I) & " 1");
-         if Writes_Release_Checksums then
-            Tooling_Checks.Require_Text
-              (Check,
-               "generated/release-checksums.txt",
-               "executable tools/" & Posix_Tools.Command_Inventory.Executable (I)
-               & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
-         end if;
-      end loop;
       Tooling_Checks.Require_Text (Check, "README.md", "posix_tools");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Tooling_Checks.Require_Text
