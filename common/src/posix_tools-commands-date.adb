@@ -12,15 +12,6 @@ package body Posix_Tools.Commands.Date is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
 
-   procedure Set_Success
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result) is
-   begin
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
-   end Set_Success;
-
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
@@ -115,7 +106,7 @@ package body Posix_Tools.Commands.Date is
                Time_Zone => Time_Zone_Offset));
       end if;
 
-      Set_Success (Context, Result);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 
 end Posix_Tools.Commands.Date;

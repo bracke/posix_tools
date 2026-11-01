@@ -30,9 +30,7 @@ package body Posix_Tools.Commands.Unlink is
       end if;
 
       if FS.Delete_File (Context.Argument (First)) then
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");

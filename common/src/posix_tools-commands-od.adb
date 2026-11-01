@@ -179,9 +179,7 @@ package body Posix_Tools.Commands.Od is
             Formats     => Formats,
             Verbose     => Verbose);
       end;
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 
 end Posix_Tools.Commands.Od;

@@ -32,9 +32,7 @@ package body Posix_Tools.Commands.Logname is
 
       if Length (Name) > 0 then
          Context.Put_Line (To_String (Name));
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Operational_Error
            (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");

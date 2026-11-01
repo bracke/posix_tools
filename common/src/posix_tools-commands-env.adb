@@ -130,9 +130,7 @@ package body Posix_Tools.Commands.Env is
                   Result.Status := Posix_Tools.Exit_Status.Utility_Not_Found;
                end if;
             elsif Exit_Code = 0 then
-               Result.Status :=
-                 (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-                  else Posix_Tools.Exit_Status.Success);
+               Posix_Tools.Commands.Helpers.Finish (Context, Result);
             elsif Exit_Code in Integer (Posix_Tools.Exit_Status.Code'First)
               .. Integer (Posix_Tools.Exit_Status.Code'Last)
             then
@@ -148,8 +146,6 @@ package body Posix_Tools.Commands.Env is
          Context.Put_Line (Pairs.Element (I));
       end loop;
 
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Env;

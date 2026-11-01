@@ -23,16 +23,12 @@ package body Posix_Tools.Commands.Hostname is
                Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             else
                Context.Put_Line (Name);
-               Result.Status :=
-                 (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-                  else Posix_Tools.Exit_Status.Success);
+               Posix_Tools.Commands.Helpers.Finish (Context, Result);
             end if;
          end;
       elsif Context.Argument_Count = 1 then
          if Context.Set_Node_Name (Context.Argument (1)) then
-            Result.Status :=
-              (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-               else Posix_Tools.Exit_Status.Success);
+            Posix_Tools.Commands.Helpers.Finish (Context, Result);
          else
             Posix_Tools.Commands.Helpers.Operational_Error
               (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");

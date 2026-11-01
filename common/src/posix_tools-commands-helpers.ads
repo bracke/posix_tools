@@ -10,6 +10,13 @@ package Posix_Tools.Commands.Helpers is
       Result  : out Posix_Tools.Commands.Results.Result;
       Conventional : Boolean := True) return Boolean;
 
+   --  Set the status a command ends with: success when Ok and all its
+   --  output was written, operational failure otherwise.
+   procedure Finish
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Ok      : Boolean := True);
+
    --  Report Message, in the messages locale, as a usage error: the command
    --  ends with the invalid-usage status.
    procedure Usage_Error

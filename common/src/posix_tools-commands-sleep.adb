@@ -1,6 +1,5 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Duration_Fields;
 
 package body Posix_Tools.Commands.Sleep is
@@ -46,8 +45,6 @@ package body Posix_Tools.Commands.Sleep is
       end loop;
 
       delay Duration (Total_Seconds);
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Sleep;

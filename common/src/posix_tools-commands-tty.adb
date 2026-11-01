@@ -49,9 +49,7 @@ package body Posix_Tools.Commands.Tty is
          if not Silent then
             Context.Put_Line (Context.Standard_Input_Terminal_Name);
          end if;
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          if not Silent then
             Context.Put_Line ("not a tty");

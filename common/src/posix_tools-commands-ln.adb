@@ -183,10 +183,7 @@ package body Posix_Tools.Commands.Ln is
             end;
          end loop;
 
-         Result.Status :=
-           (if Ok and then not Context.Output_Failed
-            then Posix_Tools.Exit_Status.Success
-            else Posix_Tools.Exit_Status.Operational_Failure);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
       end;
    end Run;
 end Posix_Tools.Commands.Ln;

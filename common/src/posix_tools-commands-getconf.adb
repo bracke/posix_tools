@@ -94,9 +94,7 @@ package body Posix_Tools.Commands.Getconf is
 
       if Config_Value (Context.Argument (First), Value) then
          Context.Put_Line (To_String (Value));
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
       end if;

@@ -132,8 +132,6 @@ package body Posix_Tools.Commands.Id is
             & " gid=" & Posix_Tools.Commands.Helpers.Decorated_Group_Id_Text (Context, Group_Id)
             & " groups=" & Group_List (False, True));
       end if;
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Id;

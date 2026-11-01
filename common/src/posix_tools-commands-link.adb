@@ -30,9 +30,7 @@ package body Posix_Tools.Commands.Link is
       end if;
 
       if FS.Create_Hard_Link (Context.Argument (First), Context.Argument (First + 1)) then
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context, Context.Argument (First + 1), "posix_tools.diagnostic.file.open_failed", "cannot open file");

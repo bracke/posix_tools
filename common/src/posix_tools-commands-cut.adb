@@ -4,7 +4,6 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Cut_Fields;
@@ -258,9 +257,7 @@ package body Posix_Tools.Commands.Cut is
             end;
          end loop;
       end if;
-      Result.Status :=
-        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 
    function Selected (Ranges : Range_Vectors.Vector; Position : Positive) return Boolean is

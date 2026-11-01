@@ -23,9 +23,7 @@ package body Posix_Tools.Commands.Whoami is
       begin
          if Name /= "" then
             Context.Put_Line (Name);
-            Result.Status :=
-              (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-               else Posix_Tools.Exit_Status.Success);
+            Posix_Tools.Commands.Helpers.Finish (Context, Result);
          else
             Posix_Tools.Commands.Helpers.Operational_Error
               (Context, "posix_tools.diagnostic.unsupported", "unsupported platform capability");

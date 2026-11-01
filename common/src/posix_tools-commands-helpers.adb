@@ -63,6 +63,16 @@ package body Posix_Tools.Commands.Helpers is
       return True;
    end Intercept_Extension;
 
+   procedure Finish
+     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Ok      : Boolean := True) is
+   begin
+      Result.Status :=
+        (if Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
+         else Posix_Tools.Exit_Status.Operational_Failure);
+   end Finish;
+
    procedure Usage_Error
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;

@@ -52,10 +52,6 @@ package body Posix_Tools.Commands.Tr is
       Width      : out Natural;
       Code_Point : out Long_Long_Integer);
 
-   procedure Set_Success
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result);
-
    --  Splits bytes into one-byte elements, or into characters.
    function Split (Text : String; Multibyte : Boolean) return Element_Vectors.Vector;
 
@@ -475,21 +471,12 @@ package body Posix_Tools.Commands.Tr is
          if Ok and then Length (Pending) > 0 then
             Process (To_String (Pending), At_End => True);
          end if;
-         Set_Success (Context, Result);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
          if not Ok then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          end if;
       end;
    end Run;
-
-   procedure Set_Success
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result) is
-   begin
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
-   end Set_Success;
 
    function Split (Text : String; Multibyte : Boolean) return Element_Vectors.Vector is
       Output     : Element_Vectors.Vector;

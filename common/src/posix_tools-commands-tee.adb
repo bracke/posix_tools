@@ -2,7 +2,6 @@ with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Streams.Bytes;
@@ -151,10 +150,7 @@ package body Posix_Tools.Commands.Tee is
          end loop;
 
          Restore_Interrupt_Disposition;
-         Result.Status :=
-           (if Ok and then not Context.Output_Failed
-            then Posix_Tools.Exit_Status.Success
-            else Posix_Tools.Exit_Status.Operational_Failure);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
       end;
    exception
       when others =>

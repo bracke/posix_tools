@@ -165,10 +165,7 @@ package body Posix_Tools.Commands.Dd is
          end;
       end;
 
-      Result.Status :=
-        (if Ok and then not Context.Output_Failed
-         then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
       if Result.Status = Posix_Tools.Exit_Status.Success then
          Context.Put_Error_Line
            (Posix_Tools.Numbers.Count_Image (Input_Full_Records)

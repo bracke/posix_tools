@@ -3,7 +3,6 @@ with Ada.Strings.Unbounded;
 with I18N.Number_Format;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Seq_Formats;
@@ -16,16 +15,6 @@ package body Posix_Tools.Commands.Seq is
    LF : constant Character := Character'Val (10);
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
-
-   procedure Set_Success
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result)
-   is
-   begin
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
-   end Set_Success;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -251,6 +240,6 @@ package body Posix_Tools.Commands.Seq is
          end if;
       end;
 
-      Set_Success (Context, Result);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Seq;

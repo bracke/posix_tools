@@ -1,5 +1,4 @@
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Echo is
    procedure Run
@@ -22,8 +21,6 @@ package body Posix_Tools.Commands.Echo is
       end loop;
 
       Context.Put ("" & Character'Val (10));
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Echo;

@@ -227,9 +227,7 @@ package body Posix_Tools.Commands.Sort is
          Write_Output (Context, Options, Lines, Ok);
       end;
 
-      Result.Status :=
-        (if Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 
    procedure Write_Output

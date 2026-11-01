@@ -4,7 +4,6 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Display;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.Tab_Stops;
-with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Unexpand is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
@@ -214,8 +213,6 @@ package body Posix_Tools.Commands.Unexpand is
          end loop;
       end if;
 
-      Result.Status :=
-        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Unexpand;

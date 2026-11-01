@@ -1,6 +1,5 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Dirname is
@@ -24,9 +23,7 @@ package body Posix_Tools.Commands.Dirname is
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 1));
       else
          Context.Put (Posix_Tools.Paths.Dirname (Context.Argument (First)) & Character'Val (10));
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       end if;
    end Run;
 end Posix_Tools.Commands.Dirname;

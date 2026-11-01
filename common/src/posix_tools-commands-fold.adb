@@ -3,7 +3,6 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Display;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Text.Tab_Stops;
 
 package body Posix_Tools.Commands.Fold is
@@ -237,8 +236,6 @@ package body Posix_Tools.Commands.Fold is
          end loop;
       end if;
 
-      Result.Status :=
-        (if All_Ok and then not Context.Output_Failed then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Fold;

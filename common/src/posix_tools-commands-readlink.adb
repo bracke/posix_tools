@@ -35,9 +35,7 @@ package body Posix_Tools.Commands.Readlink is
 
       if FS.Read_Link_Target (Context.Argument (First), Target) then
          Context.Put_Line (To_String (Target));
-         Result.Status :=
-           (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-            else Posix_Tools.Exit_Status.Success);
+         Posix_Tools.Commands.Helpers.Finish (Context, Result);
       else
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
            (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");
