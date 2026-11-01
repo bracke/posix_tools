@@ -28,6 +28,10 @@ package body Posix_Tools.File_Operations.Copying is
       Ancestors : in out Path_Vectors.Vector;
       Outcome   : out Operation_Outcome);
 
+   --  Whether Child is Parent or lies inside it, once symbolic links in
+   --  either have been resolved; Child need not exist yet.
+   function Is_Same_Or_Descendant (Parent, Child : String) return Boolean;
+
    --  Path with its symbolic links resolved: through its longest part that
    --  exists, with the rest, which does not yet, after it.
    function Resolved (Path : String) return String;

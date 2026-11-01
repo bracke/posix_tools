@@ -8,6 +8,8 @@ with Posix_Tools.Text.Time_Fields;
 with Posix_Tools.Text.Touch_Fields;
 
 package body Posix_Tools.Commands.Touch_Time_Parsing is
+   package FS renames Posix_Tools.Host_Adapters.File_System;
+
    use type Ada.Calendar.Time;
    use type Ada.Containers.Count_Type;
 

@@ -18,6 +18,10 @@ package body Posix_Tools.File_Operations.Listing is
       Listed      : FS.Listed_Kind;
       With_Status : Boolean) return Listed_Entry;
 
+   --  Whether Name is one ls leaves out without -a: one starting with a dot.
+   function Is_Hidden (Name : String) return Boolean is
+     (Name'Length > 0 and then Name (Name'First) = '.');
+
    --  What the entry at Path is, asking the host, following a link.
    function Kind_Through_Link (Path : String) return Entry_Kind;
 

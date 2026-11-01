@@ -36,8 +36,4 @@ package Posix_Tools.File_Operations.Copying is
       Watcher   : in out Observer'Class;
       Outcome   : out Operation_Outcome;
       Behaviour : Copy_Behaviour := (others => <>));
-
-   --  Whether Child is Parent or lies inside it, once symbolic links in
-   --  either have been resolved; Child need not exist yet.
-   function Is_Same_Or_Descendant (Parent, Child : String) return Boolean;
 end Posix_Tools.File_Operations.Copying;

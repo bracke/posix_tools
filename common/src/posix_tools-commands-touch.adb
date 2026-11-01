@@ -1,7 +1,7 @@
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Commands.Touch_Times;
+with Posix_Tools.Commands.Touch_Time_Parsing;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 
@@ -51,7 +51,7 @@ package body Posix_Tools.Commands.Touch is
 
       procedure Select_Explicit_Time (Timestamp : String; Selected : out Boolean) is
       begin
-         if Posix_Tools.Commands.Touch_Times.Parse_Explicit_Time (Timestamp, Target_Time) then
+         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Explicit_Time (Timestamp, Target_Time) then
             Have_Target_Time := True;
             Selected := True;
          else
@@ -61,7 +61,7 @@ package body Posix_Tools.Commands.Touch is
 
       procedure Select_Date_Time (Timestamp : String; Selected : out Boolean) is
       begin
-         if Posix_Tools.Commands.Touch_Times.Parse_Date_Time (Timestamp, Target_Time) then
+         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Date_Time (Timestamp, Target_Time) then
             Have_Target_Time := True;
             Selected := True;
          else

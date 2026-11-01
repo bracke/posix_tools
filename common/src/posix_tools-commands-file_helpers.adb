@@ -3,18 +3,14 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.File_Helpers is
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
-   use type Posix_Tools.Host_Adapters.File_System.File_Kind;
    use type Posix_Tools.Numbers.Count;
 
    Buffer_Size : constant := 16 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
-
-   package FS renames Posix_Tools.Host_Adapters.File_System;
 
    procedure Append_Buffer_To_Line_Prefix
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -310,32 +306,6 @@ package body Posix_Tools.Commands.File_Helpers is
          Emit_Prefix_Line (Context, Current, Lines, Emitted, Ok);
       end if;
    end Finish_Line_Prefix;
-
-   function Is_Directory (Path : String) return Boolean is (FS.Kind (Path) = FS.Directory);
-
-   function Remove_Non_Directory_Target (Path : String) return Boolean is
-   begin
-      if FS.Is_Link (Path) then
-         return FS.Delete_Link (Path);
-      elsif FS.Exists (Path) then
-         return FS.Kind (Path) /= FS.Directory and then FS.Delete_File (Path);
-      end if;
-
-      return True;
-   end Remove_Non_Directory_Target;
-
-   function Target_Path
-     (Source              : String;
-      Target              : String;
-      Target_Is_Directory : Boolean) return String
-   is
-   begin
-      if Target_Is_Directory then
-         return FS.Child_Path (Target, Posix_Tools.Paths.Basename (Source));
-      else
-         return Target;
-      end if;
-   end Target_Path;
 
    function To_String
      (Buffer : Ada.Streams.Stream_Element_Array;

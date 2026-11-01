@@ -1,4 +1,3 @@
-with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
@@ -10,6 +9,22 @@ package body Posix_Tools.Commands.Ln is
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    use type FS.File_Kind;
+
+   --  Remove what Path names to make way for a link, unless it is a
+   --  directory: a link itself, not what it points to, or a file. True when
+   --  nothing is left in the way.
+   function Remove_Non_Directory_Target (Path : String) return Boolean;
+
+   function Remove_Non_Directory_Target (Path : String) return Boolean is
+   begin
+      if FS.Is_Link (Path) then
+         return FS.Delete_Link (Path);
+      elsif FS.Exists (Path) then
+         return FS.Kind (Path) /= FS.Directory and then FS.Delete_File (Path);
+      end if;
+
+      return True;
+   end Remove_Non_Directory_Target;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -85,7 +100,7 @@ package body Posix_Tools.Commands.Ln is
             Fail ("posix_tools.diagnostic.file.exists", "file exists");
             return;
          elsif Present
-           and then not Posix_Tools.Commands.File_Helpers.Remove_Non_Directory_Target (Target)
+           and then not Remove_Non_Directory_Target (Target)
          then
             if not FS.Is_Link (Target) and then FS.Kind (Target) = FS.Directory then
                Fail ("posix_tools.diagnostic.file.is_directory", "is a directory");
@@ -143,8 +158,7 @@ package body Posix_Tools.Commands.Ln is
       declare
          Operand_Count : constant Natural := Context.Argument_Count - First + 1;
          Target        : constant String := Context.Argument (Context.Argument_Count);
-         Target_Is_Dir : constant Boolean :=
-           Posix_Tools.Commands.File_Helpers.Is_Directory (Target);
+         Target_Is_Dir : constant Boolean := FS.Kind (Target) = FS.Directory;
          Ok            : Boolean := True;
       begin
          if Operand_Count > 2 and then not Target_Is_Dir then
@@ -157,8 +171,9 @@ package body Posix_Tools.Commands.Ln is
          for I in First .. Context.Argument_Count - 1 loop
             declare
                Destination : constant String :=
-                 Posix_Tools.Commands.File_Helpers.Target_Path
-                   (Context.Argument (I), Target, Target_Is_Dir);
+                 (if Target_Is_Dir
+                  then FS.Child_Path (Target, Posix_Tools.Paths.Basename (Context.Argument (I)))
+                  else Target);
                Created_One : Boolean;
             begin
                Create_Link (Context.Argument (I), Destination, Ok, Created_One);

@@ -41,9 +41,6 @@ package Posix_Tools.File_Operations.Listing is
 
    type Read_Outcome is (Read_Complete, Read_Stopped, Read_Failed);
 
-   function Is_Hidden (Name : String) return Boolean is
-     (Name'Length > 0 and then Name (Name'First) = '.');
-
    --  Read Path's entries, . and .. left out, in the order the directory gives
    --  them. Stop_Requested, when given, is asked between entries; once it
    --  answers True the read ends with Read_Stopped and the entries so far.
