@@ -16,7 +16,7 @@ package body Posix_Tools.Commands.Nohup is
       Previous      : Posix_Tools.Host_Adapters.Signals.Disposition :=
         Posix_Tools.Host_Adapters.Signals.Default_Disposition;
       Have_Previous : Boolean := False;
-      Ignored       : Boolean := False;
+      Hangup_Ignored : Boolean := False;
       Redirect_Out  : constant Boolean := Context.Standard_Output_Is_Terminal;
       Redirect_Err  : constant Boolean := Context.Standard_Error_Is_Terminal;
    begin
@@ -41,7 +41,7 @@ package body Posix_Tools.Commands.Nohup is
          Have_Previous :=
            Posix_Tools.Host_Adapters.Signals.Current_Disposition
              (Posix_Tools.Host_Adapters.Signals.Hangup, Previous);
-         Ignored :=
+         Hangup_Ignored :=
            Posix_Tools.Host_Adapters.Signals.Set_Disposition
              (Posix_Tools.Host_Adapters.Signals.Hangup,
               Posix_Tools.Host_Adapters.Signals.Ignore_Disposition);
@@ -54,12 +54,19 @@ package body Posix_Tools.Commands.Nohup is
            (Context, Context.Argument (First), "posix_tools.diagnostic.file.open_failed", "cannot open file");
       end if;
 
-      if Ignored and then Have_Previous then
-         if not Posix_Tools.Host_Adapters.Signals.Set_Disposition
-           (Posix_Tools.Host_Adapters.Signals.Hangup, Previous)
-         then
+      --  Put SIGHUP back for whatever runs on in this process once the
+      --  utility is done. A restore that fails is not reported: the utility
+      --  has run, its status is what nohup must exit with, and no diagnostic
+      --  could change what the hangup disposition now is.
+      if Hangup_Ignored and then Have_Previous then
+         declare
+            Restored : constant Boolean :=
+              Posix_Tools.Host_Adapters.Signals.Set_Disposition
+                (Posix_Tools.Host_Adapters.Signals.Hangup, Previous);
+            pragma Unreferenced (Restored);
+         begin
             null;
-         end if;
+         end;
       end if;
 
       if Exit_Code < 0 or else Exit_Code > 255 then
