@@ -163,18 +163,13 @@ package body Explore.Application.Controller.Prompts is
          return;
       end if;
 
-      begin
-         if Is_Rename then
-            FS.Rename (Source, Target);
-         elsif Directory then
-            FS.Create_Path (Target);
-         else
-            FS.Write_File (Target, "", Append_Mode => True, Ok => Written);
-         end if;
-      exception
-         when others =>
-            Written := False;
-      end;
+      if Is_Rename then
+         Written := FS.Rename (Source, Target);
+      elsif Directory then
+         Written := FS.Create_Path (Target);
+      else
+         FS.Write_File (Target, "", Append_Mode => True, Ok => Written);
+      end if;
 
       if not Written then
          Complain (State, Target, Posix_Tools.File_Operations.Cannot_Open);

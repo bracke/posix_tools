@@ -60,8 +60,8 @@ package Posix_Tools.Host_Adapters.File_System is
       Mode   : Natural) return Boolean;
    --  Make the directory Path; False when the host would not.
    function Create_Directory (Path : String) return Boolean;
-   --  The raising form of Create_Directory, for callers outside common
-   --  that still handle Ada.Directories exceptions themselves.
+   --  The raising form of Create_Directory, for test set-up, where a
+   --  failure is an error.
    procedure Create_Directory (Path : String);
    function Create_FIFO (Path : String; Mode : Natural) return Boolean;
    function Create_Socket (Path : String; Mode : Natural) return Boolean;
@@ -70,14 +70,12 @@ package Posix_Tools.Host_Adapters.File_System is
    --  Make the directory Path and any missing directories above it; False
    --  when the host would not.
    function Create_Path (Path : String) return Boolean;
-   --  The raising form of Create_Path, for callers outside common.
+   --  The raising form of Create_Path, for test set-up.
    procedure Create_Path (Path : String);
    --  Remove the empty directory Path; False when the host would not.
    function Delete_Directory (Path : String) return Boolean;
    --  Remove the file Path, not a directory; False when the host would not.
    function Delete_File (Path : String) return Boolean;
-   --  The raising form of Delete_File, for callers outside common.
-   procedure Delete_File (Path : String);
    function Delete_Link (Path : String) return Boolean;
    function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer;
    function Exists (Path : String) return Boolean;
@@ -121,8 +119,6 @@ package Posix_Tools.Host_Adapters.File_System is
    function Real_Path (Path : String) return String;
    --  Rename Old_Path to New_Path; False when the host would not.
    function Rename (Old_Path : String; New_Path : String) return Boolean;
-   --  The raising form of Rename, for callers outside common.
-   procedure Rename (Old_Path : String; New_Path : String);
    --  Move Old_Path to New_Path in one step, replacing what New_Path names
    --  as rename(2) does: a file, or an empty directory with a directory.
    function Move_Entry (Old_Path : String; New_Path : String) return Move_Outcome;

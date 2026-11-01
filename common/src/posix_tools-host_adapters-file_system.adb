@@ -270,21 +270,16 @@ package body Posix_Tools.Host_Adapters.File_System is
    end Delete_Directory;
 
    function Delete_File (Path : String) return Boolean is
-   begin
-      Delete_File (Path);
-      return True;
-   exception
-      when others =>
-         return False;
-   end Delete_File;
-
-   procedure Delete_File (Path : String) is
       Deleted : Boolean := False;
    begin
       GNAT.OS_Lib.Delete_File (Path, Deleted);
       if not Deleted then
          Ada.Directories.Delete_File (Path);
       end if;
+      return True;
+   exception
+      when others =>
+         return False;
    end Delete_File;
 
    function Delete_Link (Path : String) return Boolean is
@@ -787,11 +782,6 @@ package body Posix_Tools.Host_Adapters.File_System is
    exception
       when others =>
          return False;
-   end Rename;
-
-   procedure Rename (Old_Path : String; New_Path : String) is
-   begin
-      Ada.Directories.Rename (Old_Path, New_Path);
    end Rename;
 
    function Resolves (Path : String) return Boolean is

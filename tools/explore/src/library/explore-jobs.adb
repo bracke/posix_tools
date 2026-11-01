@@ -273,15 +273,9 @@ package body Explore.Jobs is
          return FS.Delete_Link (Target);
       elsif not FS.Exists (Target) then
          return True;
-      elsif FS.Kind (Target) = FS.Directory then
-         return False;
+      else
+         return FS.Kind (Target) /= FS.Directory and then FS.Delete_File (Target);
       end if;
-
-      FS.Delete_File (Target);
-      return True;
-   exception
-      when others =>
-         return False;
    end Clear_For_Link;
 
    function Destination (Source, Directory : String) return String is

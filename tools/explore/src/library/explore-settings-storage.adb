@@ -8,8 +8,9 @@ package body Explore.Settings.Storage is
    --  The largest configuration or bookmarks file read.
    Max_File_Bytes : constant := 1024 * 1024;
 
-   --  Make Path a directory, with any of its parents that are missing.
-   procedure Make_Directories (Path : String);
+   --  Make Path a directory, with any of its parents that are missing;
+   --  False when one could not be made.
+   function Make_Directories (Path : String) return Boolean;
 
    procedure Load (Path : String; Into : out Settings; Problems : out Problem_Vectors.Vector) is
       Text : Unbounded.Unbounded_String;
@@ -31,20 +32,22 @@ package body Explore.Settings.Storage is
       end if;
    end Load;
 
-   procedure Make_Directories (Path : String) is
+   function Make_Directories (Path : String) return Boolean is
    begin
       if Path'Length = 0 or else FS.Exists (Path) then
-         return;
+         return True;
       end if;
 
       for I in reverse Path'First + 1 .. Path'Last loop
          if Path (I) = '/' then
-            Make_Directories (Path (Path'First .. I - 1));
+            if not Make_Directories (Path (Path'First .. I - 1)) then
+               return False;
+            end if;
             exit;
          end if;
       end loop;
 
-      FS.Create_Directory (Path);
+      return FS.Create_Directory (Path);
    end Make_Directories;
 
    function Read_Bookmarks (Path : String) return Bookmark_Maps.Map is
@@ -69,7 +72,9 @@ package body Explore.Settings.Storage is
 
       for I in reverse Path'Range loop
          if Path (I) = '/' then
-            Make_Directories (Path (Path'First .. I - 1));
+            if not Make_Directories (Path (Path'First .. I - 1)) then
+               return;
+            end if;
             exit;
          end if;
       end loop;

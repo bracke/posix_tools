@@ -284,8 +284,8 @@ package body Explore.Previews is
    begin
       Made := False;
 
-      if FS.Exists (Output) then
-         FS.Delete_File (Output);
+      if FS.Exists (Output) and then not FS.Delete_File (Output) then
+         return;
       end if;
 
       if Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
@@ -310,8 +310,9 @@ package body Explore.Previews is
          end;
       end if;
 
-      if FS.Exists (Output) then
-         FS.Delete_File (Output);
+      if FS.Exists (Output) and then not FS.Delete_File (Output) then
+         Made := False;
+         Result.Image := Unbounded.Null_Unbounded_String;
       end if;
    exception
       when others =>
@@ -334,16 +335,8 @@ package body Explore.Previews is
          declare
             Candidate : constant String :=
               Base & "/explore-thumbnails-" & Posix_Tools.Text.Numeric_Images.Natural_Image (N);
-            Made      : Boolean := False;
+            Made      : constant Boolean := FS.Create_Directory (Candidate);
          begin
-            begin
-               FS.Create_Directory (Candidate);
-               Made := True;
-            exception
-               when others =>
-                  null;
-            end;
-
             if Made then
                return (if Made_Private (Candidate) then Candidate else "");
             end if;
@@ -428,8 +421,8 @@ package body Explore.Previews is
          end if;
       end if;
 
-      if FS.Exists (Output) then
-         FS.Delete_File (Output);
+      if FS.Exists (Output) and then not FS.Delete_File (Output) then
+         Made := False;
       end if;
    exception
       when others =>
