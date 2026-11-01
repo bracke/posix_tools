@@ -1,23 +1,37 @@
 with Ada.Calendar;
 with Posix_Tools.Arguments;
+with Test_Support;
 
 package Command_Tests.Surface_Smoke.Helpers is
-   function No_Args return Posix_Tools.Arguments.Vector;
-   function One_Arg (A : String) return Posix_Tools.Arguments.Vector;
-   function Two_Args (A, B : String) return Posix_Tools.Arguments.Vector;
-   function Three_Args (A, B, C : String) return Posix_Tools.Arguments.Vector;
-   function Four_Args (A, B, C, D : String) return Posix_Tools.Arguments.Vector;
-   function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector;
-   function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector;
+   function No_Args return Posix_Tools.Arguments.Vector
+     renames Test_Support.No_Args;
+   function One_Arg (A : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.One_Arg;
+   function Two_Args (A, B : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Two_Args;
+   function Three_Args (A, B, C : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Three_Args;
+   function Four_Args (A, B, C, D : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Four_Args;
+   function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Five_Args;
+   function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Six_Args;
 
    function Fixture_Path (Name : String) return String;
-   function Work_Path (Name : String) return String;
-   function Contains (Text, Pattern : String) return Boolean;
-   function Occurrences (Text, Pattern : String) return Natural;
+   function Work_Path (Name : String) return String
+     renames Test_Support.Work_Path;
+   function Contains (Text, Pattern : String) return Boolean
+     renames Test_Support.Contains;
+   function Occurrences (Text, Pattern : String) return Natural
+     renames Test_Support.Occurrences;
 
-   procedure Assert_Inventory_Status_Lines (Output_Text, Label : String);
-   function Inventory_List_Output return String;
-   procedure Write_File (Path, Data : String);
+   procedure Assert_Inventory_Status_Lines (Output_Text, Label : String)
+     renames Test_Support.Assert_Inventory_Status_Lines;
+   function Inventory_List_Output return String
+     renames Test_Support.Inventory_List_Output;
+   procedure Write_File (Path, Data : String)
+     renames Test_Support.Write_File;
 
    procedure Remove_Any (Path : String);
    function Octal (Mode : Natural) return String;

@@ -1,7 +1,6 @@
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Directories;
 with Ada.Strings.Fixed;
-with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Hostkit.Fs;
@@ -13,6 +12,7 @@ with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Test_Command;
 with Posix_Tools.Exit_Status;
 with Test_Contexts;
+with Test_Support;
 
 package body Command_Tests.Scripting is
    use Ada.Strings.Unbounded;
@@ -39,7 +39,8 @@ package body Command_Tests.Scripting is
    function Sorted (Text : String) return String;
    function Test_Status (Words : Word_List) return Posix_Tools.Exit_Status.Code;
    function Tree_Root return String;
-   procedure Write_File (Path, Data : String);
+   procedure Write_File (Path, Data : String)
+     renames Test_Support.Write_File;
 
    function Args (Words : Word_List) return Posix_Tools.Arguments.Vector is
    begin
@@ -481,12 +482,4 @@ package body Command_Tests.Scripting is
    begin
       return Ada.Directories.Full_Name ("generated/test-work") & "/scripting-find";
    end Tree_Root;
-
-   procedure Write_File (Path, Data : String) is
-      File : Ada.Streams.Stream_IO.File_Type;
-   begin
-      Ada.Streams.Stream_IO.Create (File, Ada.Streams.Stream_IO.Out_File, Path);
-      String'Write (Ada.Streams.Stream_IO.Stream (File), Data);
-      Ada.Streams.Stream_IO.Close (File);
-   end Write_File;
 end Command_Tests.Scripting;

@@ -702,6 +702,8 @@ tests/src/suite_filters.adb
 tests/src/suite_filters.ads
 tests/src/test_contexts.adb
 tests/src/test_contexts.ads
+tests/src/test_support.adb
+tests/src/test_support.ads
 tests/src/tooling_checks.adb
 tests/src/tooling_checks.ads
 tests/src/tooling_steps.adb
