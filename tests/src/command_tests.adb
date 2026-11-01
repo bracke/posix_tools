@@ -2614,6 +2614,16 @@ package body Command_Tests is
         (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal 'abc'" & LF,
          "Danish invalid line count diagnostic");
 
+      --  Standard input is named in the messages locale too.
+      Context.Initialize ("cat", No_Args);
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 0);
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Error_Output (Context), "cat: 'standardinput': "),
+         "Danish standard input diagnostic names standard input in Danish");
+
       Context.Initialize ("cat", One_Arg (Missing));
       Test_Contexts.Set_Locale (Context, "da");
       Posix_Tools.Commands.Cat.Run (Context, Result);

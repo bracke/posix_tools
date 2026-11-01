@@ -81,6 +81,16 @@ package Posix_Tools.Commands.Helpers is
       Message_Key : String;
       Default     : String);
 
+   --  What a diagnostic calls standard input, in the messages locale.
+   function Standard_Input_Name
+     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String;
+
+   --  What a diagnostic calls the file operand File_Name: standard input
+   --  for "-", else File_Name itself.
+   function File_Subject
+     (Context   : Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String) return String;
+
    --  The subject of an unknown-option diagnostic for Argument, an option
    --  argument the command does not take: "-" and its first option
    --  character Accepted does not list, or Argument itself when it is a

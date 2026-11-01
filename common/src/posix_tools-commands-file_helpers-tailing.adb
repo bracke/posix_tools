@@ -4,7 +4,6 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
-with Posix_Tools.Text.File_Operands;
 
 package body Posix_Tools.Commands.File_Helpers.Tailing is
    use Ada.Strings.Unbounded;
@@ -237,7 +236,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          end if;
 
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
-          (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+          (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
            "posix_tools.diagnostic.file.read_failed", "cannot read file");
          Ok := False;
          Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
@@ -248,7 +247,8 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          loop
             if not Context.Try_Read_Standard_Input (Input, Last) then
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                 (Context, Posix_Tools.Commands.Helpers.Standard_Input_Name (Context),
+                  "posix_tools.diagnostic.file.read_failed", "cannot read file");
                Ok := False;
                Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
                return;
@@ -267,7 +267,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          end;
          if not Ok then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+              (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
                "posix_tools.diagnostic.file.read_failed", "cannot read file");
             Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
             return;
@@ -359,7 +359,8 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          loop
             if not Context.Try_Read_Standard_Input (Input, Last) then
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                 (Context, Posix_Tools.Commands.Helpers.Standard_Input_Name (Context),
+                  "posix_tools.diagnostic.file.read_failed", "cannot read file");
                Ok := False;
                return;
             end if;
@@ -376,7 +377,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          end;
          if not Ok then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+              (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
                "posix_tools.diagnostic.file.read_failed", "cannot read file");
             return;
          end if;

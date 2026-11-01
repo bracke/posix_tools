@@ -152,7 +152,8 @@ Command implementations remain covered primarily by tests. Pure command-local
 helpers are extracted when practical: conventional command extension option
 dispatch for `--help`, `--version`, and `--posix-tools-identify` is proved in
 `Posix_Tools.Extension_Options`; file operand subject naming for `-`
-standard-input diagnostics is proved in `Posix_Tools.Text.File_Operands`;
+standard-input diagnostics, which name standard input in the messages locale, is
+proved in `Posix_Tools.Text.File_Operands`;
 SHA256 checksum-file line digest validation, digest lowercasing, and filename
 slice selection are proved in `Posix_Tools.Text.Checksum_Lines`;
 POSIX `cksum` CRC-32 byte and length folding is proved in

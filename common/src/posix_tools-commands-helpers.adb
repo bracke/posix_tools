@@ -12,6 +12,7 @@ with Posix_Tools.Numbers;
 with Posix_Tools.Presentation;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Escaping;
+with Posix_Tools.Text.File_Operands;
 with Posix_Tools.Text.Matching;
 with Posix_Tools.Text.Numeric_Images;
 
@@ -303,6 +304,22 @@ package body Posix_Tools.Commands.Helpers is
             Context.Command_Name & ": '" & Escape_Untrusted (Subject) & "': "
             & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Subject_Operational_Error;
+
+   function Standard_Input_Name
+     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
+   is
+   begin
+      return Posix_Tools.Localization.Text
+        (Context.Effective_Locale, "posix_tools.diagnostic.standard_input", "standard input");
+   end Standard_Input_Name;
+
+   function File_Subject
+     (Context   : Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String) return String
+   is
+   begin
+      return Posix_Tools.Text.File_Operands.Subject_Name (File_Name, Standard_Input_Name (Context));
+   end File_Subject;
 
    function Unknown_Option_Subject (Argument : String; Accepted : String) return String is
    begin

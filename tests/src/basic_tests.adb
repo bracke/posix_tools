@@ -2586,10 +2586,10 @@ package body Basic_Tests is
            (Character'Val (1) & "X") = "\x01X",
          "command helper delegates text escaping");
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.File_Operands.Subject_Name ("-") = "standard input",
+        (Posix_Tools.Text.File_Operands.Subject_Name ("-", "standardinput") = "standardinput",
          "file operand subject names standard input");
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.File_Operands.Subject_Name ("sample.txt") = "sample.txt",
+        (Posix_Tools.Text.File_Operands.Subject_Name ("sample.txt", "standard input") = "sample.txt",
          "file operand subject preserves filenames");
       declare
          First_Field : constant Posix_Tools.Text.File_Magic_Fields.Magic_Field :=

@@ -391,6 +391,65 @@ package body Metadata_Checks.Manifests is
             end if;
          end loop;
       end Require_Usage_Messages_Catalogued;
+
+      --  Every message key the common sources name as a whole literal,
+      --  "posix_tools." and the rest, has its text in each catalog locale:
+      --  a key the catalog lacks shows its English default in every locale.
+      --  A literal that ends in "." is the prefix of keys composed at run
+      --  time, not a key.
+      procedure Require_Message_Keys_Catalogued is
+         Catalog : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "common/messages/posix_tools.catalog"));
+         Key_Start : constant String := """posix_tools.";
+
+         procedure Check_File (File_Path : String);
+         procedure Require_Text (Key : String; Locale : String; File_Path : String);
+
+         procedure Check_File (File_Path : String) is
+            Text : constant String := Project_Tools.Files.Read_Raw_File (File_Path);
+            From : Positive := Text'First;
+         begin
+            loop
+               declare
+                  At_Key : constant Natural := Ada.Strings.Fixed.Index (Text (From .. Text'Last), Key_Start);
+                  Last   : Natural;
+               begin
+                  exit when At_Key = 0;
+                  Last := At_Key + 1;
+                  while Last < Text'Last and then Text (Last + 1) in 'a' .. 'z' | '0' .. '9' | '_' | '.' loop
+                     Last := Last + 1;
+                  end loop;
+                  if Last < Text'Last and then Text (Last + 1) = '"' and then Text (Last) /= '.' then
+                     Require_Text (Text (At_Key + 1 .. Last), "en", File_Path);
+                     Require_Text (Text (At_Key + 1 .. Last), "da", File_Path);
+                     Require_Text (Text (At_Key + 1 .. Last), "es", File_Path);
+                  end if;
+                  exit when Last >= Text'Last;
+                  From := Last + 1;
+               end;
+            end loop;
+         end Check_File;
+
+         procedure Require_Text (Key : String; Locale : String; File_Path : String) is
+         begin
+            if not Posix_Tools.Text.Matching.Contains (Catalog, ASCII.LF & Locale & "." & Key & " = ") then
+               Project_Tools.Release_Checks.Fail
+                 ("message key " & Key & " used in " & File_Path & " has no " & Locale & " catalog text");
+            end if;
+         end Require_Text;
+      begin
+         for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, "common/src")) loop
+            declare
+               File_Path : constant String := Ada.Strings.Unbounded.To_String (Path);
+            begin
+               if Project_Tools.Text.Ends_With (File_Path, ".adb")
+                 or else Project_Tools.Text.Ends_With (File_Path, ".ads")
+               then
+                  Check_File (File_Path);
+               end if;
+            end;
+         end loop;
+      end Require_Message_Keys_Catalogued;
    begin
       if Project_Tools.Files.File_Contains
         (Project_Tools.Files.Join (Root, "alire.toml"), "i18n =")
@@ -483,5 +542,6 @@ package body Metadata_Checks.Manifests is
       Check_No_Silent_Broad_Handlers;
       Check_No_Literal_Usage_Messages;
       Require_Usage_Messages_Catalogued;
+      Require_Message_Keys_Catalogued;
    end Run;
 end Metadata_Checks.Manifests;
