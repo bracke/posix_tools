@@ -505,6 +505,13 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "expr rejects non-numeric arithmetic operand");
+
+      Context.Initialize ("expr", Three_Args ("1", "+", "2"));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Expr_Error,
+         "expr exits 3, an error, when its output cannot be written");
    end Test_Expr;
 
    procedure Test_File (T : in out Fixture) is
