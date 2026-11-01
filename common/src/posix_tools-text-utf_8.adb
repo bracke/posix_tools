@@ -80,6 +80,27 @@ is
       end if;
    end Decode;
 
+   function Encode (Code_Point : Long_Long_Integer) return String is
+      subtype Byte_Value is Long_Long_Integer range 0 .. 255;
+
+      function Byte (Value : Byte_Value) return Character is (Character'Val (Value));
+
+      --  The continuation byte that carries Code_Point's six bits at Shift.
+      function Continuation (Shift : Long_Long_Integer) return Character is
+        (Byte (16#80# + (Code_Point / Shift) mod 64))
+      with Pre => Shift in 1 | 64 | 4_096;
+   begin
+      if Code_Point <= 16#7F# then
+         return [1 => Byte (Code_Point)];
+      elsif Code_Point <= 16#7FF# then
+         return [Byte (16#C0# + Code_Point / 64), Continuation (1)];
+      elsif Code_Point <= 16#FFFF# then
+         return [Byte (16#E0# + Code_Point / 4_096), Continuation (64), Continuation (1)];
+      else
+         return [Byte (16#F0# + Code_Point / 262_144), Continuation (4_096), Continuation (64), Continuation (1)];
+      end if;
+   end Encode;
+
    procedure Finish
      (Self   : in out Decoder;
       Status : out Decode_Status)

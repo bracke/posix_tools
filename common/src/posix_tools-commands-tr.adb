@@ -52,8 +52,6 @@ package body Posix_Tools.Commands.Tr is
       Width      : out Natural;
       Code_Point : out Long_Long_Integer);
 
-   function Encode (Code_Point : Long_Long_Integer) return String;
-
    procedure Set_Success
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result);
@@ -199,7 +197,7 @@ package body Posix_Tools.Commands.Tr is
                      then
                         for Code in Low_Code .. High_Code loop
                            if Code not in 16#D800# .. 16#DFFF# then
-                              Output.Append (Encode (Code));
+                              Output.Append (Posix_Tools.Text.UTF_8.Encode (Code));
                            end if;
                         end loop;
                      else
@@ -241,27 +239,6 @@ package body Posix_Tools.Commands.Tr is
       Width := (if At_End then 1 else 0);
       Code_Point := No_Code_Point;
    end Decode_At;
-
-   function Encode (Code_Point : Long_Long_Integer) return String is
-      function Byte (Value : Long_Long_Integer) return Character is (Character'Val (Natural (Value)));
-   begin
-      if Code_Point < 16#80# then
-         return [Byte (Code_Point)];
-      elsif Code_Point < 16#800# then
-         return [Byte (16#C0# + Code_Point / 64), Byte (16#80# + Code_Point mod 64)];
-      elsif Code_Point < 16#1_0000# then
-         return
-           [Byte (16#E0# + Code_Point / 4096),
-            Byte (16#80# + (Code_Point / 64) mod 64),
-            Byte (16#80# + Code_Point mod 64)];
-      else
-         return
-           [Byte (16#F0# + Code_Point / 262_144),
-            Byte (16#80# + (Code_Point / 4096) mod 64),
-            Byte (16#80# + (Code_Point / 64) mod 64),
-            Byte (16#80# + Code_Point mod 64)];
-      end if;
-   end Encode;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;

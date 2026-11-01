@@ -100,6 +100,18 @@ is
             else
               Status = Invalid);
 
+   --  The UTF-8 bytes of Code_Point, shortest form, one to four of them.
+   function Encode (Code_Point : Long_Long_Integer) return String
+     with
+       Pre  => Code_Point in 0 .. 16#10FFFF#,
+       Post =>
+         Encode'Result'First = 1
+         and then Encode'Result'Length in 1 .. 4
+         and then
+           (if Code_Point <= 16#7F# then
+              Encode'Result'Length = 1
+              and then Character'Pos (Encode'Result (1)) = Code_Point);
+
 private
    type Decoder is record
       Expected_Continuations : Natural := 0;

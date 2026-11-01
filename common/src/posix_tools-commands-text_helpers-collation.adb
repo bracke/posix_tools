@@ -3,34 +3,14 @@ with Ada.Strings.Unbounded;
 with I18N.Collation;
 with Posix_Tools.Text.Base_Parsing;
 with Posix_Tools.Text.Octal_Parsing;
+with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Text_Helpers.Collation is
    use Ada.Strings.Unbounded;
 
-   procedure Append_UTF_8 (Output : in out Unbounded_String; Code_Point : Long_Long_Integer);
-
    function Locale_Collating_Symbol (Locale, Element : String) return String;
 
    function Locale_Equivalence_Class (Locale, Element : String) return String;
-
-   procedure Append_UTF_8 (Output : in out Unbounded_String; Code_Point : Long_Long_Integer) is
-   begin
-      if Code_Point <= 16#7F# then
-         Append (Output, Character'Val (Natural (Code_Point)));
-      elsif Code_Point <= 16#7FF# then
-         Append (Output, Character'Val (16#C0# + Natural (Code_Point / 64)));
-         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-      elsif Code_Point <= 16#FFFF# then
-         Append (Output, Character'Val (16#E0# + Natural (Code_Point / 4_096)));
-         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
-         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-      else
-         Append (Output, Character'Val (16#F0# + Natural (Code_Point / 262_144)));
-         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 4_096) mod 64)));
-         Append (Output, Character'Val (16#80# + Natural ((Code_Point / 64) mod 64)));
-         Append (Output, Character'Val (16#80# + Natural (Code_Point mod 64)));
-      end if;
-   end Append_UTF_8;
 
    function Locale_Collating_Symbol (Locale, Element : String) return String is
       Family : constant String := Locale_Family (Locale);
@@ -172,12 +152,7 @@ package body Posix_Tools.Commands.Text_Helpers.Collation is
          Append_If_Equivalent ([1 => Character'Val (Code)]);
       end loop;
       for Code in 16#00C0# .. 16#017F# loop
-         declare
-            Candidate : Unbounded_String;
-         begin
-            Append_UTF_8 (Candidate, Long_Long_Integer (Code));
-            Append_If_Equivalent (To_String (Candidate));
-         end;
+         Append_If_Equivalent (Posix_Tools.Text.UTF_8.Encode (Long_Long_Integer (Code)));
       end loop;
 
       if Element = "a" then
