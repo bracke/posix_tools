@@ -64,6 +64,9 @@ package body Posix_Tools.Host_Adapters.File_System is
    function Containing_Directory (Path : String) return String is
    begin
       return Ada.Directories.Containing_Directory (Path);
+   exception
+      when others =>
+         return "";
    end Containing_Directory;
 
    function Copy_File_Times (Source : String; Target : String) return Boolean is
@@ -193,6 +196,15 @@ package body Posix_Tools.Host_Adapters.File_System is
       end case;
    end Create_Device;
 
+   function Create_Directory (Path : String) return Boolean is
+   begin
+      Ada.Directories.Create_Directory (Path);
+      return True;
+   exception
+      when others =>
+         return False;
+   end Create_Directory;
+
    procedure Create_Directory (Path : String) is
    begin
       Ada.Directories.Create_Directory (Path);
@@ -212,6 +224,15 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Hostkit.Fs.Create_Link (Source, Target);
    end Create_Link;
+
+   function Create_Path (Path : String) return Boolean is
+   begin
+      Ada.Directories.Create_Path (Path);
+      return True;
+   exception
+      when others =>
+         return False;
+   end Create_Path;
 
    procedure Create_Path (Path : String) is
    begin
@@ -239,10 +260,23 @@ package body Posix_Tools.Host_Adapters.File_System is
       return File_Time (GNAT.OS_Lib.Current_Time);
    end Current_File_Time;
 
-   procedure Delete_Directory (Path : String) is
+   function Delete_Directory (Path : String) return Boolean is
    begin
       Ada.Directories.Delete_Directory (Path);
+      return True;
+   exception
+      when others =>
+         return False;
    end Delete_Directory;
+
+   function Delete_File (Path : String) return Boolean is
+   begin
+      Delete_File (Path);
+      return True;
+   exception
+      when others =>
+         return False;
+   end Delete_File;
 
    procedure Delete_File (Path : String) is
       Deleted : Boolean := False;
@@ -343,6 +377,10 @@ package body Posix_Tools.Host_Adapters.File_System is
    function Exists (Path : String) return Boolean is
    begin
       return Ada.Directories.Exists (Path);
+   exception
+      when Ada.Directories.Name_Error =>
+         --  Not a pathname at all, as the empty one: nothing it names exists.
+         return False;
    end Exists;
 
    function File_Access_Time_From_File (Path : String; Time : out File_Time) return Boolean is
@@ -741,6 +779,15 @@ package body Posix_Tools.Host_Adapters.File_System is
    begin
       return Hostkit.Fs.Real_Path (Path);
    end Real_Path;
+
+   function Rename (Old_Path : String; New_Path : String) return Boolean is
+   begin
+      Ada.Directories.Rename (Old_Path, New_Path);
+      return True;
+   exception
+      when others =>
+         return False;
+   end Rename;
 
    procedure Rename (Old_Path : String; New_Path : String) is
    begin

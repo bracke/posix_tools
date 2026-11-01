@@ -104,10 +104,6 @@ package body Posix_Tools.Commands.Ln is
          else
             Fail ("posix_tools.diagnostic.file.link_failed", "cannot create link");
          end if;
-      exception
-         when others =>
-            Created_One := False;
-            Fail ("posix_tools.diagnostic.file.link_failed", "cannot create link");
       end Create_Link;
 
    begin
@@ -177,11 +173,5 @@ package body Posix_Tools.Commands.Ln is
             then Posix_Tools.Exit_Status.Success
             else Posix_Tools.Exit_Status.Operational_Failure);
       end;
-   exception
-      when others =>
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context, Context.Argument (Context.Argument_Count),
-            "posix_tools.diagnostic.file.link_failed", "cannot create link");
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
    end Run;
 end Posix_Tools.Commands.Ln;

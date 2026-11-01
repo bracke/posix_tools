@@ -49,41 +49,28 @@ package body Posix_Tools.Commands.Rmdir is
       end if;
 
       for I in First .. Context.Argument_Count loop
+         declare
+            --  The directory to remove next: the operand, then, with -p,
+            --  each directory above it in turn.
+            Current : Unbounded_String := To_Unbounded_String (Context.Argument (I));
          begin
-            if Parents then
-               declare
-                  Current : Unbounded_String := To_Unbounded_String (Context.Argument (I));
-               begin
-                  loop
-                     begin
-                        FS.Delete_Directory (To_String (Current));
-                     exception
-                        when others =>
-                           Ok := False;
-                           Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                             (Context,
-                              To_String (Current),
-                              "posix_tools.diagnostic.file.open_failed",
-                              "cannot open file");
-                           exit;
-                     end;
+            loop
+               if not FS.Delete_Directory (To_String (Current)) then
+                  Ok := False;
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, To_String (Current), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+                  exit;
+               end if;
 
-                     declare
-                        Parent : constant String := FS.Containing_Directory (To_String (Current));
-                     begin
-                        exit when Parent = "" or else Parent = "." or else Parent = To_String (Current);
-                        Current := To_Unbounded_String (Parent);
-                     end;
-                  end loop;
+               exit when not Parents;
+
+               declare
+                  Parent : constant String := FS.Containing_Directory (To_String (Current));
+               begin
+                  exit when Parent = "" or else Parent = "." or else Parent = To_String (Current);
+                  Current := To_Unbounded_String (Parent);
                end;
-            else
-               FS.Delete_Directory (Context.Argument (I));
-            end if;
-         exception
-            when others =>
-               Ok := False;
-               Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Context.Argument (I), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            end loop;
          end;
       end loop;
 

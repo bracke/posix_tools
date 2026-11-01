@@ -44,14 +44,9 @@ package body Posix_Tools.Commands.Du is
       function Already_Seen_Directory (Path : String) return Boolean is
       begin
          for I in 1 .. Natural (Seen_Dirs.Length) loop
-            begin
-               if FS.Same_File (Path, Seen_Dirs.Element (I)) then
-                  return True;
-               end if;
-            exception
-               when others =>
-                  null;
-            end;
+            if FS.Same_File (Path, Seen_Dirs.Element (I)) then
+               return True;
+            end if;
          end loop;
          return False;
       end Already_Seen_Directory;

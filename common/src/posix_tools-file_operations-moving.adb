@@ -96,37 +96,20 @@ package body Posix_Tools.File_Operations.Moving is
             return;
          end if;
 
-         begin
-            FS.Delete_Directory (Target);
-         exception
-            when others =>
-               Fail (Target, Cannot_Remove);
-               return;
-         end;
+         if not FS.Delete_Directory (Target) then
+            Fail (Target, Cannot_Remove);
+            return;
+         end if;
       elsif Is_Present (Target) then
          if Is_Directory (Source) then
             Fail (Target, Not_A_Directory);
             return;
          end if;
 
-         declare
-            Removed : Boolean := True;
-         begin
-            if FS.Is_Link (Target) then
-               Removed := FS.Delete_Link (Target);
-            else
-               FS.Delete_File (Target);
-            end if;
-
-            if not Removed then
-               Fail (Target, Cannot_Remove);
-               return;
-            end if;
-         exception
-            when others =>
-               Fail (Target, Cannot_Remove);
-               return;
-         end;
+         if not (if FS.Is_Link (Target) then FS.Delete_Link (Target) else FS.Delete_File (Target)) then
+            Fail (Target, Cannot_Remove);
+            return;
+         end if;
       end if;
 
       declare

@@ -311,29 +311,17 @@ package body Posix_Tools.Commands.File_Helpers is
       end if;
    end Finish_Line_Prefix;
 
-   function Is_Directory (Path : String) return Boolean is
-   begin
-      return FS.Kind (Path) = FS.Directory;
-   exception
-      when others =>
-         return False;
-   end Is_Directory;
+   function Is_Directory (Path : String) return Boolean is (FS.Kind (Path) = FS.Directory);
 
    function Remove_Non_Directory_Target (Path : String) return Boolean is
    begin
       if FS.Is_Link (Path) then
          return FS.Delete_Link (Path);
       elsif FS.Exists (Path) then
-         if FS.Kind (Path) = FS.Directory then
-            return False;
-         end if;
-         FS.Delete_File (Path);
+         return FS.Kind (Path) /= FS.Directory and then FS.Delete_File (Path);
       end if;
 
       return True;
-   exception
-      when others =>
-         return False;
    end Remove_Non_Directory_Target;
 
    function Simple_Name (Path : String) return String is

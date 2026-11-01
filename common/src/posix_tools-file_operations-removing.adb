@@ -52,37 +52,22 @@ package body Posix_Tools.File_Operations.Removing is
             return;
          end if;
 
-         begin
-            FS.Delete_Directory (Path);
-         exception
-            when others =>
-               Fail (if Is_Empty_Directory (Path) then Cannot_Remove else Directory_Not_Empty);
-               return;
-         end;
+         if not FS.Delete_Directory (Path) then
+            Fail (if Is_Empty_Directory (Path) then Cannot_Remove else Directory_Not_Empty);
+            return;
+         end if;
 
          Watcher.Finished (Path);
       end Delete_Directory;
 
       procedure Delete_Entry is
-         Removed : Boolean := True;
       begin
          if not Watcher.Confirm_Removal (Path, Remove_Entry) then
             Outcome := Skipped;
             return;
          end if;
 
-         begin
-            if FS.Is_Link (Path) then
-               Removed := FS.Delete_Link (Path);
-            else
-               FS.Delete_File (Path);
-            end if;
-         exception
-            when others =>
-               Removed := False;
-         end;
-
-         if Removed then
+         if (if FS.Is_Link (Path) then FS.Delete_Link (Path) else FS.Delete_File (Path)) then
             Watcher.Finished (Path);
          else
             Fail (Cannot_Remove);

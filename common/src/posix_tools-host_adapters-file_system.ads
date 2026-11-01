@@ -38,6 +38,8 @@ package Posix_Tools.Host_Adapters.File_System is
    type File_Time is private;
 
    function Can_Open_For_Read (Path : String) return Boolean;
+   --  The directory holding Path, as Ada.Directories names it; empty when
+   --  Path has none.
    function Containing_Directory (Path : String) return String;
    function Copy_File_Times (Source : String; Target : String) return Boolean;
    --  Copy the regular file Source to Target, calling Progress with the
@@ -56,13 +58,25 @@ package Posix_Tools.Host_Adapters.File_System is
       Kind   : Special_File_Kind;
       Device : Interfaces.Unsigned_64;
       Mode   : Natural) return Boolean;
+   --  Make the directory Path; False when the host would not.
+   function Create_Directory (Path : String) return Boolean;
+   --  The raising form of Create_Directory, for callers outside common
+   --  that still handle Ada.Directories exceptions themselves.
    procedure Create_Directory (Path : String);
    function Create_FIFO (Path : String; Mode : Natural) return Boolean;
    function Create_Socket (Path : String; Mode : Natural) return Boolean;
    function Create_Hard_Link (Source : String; Target : String) return Boolean;
    function Create_Link (Source : String; Target : String) return Boolean;
+   --  Make the directory Path and any missing directories above it; False
+   --  when the host would not.
+   function Create_Path (Path : String) return Boolean;
+   --  The raising form of Create_Path, for callers outside common.
    procedure Create_Path (Path : String);
-   procedure Delete_Directory (Path : String);
+   --  Remove the empty directory Path; False when the host would not.
+   function Delete_Directory (Path : String) return Boolean;
+   --  Remove the file Path, not a directory; False when the host would not.
+   function Delete_File (Path : String) return Boolean;
+   --  The raising form of Delete_File, for callers outside common.
    procedure Delete_File (Path : String);
    function Delete_Link (Path : String) return Boolean;
    function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer;
@@ -105,6 +119,9 @@ package Posix_Tools.Host_Adapters.File_System is
    function Path_Names_Current_Directory (Path : String) return Boolean;
    function Read_Link_Target (Path : String; Target : out Ada.Strings.Unbounded.Unbounded_String) return Boolean;
    function Real_Path (Path : String) return String;
+   --  Rename Old_Path to New_Path; False when the host would not.
+   function Rename (Old_Path : String; New_Path : String) return Boolean;
+   --  The raising form of Rename, for callers outside common.
    procedure Rename (Old_Path : String; New_Path : String);
    --  Move Old_Path to New_Path in one step, replacing what New_Path names
    --  as rename(2) does: a file, or an empty directory with a directory.

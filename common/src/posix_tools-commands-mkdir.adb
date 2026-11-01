@@ -128,27 +128,16 @@ package body Posix_Tools.Commands.Mkdir is
                Fail ("posix_tools.diagnostic.file.not_directory", "not a directory");
             elsif not Parents and then not FS.Exists (Posix_Tools.Paths.Dirname (Path)) then
                Fail ("posix_tools.diagnostic.file.missing", "no such file or directory");
-            else
+            elsif not (if Parents then FS.Create_Path (Path) else FS.Create_Directory (Path)) then
+               Fail ("posix_tools.diagnostic.file.create_failed", "cannot create directory");
+            elsif Has_Mode then
+               declare
+                  Mode_Ok      : Boolean;
+                  Desired_Mode : constant Natural := Selected_Mode_For (Path, Mode_Ok);
                begin
-                  if Parents then
-                     FS.Create_Path (Path);
-                  else
-                     FS.Create_Directory (Path);
+                  if not Mode_Ok or else not FS.Set_Permissions (Path, Desired_Mode) then
+                     Fail ("posix_tools.diagnostic.file.mode_failed", "cannot change permissions");
                   end if;
-
-                  if Has_Mode then
-                     declare
-                        Mode_Ok      : Boolean;
-                        Desired_Mode : constant Natural := Selected_Mode_For (Path, Mode_Ok);
-                     begin
-                        if not Mode_Ok or else not FS.Set_Permissions (Path, Desired_Mode) then
-                           Fail ("posix_tools.diagnostic.file.mode_failed", "cannot change permissions");
-                        end if;
-                     end;
-                  end if;
-               exception
-                  when others =>
-                     Fail ("posix_tools.diagnostic.file.create_failed", "cannot create directory");
                end;
             end if;
          end;

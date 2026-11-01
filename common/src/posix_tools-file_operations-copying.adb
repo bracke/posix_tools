@@ -129,9 +129,6 @@ package body Posix_Tools.File_Operations.Copying is
          then
             Fail (Target, Cannot_Open);
          end if;
-      exception
-         when others =>
-            Fail (Target, Cannot_Open);
       end Apply_Source_Metadata;
 
       procedure Capture_Source_Times is
@@ -141,9 +138,6 @@ package body Posix_Tools.File_Operations.Copying is
               FS.File_Access_Time_From_File (Source, Source_Access_Time)
               and then FS.File_Time_From_File (Source, Source_Modification_Time);
          end if;
-      exception
-         when others =>
-            Source_Times_Available := False;
       end Capture_Source_Times;
 
       procedure Copy_Directory is
@@ -185,46 +179,38 @@ package body Posix_Tools.File_Operations.Copying is
             end if;
          end loop;
 
-         begin
-            if Is_Same_Or_Descendant (Source, Target) then
-               Fail (Target, Same_File);
-               return;
-            end if;
+         if Is_Same_Or_Descendant (Source, Target) then
+            Fail (Target, Same_File);
+            return;
+         end if;
 
-            if not FS.Exists (Target) then
-               FS.Create_Directory (Target);
-            elsif FS.Kind (Target) /= FS.Directory then
-               Fail (Target, Not_A_Directory);
-               return;
-            end if;
-
-            Ancestors.Append (Source);
-            begin
-               For_Each_Child (Source, Iteration_Ok);
-            exception
-               when others =>
-                  Ancestors.Delete_Last;
-                  raise;
-            end;
-            Ancestors.Delete_Last;
-
-            if not Iteration_Ok then
-               Fail (Source, Cannot_Read_Directory);
-            elsif Watcher.Cancelled then
-               Outcome := Combined (Outcome, Cancelled);
-            else
-               --  Only once the children are in: a read-only mode would keep
-               --  them out, and making them would change the times.
-               Apply_Source_Metadata;
-
-               if Outcome = Done then
-                  Watcher.Finished (Source);
-               end if;
-            end if;
-         exception
-            when others =>
+         if not FS.Exists (Target) then
+            if not FS.Create_Directory (Target) then
                Fail (Target, Cannot_Open);
-         end;
+               return;
+            end if;
+         elsif FS.Kind (Target) /= FS.Directory then
+            Fail (Target, Not_A_Directory);
+            return;
+         end if;
+
+         Ancestors.Append (Source);
+         For_Each_Child (Source, Iteration_Ok);
+         Ancestors.Delete_Last;
+
+         if not Iteration_Ok then
+            Fail (Source, Cannot_Read_Directory);
+         elsif Watcher.Cancelled then
+            Outcome := Combined (Outcome, Cancelled);
+         else
+            --  Only once the children are in: a read-only mode would keep
+            --  them out, and making them would change the times.
+            Apply_Source_Metadata;
+
+            if Outcome = Done then
+               Watcher.Finished (Source);
+            end if;
+         end if;
       end Copy_Directory;
 
       procedure Copy_Link is
@@ -252,9 +238,6 @@ package body Posix_Tools.File_Operations.Copying is
          else
             Fail (Target, Cannot_Open);
          end if;
-      exception
-         when others =>
-            Fail (Source, Cannot_Open);
       end Copy_Link;
 
       procedure Copy_Regular is
@@ -312,12 +295,9 @@ package body Posix_Tools.File_Operations.Copying is
                --  What a stopped copy left is neither the old file nor the
                --  new one; nothing is better than a cut-off copy.
                Outcome := Cancelled;
-               begin
-                  FS.Delete_File (Target);
-               exception
-                  when others =>
-                     Fail (Target, Cannot_Remove);
-               end;
+               if not FS.Delete_File (Target) then
+                  Fail (Target, Cannot_Remove);
+               end if;
 
             when FS.Source_Open_Failed | FS.Source_Read_Failed =>
                Fail (Source, Cannot_Read);
@@ -365,17 +345,7 @@ package body Posix_Tools.File_Operations.Copying is
       end Copy_Special;
 
       function Delete_Target return Boolean is
-      begin
-         if FS.Is_Link (Target) then
-            return FS.Delete_Link (Target);
-         end if;
-
-         FS.Delete_File (Target);
-         return True;
-      exception
-         when others =>
-            return False;
-      end Delete_Target;
+        (if FS.Is_Link (Target) then FS.Delete_Link (Target) else FS.Delete_File (Target));
 
       procedure Fail (Path : String; Error : Operation_Error) is
       begin
@@ -467,9 +437,6 @@ package body Posix_Tools.File_Operations.Copying is
 
          return FS.Child_Path (Resolved (Parent), Name);
       end;
-   exception
-      when others =>
-         return Path;
    end Resolved;
 
    function Without_Trailing_Separators (Path : String) return String is
