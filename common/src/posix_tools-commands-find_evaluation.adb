@@ -3,7 +3,7 @@ with Posix_Tools.Commands.Find_Evaluation.Actions;
 with Posix_Tools.Commands.Find_Evaluation.Predicates;
 with Posix_Tools.Host_Adapters.Path_Separators;
 with Posix_Tools.Paths;
-with Posix_Tools.Text.Find_Expressions;
+with Posix_Tools.Text.File_Modes;
 
 package body Posix_Tools.Commands.Find_Evaluation is
    use type Ada.Containers.Count_Type;
@@ -303,6 +303,40 @@ package body Posix_Tools.Commands.Find_Evaluation is
 
    --  -path patterns name directories with '/', as POSIX writes them; a host
    --  whose own separator differs (Windows) is matched in that spelling.
+   function Parse_Find_Count
+     (Text     : String;
+      Count    : out Long_Long_Integer;
+      Relation : out Posix_Tools.Text.Find_Expressions.Count_Relation;
+      Bytes    : out Boolean) return Boolean
+   is
+      Parsed : constant Posix_Tools.Text.Find_Expressions.Parsed_Find_Count :=
+        Posix_Tools.Text.Find_Expressions.Parse_Find_Count (Text);
+   begin
+      Count := Parsed.Count;
+      Relation := Parsed.Relation;
+      Bytes := Parsed.Bytes;
+      return Parsed.Valid;
+   end Parse_Find_Count;
+
+   function Parse_Permission_Mode
+     (Text      : String;
+      Mode      : out Natural;
+      Match_All : out Boolean) return Boolean
+   is
+      Parsed : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
+        Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode (Text);
+   begin
+      Mode := Parsed.Mode;
+      Match_All := Parsed.Match_All;
+      case Parsed.Status is
+         when Posix_Tools.Text.File_Modes.Invalid_Permission_Mode =>
+            return False;
+         when Posix_Tools.Text.File_Modes.Octal_Permission_Mode
+            | Posix_Tools.Text.File_Modes.Symbolic_Permission_Mode =>
+            return True;
+      end case;
+   end Parse_Permission_Mode;
+
    function Slashed (Path : String) return String is
       Separator : constant Character :=
         Posix_Tools.Host_Adapters.Path_Separators.Directory_Separator;

@@ -2,46 +2,12 @@ with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Find_Expressions;
 
 package body Posix_Tools.Commands.Find_Validation is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   package Evaluation renames Posix_Tools.Commands.Find_Evaluation;
    package FS renames Posix_Tools.Host_Adapters.File_System;
-
-   function Parse_Find_Count
-     (Text     : String;
-      Count    : out Long_Long_Integer;
-      Relation : out Posix_Tools.Text.Find_Expressions.Count_Relation;
-      Bytes    : out Boolean) return Boolean
-   is
-      Parsed : constant Posix_Tools.Text.Find_Expressions.Parsed_Find_Count :=
-        Posix_Tools.Text.Find_Expressions.Parse_Find_Count (Text);
-   begin
-      Count := Parsed.Count;
-      Relation := Parsed.Relation;
-      Bytes := Parsed.Bytes;
-      return Parsed.Valid;
-   end Parse_Find_Count;
-
-   function Parse_Permission_Mode
-     (Text      : String;
-      Mode      : out Natural;
-      Match_All : out Boolean) return Boolean
-   is
-      Parsed : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
-        Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode (Text);
-   begin
-      Mode := Parsed.Mode;
-      Match_All := Parsed.Match_All;
-      case Parsed.Status is
-         when Posix_Tools.Text.File_Modes.Invalid_Permission_Mode =>
-            return False;
-         when Posix_Tools.Text.File_Modes.Octal_Permission_Mode
-            | Posix_Tools.Text.File_Modes.Symbolic_Permission_Mode =>
-            return True;
-      end case;
-   end Parse_Permission_Mode;
 
    function Validate_Expression
      (Context    : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -116,7 +82,7 @@ package body Posix_Tools.Commands.Find_Validation is
                   Relation : Posix_Tools.Text.Find_Expressions.Count_Relation;
                   Bytes    : Boolean;
                begin
-                  if not Parse_Find_Count (Expression.Element (I + 1), Count, Relation, Bytes)
+                  if not Evaluation.Parse_Find_Count (Expression.Element (I + 1), Count, Relation, Bytes)
                     or else Bytes
                   then
                      Posix_Tools.Commands.Helpers.Usage_Error
@@ -134,7 +100,7 @@ package body Posix_Tools.Commands.Find_Validation is
                   Mode      : Natural;
                   Match_All : Boolean;
                begin
-                  if not Parse_Permission_Mode (Expression.Element (I + 1), Mode, Match_All) then
+                  if not Evaluation.Parse_Permission_Mode (Expression.Element (I + 1), Mode, Match_All) then
                      Posix_Tools.Commands.Helpers.Usage_Error
                        (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                      return False;
@@ -151,7 +117,7 @@ package body Posix_Tools.Commands.Find_Validation is
                   Relation : Posix_Tools.Text.Find_Expressions.Count_Relation;
                   Bytes    : Boolean;
                begin
-                  if not Parse_Find_Count (Expression.Element (I + 1), Count, Relation, Bytes) then
+                  if not Evaluation.Parse_Find_Count (Expression.Element (I + 1), Count, Relation, Bytes) then
                      Posix_Tools.Commands.Helpers.Usage_Error
                        (Context, Result, Invalid_Operand, Expression.Element (I + 1));
                      return False;

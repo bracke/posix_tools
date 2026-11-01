@@ -3,6 +3,7 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Text.Find_Expressions;
 
 package Posix_Tools.Commands.Find_Evaluation is
    type Evaluation_State is private;
@@ -52,6 +53,21 @@ package Posix_Tools.Commands.Find_Evaluation is
      (State   : in out Evaluation_State;
       Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Ok      : in out Boolean);
+
+   --  The -mtime or -size operand Text, as Find_Expressions parses it;
+   --  False when it is not one.
+   function Parse_Find_Count
+     (Text     : String;
+      Count    : out Long_Long_Integer;
+      Relation : out Posix_Tools.Text.Find_Expressions.Count_Relation;
+      Bytes    : out Boolean) return Boolean;
+
+   --  The -perm operand Text, as File_Modes parses it; False when it is
+   --  not one.
+   function Parse_Permission_Mode
+     (Text      : String;
+      Mode      : out Natural;
+      Match_All : out Boolean) return Boolean;
 
 private
    type Find_Exec_Batch is record

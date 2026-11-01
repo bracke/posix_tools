@@ -18,40 +18,6 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    Less_Than_Count : constant Find_Count_Relation :=
      Posix_Tools.Text.Find_Expressions.Less_Than_Count;
 
-   function Parse_Permission_Mode
-     (Text : String;
-      Mode : out Natural;
-      Match_All : out Boolean) return Boolean
-   is
-      Parsed : constant Posix_Tools.Text.File_Modes.Parsed_Permission_Mode :=
-        Posix_Tools.Text.File_Modes.Parse_Find_Permission_Mode (Text);
-   begin
-      Mode := Parsed.Mode;
-      Match_All := Parsed.Match_All;
-      case Parsed.Status is
-         when Posix_Tools.Text.File_Modes.Invalid_Permission_Mode =>
-            return False;
-         when Posix_Tools.Text.File_Modes.Octal_Permission_Mode
-           | Posix_Tools.Text.File_Modes.Symbolic_Permission_Mode =>
-            return True;
-      end case;
-   end Parse_Permission_Mode;
-
-   function Parse_Find_Count
-     (Text     : String;
-      Count    : out Long_Long_Integer;
-      Relation : out Find_Count_Relation;
-      Bytes    : out Boolean) return Boolean
-   is
-      Parsed : constant Posix_Tools.Text.Find_Expressions.Parsed_Find_Count :=
-        Posix_Tools.Text.Find_Expressions.Parse_Find_Count (Text);
-   begin
-      Count := Parsed.Count;
-      Relation := Parsed.Relation;
-      Bytes := Parsed.Bytes;
-      return Parsed.Valid;
-   end Parse_Find_Count;
-
    --  Path's last modification, of the link itself when Own.
    function Modified_At
      (Path : String;

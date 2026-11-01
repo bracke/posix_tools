@@ -4,7 +4,6 @@ with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Find_Validation;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Find_Expressions;
 
@@ -274,10 +273,7 @@ package body Posix_Tools.Commands.Find is
       Posix_Tools.Commands.Find_Evaluation.Flush_Exec_Batches
         (Evaluation, Context, Ok);
 
-      Result.Status :=
-        (if Ok and then not Context.Output_Failed
-         then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 
 end Posix_Tools.Commands.Find;
