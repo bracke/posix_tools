@@ -1,3 +1,4 @@
+with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
@@ -12,6 +13,7 @@ package body E2E_Rig is
    package PTY renames Terminal.PTY.Backend;
    package Unbounded renames Ada.Strings.Unbounded;
 
+   use type GNAT.OS_Lib.String_Access;
    use type Core.Cell_Kind;
    use type Core.Initialize_Status;
    use type PTY.Exit_State;
@@ -23,12 +25,23 @@ package body E2E_Rig is
    Cell_Width  : constant := 10;
    Cell_Height : constant := 20;
 
+   --  This crate's directory, found from where its test program is rather
+   --  than from the directory it was started in, with links resolved.
+   function Crate_Root return String;
+
+   --  Path with every symbolic link in it resolved, as explore shows paths.
+   function Resolved (Path : String) return String is
+     (GNAT.OS_Lib.Normalize_Pathname (Path, Resolve_Links => True));
+
    --  Where the rig keeps its launcher and the session's configuration and
    --  state directories.
-   function Rig_Root return String is (Ada.Directories.Full_Name ("obj/rig"));
+   function Rig_Root return String is (Crate_Root & "/obj/rig");
 
    --  The explore this crate tests: the one its parent crate built.
-   function Explore_Binary return String is (Ada.Directories.Full_Name ("../bin/explore"));
+   function Explore_Binary return String is (Resolved (Crate_Root & "/../bin/explore"));
+
+   function Ends_With (Text, Suffix : String) return Boolean is
+     (Text'Length >= Suffix'Length and then Text (Text'Last - Suffix'Length + 1 .. Text'Last) = Suffix);
 
    --  The UTF-8 encoding of Code.
    function UTF_8 (Code : Terminal.Common.Code_Point) return String;
@@ -80,6 +93,25 @@ package body E2E_Rig is
 
    function Clipboard (Self : Rig) return String is (Unbounded.To_String (Self.Clipped));
 
+   function Crate_Root return String is
+      Program : constant String := Ada.Command_Line.Command_Name;
+      Found   : GNAT.OS_Lib.String_Access :=
+        (if Ada.Strings.Fixed.Index (Program, "/") > 0 then new String'(Program)
+         else GNAT.OS_Lib.Locate_Exec_On_Path (Program));
+   begin
+      if Found = null then
+         raise Program_Error with "cannot tell where " & Program & " is";
+      end if;
+
+      declare
+         --  The program is bin/explore_e2e below the crate.
+         Path : constant String := Resolved (Found.all);
+      begin
+         GNAT.OS_Lib.Free (Found);
+         return Ada.Directories.Containing_Directory (Ada.Directories.Containing_Directory (Path));
+      end;
+   end Crate_Root;
+
    procedure Expect (Self : Rig; Condition : Boolean; What : String) is
    begin
       if not Condition then
@@ -88,15 +120,37 @@ package body E2E_Rig is
    end Expect;
 
    function Fixture (Name : String) return String is
-      Path : constant String := Ada.Directories.Full_Name ("obj/fixtures/" & Name);
+      Path : constant String := Crate_Root & "/obj/fixtures/" & Name;
    begin
       if Ada.Directories.Exists (Path) then
          Ada.Directories.Delete_Tree (Path);
       end if;
 
       Ada.Directories.Create_Path (Path);
-      return Path;
+      return Resolved (Path);
    end Fixture;
+
+   function Header_Shows (Self : Rig; Path : String) return Boolean is
+      Header   : constant String := Row (Self, 1);
+      Ellipsis : constant String := Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#);
+      Lead     : constant String := " " & Ellipsis;
+   begin
+      if Header = " " & Path then
+         return True;
+      end if;
+
+      --  Too long for the screen, the path keeps its end.
+      return Header'Length > Lead'Length
+        and then Header (Header'First .. Header'First + Lead'Length - 1) = Lead
+        and then Ends_With (Path, Header (Header'First + Lead'Length .. Header'Last));
+   end Header_Shows;
+
+   function Kept_Fixture (Name : String) return String is
+      Path : constant String := Crate_Root & "/obj/fixtures-kept/" & Name;
+   begin
+      Ada.Directories.Create_Path (Path);
+      return Resolved (Path);
+   end Kept_Fixture;
 
    function First_Output (Self : Rig) return Ada.Real_Time.Time is (Self.Spoke_At);
 
@@ -150,6 +204,24 @@ package body E2E_Rig is
 
       Core.Snapshot (Self.Core, Self.View);
    end Pump;
+
+   function Quoted (Text : String) return String is
+      Quote  : constant Character := Character'Val (39);
+      Result : Unbounded.Unbounded_String := Unbounded.To_Unbounded_String ([Quote]);
+   begin
+      --  Within single quotes everything is as it is but a single quote,
+      --  which ends them, is put in escaped, and starts them again.
+      for C of Text loop
+         if C = Quote then
+            Unbounded.Append (Result, Quote & "\" & Quote & Quote);
+         else
+            Unbounded.Append (Result, C);
+         end if;
+      end loop;
+
+      Unbounded.Append (Result, Quote);
+      return Unbounded.To_String (Result);
+   end Quoted;
 
    procedure Resize (Self : in out Rig; Rows, Columns : Positive) is
       use type Core.Resize_Status;
@@ -267,8 +339,9 @@ package body E2E_Rig is
         (Launcher,
          "#!/bin/sh" & LF
          & "unset TMUX" & LF
-         & "export XDG_CONFIG_HOME='" & Root & "/config' XDG_STATE_HOME='" & Root & "/state'" & LF
-         & "exec '" & Explore_Binary & "' " & Options & " '" & Directory & "'" & LF);
+         & "export XDG_CONFIG_HOME=" & Quoted (Root & "/config") & " XDG_STATE_HOME=" & Quoted (Root & "/state")
+         & LF
+         & "exec " & Quoted (Explore_Binary) & " " & Options & " " & Quoted (Directory) & LF);
       GNAT.OS_Lib.Set_Executable (Launcher);
 
       --  explore draws on the alternate screen, which has no scrollback; the
@@ -339,6 +412,19 @@ package body E2E_Rig is
 
       return Ada.Strings.Fixed.Index (Screen (Self), Text) > 0;
    end Wait_For;
+
+   function Wait_For_Header (Self : in out Rig; Suffix : String; Timeout_Ms : Natural := 5_000) return Boolean is
+   begin
+      for Step in 0 .. Timeout_Ms / 10 loop
+         if Ends_With (Row (Self, 1), Suffix) then
+            return True;
+         end if;
+
+         Pump (Self, 10);
+      end loop;
+
+      return Ends_With (Row (Self, 1), Suffix);
+   end Wait_For_Header;
 
    function Wait_For_Row
      (Self : in out Rig; Row : Positive; Text : String; Timeout_Ms : Natural := 5_000) return Boolean is
