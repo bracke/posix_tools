@@ -143,6 +143,14 @@ jobs:
           repository: bracke/project_tools
           path: project_tools
 
+      # Only the checkouts above need committed line endings. Alire's index,
+      # restored from its cache, was cloned with the host's setting, and
+      # would otherwise show every CRLF file in it as changed and refuse to
+      # update.
+      - name: Restore the host's line endings
+        run: git config --global --unset core.autocrlf || true
+        shell: bash
+
       - name: Set up Alire
         uses: alire-project/setup-alire@v6
 

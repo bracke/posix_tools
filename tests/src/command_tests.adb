@@ -63,6 +63,7 @@ with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Commands.Yes;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Localization;
 with Posix_Tools.Paths;
 with Posix_Tools.Presentation;
@@ -5018,13 +5019,16 @@ package body Command_Tests is
       Posix_Tools.Commands.Tty.Run (Context, Result);
       Assert_Usage ("tty: extra operand 'surplus'", "tty names a surplus operand after --");
 
-      Context.Initialize ("kill", Four_Args ("-s", "TERM", "--", "not-a-process"));
-      Posix_Tools.Commands.Kill.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Contains (Test_Contexts.Error_Output (Context), "'not-a-process'")
-         and then not Contains (Test_Contexts.Error_Output (Context), "'--'"),
-         "kill ends its options at --");
+      --  A host with no signals, as Windows, refuses -s TERM before "--".
+      if Posix_Tools.Host_Adapters.Signals.Is_Supported (Posix_Tools.Host_Adapters.Signals.Terminate_Signal) then
+         Context.Initialize ("kill", Four_Args ("-s", "TERM", "--", "not-a-process"));
+         Posix_Tools.Commands.Kill.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+            and then Contains (Test_Contexts.Error_Output (Context), "'not-a-process'")
+            and then not Contains (Test_Contexts.Error_Output (Context), "'--'"),
+            "kill ends its options at --");
+      end if;
 
       Context.Initialize ("getconf", Two_Args ("--", "PATH"));
       Posix_Tools.Commands.Getconf.Run (Context, Result);

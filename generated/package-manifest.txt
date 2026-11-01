@@ -1,6 +1,6 @@
 posix-tools package manifest 0.1.0
 .gitattributes bytes= 212 fnv1a64=ed34e649fc0e6dcf
-.github/workflows/ci.yml bytes= 4842 fnv1a64=1f3bf95cfd9598c5
+.github/workflows/ci.yml bytes= 5214 fnv1a64=627470d4a0facf6b
 CHANGELOG.md bytes= 1091 fnv1a64=5757008b84a9a7bc
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 README.md bytes= 1408 fnv1a64=7b7c6675246112b6
@@ -658,7 +658,7 @@ tests/src/command_tests-surface_smoke-text.adb bytes= 63092 fnv1a64=f323d7102f90
 tests/src/command_tests-surface_smoke-text.ads bytes= 241 fnv1a64=85d9ac202cecb5d8
 tests/src/command_tests-surface_smoke.adb bytes= 482 fnv1a64=dd646ff1ee5f6ecd
 tests/src/command_tests-surface_smoke.ads bytes= 521 fnv1a64=2b1737e65f3c6409
-tests/src/command_tests.adb bytes= 269850 fnv1a64=db89210725ac3fef
+tests/src/command_tests.adb bytes= 270114 fnv1a64=5b33731560749056
 tests/src/command_tests.ads bytes= 7059 fnv1a64=7580ac52bd488245
 tests/src/conformance_checks.adb bytes= 35699 fnv1a64=a3263ad8d93ec6e5
 tests/src/conformance_checks.ads bytes= 279 fnv1a64=bbf61351bbe0f159
