@@ -15,7 +15,6 @@ package body Posix_Tools.Commands.Dd is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    subtype Usage_Message is Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
-   use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Exit_Status.Code;
    use type Posix_Tools.Numbers.Count;
    use type Posix_Tools.Text.DD_Blocks.Transfer_Plan_Status;
@@ -34,31 +33,6 @@ package body Posix_Tools.Commands.Dd is
       Output_Full_Records : Posix_Tools.Numbers.Count := 0;
       Output_Partial_Records : Posix_Tools.Numbers.Count := 0;
       Truncated_Records : Posix_Tools.Numbers.Count := 0;
-
-      function Read_Dd_Standard_Input (Read_Ok : out Boolean) return String is
-         Buffer : Ada.Streams.Stream_Element_Array
-           (1 .. Ada.Streams.Stream_Element_Offset
-                   (Posix_Tools.Numbers.Count'Min
-                      (Options.Input_Block_Size, Posix_Tools.Numbers.Count (16 * 1024))));
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Text   : Unbounded_String;
-      begin
-         Read_Ok := True;
-         loop
-            if not Context.Try_Read_Standard_Input (Buffer, Last) then
-               Read_Ok := False;
-               exit;
-            end if;
-
-            exit when Last < Buffer'First;
-
-            for I in Buffer'First .. Last loop
-               Append (Text, Character'Val (Integer (Buffer (I))));
-            end loop;
-         end loop;
-
-         return To_String (Text);
-      end Read_Dd_Standard_Input;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -99,22 +73,18 @@ package body Posix_Tools.Commands.Dd is
          end if;
       end;
 
+      --  The if= file, or standard input without one. A read failure has
+      --  been reported; conv=noerror carries on with what was read.
       Data :=
         To_Unbounded_String
-          ((if Length (Options.Input) = 0 then Read_Dd_Standard_Input (Ok)
-            else Posix_Tools.Commands.File_Helpers.Streaming.Read_File
-              (Context, To_String (Options.Input), Ok)));
+          (Posix_Tools.Commands.File_Helpers.Streaming.Read_File
+             (Context, (if Length (Options.Input) = 0 then "-" else To_String (Options.Input)), Ok));
       if not Ok then
          if not Options.Continue_After_Read_Error then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             return;
          end if;
 
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context,
-            (if Length (Options.Input) = 0 then "standard input" else To_String (Options.Input)),
-            "posix_tools.diagnostic.file.read_failed",
-            "cannot read file");
          Ok := True;
       end if;
 

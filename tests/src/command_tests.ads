@@ -99,6 +99,7 @@ package Command_Tests is
    procedure Test_Unexpand (T : in out Fixture);
    procedure Test_Unlink (T : in out Fixture);
    procedure Test_Usage_Errors (T : in out Fixture);
+   procedure Test_Option_Parsing (T : in out Fixture);
    procedure Test_Timeout_Statuses (T : in out Fixture);
    procedure Test_True (T : in out Fixture);
    procedure Test_True_Extension_Edges (T : in out Fixture);

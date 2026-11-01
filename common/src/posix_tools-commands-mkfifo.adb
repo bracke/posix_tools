@@ -44,7 +44,9 @@ package body Posix_Tools.Commands.Mkfifo is
                First := First + 2;
             end;
          elsif Context.Argument (First)'Length > 1 and then Context.Argument (First) (1) = '-' then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (First));
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, Unknown_Option,
+               Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Context.Argument (First), "m"));
             return;
          else
             exit;

@@ -1,5 +1,8 @@
 with Ada.Streams;
+with Ada.Strings.Unbounded;
 
+with Posix_Tools.Arguments;
+with Posix_Tools.Arguments.Parsing;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Extension_Options;
 with Posix_Tools.Help;
@@ -9,6 +12,8 @@ with Posix_Tools.Numbers;
 with Posix_Tools.Presentation;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Escaping;
+with Posix_Tools.Text.File_Operands;
+with Posix_Tools.Text.Matching;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Helpers is
@@ -299,4 +304,117 @@ package body Posix_Tools.Commands.Helpers is
             Context.Command_Name & ": '" & Escape_Untrusted (Subject) & "': "
             & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Subject_Operational_Error;
+
+   procedure Operational_Error
+     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Message_Key : String;
+      Name        : String;
+      Value       : String;
+      Default     : String)
+   is
+      Shown  : constant String := Escape_Untrusted (Value);
+      Marker : constant String := "{" & Name & "}";
+
+      --  Default with its placeholder filled in by Shown.
+      function Filled_Default return String;
+
+      function Filled_Default return String is
+      begin
+         for I in Default'First .. Default'Last - Marker'Length + 1 loop
+            if Default (I .. I + Marker'Length - 1) = Marker then
+               return Default (Default'First .. I - 1) & Shown & Default (I + Marker'Length .. Default'Last);
+            end if;
+         end loop;
+         return Default;
+      end Filled_Default;
+   begin
+      Context.Put_Error_Line
+        (Diagnostic_Line
+           (Context,
+            Context.Command_Name & ": "
+            & Posix_Tools.Localization.Text_1
+                (Context.Effective_Locale, Message_Key, Name, Shown, Filled_Default)));
+   end Operational_Error;
+
+   function Standard_Input_Name
+     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
+   is
+   begin
+      return Posix_Tools.Localization.Text
+        (Context.Effective_Locale, "posix_tools.diagnostic.standard_input", "standard input");
+   end Standard_Input_Name;
+
+   function File_Subject
+     (Context   : Posix_Tools.Commands.Contexts.Context'Class;
+      File_Name : String) return String
+   is
+   begin
+      return Posix_Tools.Text.File_Operands.Subject_Name (File_Name, Standard_Input_Name (Context));
+   end File_Subject;
+
+   function Unknown_Option_Subject (Argument : String; Accepted : String) return String is
+   begin
+      if Argument'Length < 2
+        or else Argument (Argument'First) /= '-'
+        or else Argument (Argument'First + 1) = '-'
+      then
+         return Argument;
+      end if;
+
+      for Ch of Argument (Argument'First + 1 .. Argument'Last) loop
+         if not Posix_Tools.Text.Matching.Contains (Accepted, Ch) then
+            return "-" & Ch;
+         end if;
+      end loop;
+      return Argument;
+   end Unknown_Option_Subject;
+
+   procedure Parse_Options
+     (Context           : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result            : in out Posix_Tools.Commands.Results.Result;
+      Accepted          : String;
+      Requires_Argument : String;
+      First             : out Positive;
+      Valid             : out Boolean)
+   is
+      package Parsing renames Posix_Tools.Arguments.Parsing;
+      use all type Parsing.Parse_Status;
+      use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+
+      Arguments : constant Posix_Tools.Arguments.Vector := Context.Argument_Vector;
+      Position  : Parsing.Cursor := (Index => 1, Offset => 2);
+      Parsed    : Parsing.Result;
+   begin
+      Valid := True;
+      loop
+         Parsed := Parsing.Parse_Short (Arguments, Position, Accepted, Requires_Argument);
+         case Parsed.Status is
+            when Option =>
+               Handle (Parsed.Name, Ada.Strings.Unbounded.To_String (Parsed.Text), Result, Valid);
+               if not Valid then
+                  First := Position.Index;
+                  return;
+               end if;
+               Position := Parsed.Next;
+            when Unknown_Option =>
+               Usage_Error (Context, Result, Unknown_Option, "-" & Parsed.Name);
+               Valid := False;
+               First := Position.Index;
+               return;
+            when Missing_Argument =>
+               Usage_Error (Context, Result, Missing_Option_Argument, "-" & Parsed.Name);
+               Valid := False;
+               First := Position.Index;
+               return;
+            when End_Of_Options | Done =>
+               --  Past "--", or past the last argument.
+               First := Parsed.Next.Index;
+               return;
+            when Operand =>
+               --  The operand Parsed has stepped over is the first one.
+               First := Parsed.Next.Index - 1;
+               return;
+         end case;
+      end loop;
+   end Parse_Options;
 end Posix_Tools.Commands.Helpers;

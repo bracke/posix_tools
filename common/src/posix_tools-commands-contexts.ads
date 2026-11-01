@@ -21,6 +21,8 @@ package Posix_Tools.Commands.Contexts is
    function Command_Name (Self : Context) return String;
    function Argument_Count (Self : Context) return Natural;
    function Argument (Self : Context; Index : Positive) return String;
+   --  All of the arguments, in order: what Argument gives one at a time.
+   function Argument_Vector (Self : Context) return Posix_Tools.Arguments.Vector;
    --  The locale of Category as POSIX settles it: LC_ALL, else the
    --  category's own variable (LC_CTYPE, LC_COLLATE, LC_MESSAGES,
    --  LC_NUMERIC or LC_TIME), else LANG, else Default_Locale.

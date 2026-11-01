@@ -19,14 +19,19 @@ package body Posix_Tools.Commands.Fold is
    is
       Width      : Natural := 80;
       Space_Mode : Boolean := False;
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
       All_Ok     : Boolean := True;
 
       procedure Emit_Folded_Line (Line : String; Had_Newline : Boolean);
       procedure Fold_File (Name : String; Ok : out Boolean);
       procedure Fold_Text (Text : String; Ok : out Boolean);
       procedure Put_LF;
-      procedure Reject_Width (Text : String);
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
 
       function Valid_Width (Text : String; Value : out Natural) return Boolean;
 
@@ -177,11 +182,6 @@ package body Posix_Tools.Commands.Fold is
          Context.Put ("" & LF);
       end Put_LF;
 
-      procedure Reject_Width (Text : String) is
-      begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
-      end Reject_Width;
-
       function Valid_Width (Text : String; Value : out Natural) return Boolean is
          Parsed : constant Posix_Tools.Text.Tab_Stops.Parsed_Stop :=
            Posix_Tools.Text.Tab_Stops.Parse_Stop (Text, 0);
@@ -194,49 +194,34 @@ package body Posix_Tools.Commands.Fold is
             return False;
          end if;
       end Valid_Width;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         --  -b is accepted and needs no handling of its own.
+         Valid := True;
+         if Name = 's' then
+            Space_Mode := True;
+         elsif Name = 'w' and then not Valid_Width (Value, Width) then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+            Valid := False;
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First_File <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First_File);
-         begin
-            if Arg = "--" then
-               First_File := First_File + 1;
-               exit;
-            elsif Arg = "-b" then
-               First_File := First_File + 1;
-            elsif Arg = "-s" then
-               Space_Mode := True;
-               First_File := First_File + 1;
-            elsif Arg = "-w" then
-               if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-w");
-                  return;
-               elsif not Valid_Width (Context.Argument (First_File + 1), Width) then
-                  Reject_Width (Context.Argument (First_File + 1));
-                  return;
-               end if;
-               First_File := First_File + 2;
-            elsif Arg'Length > 2
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) = 'w'
-            then
-               if not Valid_Width (Arg (Arg'First + 2 .. Arg'Last), Width) then
-                  Reject_Width (Arg (Arg'First + 2 .. Arg'Last));
-                  return;
-               end if;
-               First_File := First_File + 1;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
-               return;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "bsw", "w", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Context.Argument_Count < First_File then
          Fold_File ("-", All_Ok);

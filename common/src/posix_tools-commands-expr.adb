@@ -55,7 +55,7 @@ package body Posix_Tools.Commands.Expr is
 
       Context.Put_Line (To_String (Evaluation.Value));
       Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
+        (if Context.Output_Failed then Posix_Tools.Exit_Status.Expr_Error
          elsif Exprs.Is_False (To_String (Evaluation.Value)) then
             Posix_Tools.Exit_Status.Operational_Failure
          else Posix_Tools.Exit_Status.Success);

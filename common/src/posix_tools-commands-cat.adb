@@ -10,10 +10,36 @@ package body Posix_Tools.Commands.Cat is
       Ok      : Boolean;
       All_Ok  : Boolean := True;
       Count   : constant Natural := Context.Argument_Count;
-      First   : constant Positive :=
-        (if Count > 0 and then Context.Argument (1) = "--" then 2 else 1);
+      First   : Positive;
+      Valid   : Boolean;
+
+      --  -u, which asks for unbuffered output, is the one option; it needs
+      --  no handling, as cat writes each chunk it reads.
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Name, Value, Result);
+      begin
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
+         return;
+      end if;
+
+      Parse (Context, Result, "u", "", First, Valid);
+      if not Valid then
          return;
       end if;
 

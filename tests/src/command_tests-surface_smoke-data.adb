@@ -109,8 +109,59 @@ package body Command_Tests.Surface_Smoke.Data is
       Posix_Tools.Commands.Cmp.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Contains (Test_Contexts.Output (Context), "EOF on " & Cmp_First),
-         "cmp reports EOF on the shorter file");
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "cmp: EOF on " & Cmp_First & EOL,
+         "cmp reports EOF on the shorter file on standard error");
+
+      Context.Initialize ("cmp", Three_Args ("-s", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context) = "",
+         "cmp -s stays silent about EOF on the shorter file");
+
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Test_Contexts.Set_Locale (Context, "da");
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "cmp: EOF i " & Cmp_First & EOL,
+         "cmp words EOF on the shorter file in the messages locale");
+
+      Context.Initialize ("cmp", Three_Args ("-ls", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "cmp takes grouped -l and -s");
+
+      Context.Initialize ("cmp", Three_Args ("-x", Cmp_First, Cmp_Second));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "cmp: unknown option '-x'" & EOL,
+         "cmp rejects an unknown option instead of opening it");
+
+      Context.Initialize ("cmp", Three_Args (Cmp_First, Cmp_Second, "surplus"));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Test_Contexts.Error_Output (Context) = "cmp: extra operand 'surplus'" & EOL,
+         "cmp names its first surplus operand");
+
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Fixture_File ("command-cmp-missing.txt")));
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Cmp_Trouble,
+         "cmp exits above 1 when a file cannot be read");
+
+      Write_File (Cmp_Second, "shxrter");
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Cmp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Cmp_Trouble,
+         "cmp exits above 1 when its output cannot be written");
    end Test_Cmp;
 
    procedure Test_Comm (T : in out Surface_Fixture) is

@@ -68,6 +68,7 @@ with Posix_Tools.Text.UTF_8;
 with Posix_Tools.Text.Xargs_Fields;
 with Posix_Tools.Version;
 with Posix_Tools.Wc_Fields;
+with Test_Support;
 
 package body Basic_Tests is
    use type Interfaces.Unsigned_32;
@@ -421,13 +422,15 @@ package body Basic_Tests is
       pragma Unreferenced (T);
       use type Posix_Tools.Arguments.Parsing.Parse_Status;
 
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#4F50_5453#;
+      Initial_Seed : constant Word_32 := 16#4F50_5453#;
+      Seed : Word_32 := Initial_Seed;
 
       function Next_Value return Natural is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Natural ((Seed / 16#0100_0000#) mod 256);
       end Next_Value;
 
@@ -460,7 +463,7 @@ package body Basic_Tests is
                AUnit.Assertions.Assert
                  (Parsed.Status = Posix_Tools.Arguments.Parsing.Option
                   and then Parsed.Name = Text (I),
-                  "option parser property seed 0x4F505453 case"
+                  "option parser property " & Test_Support.Seed_Label (Initial_Seed) & " case"
                   & Natural'Image (Case_Index) & " accepted option");
                Cursor := Parsed.Next;
             end loop;
@@ -468,7 +471,7 @@ package body Basic_Tests is
             Parsed := Posix_Tools.Arguments.Parsing.Parse_Short (Args (Text), Cursor, "abc");
             AUnit.Assertions.Assert
               (Parsed.Status = Posix_Tools.Arguments.Parsing.Done,
-               "option parser property seed 0x4F505453 case"
+               "option parser property " & Test_Support.Seed_Label (Initial_Seed) & " case"
                & Natural'Image (Case_Index) & " done");
          end;
       end loop;
@@ -482,7 +485,7 @@ package body Basic_Tests is
             AUnit.Assertions.Assert
               (Parsed.Status = Posix_Tools.Arguments.Parsing.Unknown_Option
                and then Parsed.Name = Ch,
-               "option parser property seed 0x4F505453 case"
+               "option parser property " & Test_Support.Seed_Label (Initial_Seed) & " case"
                & Natural'Image (Case_Index) & " unknown option");
          end;
       end loop;
@@ -580,9 +583,11 @@ package body Basic_Tests is
 
    procedure Test_Path_Properties (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#5054_0001#;
+      Initial_Seed : constant Word_32 := 16#5054_0001#;
+      Seed : Word_32 := Initial_Seed;
 
       function Contains_Slash (Text : String) return Boolean is
       begin
@@ -602,7 +607,7 @@ package body Basic_Tests is
 
       function Next_Value return Word_32 is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Seed;
       end Next_Value;
 
@@ -630,7 +635,7 @@ package body Basic_Tests is
             Base  : constant String := Posix_Tools.Paths.Basename (Path);
             Dir   : constant String := Posix_Tools.Paths.Dirname (Path);
             Label : constant String :=
-              "seed 0x50540001 case" & Integer'Image (Case_Index) & " path '" & Path & "'";
+              Test_Support.Seed_Label (Initial_Seed) & " case" & Integer'Image (Case_Index) & " path '" & Path & "'";
          begin
             AUnit.Assertions.Assert
               (Base = "/" or else not Contains_Slash (Base),
@@ -825,13 +830,15 @@ package body Basic_Tests is
    procedure Test_Stream_Line_Properties (T : in out Fixture) is
       pragma Unreferenced (T);
       use type Ada.Containers.Count_Type;
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#5054_0002#;
+      Initial_Seed : constant Word_32 := 16#5054_0002#;
+      Seed : Word_32 := Initial_Seed;
 
       function Next_Value return Word_32 is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Seed;
       end Next_Value;
 
@@ -861,7 +868,7 @@ package body Basic_Tests is
             Segments : constant Posix_Tools.Streams.Lines.Segment_Vector :=
               Posix_Tools.Streams.Lines.Split_LF_Segments (Input);
             Reassembled : Ada.Strings.Unbounded.Unbounded_String;
-            Label : constant String := "seed 0x50540002 case" & Integer'Image (Case_Index);
+            Label : constant String := Test_Support.Seed_Label (Initial_Seed) & " case" & Integer'Image (Case_Index);
          begin
             for Segment of Segments loop
                Ada.Strings.Unbounded.Append (Reassembled, Segment);
@@ -2586,10 +2593,10 @@ package body Basic_Tests is
            (Character'Val (1) & "X") = "\x01X",
          "command helper delegates text escaping");
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.File_Operands.Subject_Name ("-") = "standard input",
+        (Posix_Tools.Text.File_Operands.Subject_Name ("-", "standardinput") = "standardinput",
          "file operand subject names standard input");
       AUnit.Assertions.Assert
-        (Posix_Tools.Text.File_Operands.Subject_Name ("sample.txt") = "sample.txt",
+        (Posix_Tools.Text.File_Operands.Subject_Name ("sample.txt", "standard input") = "sample.txt",
          "file operand subject preserves filenames");
       declare
          First_Field : constant Posix_Tools.Text.File_Magic_Fields.Magic_Field :=

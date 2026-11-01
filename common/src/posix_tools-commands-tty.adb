@@ -9,21 +9,40 @@ package body Posix_Tools.Commands.Tty is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Silent : Boolean := False;
+      First  : Positive;
+      Valid  : Boolean;
+
+      --  -s, the one option.
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Name, Value, Result);
+      begin
+         Silent := True;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      if Context.Argument_Count > 1 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (2));
+      Parse (Context, Result, "s", "", First, Valid);
+      if not Valid then
          return;
-      elsif Context.Argument_Count = 1 then
-         if Context.Argument (1) = "-s" then
-            Silent := True;
-         else
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (1));
-            return;
-         end if;
+      elsif Context.Argument_Count >= First then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First));
+         return;
       end if;
 
       if Context.Standard_Input_Is_Terminal then

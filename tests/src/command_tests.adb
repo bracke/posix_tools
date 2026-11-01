@@ -26,20 +26,26 @@ with Posix_Tools.Commands.Expr;
 with Posix_Tools.Commands.False_Command;
 with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Fold;
+with Posix_Tools.Commands.Getconf;
 with Posix_Tools.Commands.Groups;
 with Posix_Tools.Commands.Head;
 with Posix_Tools.Commands.Hostname;
 with Posix_Tools.Commands.Id;
+with Posix_Tools.Commands.Kill;
 with Posix_Tools.Commands.Ln;
 with Posix_Tools.Commands.Logname;
 with Posix_Tools.Commands.Mv;
+with Posix_Tools.Commands.Nice;
 with Posix_Tools.Commands.Nl;
+with Posix_Tools.Commands.Od;
+with Posix_Tools.Commands.Paste;
 with Posix_Tools.Commands.Pathchk;
 with Posix_Tools.Commands.Pwd;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Root;
 with Posix_Tools.Commands.Seq;
+with Posix_Tools.Commands.Sleep;
 with Posix_Tools.Commands.Sort;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Tee;
@@ -60,9 +66,9 @@ with Posix_Tools.Exit_Status;
 with Posix_Tools.Localization;
 with Posix_Tools.Paths;
 with Posix_Tools.Presentation;
-with Posix_Tools.Text.Matching;
 with Posix_Tools.Version;
 with Test_Contexts;
+with Test_Support;
 with Command_Tests.Dispatch;
 with Command_Tests.Scripting;
 
@@ -71,68 +77,26 @@ package body Command_Tests is
    use type Posix_Tools.Exit_Status.Code;
    use Ada.Strings.Unbounded;
 
-   function No_Args return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      return Result;
-   end No_Args;
+   function No_Args return Posix_Tools.Arguments.Vector
+     renames Test_Support.No_Args;
 
-   function One_Arg (A : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      return Result;
-   end One_Arg;
+   function One_Arg (A : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.One_Arg;
 
-   function Two_Args (A, B : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      Result.Append (B);
-      return Result;
-   end Two_Args;
+   function Two_Args (A, B : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Two_Args;
 
-   function Three_Args (A, B, C : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      Result.Append (B);
-      Result.Append (C);
-      return Result;
-   end Three_Args;
+   function Three_Args (A, B, C : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Three_Args;
 
-   function Four_Args (A, B, C, D : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      Result.Append (B);
-      Result.Append (C);
-      Result.Append (D);
-      return Result;
-   end Four_Args;
+   function Four_Args (A, B, C, D : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Four_Args;
 
-   function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      Result.Append (B);
-      Result.Append (C);
-      Result.Append (D);
-      Result.Append (E);
-      return Result;
-   end Five_Args;
+   function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Five_Args;
 
-   function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector is
-      Result : Posix_Tools.Arguments.Vector;
-   begin
-      Result.Append (A);
-      Result.Append (B);
-      Result.Append (C);
-      Result.Append (D);
-      Result.Append (E);
-      Result.Append (F);
-      return Result;
-   end Six_Args;
+   function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector
+     renames Test_Support.Six_Args;
 
    function Fixture_Path (Name : String) return String is
    begin
@@ -143,102 +107,25 @@ package body Command_Tests is
       end if;
    end Fixture_Path;
 
-   function Work_Path (Name : String) return String is
-   begin
-      return Hostkit.Fs.Join (Hostkit.Fs.Join ("generated", "test-work"), Name);
-   end Work_Path;
+   function Work_Path (Name : String) return String
+     renames Test_Support.Work_Path;
 
-   function Contains (Text, Pattern : String) return Boolean is
-   begin
-      return Posix_Tools.Text.Matching.Contains (Text, Pattern);
-   end Contains;
+   function Contains (Text, Pattern : String) return Boolean
+     renames Test_Support.Contains;
 
-   function Occurrences (Text, Pattern : String) return Natural is
-      Count : Natural := 0;
-      Index : Positive := Text'First;
-   begin
-      if Pattern = "" or else Text'Length < Pattern'Length then
-         return 0;
-      end if;
+   function Occurrences (Text, Pattern : String) return Natural
+     renames Test_Support.Occurrences;
 
-      while Index <= Text'Last - Pattern'Length + 1 loop
-         if Text (Index .. Index + Pattern'Length - 1) = Pattern then
-            Count := Count + 1;
-            Index := Index + Pattern'Length;
-         else
-            Index := Index + 1;
-         end if;
-      end loop;
+   procedure Assert_Inventory_Status_Lines (Output_Text, Label : String)
+     renames Test_Support.Assert_Inventory_Status_Lines;
 
-      return Count;
-   end Occurrences;
+   function Inventory_List_Output return String
+     renames Test_Support.Inventory_List_Output;
 
-   procedure Assert_Inventory_Status_Lines (Output_Text, Label : String) is
-      LF       : constant Character := Character'Val (10);
-      Position : Natural := Output_Text'First;
-   begin
-      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         declare
-            Prefix : constant String :=
-              Posix_Tools.Command_Inventory.Executable (Index) & ": ";
-         begin
-            AUnit.Assertions.Assert
-              (Position <= Output_Text'Last,
-               Label & " missing line for " & Posix_Tools.Command_Inventory.Executable (Index));
-            AUnit.Assertions.Assert
-              (Position + Prefix'Length - 1 <= Output_Text'Last
-               and then Output_Text (Position .. Position + Prefix'Length - 1) = Prefix,
-               Label & " prefix for " & Posix_Tools.Command_Inventory.Executable (Index));
-
-            while Position <= Output_Text'Last and then Output_Text (Position) /= LF loop
-               Position := Position + 1;
-            end loop;
-
-            AUnit.Assertions.Assert
-              (Position <= Output_Text'Last and then Output_Text (Position) = LF,
-               Label & " line terminator for " & Posix_Tools.Command_Inventory.Executable (Index));
-            Position := Position + 1;
-         end;
-      end loop;
-
-      AUnit.Assertions.Assert
-        (Position = Output_Text'Last + 1,
-         Label & " extra output after inventory lines");
-   end Assert_Inventory_Status_Lines;
-
-   function Inventory_List_Output return String is
-      Expected : Ada.Strings.Unbounded.Unbounded_String;
-   begin
-      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Ada.Strings.Unbounded.Append
-           (Expected,
-            Posix_Tools.Command_Inventory.Executable (Index) & Character'Val (10));
-      end loop;
-
-      return Ada.Strings.Unbounded.To_String (Expected);
-   end Inventory_List_Output;
-
-   procedure Write_File (Path, Data : String) is
-      use type Ada.Streams.Stream_Element_Offset;
-      File   : Ada.Streams.Stream_IO.File_Type;
-      Buffer : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Data'Length));
-      Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
-   begin
-      if Data'Length = 0 then
-         Ada.Streams.Stream_IO.Create (File, Ada.Streams.Stream_IO.Out_File, Path);
-         Ada.Streams.Stream_IO.Close (File);
-         return;
-      end if;
-
-      for I in Data'Range loop
-         Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Data (I)));
-         Target := Target + Ada.Streams.Stream_Element_Offset (1);
-      end loop;
-
-      Ada.Streams.Stream_IO.Create (File, Ada.Streams.Stream_IO.Out_File, Path);
-      Ada.Streams.Stream_IO.Write (File, Buffer);
-      Ada.Streams.Stream_IO.Close (File);
-   end Write_File;
+   procedure Write_File (Path, Data : String)
+     renames Test_Support.Write_File;
+   procedure Delete_If_Exists (Path : String)
+     renames Test_Support.Delete_If_Exists;
 
    procedure Test_Expr_Extension_Operands (T : in out Fixture) is
    begin
@@ -505,6 +392,13 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "expr rejects non-numeric arithmetic operand");
+
+      Context.Initialize ("expr", Three_Args ("1", "+", "2"));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Expr_Error,
+         "expr exits 3, an error, when its output cannot be written");
    end Test_Expr;
 
    procedure Test_File (T : in out Fixture) is
@@ -524,16 +418,6 @@ package body Command_Tests is
       Missing_Path : constant String := Fixture_Path ("file-missing.txt");
       LF : constant Character := Character'Val (10);
 
-      procedure Delete_If_Exists (Path : String) is
-      begin
-         if Ada.Directories.Exists (Path) then
-            if Ada.Directories.Kind (Path) = Ada.Directories.Directory then
-               Ada.Directories.Delete_Tree (Path);
-            else
-               Ada.Directories.Delete_File (Path);
-            end if;
-         end if;
-      end Delete_If_Exists;
    begin
       Delete_If_Exists (Text_Path);
       Delete_If_Exists (Data_Path);
@@ -662,16 +546,6 @@ package body Command_Tests is
       LF           : constant Character := Character'Val (10);
       HT           : constant Character := Character'Val (9);
 
-      procedure Delete_If_Exists (Path : String) is
-      begin
-         if Ada.Directories.Exists (Path) then
-            if Ada.Directories.Kind (Path) = Ada.Directories.Directory then
-               Ada.Directories.Delete_Tree (Path);
-            else
-               Ada.Directories.Delete_File (Path);
-            end if;
-         end if;
-      end Delete_If_Exists;
    begin
       Delete_If_Exists (Work_Root);
       Ada.Directories.Create_Path (Work_Root);
@@ -825,12 +699,6 @@ package body Command_Tests is
       Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
       Acute   : constant String := Character'Val (16#CC#) & Character'Val (16#81#);
 
-      procedure Delete_If_Exists (Name : String) is
-      begin
-         if Ada.Directories.Exists (Name) then
-            Ada.Directories.Delete_File (Name);
-         end if;
-      end Delete_If_Exists;
    begin
       Context.Initialize ("expand", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "a" & HT & "b");
@@ -920,12 +788,6 @@ package body Command_Tests is
       HT      : constant Character := Character'Val (9);
       Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
 
-      procedure Delete_If_Exists (Name : String) is
-      begin
-         if Ada.Directories.Exists (Name) then
-            Ada.Directories.Delete_File (Name);
-         end if;
-      end Delete_If_Exists;
    begin
       Context.Initialize ("unexpand", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "        x");
@@ -1301,13 +1163,15 @@ package body Command_Tests is
 
    procedure Test_Cat_Byte_Preservation_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#5054_0003#;
+      Initial_Seed : constant Word_32 := 16#5054_0003#;
+      Seed : Word_32 := Initial_Seed;
 
       function Next_Value return Word_32 is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Seed;
       end Next_Value;
 
@@ -1339,7 +1203,7 @@ package body Command_Tests is
             Context : Test_Contexts.Capturing_Context;
             Result  : Posix_Tools.Commands.Results.Result;
             Input   : constant String := Generated_Bytes;
-            Label   : constant String := "seed 0x50540003 case" & Integer'Image (Case_Index);
+            Label   : constant String := Test_Support.Seed_Label (Initial_Seed) & " case" & Integer'Image (Case_Index);
          begin
             Context.Initialize ("cat", No_Args);
             Test_Contexts.Set_Standard_Input (Context, Input);
@@ -1443,14 +1307,16 @@ package body Command_Tests is
 
    procedure Test_Basename_Dirname_Command_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#BA5E_D123#;
+      Initial_Seed : constant Word_32 := 16#BA5E_D123#;
+      Seed : Word_32 := Initial_Seed;
       LF   : constant Character := Character'Val (10);
 
       function Next_Value return Natural is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Natural ((Seed / 16#0100_0000#) mod 256);
       end Next_Value;
 
@@ -1507,7 +1373,7 @@ package body Command_Tests is
             Path             : constant String := Generated_Path;
             Suffix           : constant String := Generated_Suffix (Path);
             Label            : constant String :=
-              "basename dirname command property seed 0xBA5ED123 case" & Natural'Image (Case_Index);
+              "basename dirname command property " & Test_Support.Seed_Label (Initial_Seed) & " case" & Natural'Image (Case_Index);
          begin
             Basename_Context.Initialize ("basename", Two_Args (Path, Suffix));
             Posix_Tools.Commands.Basename.Run (Basename_Context, Basename_Result);
@@ -1781,14 +1647,16 @@ package body Command_Tests is
 
    procedure Test_Echo_Output_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#EC40_0001#;
+      Initial_Seed : constant Word_32 := 16#EC40_0001#;
+      Seed : Word_32 := Initial_Seed;
       LF   : constant Character := Character'Val (10);
 
       function Next_Value return Natural is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Natural ((Seed / 16#0100_0000#) mod 256);
       end Next_Value;
 
@@ -1848,7 +1716,7 @@ package body Command_Tests is
             Args        : Posix_Tools.Arguments.Vector;
             Expected    : Ada.Strings.Unbounded.Unbounded_String;
             Arg_Count   : constant Natural := Next_Value mod 9;
-            Label       : constant String := "echo property seed 0xEC400001 case" & Natural'Image (Case_Index);
+            Label       : constant String := "echo property " & Test_Support.Seed_Label (Initial_Seed) & " case" & Natural'Image (Case_Index);
          begin
             for Index in 1 .. Arg_Count loop
                declare
@@ -2079,7 +1947,8 @@ package body Command_Tests is
 
    procedure Test_Head_Prefix_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Count_Array is array (Positive range <>) of Natural;
       type Length_Array is array (Positive range <>) of Natural;
 
@@ -2087,7 +1956,8 @@ package body Command_Tests is
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("property-head-prefix.bin");
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#4845_4144#;
+      Initial_Seed : constant Word_32 := 16#4845_4144#;
+      Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 2, 5, 11, 32];
       Lengths : constant Length_Array := [0, 1, 16, 17, 63, 256, 1025];
 
@@ -2118,7 +1988,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
       end Next_Byte;
 
@@ -2151,11 +2021,11 @@ package body Command_Tests is
                Posix_Tools.Commands.Head.Run (Context, Result);
                AUnit.Assertions.Assert
                  (Test_Contexts.Output (Context) = Expected_Prefix (Data, Count),
-                  "head prefix property seed 0x48454144 length"
+                  "head prefix property " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
                AUnit.Assertions.Assert
                  (Result.Status = Posix_Tools.Exit_Status.Success,
-                  "head prefix property status seed 0x48454144 length"
+                  "head prefix property status " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
             end loop;
          end;
@@ -2166,12 +2036,13 @@ package body Command_Tests is
 
    procedure Test_Head_Standard_Input_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
       type Count_Array is array (Positive range <>) of Natural;
       type Length_Array is array (Positive range <>) of Natural;
 
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#4845_AD15#;
+      Initial_Seed : constant Word_32 := 16#4845_AD15#;
+      Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 3, 10, 33];
       Lengths : constant Length_Array := [0, 1, 9, 29, 128, 513];
 
@@ -2202,8 +2073,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_103_515_245 + 12_345;
-         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 256));
+         return Test_Support.Next_C_Byte (Seed);
       end Next_Byte;
 
       function Generated (Length : Natural) return String is
@@ -2238,11 +2108,11 @@ package body Command_Tests is
                   Posix_Tools.Commands.Head.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Test_Contexts.Output (Context) = Expected_Prefix (Data, Count),
-                     "head stdin property seed 0x4845AD15 length"
+                     "head stdin property " & Test_Support.Seed_Label (Initial_Seed) & " length"
                      & Natural'Image (Length) & " count" & Natural'Image (Count));
                   AUnit.Assertions.Assert
                     (Result.Status = Posix_Tools.Exit_Status.Success,
-                     "head stdin property status seed 0x4845AD15 length"
+                     "head stdin property status " & Test_Support.Seed_Label (Initial_Seed) & " length"
                      & Natural'Image (Length) & " count" & Natural'Image (Count));
                end;
             end loop;
@@ -2259,7 +2129,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Head.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "head invalid count status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: invalid line count '-nabc'" & Character'Val (10),
+        (Test_Contexts.Error_Output (Context) = "head: invalid line count 'abc'" & Character'Val (10),
          "head invalid count diagnostic");
 
       Context.Initialize ("head", Two_Args ("-n", "-1"));
@@ -2598,8 +2468,18 @@ package body Command_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "Danish invalid line count status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal '-nabc'" & LF,
+        (Test_Contexts.Error_Output (Context) = "head: ugyldigt linjeantal 'abc'" & LF,
          "Danish invalid line count diagnostic");
+
+      --  Standard input is named in the messages locale too.
+      Context.Initialize ("cat", No_Args);
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 0);
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Error_Output (Context), "cat: 'standardinput': "),
+         "Danish standard input diagnostic names standard input in Danish");
 
       Context.Initialize ("cat", One_Arg (Missing));
       Test_Contexts.Set_Locale (Context, "da");
@@ -3120,16 +3000,18 @@ package body Command_Tests is
 
    procedure Test_Pwd_Option_Precedence_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed     : Word_32 := 16#5057_4431#;
+      Initial_Seed : constant Word_32 := 16#5057_4431#;
+      Seed     : Word_32 := Initial_Seed;
       Physical : constant String := "/physical/property";
       Logical  : constant String := "/logical/property";
       LF       : constant Character := Character'Val (10);
 
       function Next_Value return Natural is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Natural ((Seed / 16#0100_0000#) mod 256);
       end Next_Value;
    begin
@@ -3141,7 +3023,7 @@ package body Command_Tests is
             Use_Logical : Boolean := True;
             Count     : constant Natural := Next_Value mod 9;
             Label     : constant String :=
-              "pwd option precedence property seed 0x50574431 case" & Natural'Image (Case_Index);
+              "pwd option precedence property " & Test_Support.Seed_Label (Initial_Seed) & " case" & Natural'Image (Case_Index);
          begin
             for Index in 1 .. Count loop
                if Next_Value mod 2 = 0 then
@@ -3643,12 +3525,6 @@ package body Command_Tests is
       LF      : constant Character := Character'Val (10);
       HT      : constant Character := Character'Val (9);
 
-      procedure Delete_If_Exists (Name : String) is
-      begin
-         if Ada.Directories.Exists (Name) then
-            Ada.Directories.Delete_File (Name);
-         end if;
-      end Delete_If_Exists;
    begin
       Context.Initialize ("nl", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "a" & LF & LF & "b");
@@ -4258,12 +4134,6 @@ package body Command_Tests is
       Path    : constant String := Fixture_Path ("unlink-target.txt");
       Dash_Path : constant String := Fixture_Path ("-");
 
-      procedure Delete_If_Exists (Name : String) is
-      begin
-         if Ada.Directories.Exists (Name) then
-            Ada.Directories.Delete_File (Name);
-         end if;
-      end Delete_If_Exists;
    begin
       Delete_If_Exists (Path);
       Delete_If_Exists (Dash_Path);
@@ -4663,14 +4533,16 @@ package body Command_Tests is
 
    procedure Test_Tail_Byte_Suffix_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Count_Array is array (Positive range <>) of Natural;
       type Length_Array is array (Positive range <>) of Natural;
 
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("property-tail-c.bin");
-      Seed    : Word_32 := 16#5441_494C#;
+      Initial_Seed : constant Word_32 := 16#5441_494C#;
+      Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 2, 7, 32, 255, 2048];
       Lengths : constant Length_Array := [0, 1, 2, 31, 256, 1025];
 
@@ -4693,7 +4565,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
       end Next_Byte;
 
@@ -4722,11 +4594,11 @@ package body Command_Tests is
                Posix_Tools.Commands.Tail.Run (Context, Result);
                AUnit.Assertions.Assert
                  (Test_Contexts.Output (Context) = Expected_Suffix (Data, Count),
-                  "tail -c property seed 0x5441494C length"
+                  "tail -c property " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
                AUnit.Assertions.Assert
                  (Result.Status = Posix_Tools.Exit_Status.Success,
-                  "tail -c property status seed 0x5441494C length"
+                  "tail -c property status " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
             end loop;
          end;
@@ -4737,11 +4609,12 @@ package body Command_Tests is
 
    procedure Test_Tail_Standard_Input_Byte_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
       type Count_Array is array (Positive range <>) of Natural;
       type Length_Array is array (Positive range <>) of Natural;
 
-      Seed    : Word_32 := 16#5441_4953#;
+      Initial_Seed : constant Word_32 := 16#5441_4953#;
+      Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 2, 9, 64, 512];
       Lengths : constant Length_Array := [0, 1, 8, 65, 300, 900];
 
@@ -4764,8 +4637,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_103_515_245 + 12_345;
-         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 256));
+         return Test_Support.Next_C_Byte (Seed);
       end Next_Byte;
 
       function Generated (Length : Natural) return String is
@@ -4796,11 +4668,11 @@ package body Command_Tests is
                   Posix_Tools.Commands.Tail.Run (Context, Result);
                   AUnit.Assertions.Assert
                     (Test_Contexts.Output (Context) = Expected_Suffix (Data, Count),
-                     "tail stdin -c property seed 0x54414953 length"
+                     "tail stdin -c property " & Test_Support.Seed_Label (Initial_Seed) & " length"
                      & Natural'Image (Length) & " count" & Natural'Image (Count));
                   AUnit.Assertions.Assert
                     (Result.Status = Posix_Tools.Exit_Status.Success,
-                     "tail stdin -c property status seed 0x54414953 length"
+                     "tail stdin -c property status " & Test_Support.Seed_Label (Initial_Seed) & " length"
                      & Natural'Image (Length) & " count" & Natural'Image (Count));
                end;
             end loop;
@@ -4810,7 +4682,8 @@ package body Command_Tests is
 
    procedure Test_Tail_Line_Suffix_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Count_Array is array (Positive range <>) of Natural;
       type Length_Array is array (Positive range <>) of Natural;
 
@@ -4818,7 +4691,8 @@ package body Command_Tests is
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("property-tail-n.bin");
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#5441_494E#;
+      Initial_Seed : constant Word_32 := 16#5441_494E#;
+      Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 2, 5, 17, 64];
       Lengths : constant Length_Array := [0, 1, 12, 13, 63, 257, 1024];
 
@@ -4872,7 +4746,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
       end Next_Byte;
 
@@ -4905,11 +4779,11 @@ package body Command_Tests is
                Posix_Tools.Commands.Tail.Run (Context, Result);
                AUnit.Assertions.Assert
                  (Test_Contexts.Output (Context) = Expected_Line_Suffix (Data, Count),
-                  "tail -n property seed 0x5441494E length"
+                  "tail -n property " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
                AUnit.Assertions.Assert
                  (Result.Status = Posix_Tools.Exit_Status.Success,
-                  "tail -n property status seed 0x5441494E length"
+                  "tail -n property status " & Test_Support.Seed_Label (Initial_Seed) & " length"
                   & Natural'Image (Length) & " count" & Natural'Image (Count));
             end loop;
          end;
@@ -4955,7 +4829,7 @@ package body Command_Tests is
       Posix_Tools.Commands.Seq.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "seq unknown option status");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "seq: unknown option '-\x1B[31m'" & LF,
+        (Test_Contexts.Error_Output (Context) = "seq: unknown option '-\x1B'" & LF,
          "unknown option diagnostic escapes control characters");
 
       Context.Initialize ("nl", One_Arg ("-q"));
@@ -4986,6 +4860,192 @@ package body Command_Tests is
          and then Test_Contexts.Error_Output (Context) = "dd: invalid skip 'skip=\x1B'" & LF,
          "dd invalid skip diagnostic escapes its operand");
    end Test_Usage_Errors;
+
+   procedure Test_Option_Parsing (T : in out Fixture) is
+      pragma Unreferenced (T);
+      LF      : constant Character := Character'Val (10);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Data    : constant String := Work_Path ("option-parsing.txt");
+
+      procedure Assert_Usage (Expected : String; Label : String);
+
+      --  The command just run made the usage error Expected and wrote
+      --  nothing else.
+      procedure Assert_Usage (Expected : String; Label : String) is
+      begin
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+            and then Test_Contexts.Error_Output (Context) = Expected & LF
+            and then Test_Contexts.Output (Context) = "",
+            Label);
+      end Assert_Usage;
+   begin
+      Write_File (Data, "a:b:c" & LF & "plain" & LF);
+
+      --  An option a command does not take is a usage error, not a file.
+      Context.Initialize ("cat", Two_Args ("-x", Data));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      Assert_Usage ("cat: unknown option '-x'", "cat rejects an unknown option");
+
+      Context.Initialize ("cat", Two_Args ("-u", Data));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a:b:c" & LF & "plain" & LF,
+         "cat accepts the POSIX -u option");
+
+      Context.Initialize ("head", Two_Args ("-x", Data));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      Assert_Usage ("head: unknown option '-x'", "head rejects an unknown option");
+
+      Context.Initialize ("head", Three_Args ("-c", "3", Data));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "a:b",
+         "head takes -c with a separate count");
+
+      Context.Initialize ("head", Two_Args ("-n1", Data));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "a:b:c" & LF,
+         "head takes -n with an attached count");
+
+      Context.Initialize ("head", One_Arg ("-n"));
+      Posix_Tools.Commands.Head.Run (Context, Result);
+      Assert_Usage ("head: missing option argument '-n'", "head reports a missing count");
+
+      Context.Initialize ("cut", Two_Args ("-x", Data));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      Assert_Usage ("cut: unknown option '-x'", "cut rejects an unknown option");
+
+      Context.Initialize ("cut", Three_Args ("-sd:", "-f2", Data));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "b" & LF,
+         "cut takes -s grouped with -d and its delimiter");
+
+      Context.Initialize ("cut", Three_Args ("-sf1", "-d:", Data));
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "a" & LF,
+         "cut takes -s grouped with -f and its list");
+
+      Context.Initialize ("paste", Two_Args ("-x", Data));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      Assert_Usage ("paste: unknown option '-x'", "paste rejects an unknown option");
+
+      Context.Initialize ("paste", Two_Args ("-sd,", Data));
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a:b:c,plain" & LF,
+         "paste takes -s grouped with -d and its list");
+
+      Context.Initialize ("od", Two_Args ("-q", Data));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      Assert_Usage ("od: unknown option '-q'", "od rejects an unknown option");
+
+      Context.Initialize ("od", Four_Args ("-An", "-tx1", "-N2", Data));
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = " 61 3a" & LF,
+         "od takes attached option arguments");
+
+      Context.Initialize ("od", Three_Args ("-vAn", "-tx1", "-N1"));
+      Test_Contexts.Set_Standard_Input (Context, "a");
+      Posix_Tools.Commands.Od.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = " 61" & LF,
+         "od takes -v grouped with -A and its base");
+
+      Context.Initialize ("fold", Two_Args ("-x", Data));
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      Assert_Usage ("fold: unknown option '-x'", "fold names the unknown option character");
+
+      Context.Initialize ("fold", Three_Args ("-bs", "-w3", Data));
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a:b" & LF & ":c" & LF & "pla" & LF & "in" & LF,
+         "fold takes grouped -b and -s");
+
+      Context.Initialize ("fold", Two_Args ("-sw3", Data));
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a:b" & LF & ":c" & LF & "pla" & LF & "in" & LF,
+         "fold takes -s grouped with -w and its width");
+
+      Context.Initialize ("pathchk", Two_Args ("-pq", "name"));
+      Posix_Tools.Commands.Pathchk.Run (Context, Result);
+      Assert_Usage ("pathchk: unknown option '-q'", "pathchk names the unknown option character");
+
+      --  "--" ends the options.
+      Context.Initialize ("nice", Two_Args ("--", "true"));
+      Posix_Tools.Commands.Nice.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Nice_Adjustment (Context) = 10,
+         "nice ends its options at --");
+
+      Context.Initialize ("nice", Four_Args ("-n", "3", "--", "true"));
+      Posix_Tools.Commands.Nice.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Nice_Adjustment (Context) = 3,
+         "nice ends its options at -- after -n");
+
+      Context.Initialize ("sleep", Two_Args ("--", "0"));
+      Posix_Tools.Commands.Sleep.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Error_Output (Context) = "",
+         "sleep ends its options at --");
+
+      Context.Initialize ("tty", Two_Args ("-s", "--"));
+      Test_Contexts.Set_Standard_Input_Is_Terminal (Context, False);
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) = "",
+         "tty ends its options at --");
+
+      Context.Initialize ("tty", Two_Args ("--", "surplus"));
+      Posix_Tools.Commands.Tty.Run (Context, Result);
+      Assert_Usage ("tty: extra operand 'surplus'", "tty names a surplus operand after --");
+
+      Context.Initialize ("kill", Four_Args ("-s", "TERM", "--", "not-a-process"));
+      Posix_Tools.Commands.Kill.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Contains (Test_Contexts.Error_Output (Context), "'not-a-process'")
+         and then not Contains (Test_Contexts.Error_Output (Context), "'--'"),
+         "kill ends its options at --");
+
+      Context.Initialize ("getconf", Two_Args ("--", "PATH"));
+      Posix_Tools.Commands.Getconf.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "/bin:/usr/bin" & LF,
+         "getconf ends its options at --");
+
+      --  Too many operands name the first one too many.
+      Context.Initialize ("tr", Three_Args ("-d", "a", "b"));
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      Assert_Usage ("tr: extra operand 'b'", "tr -d names its surplus operand");
+
+      Context.Initialize ("tr", Four_Args ("a", "b", "c", "d"));
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      Assert_Usage ("tr: extra operand 'c'", "tr names its first surplus operand");
+
+      Context.Initialize ("tr", One_Arg ("a"));
+      Posix_Tools.Commands.Tr.Run (Context, Result);
+      Assert_Usage ("tr: missing operand", "tr still reports a missing operand");
+   end Test_Option_Parsing;
 
    procedure Test_True (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -5029,13 +5089,15 @@ package body Command_Tests is
 
    procedure Test_True_False_Operand_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
 
-      Seed : Word_32 := 16#7F00_F15E#;
+      Initial_Seed : constant Word_32 := 16#7F00_F15E#;
+      Seed : Word_32 := Initial_Seed;
 
       function Next_Value return Natural is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Natural ((Seed / 16#0100_0000#) mod 256);
       end Next_Value;
 
@@ -5085,7 +5147,7 @@ package body Command_Tests is
             Args          : Posix_Tools.Arguments.Vector;
             Arg_Count     : constant Natural := Next_Value mod 9;
             Label         : constant String :=
-              "true false operand property seed 0x7F00F15E case" & Natural'Image (Case_Index);
+              "true false operand property " & Test_Support.Seed_Label (Initial_Seed) & " case" & Natural'Image (Case_Index);
          begin
             for Index in 1 .. Arg_Count loop
                declare
@@ -5395,14 +5457,16 @@ package body Command_Tests is
 
    procedure Test_Wc_Byte_Count_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Length_Array is array (Positive range <>) of Natural;
 
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("property-wc-c.bin");
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#5EED_C0DE#;
+      Initial_Seed : constant Word_32 := 16#5EED_C0DE#;
+      Seed    : Word_32 := Initial_Seed;
       Lengths : constant Length_Array := [0, 1, 2, 7, 31, 64, 127, 256, 513];
 
       function Decimal_Image (Value : Natural) return String is
@@ -5413,7 +5477,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_664_525 + 1_013_904_223;
+         Test_Support.Advance (Seed);
          return Character'Val (Natural ((Seed / 16#0100_0000#) mod 256));
       end Next_Byte;
 
@@ -5440,10 +5504,10 @@ package body Command_Tests is
             Posix_Tools.Commands.Wc.Run (Context, Result);
             AUnit.Assertions.Assert
               (Test_Contexts.Output (Context) = Decimal_Image (Length) & " " & Path & LF,
-               "wc -c property seed 0x5EEDC0DE length" & Natural'Image (Length));
+               "wc -c property " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
             AUnit.Assertions.Assert
               (Result.Status = Posix_Tools.Exit_Status.Success,
-               "wc -c property status seed 0x5EEDC0DE length" & Natural'Image (Length));
+               "wc -c property status " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
          end;
       end loop;
 
@@ -5452,11 +5516,12 @@ package body Command_Tests is
 
    procedure Test_Wc_Standard_Input_Byte_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
       type Length_Array is array (Positive range <>) of Natural;
 
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#57C0_0001#;
+      Initial_Seed : constant Word_32 := 16#57C0_0001#;
+      Seed    : Word_32 := Initial_Seed;
       Lengths : constant Length_Array := [0, 1, 4, 33, 128, 777];
 
       function Decimal_Image (Value : Natural) return String is
@@ -5467,8 +5532,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_103_515_245 + 12_345;
-         return Character'Val (Natural ((Seed / 16#0001_0000#) mod 256));
+         return Test_Support.Next_C_Byte (Seed);
       end Next_Byte;
 
       function Generated (Length : Natural) return String is
@@ -5496,24 +5560,26 @@ package body Command_Tests is
             Posix_Tools.Commands.Wc.Run (Context, Result);
             AUnit.Assertions.Assert
               (Test_Contexts.Output (Context) = Decimal_Image (Length) & LF,
-               "wc stdin -c property seed 0x57C00001 length" & Natural'Image (Length));
+               "wc stdin -c property " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
             AUnit.Assertions.Assert
               (Result.Status = Posix_Tools.Exit_Status.Success,
-               "wc stdin -c property status seed 0x57C00001 length" & Natural'Image (Length));
+               "wc stdin -c property status " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
          end;
       end loop;
    end Test_Wc_Standard_Input_Byte_Property;
 
    procedure Test_Wc_Line_Count_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Length_Array is array (Positive range <>) of Natural;
 
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("property-wc-l.bin");
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#1F1E_5EED#;
+      Initial_Seed : constant Word_32 := 16#1F1E_5EED#;
+      Seed    : Word_32 := Initial_Seed;
       Lengths : constant Length_Array := [0, 1, 3, 8, 17, 64, 129, 512, 1_025];
 
       function Decimal_Image (Value : Natural) return String is
@@ -5524,7 +5590,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_103_515_245 + 12_345;
+         Test_Support.Advance_C (Seed);
          if Seed mod 11 = 0 then
             return LF;
          end if;
@@ -5568,11 +5634,11 @@ package body Command_Tests is
             Posix_Tools.Commands.Wc.Run (Context, Result);
             AUnit.Assertions.Assert
               (Test_Contexts.Output (Context) = Decimal_Image (Lines) & " " & Path & LF,
-               "wc -l property seed 0x1F1E5EED length" & Natural'Image (Length)
+               "wc -l property " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length)
                & " lines" & Natural'Image (Lines));
             AUnit.Assertions.Assert
               (Result.Status = Posix_Tools.Exit_Status.Success,
-               "wc -l property status seed 0x1F1E5EED length" & Natural'Image (Length));
+               "wc -l property status " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
          end;
       end loop;
 
@@ -5581,11 +5647,13 @@ package body Command_Tests is
 
    procedure Test_Wc_Standard_Input_Line_Property (T : in out Fixture) is
       pragma Unreferenced (T);
-      type Word_32 is mod 2 ** 32;
+      subtype Word_32 is Test_Support.Word_32;
+      use type Word_32;
       type Length_Array is array (Positive range <>) of Natural;
 
       LF      : constant Character := Character'Val (10);
-      Seed    : Word_32 := 16#57C0_000A#;
+      Initial_Seed : constant Word_32 := 16#57C0_000A#;
+      Seed    : Word_32 := Initial_Seed;
       Lengths : constant Length_Array := [0, 1, 5, 34, 130, 778];
 
       function Decimal_Image (Value : Natural) return String is
@@ -5596,7 +5664,7 @@ package body Command_Tests is
 
       function Next_Byte return Character is
       begin
-         Seed := Seed * 1_103_515_245 + 12_345;
+         Test_Support.Advance_C (Seed);
          if Seed mod 13 = 0 then
             return LF;
          end if;
@@ -5642,11 +5710,11 @@ package body Command_Tests is
             Posix_Tools.Commands.Wc.Run (Context, Result);
             AUnit.Assertions.Assert
               (Test_Contexts.Output (Context) = Decimal_Image (Lines) & LF,
-               "wc stdin -l property seed 0x57C0000A length" & Natural'Image (Length)
+               "wc stdin -l property " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length)
                & " lines" & Natural'Image (Lines));
             AUnit.Assertions.Assert
               (Result.Status = Posix_Tools.Exit_Status.Success,
-               "wc stdin -l property status seed 0x57C0000A length" & Natural'Image (Length));
+               "wc stdin -l property status " & Test_Support.Seed_Label (Initial_Seed) & " length" & Natural'Image (Length));
          end;
       end loop;
    end Test_Wc_Standard_Input_Line_Property;

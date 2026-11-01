@@ -1,7 +1,7 @@
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Version;
 with Project_Tools.Files;
-with Project_Tools.Release_Checks;
+with Tooling_Checks;
 with Tooling_Support;
 
 package body Metadata_Checks.Command_Inventory is
@@ -11,7 +11,7 @@ package body Metadata_Checks.Command_Inventory is
       procedure Require_Command_Doc_Sections (Path : String) is
          procedure Require_Section (Heading : String) is
          begin
-            Project_Tools.Release_Checks.Require_Text
+            Tooling_Checks.Require_Text
               (Check,
                Path,
                Character'Val (10) & "## " & Heading & Character'Val (10));
@@ -66,23 +66,23 @@ package body Metadata_Checks.Command_Inventory is
          end if;
       end Command_Source_Path;
    begin
-      Project_Tools.Release_Checks.Require_Directory (Check, "docs/commands");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/index.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/basename.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/cat.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/dirname.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/echo.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/false.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/head.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/posix-tools.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/pwd.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/tail.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/true.md");
-      Project_Tools.Release_Checks.Require_File (Check, "docs/commands/wc.md");
+      Tooling_Checks.Require_Directory (Check, "docs/commands");
+      Tooling_Checks.Require_File (Check, "docs/commands/index.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/basename.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/cat.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/dirname.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/echo.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/false.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/head.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/posix-tools.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/pwd.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/tail.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/true.md");
+      Tooling_Checks.Require_File (Check, "docs/commands/wc.md");
       Require_Command_Doc_Sections ("docs/commands/posix-tools.md");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Require_Command_Doc_Sections (Posix_Tools.Command_Inventory.Documentation_Path (I));
-         Project_Tools.Release_Checks.Require_File
+         Tooling_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I));
          Require_Crate_Metadata
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
@@ -93,29 +93,29 @@ package body Metadata_Checks.Command_Inventory is
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
             "version = """ & Posix_Tools.Version.Version_String & """",
             Posix_Tools.Command_Inventory.Executable (I) & " manifest version");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[[depends-on]]");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common =");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "posix_tools_common = ""*""");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[[pins]]");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Manifest_Path (I),
             "posix_tools_common = { path = ""../../common"" }");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Manifest_Path (I),
             "executables = [""" & Posix_Tools.Command_Inventory.Executable (I) & """]");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "licenses = ""MIT""");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "maintainers =");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), "[build-profiles]");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, Posix_Tools.Command_Inventory.Manifest_Path (I), """*"" = ""development""");
          Forbid_Text
            (Posix_Tools.Command_Inventory.Manifest_Path (I),
@@ -160,21 +160,21 @@ package body Metadata_Checks.Command_Inventory is
                   & Posix_Tools.Command_Inventory.Crate (J));
             end if;
          end loop;
-         Project_Tools.Release_Checks.Require_File
+         Tooling_Checks.Require_File
            (Check, Posix_Tools.Command_Inventory.Project_File_Path (I));
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
             "for Main use (""" & Posix_Tools.Command_Inventory.Main_Source (I) & """)");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
             "for Object_Dir use ""obj/" & Posix_Tools.Command_Inventory.Executable (I) & """");
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check,
             Posix_Tools.Command_Inventory.Project_File_Path (I),
             "for Exec_Dir use ""bin""");
-         Project_Tools.Release_Checks.Require_File
+         Tooling_Checks.Require_File
            (Check,
             Posix_Tools.Command_Inventory.Wrapper_Path (I));
          declare
@@ -184,28 +184,28 @@ package body Metadata_Checks.Command_Inventory is
               Command_Source_Path (Posix_Tools.Command_Inventory.Executable (I));
          begin
             if Posix_Tools.Command_Inventory.Executable (I) = "awk" then
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
             elsif Posix_Tools.Command_Inventory.Executable (I) = "grep" then
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Patterns.Compile");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_File");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_Stream");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Patterns.Compile");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_File");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_Stream");
             elsif Posix_Tools.Command_Inventory.Executable (I) = "sed" then
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Write_Identity");
-               Project_Tools.Release_Checks.Require_Text (Check, Wrapper, "Sed.Application.Run");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");
+               Tooling_Checks.Require_Text (Check, Wrapper, "Sed.Application.Run");
             else
-               Project_Tools.Release_Checks.Require_Text
+               Tooling_Checks.Require_Text
                  (Check,
                   Wrapper,
                   "Posix_Tools.Host_Adapters.Run_Command");
 
                if Line_Count (Wrapper) > 20 then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     (Posix_Tools.Command_Inventory.Executable (I) & " wrapper is not thin");
                end if;
 

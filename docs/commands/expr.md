@@ -26,7 +26,7 @@ Diagnostics for invalid expressions, invalid arithmetic operands, division by ze
 
 ## Exit Status
 `0` expression result is neither null nor `0`, `1` expression result is null or `0`, `2` invalid expression,
-`125` internal failure.
+`3` another error, such as output that cannot be written, `125` internal failure.
 
 ## Behavioral Details
 The V1 evaluator supports literals, parentheses, `|`, `&`, comparisons, `+`, `-`, `*`, `/`, `%`, `:` regular

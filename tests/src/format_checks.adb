@@ -2,7 +2,7 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Posix_Tools.Text.Matching;
 with Project_Tools.Files;
-with Project_Tools.Release_Checks;
+with Tooling_Checks;
 
 package body Format_Checks is
    function Is_Checked_Text_File (Path : String) return Boolean is
@@ -100,11 +100,11 @@ package body Format_Checks is
                   Content : constant String := Project_Tools.Files.Read_Raw_File (File_Path);
                begin
                   if Has_Tab (Content) then
-                     Project_Tools.Release_Checks.Fail ("tab character in " & File_Path);
+                     Tooling_Checks.Fail ("tab character in " & File_Path);
                   elsif Has_Trailing_Whitespace (Content) then
-                     Project_Tools.Release_Checks.Fail ("trailing whitespace in " & File_Path);
+                     Tooling_Checks.Fail ("trailing whitespace in " & File_Path);
                   elsif Has_Multiple_Blank_Lines (Content) then
-                     Project_Tools.Release_Checks.Fail ("multiple consecutive blank lines in " & File_Path);
+                     Tooling_Checks.Fail ("multiple consecutive blank lines in " & File_Path);
                   end if;
                end;
             end if;

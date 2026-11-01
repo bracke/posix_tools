@@ -131,7 +131,9 @@ package body Posix_Tools.Commands.File is
                Has_Magic := True;
                First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, Unknown_Option,
+                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "im"));
                return;
             else
                exit;

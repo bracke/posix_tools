@@ -29,6 +29,7 @@ with Posix_Tools.Commands.Tee;
 with Posix_Tools.Commands.Touch;
 with Posix_Tools.Exit_Status;
 with Test_Contexts;
+with Test_Support;
 
 package body Command_Tests.Surface_Smoke.Files is
    use type Ada.Directories.File_Size;
@@ -627,9 +628,14 @@ package body Command_Tests.Surface_Smoke.Files is
    begin
       Context.Initialize ("mkfifo", Three_Args ("-m", "600", Mkfifo_Target));
       Posix_Tools.Commands.Mkfifo.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status in Posix_Tools.Exit_Status.Success | Posix_Tools.Exit_Status.Operational_Failure,
-         "mkfifo status reflects host support");
+      if Test_Support.FIFOs_Expected then
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success, "mkfifo succeeds on a host with FIFOs");
+      else
+         AUnit.Assertions.Assert
+           (Result.Status in Posix_Tools.Exit_Status.Success | Posix_Tools.Exit_Status.Operational_Failure,
+            "mkfifo status reflects host support");
+      end if;
       if Result.Status = Posix_Tools.Exit_Status.Success then
          AUnit.Assertions.Assert (Ada.Directories.Exists (Mkfifo_Target), "mkfifo creates filesystem entry");
       else
@@ -896,6 +902,14 @@ package body Command_Tests.Surface_Smoke.Files is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Hostkit.Fs.Real_Path (Source) & EOL,
          "realpath writes resolved path");
+
+      Context.Initialize ("realpath", One_Arg (Work_Path ("realpath-missing/child")));
+      Posix_Tools.Commands.Realpath.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Contains (Test_Contexts.Error_Output (Context), "cannot resolve path"),
+         "realpath reports an operand that does not resolve instead of an empty line");
    end Test_Realpath;
 
    procedure Test_Rm (T : in out Surface_Fixture) is

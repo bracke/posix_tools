@@ -57,7 +57,8 @@ package body Posix_Tools.Commands.Locale is
               (Context, Result, Posix_Tools.Commands.Usage_Messages.Extra_Operand, Context.Argument (2));
          else
             Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, Posix_Tools.Commands.Usage_Messages.Unknown_Option, Context.Argument (1));
+              (Context, Result, Posix_Tools.Commands.Usage_Messages.Unknown_Option,
+               Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Context.Argument (1), "am"));
          end if;
          return;
       end if;

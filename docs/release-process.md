@@ -7,24 +7,41 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` installs GNATprove
 and runs the Ada release gate on Linux, macOS, and Windows. A release candidate
 should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
+After the gate, the workflow runs `git diff --exit-code`: release-check
+regenerates the docs, man pages, command inventory, and package manifest before
+checking them, so only git can see that the committed copies were stale. Every
+runner checks files out with `core.autocrlf` off, because the manifest records
+each file's size and checksum and a Windows CRLF checkout would change them.
 The local metadata gate checks the workflow triggers, read-only repository
 permission, non-fail-fast matrix, timeout, Node 24-compatible checkout action,
-local sibling dependency checkouts, absence of direct Node 20-era setup/cache
-action pins, Node 24-compatible setup-alire branch, tests-crate build step, and
-release-check invocation so CI cannot silently stop exercising the Ada release
-gate.
+sibling dependency checkouts, absence of direct Node 20-era setup/cache
+action pins, Node 24-compatible setup-alire branch, tests-crate build step, the
+release-check run line, and the drift check, so CI cannot silently stop
+exercising the Ada release gate. The sibling checkouts it requires are the
+repositories the crates' `path` pins reach, followed through the pinned
+manifests, not a hand-kept list. The checkouts follow each sibling's default
+branch; they are not pinned to a commit.
 
-Current Ada tooling entry points:
+Current Ada tooling entry points (`docs/testing.md` lists each one's steps
+in order):
 
-- `posix_tools_tests check` validates metadata and runs the AUnit suite.
+- `posix_tools_tests check` runs the metadata, format, and conformance metadata
+  checks and the AUnit suite.
 - `posix_tools_tests build` builds the root crate, every command subcrate, and
-  the tests crate through Alire using `project_tools`.
-- `posix_tools_tests docs` regenerates `generated/manual-index.md`.
+  the tests crate through Alire using `project_tools`, then runs the metadata
+  checks.
+- `posix_tools_tests format-check`, `conformance`, and `prove` run the metadata
+  checks first and then their own checks.
+- `posix_tools_tests docs` regenerates `docs/commands/index.md`,
+  `generated/command_inventory.csv`, `generated/manual-index.md`, and
+  `generated/man/*.1`, then runs the metadata checks.
 - `posix_tools_tests prove` runs selected SPARK-enabled GNATprove targets
   directly through `project_tools` against `common/posix_tools_proof.gpr` when
   GNATprove is installed.
-- `posix_tools_tests package` regenerates `generated/package-manifest.txt`
-  with byte counts and FNV-1a checksums for packaged files.
+- `posix_tools_tests package` regenerates `generated/package-files.txt` and
+  `generated/package-manifest.txt`, with byte counts and FNV-1a checksums for
+  packaged files, writes and tests the source archive in `dist/` with `7z` or
+  `7zz` (one must be on the path), then runs the metadata checks.
 - Only `posix_tools_tests release` writes `generated/release-checksums.txt`,
   with FNV-1a checksums for the package manifest, source release archive, and
   built executables, and the file is committed with the release. Between
@@ -37,18 +54,19 @@ Current Ada tooling entry points:
   command-data smoke coverage, validates metadata, runs format checks, validates
   conformance metadata, runs the selected GNATprove targets, and
   runs the AUnit suite.
-- Metadata validation asserts that the release branches name the selector
-  smoke, staged verification, executable smoke, source archive, release checksum,
-  metadata, format, conformance, proof, and AUnit steps.
+- Metadata validation checks the subcommands' step lists in
+  `tests/src/tooling_steps.ads`, which the driver runs: release-check runs the
+  selector smoke, staged verification, executable smoke, source archive,
+  metadata, format, conformance, proof, and AUnit steps, with the build before
+  the smoke tests; release runs the same steps in the same order behind a
+  clean-tree check and adds the release checksums after the archive.
 - Metadata validation asserts that the CI workflow installs GNATprove through
   Alire and exposes the Alire installation prefix on the runner path before it
   runs the Ada release gate that owns proof execution.
-- Metadata validation also asserts that the `release` branch runs clean-tree
-  enforcement before release generation/build work and reports completion
-  through the Ada project_tools driver.
-- The metadata gate validates package-manifest coverage from the compiled Ada
-  command inventory for each command manifest, project file, wrapper source,
-  reference document, and generated manual page.
+- The metadata gate requires the package entries to be exactly the files git
+  tracks, the package file list to be exactly those entries, and the manifest
+  to hold one current row for each, so every command manifest, project file,
+  wrapper source, reference document, and generated manual page is covered.
 - Each command manifest is validated against the compiled command inventory for
   crate name, executable name, synchronized version, MIT license, author and
   maintainer metadata, project-file declaration, local common dependency and
@@ -56,14 +74,11 @@ Current Ada tooling entry points:
 - The metadata gate also checks that the Ada build driver names the common
   crate, root crate, tests crate, and every command build label derived from the
   compiled command inventory.
-- The metadata gate checks that staged verification invokes the bounded identity
-  adapter for the built root executable and every command executable derived
-  from the compiled command inventory.
 - Generated manual pages are created by the Ada tooling from the compiled
   command inventory and the per-command reference documents. The metadata gate
   compares the manual index, root manual page, and every command manual page
-  byte-for-byte against the expected current content and requires every
-  generated manual page to appear in the package manifest.
+  byte-for-byte against the expected current content; as tracked files they
+  are package entries with manifest rows.
 - The metadata gate requires the AI-oriented project guide and checks its
   repository map, package map, dependency rules, import boundaries, workflow,
   testing, localization, styling, resource, completion, and rejected architecture

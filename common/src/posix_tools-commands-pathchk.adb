@@ -23,16 +23,18 @@ package body Posix_Tools.Commands.Pathchk is
       procedure Check_Path (Path : String);
       function Component_Limit (Parent_Path : String) return Natural;
       function Path_Limit return Natural;
-      procedure Reject (Path, Reason : String);
+      procedure Reject (Path, Key, Reason : String);
 
       procedure Check_Component (Path, Parent_Path, Component : String) is
       begin
          if Component'Length > Component_Limit (Parent_Path) then
-            Reject (Path, "component too long");
+            Reject
+              (Path, "posix_tools.pathchk.component_too_long", "component too long");
          elsif Portable_Mode
            and then not Posix_Tools.Text.Portable_Paths.Portable_Component (Component)
          then
-            Reject (Path, "non-portable character");
+            Reject
+              (Path, "posix_tools.pathchk.non_portable_character", "non-portable character");
          end if;
       end Check_Component;
 
@@ -42,10 +44,12 @@ package body Posix_Tools.Commands.Pathchk is
            To_Unbounded_String (if Path'Length > 0 and then Path (Path'First) = '/' then "/" else ".");
       begin
          if Path = "" then
-            Reject (Path, "empty pathname");
+            Reject
+              (Path, "posix_tools.pathchk.empty_pathname", "empty pathname");
             return;
          elsif Path'Length > Path_Limit then
-            Reject (Path, "pathname too long");
+            Reject
+              (Path, "posix_tools.pathchk.pathname_too_long", "pathname too long");
             return;
          end if;
 
@@ -106,11 +110,11 @@ package body Posix_Tools.Commands.Pathchk is
          end if;
       end Path_Limit;
 
-      procedure Reject (Path, Reason : String) is
+      procedure Reject (Path, Key, Reason : String) is
       begin
          All_Ok := False;
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context, Path, "posix_tools.pathchk.invalid_path", Reason);
+           (Context, Path, Key, Reason);
       end Reject;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -128,7 +132,9 @@ package body Posix_Tools.Commands.Pathchk is
                Portable_Mode := True;
                First := First + 1;
             elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, Unknown_Option,
+                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "p"));
                return;
             else
                exit;

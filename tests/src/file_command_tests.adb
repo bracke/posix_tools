@@ -23,6 +23,7 @@ with Posix_Tools.Text.Glob;
 with Posix_Tools.Text.UTF_8;
 with Project_Tools.Files;
 with Test_Contexts;
+with Test_Support;
 
 package body File_Command_Tests is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -248,6 +249,7 @@ package body File_Command_Tests is
       Write (Path (Root, "a/f"), "f");
       if not FS.Create_Link ("a", Path (Root, "la")) then
          Remove (Root);
+         Test_Support.Skip_Without_Links ("Test_Cp_Into_Itself_Through_Link");
          return;
       end if;
 
@@ -308,6 +310,7 @@ package body File_Command_Tests is
       Write (Path (Root, "src/sub/file"), "x");
       if not FS.Create_Link ("..", Path (Root, "src/sub/loop")) then
          Remove (Root);
+         Test_Support.Skip_Without_Links ("Test_Cp_Link_Loop");
          return;
       end if;
 
@@ -351,6 +354,7 @@ package body File_Command_Tests is
       if not FS.Create_Link ("x", Path (Root, "real/y")) or else not FS.Create_Link ("real", Path (Root, "operand"))
       then
          Remove (Root);
+         Test_Support.Skip_Without_Links ("Test_Cp_Link_Options");
          return;
       end if;
 
@@ -569,6 +573,7 @@ package body File_Command_Tests is
       Write (Path (Root, "adir/x"), "x");
       if not FS.Create_Link ("nowhere", Path (Root, "dangling")) then
          Remove (Root);
+         Test_Support.Skip_Without_Links ("Test_Ls_Operands");
          return;
       end if;
 

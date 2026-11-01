@@ -297,14 +297,21 @@ package body Posix_Tools.Commands.Tr is
          end loop;
          First := First + 1;
       end loop;
-      if (Delete_Mode and then Squeeze and then Context.Argument_Count /= First + 1)
-        or else (Delete_Mode and then (not Squeeze) and then Context.Argument_Count /= First)
-        or else ((not Delete_Mode) and then Squeeze and then Context.Argument_Count not in First | First + 1)
-        or else ((not Delete_Mode) and then (not Squeeze) and then Context.Argument_Count /= First + 1)
-      then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
-         return;
-      end if;
+      declare
+         --  Translating takes string1 and string2, -d string1 and -d -s
+         --  both; -s alone takes string1 and perhaps string2.
+         Least    : constant Positive := (if Delete_Mode = Squeeze then 2 else 1);
+         Most     : constant Positive := (if Delete_Mode and then not Squeeze then 1 else 2);
+         Operands : constant Natural := Context.Argument_Count - First + 1;
+      begin
+         if Operands < Least then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
+            return;
+         elsif Operands > Most then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + Most));
+            return;
+         end if;
+      end;
 
       declare
          Locale    : constant String :=

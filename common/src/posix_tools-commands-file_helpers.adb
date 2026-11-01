@@ -4,7 +4,6 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Paths;
-with Posix_Tools.Text.File_Operands;
 
 package body Posix_Tools.Commands.File_Helpers is
    use Ada.Strings.Unbounded;
@@ -161,7 +160,7 @@ package body Posix_Tools.Commands.File_Helpers is
 
       if not Ok and then not Context.Output_Failed then
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
-          (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+          (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
            "posix_tools.diagnostic.file.read_failed", "cannot read file");
       end if;
    end Copy_Byte_Prefix;
@@ -203,7 +202,7 @@ package body Posix_Tools.Commands.File_Helpers is
             Ok := not Context.Output_Failed;
          else
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+              (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
                "posix_tools.diagnostic.file.read_failed", "cannot read file");
          end if;
       end if;
@@ -249,7 +248,7 @@ package body Posix_Tools.Commands.File_Helpers is
 
       if not Ok and then not Context.Output_Failed then
          Posix_Tools.Commands.Helpers.Subject_Operational_Error
-          (Context, Posix_Tools.Text.File_Operands.Subject_Name (File_Name),
+          (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
            "posix_tools.diagnostic.file.read_failed", "cannot read file");
       end if;
    end Copy_Line_Prefix;

@@ -131,7 +131,8 @@ package body Posix_Tools.Commands.Tee is
          loop
             if not Context.Try_Read_Standard_Input (Buffer, Last) then
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, "standard input", "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                 (Context, Posix_Tools.Commands.Helpers.Standard_Input_Name (Context),
+                  "posix_tools.diagnostic.file.read_failed", "cannot read file");
                Ok := False;
                exit;
             end if;
