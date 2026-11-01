@@ -28,6 +28,14 @@ jobs:
             test_runner: ./tests/bin/posix_tools_tests.exe
 
     steps:
+      # Check files out as committed: the package manifest records each
+      # file's size and checksum, so a Windows CRLF checkout of a file
+      # without an eol attribute would make the regenerated manifest
+      # differ from the committed one.
+      - name: Keep committed line endings
+        run: git config --global core.autocrlf false
+        shell: bash
+
       - name: Check out repository
         uses: actions/checkout@v7
         with:
@@ -167,5 +175,13 @@ jobs:
 
       - name: Run Ada release gate
         run: ${{ matrix.test_runner }} release-check
+        working-directory: posix_tools
+        shell: bash
+
+      # release-check regenerates the docs, the man pages, the command
+      # inventory and the package manifest before checking them, so it
+      # cannot see that the committed copies were stale; git can.
+      - name: Check committed generated files are current
+        run: git diff --exit-code
         working-directory: posix_tools
         shell: bash

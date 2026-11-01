@@ -10,6 +10,7 @@ with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
 with Project_Tools.Release_Checks;
+with Tooling_Checks;
 with Project_Tools.Text;
 with Tooling_Support;
 
@@ -139,12 +140,12 @@ package body Metadata_Checks.Packaging is
                         if not Posix_Tools.Text.Matching.Contains
                           (Proof_Driver, "To_Unbounded_String (""" & Unit_Name & """)")
                         then
-                           Project_Tools.Release_Checks.Fail
+                           Tooling_Checks.Fail
                              ("SPARK unit is missing from proof targets: " & Unit_Name);
                         elsif not Posix_Tools.Text.Matching.Contains
                           (Proof_Document, "- `" & Unit_Name & "`")
                         then
-                           Project_Tools.Release_Checks.Fail
+                           Tooling_Checks.Fail
                              ("SPARK unit is missing from proof coverage docs: " & Unit_Name);
                         end if;
                      end;
@@ -198,7 +199,7 @@ package body Metadata_Checks.Packaging is
                         Unit_Name : constant String := Proof_Unit_Name (File_Path);
                      begin
                         if not Is_Documented_Non_SPARK_Boundary (Unit_Name, Proof_Document) then
-                           Project_Tools.Release_Checks.Fail
+                           Tooling_Checks.Fail
                              ("non-SPARK spec is missing from proof boundary docs: " & Unit_Name);
                         end if;
                      end;
@@ -220,9 +221,9 @@ package body Metadata_Checks.Packaging is
             Count  : constant Natural := Count_Exact_Lines (Manifest, Header);
          begin
             if Count = 0 then
-               Project_Tools.Release_Checks.Fail ("package manifest header missing or stale");
+               Tooling_Checks.Fail ("package manifest header missing or stale");
             elsif Count > 1 then
-               Project_Tools.Release_Checks.Fail ("package manifest header is duplicated");
+               Tooling_Checks.Fail ("package manifest header is duplicated");
             end if;
          end Check_Header;
 
@@ -233,10 +234,10 @@ package body Metadata_Checks.Packaging is
             if Relative_Path = "" then
                null;
             elsif Count = 0 then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("package manifest missing generated file-list entry " & Relative_Path);
             elsif Count > 1 then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("package manifest duplicates generated file-list entry " & Relative_Path);
             end if;
          end Check_File_List_Line;
@@ -246,7 +247,7 @@ package body Metadata_Checks.Packaging is
          Start              : Positive := Files'First;
       begin
          if Files = "" then
-            Project_Tools.Release_Checks.Fail ("generated package file list is empty");
+            Tooling_Checks.Fail ("generated package file list is empty");
          end if;
 
          Check_Header;
@@ -272,9 +273,9 @@ package body Metadata_Checks.Packaging is
          end if;
 
          if Manifest_Row_Count = 0 then
-            Project_Tools.Release_Checks.Fail ("package manifest is empty");
+            Tooling_Checks.Fail ("package manifest is empty");
          elsif Manifest_Row_Count - 1 /= File_Count then
-            Project_Tools.Release_Checks.Fail ("package manifest and generated file list have different entry counts");
+            Tooling_Checks.Fail ("package manifest and generated file list have different entry counts");
          end if;
       end Require_Package_File_List_Matches_Manifest;
 
@@ -286,7 +287,7 @@ package body Metadata_Checks.Packaging is
          procedure Require_Fixture (Relative_Path : String) is
          begin
             if Count_Exact_Lines (Files, Relative_Path) = 0 then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("package file list missing test fixture " & Relative_Path);
             end if;
          end Require_Fixture;
@@ -329,7 +330,7 @@ package body Metadata_Checks.Packaging is
          procedure Require_Packaged (Relative_Path : String) is
          begin
             if Count_Exact_Lines (Files, Relative_Path) = 0 then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("package file list missing release metadata " & Relative_Path);
             end if;
          end Require_Packaged;
@@ -387,7 +388,7 @@ package body Metadata_Checks.Packaging is
             Start   : Positive := Tracked'First;
          begin
             if Listed.Status /= 0 then
-               Project_Tools.Release_Checks.Fail ("git ls-files failed with status" & Integer'Image (Listed.Status));
+               Tooling_Checks.Fail ("git ls-files failed with status" & Integer'Image (Listed.Status));
             end if;
 
             --  Tracked files the entries miss.
@@ -433,7 +434,7 @@ package body Metadata_Checks.Packaging is
          end;
 
          if Ada.Strings.Unbounded.Length (Mismatches) > 0 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("package entries differ from the files git tracks:" & Character'Val (10)
                & Ada.Strings.Unbounded.To_String (Mismatches));
          end if;
@@ -461,9 +462,9 @@ package body Metadata_Checks.Packaging is
             Count  : constant Natural := Count_Exact_Lines (Checksums, Header);
          begin
             if Count = 0 then
-               Project_Tools.Release_Checks.Fail ("release checksum header missing or stale");
+               Tooling_Checks.Fail ("release checksum header missing or stale");
             elsif Count > 1 then
-               Project_Tools.Release_Checks.Fail ("release checksum header is duplicated");
+               Tooling_Checks.Fail ("release checksum header is duplicated");
             end if;
          end Require_Header;
 
@@ -480,19 +481,19 @@ package body Metadata_Checks.Packaging is
                Count := Count_Exact_Lines (Checksums, Checksum_Line (Label, Relative_Path));
 
                if Count = 0 and then Count_Prefix_Lines (Checksums, Prefix) > 0 then
-                  Project_Tools.Release_Checks.Fail ("release checksum entry is stale for " & Relative_Path);
+                  Tooling_Checks.Fail ("release checksum entry is stale for " & Relative_Path);
                elsif Count = 0 then
-                  Project_Tools.Release_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
+                  Tooling_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
                elsif Count > 1 then
-                  Project_Tools.Release_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
+                  Tooling_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
                end if;
             else
                Count := Count_Prefix_Lines (Checksums, Prefix);
 
                if Count = 0 then
-                  Project_Tools.Release_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
+                  Tooling_Checks.Fail ("release checksum entry is missing for " & Relative_Path);
                elsif Count > 1 then
-                  Project_Tools.Release_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
+                  Tooling_Checks.Fail ("release checksum entry is duplicated for " & Relative_Path);
                end if;
             end if;
          end Require_Checksum_Row;
@@ -500,7 +501,7 @@ package body Metadata_Checks.Packaging is
          Expected_Rows : constant Natural := Posix_Tools.Command_Inventory.Command_Count + 4;
       begin
          if Count_Nonempty_Lines (Checksums) /= Expected_Rows then
-            Project_Tools.Release_Checks.Fail ("release checksum file has unexpected entry count");
+            Tooling_Checks.Fail ("release checksum file has unexpected entry count");
          end if;
 
          Require_Header;
@@ -517,41 +518,30 @@ package body Metadata_Checks.Packaging is
          Require_Checksum_Row ("executable", "bin/posix-tools");
       end Require_Release_Checksums_Cover_Inventory;
    begin
-      Project_Tools.Release_Checks.Require_Directory (Check, "generated/man");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/man/posix-tools.1", ".TH posix-tools 1");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/man/posix-tools.1");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDIN-0001");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDOUT-0001");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0006");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0007");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "documentation_path");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
-      Project_Tools.Release_Checks.Require_Text
+      --  What the package holds is checked whole: the package entries
+      --  are the tracked files, the file list is the entries, and the
+      --  manifest has each one's current size and checksum.
+      Require_Package_File_List_Matches_Manifest;
+      Require_Package_File_List_Covers_Fixtures;
+      Require_Package_File_List_Covers_Release_Metadata;
+      Require_Package_Entries_Match_Tracked_Files;
+      Tooling_Checks.Require_Directory (Check, "generated/man");
+      Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDIN-0001");
+      Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-STDOUT-0001");
+      Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0006");
+      Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0007");
+      Tooling_Checks.Require_Text (Check, "generated/requirements.csv", "INVENTORY-CURRENT-001");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "INVENTORY-STRUCTURE-001");
-      Project_Tools.Release_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "generated/requirements.csv", "REPOSITORY-EOL-001");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "CONFORMANCE-IMPLEMENTATION-REFS-001");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "CONFORMANCE-TEST-REFS-001");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "REGRESSION-METADATA-001");
-      Project_Tools.Release_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "tools/tail/posix_tools_tail.gpr");
-      Project_Tools.Release_Checks.Require_Text
-        (Check, "generated/command_inventory.csv", "docs/commands/wc.md");
-      if Writes_Release_Checksums then
-         Project_Tools.Release_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "manifest generated/package-manifest.txt fnv1a64=");
-         Project_Tools.Release_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "archive dist/posix-tools-");
-         Project_Tools.Release_Checks.Require_Text
-           (Check, "generated/release-checksums.txt", "executable bin/posix-tools fnv1a64=");
-      end if;
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, ".gitattributes", "*.csv text eol=lf");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "platform-aware executable artifact lookup");
       Require_All_SPARK_Specs_Are_Proof_Targets_And_Documented;
       Require_Non_SPARK_Specs_Are_Documented_Boundaries;
@@ -559,95 +549,14 @@ package body Metadata_Checks.Packaging is
          Require_Release_Checksums_Cover_Inventory;
       end if;
 
-      Project_Tools.Release_Checks.Require_Text (Check, ".gitignore", "/dist/");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "README.md");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "generated/package-files.txt");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "alire.toml");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/alire.toml");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "common/posix_tools_proof.gpr");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/architecture.md");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/conformance.md");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "docs/testing.md");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "src/posix-tools.adb");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-version.ads");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-commands-cat.adb");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/src/posix_tools-streams-counting.adb");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "common/messages/posix_tools.catalog");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"), Root, "tests/alire.toml");
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "tests/src/posix_tools_tests.adb");
-      Require_Package_File_List_Matches_Manifest;
-      Require_Package_File_List_Covers_Fixtures;
-      Require_Package_File_List_Covers_Release_Metadata;
-      Require_Package_Entries_Match_Tracked_Files;
-      Project_Tools.Release_Checks.Require_Manifest_Entry
-        (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-         Root,
-         "tests/src/test_contexts.ads");
+      Tooling_Checks.Require_Text (Check, ".gitignore", "/dist/");
+      Tooling_Checks.Require_Text (Check, "README.md", "posix_tools");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Project_Tools.Release_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Manifest_Path (I));
-         Project_Tools.Release_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Project_File_Path (I));
-         Project_Tools.Release_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Documentation_Path (I));
-         Project_Tools.Release_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            Posix_Tools.Command_Inventory.Wrapper_Path (I));
-         Project_Tools.Release_Checks.Require_Manifest_Entry
-           (Project_Tools.Files.Join (Root, "generated/package-manifest.txt"),
-            Root,
-            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
-         Project_Tools.Release_Checks.Require_Text
-           (Check,
-            "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1",
-            ".TH " & Posix_Tools.Command_Inventory.Executable (I) & " 1");
-         if Writes_Release_Checksums then
-            Project_Tools.Release_Checks.Require_Text
-              (Check,
-               "generated/release-checksums.txt",
-               "executable tools/" & Posix_Tools.Command_Inventory.Executable (I)
-               & "/bin/" & Posix_Tools.Command_Inventory.Executable (I) & " fnv1a64=");
-         end if;
-      end loop;
-      Project_Tools.Release_Checks.Require_Text (Check, "README.md", "posix_tools");
-      for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Project_Tools.Release_Checks.Require_Text
+         Tooling_Checks.Require_Text
            (Check, "README.md", "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`");
       end loop;
-      Project_Tools.Release_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "README.md", "- `posix-tools`");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-README-INVENTORY-001");
    end Run;
 end Metadata_Checks.Packaging;

@@ -1,6 +1,8 @@
+with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Posix_Tools.Command_Inventory;
+with Posix_Tools.Version;
 with Project_Tools.Files;
 
 package body Tooling_Support is
@@ -14,6 +16,132 @@ package body Tooling_Support is
          return "..";
       end if;
    end Root;
+
+   function Built_Path (Base_Path : String) return String is
+   begin
+      if Project_Tools.Files.File_Exists (Base_Path) then
+         return Ada.Directories.Full_Name (Base_Path);
+      elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
+         return Ada.Directories.Full_Name (Base_Path & ".exe");
+      else
+         return Base_Path;
+      end if;
+   end Built_Path;
+
+   function Built_Command_Path (Executable : String) return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "tools/" & Executable & "/bin/" & Executable)));
+
+   function Built_Root_Path return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "bin/posix-tools")));
+
+   function Built_Test_Runner_Path return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests")));
+
+   function Display_Output (Text : String) return String is
+      use Ada.Strings.Unbounded;
+      Result : Unbounded_String;
+   begin
+      for Ch of Text loop
+         case Ch is
+            when Character'Val (10) =>
+               Append (Result, "\n");
+            when Character'Val (13) =>
+               Append (Result, "\r");
+            when Character'Val (9) =>
+               Append (Result, "\t");
+            when others =>
+               Append (Result, Ch);
+         end case;
+      end loop;
+
+      return To_String (Result);
+   end Display_Output;
+
+   function Boolean_Text (Value : Boolean) return String is
+     (if Value then "true" else "false");
+
+   function Command_Inventory_Csv return String is
+      use Ada.Strings.Unbounded;
+      package Inventory renames Posix_Tools.Command_Inventory;
+      Content : Unbounded_String;
+   begin
+      Append
+        (Content,
+         "executable,crate,package,manifest_path,project_file_path,documentation_path,"
+         & "release_included,posix_status,help,version,identity"
+         & Character'Val (10));
+
+      for I in 1 .. Inventory.Command_Count loop
+         Append
+           (Content,
+            Inventory.Executable (I)
+            & "," & Inventory.Crate (I)
+            & "," & Inventory.Package_Name (I)
+            & "," & Inventory.Manifest_Path (I)
+            & "," & Inventory.Project_File_Path (I)
+            & "," & Inventory.Documentation_Path (I)
+            & "," & Boolean_Text (Inventory.Release_Included (I))
+            & "," & Inventory.Posix_Status (I)
+            & "," & Boolean_Text (Inventory.Has_Help (I))
+            & "," & Boolean_Text (Inventory.Has_Version (I))
+            & "," & Boolean_Text (Inventory.Has_Identity (I))
+            & Character'Val (10));
+      end loop;
+
+      return To_String (Content);
+   end Command_Inventory_Csv;
+
+   function Manual_Index return String is
+      use Ada.Strings.Unbounded;
+      package Inventory renames Posix_Tools.Command_Inventory;
+      Content : Unbounded_String;
+   begin
+      Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
+      Append
+        (Content,
+         "Version: " & Posix_Tools.Version.Version_String
+         & Character'Val (10) & Character'Val (10));
+
+      for I in 1 .. Inventory.Command_Count loop
+         Append
+           (Content,
+            "- `" & Inventory.Executable (I) & "`: "
+            & Inventory.Documentation_Path (I)
+            & Character'Val (10));
+      end loop;
+
+      Append (Content, Character'Val (10));
+      return To_String (Content);
+   end Manual_Index;
+
+   function Command_Reference_Index return String is
+      use Ada.Strings.Unbounded;
+      package Inventory renames Posix_Tools.Command_Inventory;
+      Root_Entry    : constant String := "- [posix-tools](posix-tools.md)" & Character'Val (10);
+      Content       : Unbounded_String;
+      Root_Inserted : Boolean := False;
+   begin
+      Append (Content, "# Command References" & Character'Val (10) & Character'Val (10));
+      Append (Content, "V1 command references:" & Character'Val (10) & Character'Val (10));
+
+      for I in 1 .. Inventory.Command_Count loop
+         if not Root_Inserted and then "posix-tools" < Inventory.Executable (I) then
+            Append (Content, Root_Entry);
+            Root_Inserted := True;
+         end if;
+
+         Append
+           (Content,
+            "- [" & Inventory.Executable (I) & "](" & Inventory.Executable (I) & ".md)"
+            & Character'Val (10));
+      end loop;
+
+      if not Root_Inserted then
+         Append (Content, Root_Entry);
+      end if;
+
+      return To_String (Content);
+   end Command_Reference_Index;
 
    function Strip_Markdown_Ticks (Text : String) return String is
       use Ada.Strings.Unbounded;

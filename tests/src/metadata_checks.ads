@@ -1,9 +1,9 @@
-with Project_Tools.Release_Checks;
+with Tooling_Checks;
 
 --  The checks Run_Metadata_Checks makes, by theme, in the child packages;
 --  this package holds what more than one theme uses.
 package Metadata_Checks is
-   function Check return Project_Tools.Release_Checks.Checker;
+   function Check return Tooling_Checks.Checker;
    procedure Require_Synchronized_Version (Path : String);
    procedure Forbid_Text (Path : String; Text : String; Message : String);
    function Count_Exact_Lines (Text : String; Expected : String) return Natural;
