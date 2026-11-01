@@ -498,12 +498,12 @@ docs/commands/whoami.md bytes= 1084 fnv1a64=efa7095eaff3b89d
 docs/commands/xargs.md bytes= 4208 fnv1a64=bd58d58b8234ae01
 docs/commands/yes.md bytes= 1378 fnv1a64=aba5ea1be1a280cb
 docs/conformance.md bytes= 4154 fnv1a64=4ec7f8d56e54caeb
-docs/development.md bytes= 3190 fnv1a64=b29304c4c691ee68
+docs/development.md bytes= 2023 fnv1a64=0c6cb5e2f01f033a
 docs/portability.md bytes= 988 fnv1a64=0e5c29e72315dc3f
 docs/proof-coverage.md bytes= 16203 fnv1a64=695129766eb79709
-docs/release-process.md bytes= 8447 fnv1a64=fd0307ed8755bc2f
+docs/release-process.md bytes= 9532 fnv1a64=1a4008d0231f21d8
 docs/security.md bytes= 130 fnv1a64=2b0ddff84d44a047
-docs/testing.md bytes= 7220 fnv1a64=b401d8aa9c502e88
+docs/testing.md bytes= 9369 fnv1a64=a14b81705ac8534c
 fixtures/command-option-operands/-c bytes= 2 fnv1a64=08f0de07b58d2b17
 fixtures/command-option-operands/plain bytes= 2 fnv1a64=08f0de07b58d2b17
 fixtures/expanded-option-operands/-c bytes= 2 fnv1a64=08f0de07b58d2b17
