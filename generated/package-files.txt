@@ -955,6 +955,8 @@ tools/explore/tests/src/preview_tests.adb
 tools/explore/tests/src/preview_tests.ads
 tools/explore/tests/src/protocol_tests.adb
 tools/explore/tests/src/protocol_tests.ads
+tools/explore/tests/src/render_tests.adb
+tools/explore/tests/src/render_tests.ads
 tools/explore/tests/src/screen_tests.adb
 tools/explore/tests/src/screen_tests.ads
 tools/explore/tests/src/search_tests.adb

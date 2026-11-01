@@ -20,7 +20,7 @@ The screen has three panes: the parent of the current directory on the left, the
 on the right a preview of the selected entry: the listing of a directory, or, for a file, what it is as `file`
 describes it and then its first lines when it is text, coloured by its language, the members of an archive, the image
 of a PNG, JPEG, or GIF, a thumbnail of a PDF or a video, or else a hex dump of its first bytes. Below 80 columns the parent pane is left out, and below 50 the preview too. The top line shows the
-current directory; the status line shows the selected entry's mode, owner, size, and modification time, its position,
+current directory, or the end of it after an ellipsis when it is too long for the line; the status line shows the selected entry's mode, owner, size, and modification time, its position,
 and any filter or pending prefix key.
 
 Each tab browses on its own, with its own directories, history, filter, and marks; the title line lists the tabs
