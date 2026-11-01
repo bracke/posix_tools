@@ -552,6 +552,30 @@ package body Command_Tests.Surface_Smoke.Metadata is
       Posix_Tools.Commands.Test_Command.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "test -r readable file status");
 
+      --  -r asks whether the file could be opened, never reads it: a device
+      --  without an end, /dev/zero, answers at once.
+      if Ada.Directories.Exists ("/dev/zero") then
+         Context.Initialize ("test", Two_Args ("-r", "/dev/zero"));
+         Posix_Tools.Commands.Test_Command.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "test -r answers for an endless device without reading it");
+      end if;
+
+      Context.Initialize ("test", Two_Args ("-r", Tree));
+      Posix_Tools.Commands.Test_Command.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Error_Output (Context) = "",
+         "test -r finds a readable directory readable");
+
+      Context.Initialize ("test", Two_Args ("-r", Work_Path ("test-r-missing")));
+      Posix_Tools.Commands.Test_Command.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context) = "",
+         "test -r answers false for a missing file without a diagnostic");
+
       if Hostkit.Metadata.Permissions_Supported then
          AUnit.Assertions.Assert
            (Hostkit.Metadata.Set_Permissions (Source, 8#600#),

@@ -1,6 +1,5 @@
 with Ada.Strings.Unbounded;
 with I18N.Collation;
-with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Usage_Messages;
@@ -351,13 +350,22 @@ package body Posix_Tools.Commands.Test_Command is
                  and then (Mode / Mask) mod 2 = 1;
             end;
          elsif Op = "-r" then
-            declare
-               Ok      : Boolean := False;
-               Ignored : constant String :=
-                 Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Operand, Ok);
-            begin
-               return Ok;
-            end;
+            --  Whether it could be opened for reading, not read: a device
+            --  such as /dev/zero never ends. Opening a FIFO waits for a
+            --  writer, and Windows opens no directory as a file, so those
+            --  answer by their permission bits, as -w and -x do.
+            if FS.Kind (Operand) = FS.Directory
+              or else FS.Special_File_Info_Of (Operand).Kind = FS.FIFO
+            then
+               declare
+                  Available : Boolean;
+                  Mode      : constant Natural := FS.File_Permission_Bits (Operand, Available);
+               begin
+                  return not FS.Permissions_Supported
+                    or else (Available and then Has_Any_Mode_Bit (Mode, 8#444#));
+               end;
+            end if;
+            return FS.Can_Open_For_Read (Operand);
          elsif Op = "-w" or else Op = "-x" then
             declare
                Available : Boolean;
