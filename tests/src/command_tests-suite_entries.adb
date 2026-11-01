@@ -456,6 +456,7 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:tail line suffix", Test_Tail_Line_Suffix_Property'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:usage errors", Test_Usage_Errors'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:option parsing", Test_Option_Parsing'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create

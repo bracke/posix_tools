@@ -83,18 +83,29 @@ package body Posix_Tools.Commands.Kill is
             then Posix_Tools.Exit_Status.Operational_Failure
             else Posix_Tools.Exit_Status.Success);
          return;
-      elsif Context.Argument_Count >= 2 and then Context.Argument (1) = "-s" then
-         if not Signal_From_Name (Context.Argument (2), Chosen) then
+      elsif Context.Argument (1) = "-s" then
+         if Context.Argument_Count < 2 then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-s");
+            return;
+         elsif not Signal_From_Name (Context.Argument (2), Chosen) then
             Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (2));
             return;
          end if;
          First := 3;
-      elsif Context.Argument (1)'Length > 1 and then Context.Argument (1) (1) = '-' then
+      elsif Context.Argument (1)'Length > 1
+        and then Context.Argument (1) (1) = '-'
+        and then Context.Argument (1) /= "--"
+      then
          if not Signal_From_Name (Context.Argument (1) (2 .. Context.Argument (1)'Last), Chosen) then
             Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (1));
             return;
          end if;
          First := 2;
+      end if;
+
+      --  "--" ends the options.
+      if First <= Context.Argument_Count and then Context.Argument (First) = "--" then
+         First := First + 1;
       end if;
 
       if Context.Argument_Count < First then

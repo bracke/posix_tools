@@ -14,36 +14,42 @@ package body Posix_Tools.Commands.Head is
    is
       type Prefix_Mode is (Line_Mode, Byte_Mode);
 
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
       Count      : constant Natural := Context.Argument_Count;
-      Parsed     : Posix_Tools.Numbers.Parse_Result;
       Ok         : Boolean;
       All_Ok     : Boolean := True;
       Sources    : Natural;
       Requested  : Posix_Tools.Numbers.Count := 10;
-      Index      : Positive := 1;
       Mode       : Prefix_Mode := Line_Mode;
 
-      procedure Parse_Count
-        (Text  : String;
-         Label : String;
-         Diagnostic_Text : String;
-         Valid : out Boolean)
+      --  -n or -c, with its count Value.
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
       is
+         Parsed : constant Posix_Tools.Numbers.Parse_Result := Posix_Tools.Numbers.Parse_Nonnegative (Value);
       begin
-         Parsed := Posix_Tools.Numbers.Parse_Nonnegative (Text);
          if Parsed.Status /= Posix_Tools.Numbers.Valid then
-            if Label = "line" then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Line_Count, Diagnostic_Text);
-            else
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Byte_Count, Diagnostic_Text);
-            end if;
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, (if Name = 'n' then Invalid_Line_Count else Invalid_Byte_Count), Value);
             Valid := False;
          else
             Requested := Parsed.Value;
+            Mode := (if Name = 'n' then Line_Mode else Byte_Mode);
             Valid := True;
          end if;
-      end Parse_Count;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
 
       procedure Copy_Prefix (File_Name : String; Ok : out Boolean) is
       begin
@@ -58,85 +64,10 @@ package body Posix_Tools.Commands.Head is
          return;
       end if;
 
-      while Index <= Count loop
-         if Context.Argument (Index) = "--" then
-            Index := Index + 1;
-            exit;
-         elsif Context.Argument (Index) = "-n" then
-            if Index = Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-n");
-               return;
-            end if;
-
-            declare
-               Valid : Boolean;
-            begin
-               Parse_Count (Context.Argument (Index + 1), "line", Context.Argument (Index + 1), Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-
-            Mode := Line_Mode;
-            Index := Index + 2;
-         elsif Context.Argument (Index) = "-c" then
-            if Index = Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-c");
-               return;
-            end if;
-
-            declare
-               Valid : Boolean;
-            begin
-               Parse_Count (Context.Argument (Index + 1), "byte", Context.Argument (Index + 1), Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-
-            Mode := Byte_Mode;
-            Index := Index + 2;
-         elsif Context.Argument (Index)'Length > 2
-           and then Context.Argument (Index) (1 .. 2) = "-n"
-         then
-            declare
-               Valid : Boolean;
-            begin
-               Parse_Count
-                 (Context.Argument (Index) (3 .. Context.Argument (Index)'Last),
-                  "line",
-                  Context.Argument (Index),
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-
-            Mode := Line_Mode;
-            Index := Index + 1;
-         elsif Context.Argument (Index)'Length > 2
-           and then Context.Argument (Index) (1 .. 2) = "-c"
-         then
-            declare
-               Valid : Boolean;
-            begin
-               Parse_Count
-                 (Context.Argument (Index) (3 .. Context.Argument (Index)'Last),
-                  "byte",
-                  Context.Argument (Index),
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-
-            Mode := Byte_Mode;
-            Index := Index + 1;
-         else
-            exit;
-         end if;
-      end loop;
-      First_File := Index;
+      Parse (Context, Result, "cn", "cn", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       Sources := (if First_File > Count then 1 else Count - First_File + 1);
       if First_File > Count then

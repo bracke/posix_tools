@@ -4,7 +4,7 @@
 `cat` - concatenate files to standard output.
 
 ## Synopsis
-`cat [file...]`
+`cat [-u] [file...]`
 
 ## Description
 Copies each operand to standard output in order. With no operands, or with an
@@ -14,8 +14,9 @@ operand exactly equal to `-`, standard input is copied.
 `file`: input file path or `-` for standard input.
 
 ## Options
-No POSIX formatting options are implemented in V1. Project extensions
-`--help`, `--version`, and `--posix-tools-identify` are recognized.
+`-u` is accepted: output is written as soon as it is read. Any other option is a usage error. Project
+extensions `--help`, `--version`, and `--posix-tools-identify` are recognized. The end-of-options marker `--` is
+accepted.
 
 ## Standard Input
 Used when no operands are present or when an operand is `-`.

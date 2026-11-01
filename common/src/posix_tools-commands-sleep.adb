@@ -11,17 +11,23 @@ package body Posix_Tools.Commands.Sleep is
    is
       Max_Duration_Seconds : constant Long_Long_Float := 86_400.0;
       Total_Seconds        : Long_Long_Float := 0.0;
+      First                : Positive := 1;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      if Context.Argument_Count = 0 then
+      --  sleep has no options, but "--" still ends them.
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
-      for I in 1 .. Context.Argument_Count loop
+      for I in First .. Context.Argument_Count loop
          declare
             Parsed : constant Posix_Tools.Text.Duration_Fields.Parsed_Duration_Seconds :=
               Posix_Tools.Text.Duration_Fields.Parse_Seconds

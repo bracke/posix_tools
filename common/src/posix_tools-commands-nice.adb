@@ -10,53 +10,46 @@ package body Posix_Tools.Commands.Nice is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First      : Positive := 1;
+      First      : Positive;
+      Valid      : Boolean;
       Adjustment : Integer := 10;
       Exit_Code  : Integer := 0;
       Arguments  : Posix_Tools.Arguments.Vector;
+
+      --  -n, with its increment Value.
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Name);
+         Parsed : constant Posix_Tools.Text.Nice_Fields.Parsed_Adjustment :=
+           Posix_Tools.Text.Nice_Fields.Parse_Adjustment (Value);
+      begin
+         Valid := Parsed.Valid;
+         if Valid then
+            Adjustment := Parsed.Value;
+         else
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      if Context.Argument_Count = 0 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
+      Parse (Context, Result, "n", "n", First, Valid);
+      if not Valid then
          return;
-      end if;
-
-      if Context.Argument (First) = "-n" then
-         if First = Context.Argument_Count then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-n");
-            return;
-         else
-            declare
-               Parsed : constant Posix_Tools.Text.Nice_Fields.Parsed_Adjustment :=
-                 Posix_Tools.Text.Nice_Fields.Parse_Adjustment (Context.Argument (First + 1));
-            begin
-               if not Parsed.Valid then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, Invalid_Operand, Context.Argument (First + 1));
-                  return;
-               end if;
-               Adjustment := Parsed.Value;
-            end;
-         end if;
-         First := First + 2;
-      elsif Context.Argument (First)'Length > 2
-        and then Context.Argument (First) (1 .. 2) = "-n"
-      then
-         declare
-            Parsed : constant Posix_Tools.Text.Nice_Fields.Parsed_Adjustment :=
-              Posix_Tools.Text.Nice_Fields.Parse_Adjustment
-                (Context.Argument (First) (3 .. Context.Argument (First)'Last));
-         begin
-            if not Parsed.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
-               return;
-            end if;
-            Adjustment := Parsed.Value;
-         end;
-         First := First + 1;
       end if;
 
       if First > Context.Argument_Count then

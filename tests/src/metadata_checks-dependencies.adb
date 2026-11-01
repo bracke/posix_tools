@@ -118,7 +118,7 @@ package body Metadata_Checks.Dependencies is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10;");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "First_File : Positive := 1;");
+        (Check, "common/src/posix_tools-commands-head.adb", "First_File : Positive;");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-tail_counts.ads", "type Count_Origin is (From_End, From_Start);");
       Project_Tools.Release_Checks.Require_Text

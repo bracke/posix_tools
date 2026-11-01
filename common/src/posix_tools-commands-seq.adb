@@ -154,7 +154,9 @@ package body Posix_Tools.Commands.Seq is
                  and then Arg (Arg'First) = '-'
                  and then not Posix_Tools.Text.Decimal_Parsing.Looks_Like_Negative_Number (Arg)
                then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, Unknown_Option,
+                     Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "fsw"));
                   return;
                else
                   Operands.Append (Arg);

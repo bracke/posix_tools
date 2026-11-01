@@ -21,7 +21,8 @@ package body Posix_Tools.Commands.Od is
       Limit   : Natural := 0;
       Has_Limit : Boolean := False;
       Verbose : Boolean := False;
-      First : Positive := 1;
+      First : Positive;
+      Valid : Boolean;
       Data  : Unbounded_String;
       Ok    : Boolean := True;
 
@@ -62,21 +63,19 @@ package body Posix_Tools.Commands.Od is
          return True;
       end Append_Dump_Formats;
 
-      procedure Set_Required_Number_Option
-        (Option  : String;
-         Text    : String;
-         Present : Boolean;
-         Target  : out Natural;
-         Valid   : out Boolean)
+      --  Set Target to the -j offset or -N count Text, Skip_Form saying
+      --  which.
+      procedure Set_Number_Option
+        (Text      : String;
+         Skip_Form : Boolean;
+         Target    : out Natural;
+         Result    : in out Posix_Tools.Commands.Results.Result;
+         Valid     : out Boolean)
       is
          Parsed : constant Posix_Tools.Text.OD_Formats.Parsed_Offset_Count :=
-           Posix_Tools.Text.OD_Formats.Offset_Count (Text, Option = "-j");
+           Posix_Tools.Text.OD_Formats.Offset_Count (Text, Skip_Form);
       begin
-         if not Present then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Option);
-            Valid := False;
-            Target := 0;
-         elsif not Parsed.Valid then
+         if not Parsed.Valid then
             Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
             Valid := False;
             Target := 0;
@@ -84,160 +83,54 @@ package body Posix_Tools.Commands.Od is
             Valid := True;
             Target := Parsed.Value;
          end if;
-      end Set_Required_Number_Option;
+      end Set_Number_Option;
 
-      function Append_Shorthand_Formats (Option : String) return Boolean is
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
       begin
-         return Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Formats (Formats, Option);
-      end Append_Shorthand_Formats;
+         Valid := True;
+         case Name is
+            when 'v' =>
+               Verbose := True;
+            when 'A' =>
+               if not Set_Address_Base (Value) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+            when 'j' =>
+               Set_Number_Option (Value, True, Skip, Result, Valid);
+            when 'N' =>
+               Set_Number_Option (Value, False, Limit, Result, Valid);
+               Has_Limit := True;
+            when 't' =>
+               if not Append_Dump_Formats (Value) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+            when others =>
+               --  One of the shorthand formats, -a, -b, -c, -d, -o, -s
+               --  or -x.
+               if not Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Format (Formats, Name) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "-" & Name);
+                  Valid := False;
+               end if;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count and then Context.Argument (First)'Length > 0
-        and then Context.Argument (First) (Context.Argument (First)'First) = '-'
-      loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         elsif Context.Argument (First) in "-a" | "-b" | "-c" | "-d" | "-o" | "-s" | "-x" then
-            if not Posix_Tools.Commands.Od_Rendering.Append_Shorthand_Format
-              (Formats, Context.Argument (First) (Context.Argument (First)'First + 1))
-            then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
-               return;
-            end if;
-            First := First + 1;
-         elsif Context.Argument (First) = "-v" then
-            Verbose := True;
-            First := First + 1;
-         elsif Context.Argument (First) = "-A" then
-            if First >= Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-A");
-               return;
-            elsif not Set_Address_Base (Context.Argument (First + 1)) then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
-               return;
-            end if;
-            First := First + 2;
-         elsif Context.Argument (First)'Length > 2
-           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
-             = "-A"
-         then
-            if not Set_Address_Base
-              (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
-            then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context,
-                  Result,
-                  Invalid_Operand,
-                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last));
-               return;
-            end if;
-            First := First + 1;
-         elsif Context.Argument (First) = "-j" then
-            declare
-               Valid : Boolean;
-            begin
-               Set_Required_Number_Option
-                 ("-j",
-                  (if First < Context.Argument_Count then Context.Argument (First + 1) else ""),
-                  First < Context.Argument_Count,
-                  Skip,
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-            First := First + 2;
-         elsif Context.Argument (First)'Length > 2
-           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
-             = "-j"
-         then
-            declare
-               Valid : Boolean;
-            begin
-               Set_Required_Number_Option
-                 ("-j",
-                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last),
-                  True,
-                  Skip,
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-            First := First + 1;
-         elsif Context.Argument (First) = "-N" then
-            declare
-               Valid : Boolean;
-            begin
-               Set_Required_Number_Option
-                 ("-N",
-                  (if First < Context.Argument_Count then Context.Argument (First + 1) else ""),
-                  First < Context.Argument_Count,
-                  Limit,
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-            Has_Limit := True;
-            First := First + 2;
-         elsif Context.Argument (First)'Length > 2
-           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
-             = "-N"
-         then
-            declare
-               Valid : Boolean;
-            begin
-               Set_Required_Number_Option
-                 ("-N",
-                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last),
-                  True,
-                  Limit,
-                  Valid);
-               if not Valid then
-                  return;
-               end if;
-            end;
-            Has_Limit := True;
-            First := First + 1;
-         elsif Context.Argument (First) = "-t" then
-            if First >= Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
-               return;
-            elsif not Append_Dump_Formats (Context.Argument (First + 1)) then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
-               return;
-            end if;
-            First := First + 2;
-         elsif Context.Argument (First)'Length > 2
-           and then Context.Argument (First) (Context.Argument (First)'First .. Context.Argument (First)'First + 1)
-             = "-t"
-         then
-            if not Append_Dump_Formats
-              (Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last))
-            then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context,
-                  Result,
-                  Invalid_Operand,
-                  Context.Argument (First) (Context.Argument (First)'First + 2 .. Context.Argument (First)'Last));
-               return;
-            end if;
-            First := First + 1;
-         elsif Context.Argument (First)'Length > 2
-           and then Append_Shorthand_Formats (Context.Argument (First))
-         then
-            First := First + 1;
-         else
-            exit;
-         end if;
-      end loop;
+      Parse (Context, Result, "AabcdjNostvx", "AjNt", First, Valid);
+      if not Valid then
+         return;
+      end if;
       if Formats.Is_Empty then
          Formats.Append
            (Posix_Tools.Commands.Od_Rendering.Dump_Spec'

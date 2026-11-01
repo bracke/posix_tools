@@ -104,7 +104,8 @@ package body Posix_Tools.Commands.Cut is
       Has_Delimiter : Boolean := False;
       Suppress   : Boolean := False;
       No_Split   : Boolean := False;
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
       All_Ok     : Boolean := True;
       Characters : constant Boolean :=
         Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale
@@ -112,6 +113,11 @@ package body Posix_Tools.Commands.Cut is
 
       procedure Cut_File (Name : String; Ok : out Boolean);
       procedure Emit_Line (Line : String);
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
 
       procedure Cut_File (Name : String; Ok : out Boolean) is
          Data  : Unbounded_String;
@@ -179,78 +185,54 @@ package body Posix_Tools.Commands.Cut is
             end if;
          end if;
       end Emit_Line;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := False;
+         case Name is
+            when 's' =>
+               Suppress := True;
+            when 'n' =>
+               No_Split := True;
+            when 'd' =>
+               if Value'Length /= 1 then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  return;
+               end if;
+               Delimiter := Value (Value'First);
+               Has_Delimiter := True;
+            when others =>
+               --  -b, -c or -f, with its list.
+               if Mode /= Character'Val (0) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Multiple_List_Options);
+                  return;
+               elsif Value = "" then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-" & Name);
+                  return;
+               elsif not Parse_List (Value, Ranges) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  return;
+               end if;
+               Mode := Name;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First_File <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First_File);
-         begin
-            if Arg = "-s" then
-               Suppress := True;
-               First_File := First_File + 1;
-            elsif Arg = "-n" then
-               No_Split := True;
-               First_File := First_File + 1;
-            elsif Arg = "-d" then
-               if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-d");
-                  return;
-               elsif Context.Argument (First_File + 1)'Length /= 1 then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, Invalid_Operand, Context.Argument (First_File + 1));
-                  return;
-               end if;
-               Delimiter := Context.Argument (First_File + 1) (Context.Argument (First_File + 1)'First);
-               Has_Delimiter := True;
-               First_File := First_File + 2;
-            elsif Arg'Length > 2
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) = 'd'
-            then
-               if Arg'Length /= 3 then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, Invalid_Operand, Arg (Arg'First + 2 .. Arg'Last));
-                  return;
-               end if;
-               Delimiter := Arg (Arg'First + 2);
-               Has_Delimiter := True;
-               First_File := First_File + 1;
-            elsif Arg'Length >= 2
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) in 'b' | 'c' | 'f'
-            then
-               if Mode /= Character'Val (0) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Multiple_List_Options);
-                  return;
-               end if;
-               Mode := Arg (Arg'First + 1);
-               declare
-                  Spec : constant String :=
-                    (if Arg'Length > 2 then Arg (Arg'First + 2 .. Arg'Last)
-                     elsif First_File < Context.Argument_Count then Context.Argument (First_File + 1)
-                     else "");
-               begin
-                  if Spec = "" then
-                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-" & Mode);
-                     return;
-                  end if;
-                  if not Parse_List (Spec, Ranges) then
-                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Spec);
-                     return;
-                  end if;
-                  First_File := First_File + (if Arg'Length > 2 then 1 else 2);
-               end;
-            elsif Arg = "--" then
-               First_File := First_File + 1;
-               exit;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "bcdfns", "bcdf", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Mode = Character'Val (0) then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);

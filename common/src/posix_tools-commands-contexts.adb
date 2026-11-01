@@ -40,6 +40,11 @@ package body Posix_Tools.Commands.Contexts is
       return Self.Args.Element (Index);
    end Argument;
 
+   function Argument_Vector (Self : Context) return Posix_Tools.Arguments.Vector is
+   begin
+      return Self.Args;
+   end Argument_Vector;
+
    function Environment_Value (Self : Context; Name : String) return String is
       pragma Unreferenced (Self);
    begin

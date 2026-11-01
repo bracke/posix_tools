@@ -242,7 +242,9 @@ package body Posix_Tools.Commands.Find is
               and then Context.Argument (I)'Length > 1
               and then Context.Argument (I) (Context.Argument (I)'First) = '-'
             then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (I));
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, Unknown_Option,
+                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Context.Argument (I), "HL"));
                return;
             else
                Paths.Append (Context.Argument (I));

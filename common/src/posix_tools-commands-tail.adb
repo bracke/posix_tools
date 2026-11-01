@@ -95,7 +95,9 @@ package body Posix_Tools.Commands.Tail is
          elsif Context.Argument (Index)'Length > 1
            and then Context.Argument (Index) (1) = '-'
          then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Context.Argument (Index));
+            Posix_Tools.Commands.Helpers.Usage_Error
+              (Context, Result, Unknown_Option,
+               Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Context.Argument (Index), "cfFn"));
             return;
          else
             exit;

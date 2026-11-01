@@ -87,7 +87,9 @@ package body Posix_Tools.Commands.Timeout is
                end;
                First := First + 1;
             elsif Arg'Length > 0 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, Arg);
+               Posix_Tools.Commands.Helpers.Usage_Error
+                 (Context, Result, Unknown_Option,
+                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "ks"));
                return;
             else
                exit;

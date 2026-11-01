@@ -16,6 +16,7 @@ package body Posix_Tools.Commands.Getconf is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Value : Unbounded_String;
+      First : Positive := 1;
 
       function Config_Value (Name : String; Value : out Unbounded_String) return Boolean;
 
@@ -66,33 +67,38 @@ package body Posix_Tools.Commands.Getconf is
          return;
       end if;
 
-      if Context.Argument_Count = 0 then
+      --  getconf takes no options here, but "--" still ends them.
+      if Context.Argument_Count > 0 and then Context.Argument (1) = "--" then
+         First := 2;
+      end if;
+
+      if Context.Argument_Count < First then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
-      elsif Context.Argument_Count > 2 then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (3));
+      elsif Context.Argument_Count > First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
          return;
       end if;
 
-      if Context.Argument_Count = 2 then
-         if Context.Argument (2) = "" then
-            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (2));
+      if Context.Argument_Count = First + 1 then
+         if Context.Argument (First + 1) = "" then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First + 1));
             return;
-         elsif not FS.Exists (Context.Argument (2)) then
+         elsif not FS.Exists (Context.Argument (First + 1)) then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
-              (Context, Context.Argument (2), "posix_tools.diagnostic.file.open_failed", "cannot open file");
+              (Context, Context.Argument (First + 1), "posix_tools.diagnostic.file.open_failed", "cannot open file");
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             return;
          end if;
       end if;
 
-      if Config_Value (Context.Argument (1), Value) then
+      if Config_Value (Context.Argument (First), Value) then
          Context.Put_Line (To_String (Value));
          Result.Status :=
            (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
             else Posix_Tools.Exit_Status.Success);
       else
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (1));
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
       end if;
    end Run;
 end Posix_Tools.Commands.Getconf;

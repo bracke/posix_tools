@@ -122,7 +122,7 @@ package body Metadata_Checks.Test_Coverage is
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-dirname.adb", "Context.Argument (1) = ""--""");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-cat.adb", "Context.Argument (1) = ""--""");
+        (Check, "common/src/posix_tools-commands-cat.adb", "Posix_Tools.Commands.Helpers.Parse_Options");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-cat.adb", "File_Helpers.Copy_File");
       Project_Tools.Release_Checks.Require_Text
@@ -236,17 +236,17 @@ package body Metadata_Checks.Test_Coverage is
       Project_Tools.Release_Checks.Require_Text
         (Check, "generated/requirements.csv", "posix_tools_tests test --suite cp");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) = ""--""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Posix_Tools.Commands.Helpers.Parse_Options");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Requested  : Posix_Tools.Numbers.Count := 10");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) = ""-n""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Parse (Context, Result, ""cn"", ""cn"", First_File, Valid)");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Context.Argument (Index) (1 .. 2) = ""-n""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Mode := (if Name = 'n' then Line_Mode else Byte_Mode)");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Parse_Nonnegative");
       Project_Tools.Release_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-head.adb", "Missing_Option_Argument, ""-n""");
+        (Check, "common/src/posix_tools-commands-head.adb", "Invalid_Byte_Count");
       Project_Tools.Release_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-head.adb", "Invalid_Line_Count");
       Project_Tools.Release_Checks.Require_Text
