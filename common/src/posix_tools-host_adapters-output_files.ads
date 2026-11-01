@@ -24,6 +24,19 @@ package Posix_Tools.Host_Adapters.Output_Files is
    --  Closes File; False when the host reported the close as failing.
    procedure Close (File : in out Output_File; Ok : out Boolean)
    with Post => not Is_Open (File);
+
+   --  Writes Text into the file Path from byte Offset on, as dd does with
+   --  seek=. With Truncate the file is emptied first, or made when absent,
+   --  and the bytes before Offset read as zeros. Without it the file must
+   --  exist, keeps what lies outside the bytes written, and is made at
+   --  least Offset bytes long, zeros filling what it gains.
+   procedure Write_At
+     (Path     : String;
+      Offset   : Long_Long_Integer;
+      Text     : String;
+      Truncate : Boolean;
+      Ok       : out Boolean)
+   with Pre => Offset >= 0;
 private
    type Output_File is limited record
       Descriptor : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;

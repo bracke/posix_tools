@@ -1,11 +1,10 @@
-with Ada.Streams;
-with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Numbers;
 with Posix_Tools.Text.DD_Blocks;
 with Posix_Tools.Text.DD_Conversion_Engine;
@@ -124,67 +123,21 @@ package body Posix_Tools.Commands.Dd is
                 (Raw_Slice, Options.Conversion_Settings);
             Slice  : constant String := To_String (Converted.Output);
 
+            --  The of= file, from the seek= offset on: emptied first unless
+            --  conv=notrunc and it is there to keep.
             procedure Write_Dd_Output_File is
-               use Ada.Streams.Stream_IO;
-               File : File_Type;
+               Path : constant String := To_String (Options.Output);
             begin
-               Ok := False;
-               if Options.No_Truncate_Output and then FS.Exists (To_String (Options.Output)) then
-                  declare
-                     Existing_Ok : Boolean := False;
-                     Existing    : constant String :=
-                       Posix_Tools.Commands.File_Helpers.Streaming.Read_File
-                         (Context, To_String (Options.Output), Existing_Ok);
-                     Combined    : Unbounded_String;
-                     Offset      : constant Natural := Natural (Transfer.Prefix_Count);
-                     Write_Last  : constant Natural := Offset + Slice'Length;
-                  begin
-                     if not Existing_Ok then
-                        return;
-                     end if;
-
-                     for I in 1 .. Offset loop
-                        if I <= Existing'Length then
-                           Append (Combined, Existing (Existing'First + I - 1));
-                        else
-                           Append (Combined, Character'Val (0));
-                        end if;
-                     end loop;
-
-                     Append (Combined, Slice);
-
-                     if Write_Last < Existing'Length then
-                        Append (Combined, Existing (Existing'First + Write_Last .. Existing'Last));
-                     end if;
-                     Posix_Tools.Host_Adapters.File_System.Write_File
-                       (To_String (Options.Output), To_String (Combined), False, Ok);
-                  end;
-               else
-                  Create (File, Out_File, To_String (Options.Output));
-
-                  if Slice'Length > 0 then
-                     Set_Index (File, Ada.Streams.Stream_IO.Count (Transfer.Prefix_Count) + 1);
-                     declare
-                        Buffer : Ada.Streams.Stream_Element_Array
-                          (1 .. Ada.Streams.Stream_Element_Offset (Slice'Length));
-                     begin
-                        for I in Slice'Range loop
-                           Buffer (Ada.Streams.Stream_Element_Offset (I - Slice'First + 1)) :=
-                             Ada.Streams.Stream_Element (Character'Pos (Slice (I)));
-                        end loop;
-                        Write (File, Buffer);
-                     end;
-                  end if;
-
-                  Close (File);
-                  Ok := True;
+               Posix_Tools.Host_Adapters.Output_Files.Write_At
+                 (Path     => Path,
+                  Offset   => Long_Long_Integer (Transfer.Prefix_Count),
+                  Text     => Slice,
+                  Truncate => not (Options.No_Truncate_Output and then FS.Exists (Path)),
+                  Ok       => Ok);
+               if not Ok then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Path, "posix_tools.diagnostic.file.write_failed", "cannot write file");
                end if;
-            exception
-               when others =>
-                  if Is_Open (File) then
-                     Close (File);
-                  end if;
-                  Ok := False;
             end Write_Dd_Output_File;
          begin
             declare
