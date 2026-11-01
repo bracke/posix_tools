@@ -33,6 +33,7 @@ with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
 with Project_Tools.Release_Checks;
+with Tooling_Checks;
 with Project_Tools.Text;
 with Proof_Targets;
 with Tooling_Support;
@@ -172,7 +173,7 @@ procedure Posix_Tools_Tests is
       Status   : Integer;
    begin
       if Archiver = "" then
-         Project_Tools.Release_Checks.Fail ("7z-compatible command not found for release archive generation");
+         Tooling_Checks.Fail ("7z-compatible command not found for release archive generation");
       end if;
 
       if not Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, "dist")) then
@@ -197,10 +198,10 @@ procedure Posix_Tools_Tests is
             Quiet   => True);
 
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail
+         Tooling_Checks.Fail
            ("release archive generation failed with status" & Integer'Image (Status));
       elsif not Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Archive)) then
-         Project_Tools.Release_Checks.Fail ("release archive was not created");
+         Tooling_Checks.Fail ("release archive was not created");
       end if;
 
       Status :=
@@ -215,7 +216,7 @@ procedure Posix_Tools_Tests is
             Quiet   => True);
 
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail
+         Tooling_Checks.Fail
            ("release archive integrity test failed with status" & Integer'Image (Status));
       end if;
 
@@ -274,8 +275,8 @@ procedure Posix_Tools_Tests is
 
    procedure Run_Conformance_Checks is
       use Ada.Strings.Unbounded;
-      Check : constant Project_Tools.Release_Checks.Checker :=
-        Project_Tools.Release_Checks.Create (Root);
+      Check : constant Tooling_Checks.Checker :=
+        Tooling_Checks.Create (Root);
       Requirements : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/requirements.csv"));
       Regressions : constant String :=
@@ -554,7 +555,7 @@ procedure Posix_Tools_Tests is
          Start : Positive := Text'First;
       begin
          if Text = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has no implementation references");
          end if;
 
@@ -563,7 +564,7 @@ procedure Posix_Tools_Tests is
                if Start <= I - 1
                  and then not Implementation_Reference_Exists (Text (Start .. I - 1))
                then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     (Id_Text & " references missing implementation " & Trimmed (Text (Start .. I - 1)));
                end if;
 
@@ -574,7 +575,7 @@ procedure Posix_Tools_Tests is
          if Start <= Text'Last
            and then not Implementation_Reference_Exists (Text (Start .. Text'Last))
          then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " references missing implementation " & Trimmed (Text (Start .. Text'Last)));
          end if;
       end Check_Implementation_References;
@@ -583,7 +584,7 @@ procedure Posix_Tools_Tests is
          Start : Positive := Text'First;
       begin
          if Text = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has no test references");
          end if;
 
@@ -592,7 +593,7 @@ procedure Posix_Tools_Tests is
                if Start <= I - 1
                  and then not Test_Reference_Exists (Text (Start .. I - 1))
                then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     (Id_Text & " references missing test or validation artifact "
                      & Trimmed (Text (Start .. I - 1)));
                end if;
@@ -604,7 +605,7 @@ procedure Posix_Tools_Tests is
          if Start <= Text'Last
            and then not Test_Reference_Exists (Text (Start .. Text'Last))
          then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " references missing test or validation artifact "
                & Trimmed (Text (Start .. Text'Last)));
          end if;
@@ -615,25 +616,25 @@ procedure Posix_Tools_Tests is
          Test_Text : constant String := Field (Line, 4);
       begin
          if Field_Count (Line) /= 4 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("regression row has wrong field count at line" & Positive'Image (Number));
          elsif Id_Text = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("regression row has empty identifier at line" & Positive'Image (Number));
          elsif not Is_Regression_Id (Id_Text) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has invalid regression identifier syntax");
          elsif Field (Line, 2) = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has empty command field");
          elsif Field (Line, 3) = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has empty summary field");
          elsif Test_Text = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has no linked regression test");
          elsif not Requirement_References_Regression (Id_Text) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " is not referenced by any requirement row");
          else
             Check_Test_References (Id_Text, Test_Text);
@@ -643,10 +644,10 @@ procedure Posix_Tools_Tests is
       procedure Check_Inventory_Path (Executable : String; Path : String; Label : String) is
       begin
          if Path = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("inventory row for " & Executable & " has empty " & Label);
          elsif not Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Path)) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("inventory row for " & Executable & " references missing " & Label & " " & Path);
          end if;
       end Check_Inventory_Path;
@@ -658,7 +659,7 @@ procedure Posix_Tools_Tests is
          Expected   : String) is
       begin
          if Actual /= Expected then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("inventory row for " & Executable & " has " & Label & " '" & Actual
                & "' but expected '" & Expected & "'");
          end if;
@@ -669,10 +670,10 @@ procedure Posix_Tools_Tests is
          Executable : constant String := Field (Line, 1);
       begin
          if Field_Count (Line) /= 11 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("command inventory row has wrong field count at line" & Positive'Image (Number));
          elsif Index > Posix_Tools.Command_Inventory.Command_Count then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("command inventory has unexpected extra row at line" & Positive'Image (Number));
          end if;
 
@@ -851,38 +852,38 @@ procedure Posix_Tools_Tests is
          Implementation_Text : constant String := To_String (Row.Implementation);
       begin
          if Field_Count (Line) /= 7 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("requirement row has wrong field count at line" & Positive'Image (Number));
          elsif Id_Text = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("requirement row has empty identifier at line" & Positive'Image (Number));
          elsif not Is_Requirement_Id (Id_Text) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has invalid requirement identifier syntax");
          elsif To_String (Row.Command) = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has empty command field");
          elsif To_String (Row.Implementation) = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has empty implementation field");
          elsif To_String (Row.Test) = "" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has no linked test or validation artifact");
          elsif not Is_Allowed_Status (Status_Text) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " has invalid conformance status " & Status_Text);
          elsif Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "POSIX.1-2008")
            or else Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "POSIX.1-2017")
            or else Project_Tools.Text.Contains (To_String (Row.Posix_Reference), "Issue 7")
          then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " mixes an older POSIX baseline into the V1 registry");
          elsif To_String (Row.Posix_Reference) = "Project extension"
            and then not
              (Project_Tools.Text.Contains (Id_Text, "-EXT-")
               or else Posix_Tools.Text.Matching.Starts_With (Id_Text, "NONPOSIX-"))
          then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " records a project extension without an extension identifier");
          else
             Check_Implementation_References (Id_Text, Implementation_Text);
@@ -892,7 +893,7 @@ procedure Posix_Tools_Tests is
          if Status_Text = "Known deviation"
            and then not Project_Tools.Text.Contains (Test_Text, "docs/")
          then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Id_Text & " is a known deviation without linked documentation");
          elsif Status_Text = "Known deviation"
          then
@@ -903,7 +904,7 @@ procedure Posix_Tools_Tests is
                  or else not Project_Tools.Files.File_Contains
                    (Project_Tools.Files.Join (Root, Doc_Path), Id_Text)
                then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     (Id_Text & " is a known deviation missing its identifier in linked documentation");
                end if;
             end;
@@ -923,14 +924,14 @@ procedure Posix_Tools_Tests is
          begin
             for I in 1 .. Seen_Count loop
                if To_String (Seen_Ids (I)) = Id_Text then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     ("duplicate requirement identifier " & Id_Text
                      & " at line" & Positive'Image (Number));
                end if;
             end loop;
 
             if Seen_Count = Max_Requirement_Rows then
-               Project_Tools.Release_Checks.Fail ("requirements registry exceeds tooling row capacity");
+               Tooling_Checks.Fail ("requirements registry exceeds tooling row capacity");
             end if;
 
             Seen_Count := Seen_Count + 1;
@@ -938,7 +939,7 @@ procedure Posix_Tools_Tests is
          end Remember_Id;
       begin
          if Requirements = "" then
-            Project_Tools.Release_Checks.Fail ("requirements registry is empty");
+            Tooling_Checks.Fail ("requirements registry is empty");
          end if;
 
          for I in Requirements'Range loop
@@ -951,7 +952,7 @@ procedure Posix_Tools_Tests is
                   begin
                      if Line_Number = 1 then
                         if Line /= "id,command,summary,posix_reference,implementation,test,status" then
-                           Project_Tools.Release_Checks.Fail ("requirements registry header is invalid");
+                           Tooling_Checks.Fail ("requirements registry header is invalid");
                         end if;
                      else
                         Check_Row (Line, Line_Number);
@@ -990,14 +991,14 @@ procedure Posix_Tools_Tests is
          begin
             for I in 1 .. Seen_Count loop
                if To_String (Seen_Ids (I)) = Id_Text then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     ("duplicate regression identifier " & Id_Text
                      & " at line" & Positive'Image (Number));
                end if;
             end loop;
 
             if Seen_Count = Max_Regression_Rows then
-               Project_Tools.Release_Checks.Fail ("regression registry exceeds tooling row capacity");
+               Tooling_Checks.Fail ("regression registry exceeds tooling row capacity");
             end if;
 
             Seen_Count := Seen_Count + 1;
@@ -1005,7 +1006,7 @@ procedure Posix_Tools_Tests is
          end Remember_Id;
       begin
          if Regressions = "" then
-            Project_Tools.Release_Checks.Fail ("regression registry is empty");
+            Tooling_Checks.Fail ("regression registry is empty");
          end if;
 
          for I in Regressions'Range loop
@@ -1018,7 +1019,7 @@ procedure Posix_Tools_Tests is
                   begin
                      if Line_Number = 1 then
                         if Line /= "id,command,summary,test" then
-                           Project_Tools.Release_Checks.Fail ("regression registry header is invalid");
+                           Tooling_Checks.Fail ("regression registry header is invalid");
                         end if;
                      else
                         Check_Regression_Row (Line, Line_Number);
@@ -1050,7 +1051,7 @@ procedure Posix_Tools_Tests is
          Row_Count : Natural := 0;
       begin
          if Inventory_Csv = "" then
-            Project_Tools.Release_Checks.Fail ("command inventory is empty");
+            Tooling_Checks.Fail ("command inventory is empty");
          end if;
 
          for I in Inventory_Csv'Range loop
@@ -1066,7 +1067,7 @@ procedure Posix_Tools_Tests is
                           "executable,crate,package,manifest_path,project_file_path,documentation_path,"
                           & "release_included,posix_status,help,version,identity"
                         then
-                           Project_Tools.Release_Checks.Fail ("command inventory header is invalid");
+                           Tooling_Checks.Fail ("command inventory header is invalid");
                         end if;
                      else
                         Check_Inventory_Row (Line, Line_Number);
@@ -1092,7 +1093,7 @@ procedure Posix_Tools_Tests is
          end if;
 
          if Row_Count /= Posix_Tools.Command_Inventory.Command_Count then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("command inventory row count does not match compiled inventory");
          end if;
       end Check_Inventory_Rows;
@@ -1102,26 +1103,26 @@ procedure Posix_Tools_Tests is
       Check_Inventory_Rows;
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          if not Has_Command_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("released command lacks conformance metadata: "
                & Posix_Tools.Command_Inventory.Executable (I));
          end if;
 
          if Posix_Tools.Command_Inventory.Posix_Status (I) = "known_deviation" then
             if not Has_Known_Deviation_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("inventory command is marked known_deviation without matching requirement row: "
                   & Posix_Tools.Command_Inventory.Executable (I));
             end if;
          elsif Has_Known_Deviation_Metadata (Posix_Tools.Command_Inventory.Executable (I)) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("requirement registry has a known deviation for inventory command not marked known_deviation: "
                & Posix_Tools.Command_Inventory.Executable (I));
          end if;
       end loop;
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "Conforming with extensions");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "docs/conformance.md", "POSIX.1-2024");
       Ada.Text_IO.Put_Line ("conformance metadata checks passed");
    end Run_Conformance_Checks;
@@ -1169,7 +1170,7 @@ procedure Posix_Tools_Tests is
            Args    => Prove_Args (Unit_Name, Mode, Level));
    begin
       if Status /= 0 then
-         Project_Tools.Release_Checks.Fail
+         Tooling_Checks.Fail
            ("proof target " & Unit_Name & " failed in " & Mode & " mode");
       end if;
    end Prove_Target;
@@ -1179,7 +1180,7 @@ procedure Posix_Tools_Tests is
       Gnatprove : constant String := Project_Tools.Processes.Locate_Command ("gnatprove");
    begin
       if Gnatprove = "" then
-         Project_Tools.Release_Checks.Fail
+         Tooling_Checks.Fail
            ("gnatprove command not found for proof checks; install it with `alr -n install gnatprove`");
       end if;
 
@@ -1193,7 +1194,7 @@ procedure Posix_Tools_Tests is
       Result : Project_Tools.Processes.Captured_Process;
    begin
       if Git = "" then
-         Project_Tools.Release_Checks.Fail ("git command not found for release clean-tree check");
+         Tooling_Checks.Fail ("git command not found for release clean-tree check");
       end if;
 
       Result :=
@@ -1206,9 +1207,9 @@ procedure Posix_Tools_Tests is
                Project_Tools.Processes.Argument ("--porcelain")]));
 
       if Result.Status /= 0 then
-         Project_Tools.Release_Checks.Fail ("git status failed during release clean-tree check");
+         Tooling_Checks.Fail ("git status failed during release clean-tree check");
       elsif To_String (Result.Output) /= "" then
-         Project_Tools.Release_Checks.Fail ("release requires a clean source tree");
+         Tooling_Checks.Fail ("release requires a clean source tree");
       end if;
    end Require_Clean_Source_Tree;
 
@@ -1270,10 +1271,10 @@ procedure Posix_Tools_Tests is
          if Captured.Status /= 0 then
             --  The suite's own report says which test failed and why.
             Ada.Text_IO.Put_Line (To_String (Captured.Output));
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " failed with status" & Integer'Image (Captured.Status));
          elsif not Project_Tools.Text.Contains (To_String (Captured.Output), Needle) then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " output did not include " & Needle);
          end if;
       end Expect_Selector;
@@ -1289,14 +1290,14 @@ procedure Posix_Tools_Tests is
               Err_To_Out => True);
       begin
          if Captured.Status /= 2 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of usage status 2");
          end if;
       end Expect_Usage_Error;
    begin
       if not Project_Tools.Files.File_Exists (Runner_Path) then
-         Project_Tools.Release_Checks.Fail ("built test runner is missing for selector smoke tests");
+         Tooling_Checks.Fail ("built test runner is missing for selector smoke tests");
       end if;
 
       Expect_Selector
@@ -1473,7 +1474,7 @@ procedure Posix_Tools_Tests is
              ("posix-tools", Program);
       begin
          if Status /= "ok" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("staged verification failed for posix-tools: " & Status
                & Identity_Diagnostic ("posix-tools", Program));
          end if;
@@ -1485,7 +1486,7 @@ procedure Posix_Tools_Tests is
              ("posix-tools", Built_Root_Path, "0.0.0");
       begin
          if Status /= "wrong version" then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               ("staged verification wrong-version classification failed for posix-tools: " & Status);
          end if;
       end;
@@ -1499,7 +1500,7 @@ procedure Posix_Tools_Tests is
                 (Executable, Program);
          begin
             if Status /= "ok" then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("staged verification failed for " & Executable & ": " & Status
                   & Identity_Diagnostic (Executable, Program));
             end if;
@@ -1557,11 +1558,11 @@ procedure Posix_Tools_Tests is
             begin
                Ada.Text_IO.Put_Line (To_String (Again.Output));
             end;
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of" & Integer'Image (Expected_Status));
          elsif To_String (Captured.Output) /= Expected_Output then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " produced unexpected output: expected """
                & Display_Output (Expected_Output) & """ actual """
                & Display_Output (To_String (Captured.Output)) & """");
@@ -1583,10 +1584,10 @@ procedure Posix_Tools_Tests is
          Output : constant String := To_String (Captured.Output);
       begin
          if Captured.Status /= 0 then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status));
          elsif Output'Length <= 1 or else Output (Output'Last) /= Character'Val (10) then
-            Project_Tools.Release_Checks.Fail (Label & " did not produce one nonempty line");
+            Tooling_Checks.Fail (Label & " did not produce one nonempty line");
          end if;
       end Expect_Nonempty_Line;
 
@@ -1607,11 +1608,11 @@ procedure Posix_Tools_Tests is
               Err_To_Out => Err_To_Out);
       begin
          if Captured.Status /= Expected_Status then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of" & Integer'Image (Expected_Status));
          elsif To_String (Captured.Output) /= Expected_Output then
-            Project_Tools.Release_Checks.Fail
+            Tooling_Checks.Fail
               (Label & " produced unexpected output: expected """
                & Display_Output (Expected_Output) & """ actual """
                & Display_Output (To_String (Captured.Output)) & """");
@@ -1658,13 +1659,13 @@ procedure Posix_Tools_Tests is
       procedure Expect_File (Label, Path, Expected_Content : String) is
       begin
          if not Project_Tools.Files.File_Exists (Path) then
-            Project_Tools.Release_Checks.Fail (Label & " did not create expected file");
+            Tooling_Checks.Fail (Label & " did not create expected file");
          else
             declare
                Actual_Content : constant String := Project_Tools.Files.Read_Raw_File (Path);
             begin
                if Actual_Content /= Expected_Content then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     (Label & " created file with unexpected content: expected """
                      & Display_Output (Expected_Content) & """ actual """
                      & Display_Output (Actual_Content) & """");
@@ -1907,7 +1908,7 @@ procedure Posix_Tools_Tests is
          N_Tilde : constant String := Character'Val (16#C3#) & Character'Val (16#B1#);
       begin
          if Env_Command = "" then
-            Project_Tools.Release_Checks.Fail ("grep locale range smoke requires env");
+            Tooling_Checks.Fail ("grep locale range smoke requires env");
          end if;
 
          Expect_Output_With_Input
@@ -1946,7 +1947,7 @@ procedure Posix_Tools_Tests is
          Env_Command : constant String := Project_Tools.Processes.Locate_Command ("env");
       begin
          if Env_Command = "" then
-            Project_Tools.Release_Checks.Fail ("grep localized diagnostic smoke requires env");
+            Tooling_Checks.Fail ("grep localized diagnostic smoke requires env");
          end if;
 
          Expect_Output_With_Input
@@ -2029,7 +2030,7 @@ procedure Posix_Tools_Tests is
             0,
             "");
          if not Project_Tools.Files.Directory_Exists (Made_Dir) then
-            Project_Tools.Release_Checks.Fail ("mkdir executable data did not create directory");
+            Tooling_Checks.Fail ("mkdir executable data did not create directory");
          end if;
          Expect_Output
            ("rmdir executable data",
@@ -2038,7 +2039,7 @@ procedure Posix_Tools_Tests is
             0,
             "");
          if Project_Tools.Files.Directory_Exists (Made_Dir) then
-            Project_Tools.Release_Checks.Fail ("rmdir executable data did not remove directory");
+            Tooling_Checks.Fail ("rmdir executable data did not remove directory");
          end if;
       end;
 
@@ -2074,7 +2075,7 @@ procedure Posix_Tools_Tests is
             0,
             "");
          if Project_Tools.Files.File_Exists (Rm_Target) then
-            Project_Tools.Release_Checks.Fail ("rm executable data did not remove file");
+            Tooling_Checks.Fail ("rm executable data did not remove file");
          end if;
       end;
 
@@ -2353,7 +2354,8 @@ begin
 exception
    when Invalid_Usage =>
       Ada.Command_Line.Set_Exit_Status (2);
-   when Program_Error =>
+   when Tooling_Checks.Check_Failed =>
+      --  The check has said what failed.
       Ada.Command_Line.Set_Exit_Status (1);
    when Occurrence : others =>
       Ada.Text_IO.Put_Line

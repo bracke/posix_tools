@@ -4,7 +4,7 @@ with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Text.Matching;
 with Project_Tools.Files;
-with Project_Tools.Release_Checks;
+with Tooling_Checks;
 with Project_Tools.Text;
 with Tooling_Support;
 
@@ -21,7 +21,7 @@ package body Metadata_Checks.Manifests is
          Expected : constant String := Command_Inventory_Csv;
       begin
          if Actual /= Expected then
-            Project_Tools.Release_Checks.Fail ("generated command inventory is stale");
+            Tooling_Checks.Fail ("generated command inventory is stale");
          end if;
       end Require_Command_Inventory_Current;
 
@@ -42,7 +42,7 @@ package body Metadata_Checks.Manifests is
          end Normalize_Line_Endings;
       begin
          if Normalize_Line_Endings (Actual) /= Expected then
-            Project_Tools.Release_Checks.Fail (Message);
+            Tooling_Checks.Fail (Message);
          end if;
       end Require_File_Equals;
 
@@ -123,7 +123,7 @@ package body Metadata_Checks.Manifests is
                File_Path : constant String := To_String (Path);
             begin
                if Has_Prohibited_Tooling_Name (File_Path) then
-                  Project_Tools.Release_Checks.Fail
+                  Tooling_Checks.Fail
                     ("project tooling must be Ada/project_tools only; prohibited file " & File_Path);
                end if;
             end;
@@ -148,7 +148,7 @@ package body Metadata_Checks.Manifests is
                       or else Project_Tools.Text.Ends_With (File_Path, ".ads"))
                     and then Project_Tools.Files.File_Contains (File_Path, Silent_Handler_Token)
                   then
-                     Project_Tools.Release_Checks.Fail
+                     Tooling_Checks.Fail
                        ("silent broad exception handler is prohibited in " & File_Path);
                   end if;
                end;
@@ -194,7 +194,7 @@ package body Metadata_Checks.Manifests is
                         Message : constant String := Message_Argument (Text, Open);
                      begin
                         if Ada.Strings.Fixed.Index (Message, """") /= 0 then
-                           Project_Tools.Release_Checks.Fail
+                           Tooling_Checks.Fail
                              ("usage diagnostic message must be a catalog Usage_Message, not a string literal, in "
                               & File_Path & ": " & Message);
                         end if;
@@ -272,7 +272,7 @@ package body Metadata_Checks.Manifests is
          begin
             if not Posix_Tools.Text.Matching.Contains (Catalog, ASCII.LF & Locale & "." & Messages.Key (Message) & " = ")
             then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("usage diagnostic " & Messages.Key (Message) & " has no " & Locale & " catalog text");
             end if;
          end Require_Translation;
@@ -284,7 +284,7 @@ package body Metadata_Checks.Manifests is
               (Catalog,
                ASCII.LF & "en." & Messages.Key (Message) & " = " & Catalog_Text (Messages.Default (Message)) & ASCII.LF)
             then
-               Project_Tools.Release_Checks.Fail
+               Tooling_Checks.Fail
                  ("usage diagnostic " & Messages.Key (Message) & " default differs from its en catalog text");
             end if;
          end loop;
@@ -299,16 +299,16 @@ package body Metadata_Checks.Manifests is
         or else Project_Tools.Files.File_Contains
           (Project_Tools.Files.Join (Root, "alire.toml"), "terminal_styles =")
       then
-         Project_Tools.Release_Checks.Fail ("root manifest has prohibited direct external dependency");
+         Tooling_Checks.Fail ("root manifest has prohibited direct external dependency");
       end if;
 
       if Root_Manifest = "" then
-         Project_Tools.Release_Checks.Fail ("root manifest could not be read");
+         Tooling_Checks.Fail ("root manifest could not be read");
       end if;
 
-      Project_Tools.Release_Checks.Require_Text (Check, "alire.toml", "executables = [""posix-tools""]");
-      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "alire.toml", "executables = [""posix-tools""]");
+      Tooling_Checks.Require_Text (Check, "posix_tools.gpr", "for Main use (""posix-tools.adb"")");
+      Tooling_Checks.Require_Text
         (Check, "alire.toml", "posix_tools_common = { path = ""common"" }");
       Require_Crate_Metadata ("alire.toml", "posix_tools", "posix_tools.gpr");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
@@ -318,65 +318,65 @@ package body Metadata_Checks.Manifests is
             "root manifest must not depend on command crate "
             & Posix_Tools.Command_Inventory.Crate (I));
       end loop;
-      Project_Tools.Release_Checks.Require_File (Check, "alire.toml");
-      Project_Tools.Release_Checks.Require_File (Check, ".gitattributes");
-      Project_Tools.Release_Checks.Require_File (Check, "posix_tools.gpr");
-      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Object_Dir use ""obj/root""");
-      Project_Tools.Release_Checks.Require_Text (Check, "posix_tools.gpr", "for Exec_Dir use ""bin""");
-      Project_Tools.Release_Checks.Require_File (Check, "common/alire.toml");
-      Project_Tools.Release_Checks.Require_File (Check, "common/posix_tools_common.gpr");
-      Project_Tools.Release_Checks.Require_Text (Check, "common/alire.toml", "i18n = ""*""");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_File (Check, "alire.toml");
+      Tooling_Checks.Require_File (Check, ".gitattributes");
+      Tooling_Checks.Require_File (Check, "posix_tools.gpr");
+      Tooling_Checks.Require_Text (Check, "posix_tools.gpr", "for Object_Dir use ""obj/root""");
+      Tooling_Checks.Require_Text (Check, "posix_tools.gpr", "for Exec_Dir use ""bin""");
+      Tooling_Checks.Require_File (Check, "common/alire.toml");
+      Tooling_Checks.Require_File (Check, "common/posix_tools_common.gpr");
+      Tooling_Checks.Require_Text (Check, "common/alire.toml", "i18n = ""*""");
+      Tooling_Checks.Require_Text
         (Check, "common/alire.toml", "i18n = { path = ""../../i18n"" }");
-      Project_Tools.Release_Checks.Require_Text (Check, "common/posix_tools_common.gpr", "../../i18n/i18n.gpr");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "common/posix_tools_common.gpr", "../../i18n/i18n.gpr");
+      Tooling_Checks.Require_Text
         (Check, "common/posix_tools_common.gpr", "for Object_Dir use ""obj/common""");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "common/posix_tools_common.gpr", "for Library_Dir use ""lib""");
-      Project_Tools.Release_Checks.Require_File (Check, "common/messages/posix_tools.catalog");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-localization.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-presentation.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-host_adapters-terminals.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-classification.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-tail_rings.ads");
-      Project_Tools.Release_Checks.Require_File (Check, "common/src/posix_tools-wc_fields.ads");
-      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "untrusted input");
-      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "elevated privileges");
-      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "temporary-storage");
-      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "bounded executable identity verification");
-      Project_Tools.Release_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_File (Check, "common/messages/posix_tools.catalog");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-localization.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-presentation.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-host_adapters-terminals.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-text.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-text-classification.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-text-utf_8.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-tail_rings.ads");
+      Tooling_Checks.Require_File (Check, "common/src/posix_tools-wc_fields.ads");
+      Tooling_Checks.Require_Text (Check, "SECURITY.md", "untrusted input");
+      Tooling_Checks.Require_Text (Check, "SECURITY.md", "elevated privileges");
+      Tooling_Checks.Require_Text (Check, "SECURITY.md", "temporary-storage");
+      Tooling_Checks.Require_Text (Check, "SECURITY.md", "bounded executable identity verification");
+      Tooling_Checks.Require_Text (Check, "SECURITY.md", "archive integrity");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-SECURITY-CURRENT-001");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "31 POSIX-style utilities");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "`awk`, `grep`, and `sed`");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
-      Project_Tools.Release_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text (Check, "CHANGELOG.md", "31 POSIX-style utilities");
+      Tooling_Checks.Require_Text (Check, "CHANGELOG.md", "`awk`, `grep`, and `sed`");
+      Tooling_Checks.Require_Text (Check, "CHANGELOG.md", "messages-backed locale support");
+      Tooling_Checks.Require_Text (Check, "CHANGELOG.md", "host adapter boundaries");
+      Tooling_Checks.Require_Text (Check, "CHANGELOG.md", "archive integrity");
+      Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "DOCS-CHANGELOG-CURRENT-001");
-      Project_Tools.Release_Checks.Require_File (Check, "tests/alire.toml");
-      Project_Tools.Release_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_File (Check, "tests/alire.toml");
+      Tooling_Checks.Require_File (Check, "tests/posix_tools_tests.gpr");
+      Tooling_Checks.Require_Text
         (Check, "tests/posix_tools_tests.gpr", "for Object_Dir use ""obj/tests""");
-      Project_Tools.Release_Checks.Require_Text
+      Tooling_Checks.Require_Text
         (Check, "tests/posix_tools_tests.gpr", "for Exec_Dir use ""bin""");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/command_inventory.csv");
+      Tooling_Checks.Require_File (Check, "generated/command_inventory.csv");
       Require_Command_Inventory_Current;
-      Project_Tools.Release_Checks.Require_File (Check, "generated/manual-index.md");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/man/posix-tools.1");
+      Tooling_Checks.Require_File (Check, "generated/manual-index.md");
+      Tooling_Checks.Require_File (Check, "generated/man/posix-tools.1");
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-         Project_Tools.Release_Checks.Require_File
+         Tooling_Checks.Require_File
            (Check, "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
       end loop;
       Require_Generated_Docs_Current;
-      Project_Tools.Release_Checks.Require_File (Check, "generated/package-files.txt");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/package-manifest.txt");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/release-checksums.txt");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/requirements.csv");
-      Project_Tools.Release_Checks.Require_File (Check, "generated/regressions.csv");
-      Project_Tools.Release_Checks.Require_File (Check, ".github/workflows/ci.yml");
+      Tooling_Checks.Require_File (Check, "generated/package-files.txt");
+      Tooling_Checks.Require_File (Check, "generated/package-manifest.txt");
+      Tooling_Checks.Require_File (Check, "generated/release-checksums.txt");
+      Tooling_Checks.Require_File (Check, "generated/requirements.csv");
+      Tooling_Checks.Require_File (Check, "generated/regressions.csv");
+      Tooling_Checks.Require_File (Check, ".github/workflows/ci.yml");
       Check_Ada_Only_Tooling;
       Check_No_Silent_Broad_Handlers;
       Check_No_Literal_Usage_Messages;

@@ -692,6 +692,8 @@ tests/src/proof_targets.adb
 tests/src/proof_targets.ads
 tests/src/test_contexts.adb
 tests/src/test_contexts.ads
+tests/src/tooling_checks.adb
+tests/src/tooling_checks.ads
 tests/src/tooling_support.adb
 tests/src/tooling_support.ads
 tools/arch/alire.toml
