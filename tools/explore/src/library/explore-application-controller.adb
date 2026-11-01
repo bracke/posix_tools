@@ -368,8 +368,7 @@ package body Explore.Application.Controller is
    end Handle_Key;
 
    procedure Handle_Mouse (State : in out Session; Item : Input.Event) is
-      Shape : constant Explore.Render.Layout :=
-        Explore.Render.Layout_For (State.Terminal.Size.Rows, State.Terminal.Size.Columns);
+      Shape : constant Explore.Render.Layout := Explore.Application.Display.Shape (State);
    begin
       case Item.Button is
          when Input.Wheel_Up =>
@@ -415,7 +414,7 @@ package body Explore.Application.Controller is
 
    procedure Move_Cursor (State : in out Session; Kind : Movement) is
       Height : constant Positive :=
-        Positive'Max (1, Explore.Render.Layout_For (State.Terminal.Size.Rows, State.Terminal.Size.Columns).Height);
+        Positive'Max (1, Explore.Application.Display.Shape (State).Height);
       Half   : constant Positive := Positive'Max (1, Height / 2);
    begin
       case Kind is

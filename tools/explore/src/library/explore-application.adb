@@ -10,6 +10,7 @@ with Explore.Input;
 with Explore.Jobs;
 with Explore.Model;
 with Explore.Previews;
+with Explore.Screen;
 with Explore.Search;
 with Explore.Settings;
 with Explore.Settings.Storage;
@@ -202,9 +203,15 @@ package body Explore.Application is
 
       Configure (State, Context, Unbounded.To_String (Given.Config_Path));
 
-      if not Terminal_IO.Size (State.Terminal.Size) then
-         State.Terminal.Size := (Rows => 24, Columns => 80);
-      end if;
+      declare
+         Measured : Terminal_IO.Window_Size;
+      begin
+         if not Terminal_IO.Size (Measured) then
+            Measured := (Rows => 24, Columns => 80);
+         end if;
+
+         Explore.Screen.Resize (State.Terminal.Wanted, Measured.Rows, Measured.Columns);
+      end;
 
       Run_Session (State, Outcome);
 
@@ -307,7 +314,7 @@ package body Explore.Application is
          --  Everything from here on is guarded: the block cannot be left
          --  while the workers run, so whatever is raised stops them first.
          begin
-            Explore.Application.Display.Resize (State, State.Terminal.Size.Rows, State.Terminal.Size.Columns);
+            Explore.Application.Display.Refit (State);
             Main_Loop (State, Readers);
          exception
             when others =>
