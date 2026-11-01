@@ -29,18 +29,35 @@ package body Posix_Tools.Commands.Tr is
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
 
-   procedure Run
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result)
-   is
+   --  What tr's options ask for, and where its operands start.
+   type Settings is record
       Delete_Mode : Boolean := False;
       Complement  : Boolean := False;
       Squeeze     : Boolean := False;
       First       : Positive := 1;
+   end record;
+
+   --  Read tr's options into Options, and check it has the operands they
+   --  call for. Valid is False, with the usage error given, when not.
+   procedure Parse_Options
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Options : out Settings;
+      Valid   : out Boolean);
+
+   procedure Parse_Options
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : in out Posix_Tools.Commands.Results.Result;
+      Options : out Settings;
+      Valid   : out Boolean)
+   is
+      Delete_Mode : Boolean renames Options.Delete_Mode;
+      Complement  : Boolean renames Options.Complement;
+      Squeeze     : Boolean renames Options.Squeeze;
+      First       : Positive renames Options.First;
    begin
-      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
-         return;
-      end if;
+      Options := (others => <>);
+      Valid := False;
 
       while First <= Context.Argument_Count
         and then Context.Argument (First)'Length > 1
@@ -78,6 +95,29 @@ package body Posix_Tools.Commands.Tr is
             return;
          end if;
       end;
+
+      Valid := True;
+   end Parse_Options;
+
+   procedure Run
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      Options     : Settings;
+      Valid       : Boolean;
+      Delete_Mode : Boolean renames Options.Delete_Mode;
+      Complement  : Boolean renames Options.Complement;
+      Squeeze     : Boolean renames Options.Squeeze;
+      First       : Positive renames Options.First;
+   begin
+      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
+         return;
+      end if;
+
+      Parse_Options (Context, Result, Options, Valid);
+      if not Valid then
+         return;
+      end if;
 
       declare
          Locale    : constant String :=
