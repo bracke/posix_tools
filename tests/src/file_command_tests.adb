@@ -294,6 +294,21 @@ package body File_Command_Tests is
             end if;
          end;
       end;
+
+      --  A trailing slash on either operand leaves the name the copy takes
+      --  as POSIX basename has it.
+      FS.Create_Path (Path (Root, "into"));
+      Context.Initialize ("cp", Args (Source, Path (Root, "into") & "/"));
+      Posix_Tools.Commands.Cp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Success and then Read (Path (Root, "into/s")) = "source",
+         "cp f dir/ copies f into dir");
+      FS.Create_Path (Path (Root, "tree"));
+      Context.Initialize ("cp", Args ("-R", Path (Root, "tree") & "/", Path (Root, "into")));
+      Posix_Tools.Commands.Cp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Success and then FS.Kind (Path (Root, "into/tree")) = FS.Directory,
+         "cp -R dir/ into copies dir into it under its own name");
       Remove (Root);
    end Test_Cp_Leaves_Source_Alone;
 
@@ -742,6 +757,22 @@ package body File_Command_Tests is
         (Result.Status = Failure
          and then Test_Contexts.Error_Output (Context) = "mv: '" & Path (Root, "file") & "': not a directory" & EOL,
          "mv says a last operand that is no directory is not one");
+
+      --  A trailing slash on either operand leaves the name the entry keeps
+      --  as POSIX basename has it.
+      FS.Create_Path (Path (Root, "into"));
+      Write (Path (Root, "a"), "a");
+      Context.Initialize ("mv", Args (Path (Root, "a"), Path (Root, "into") & "/"));
+      Posix_Tools.Commands.Mv.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Success and then Read (Path (Root, "into/a")) = "a",
+         "mv a dir/ moves a into dir");
+      FS.Create_Path (Path (Root, "d"));
+      Context.Initialize ("mv", Args (Path (Root, "d") & "/", Path (Root, "into")));
+      Posix_Tools.Commands.Mv.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Success and then FS.Kind (Path (Root, "into/d")) = FS.Directory,
+         "mv dir/ into moves dir into it under its own name");
       Remove (Root);
    end Test_Mv_Diagnostics;
 

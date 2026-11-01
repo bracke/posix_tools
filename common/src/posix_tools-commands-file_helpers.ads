@@ -4,8 +4,6 @@ with Posix_Tools.Numbers;
 --  Line and chunk streaming of operands is in the Streaming child, and
 --  line suffixes in the Tailing child.
 package Posix_Tools.Commands.File_Helpers is
-   function Simple_Name (Path : String) return String;
-
    function Target_Path
      (Source              : String;
       Target              : String;

@@ -324,14 +324,6 @@ package body Posix_Tools.Commands.File_Helpers is
       return True;
    end Remove_Non_Directory_Target;
 
-   function Simple_Name (Path : String) return String is
-   begin
-      return FS.Simple_Name (Path);
-   exception
-      when others =>
-         return Path;
-   end Simple_Name;
-
    function Target_Path
      (Source              : String;
       Target              : String;

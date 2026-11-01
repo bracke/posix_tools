@@ -1,8 +1,8 @@
 with Ada.Containers;
-with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Find_Evaluation.Actions;
 with Posix_Tools.Commands.Find_Evaluation.Predicates;
 with Posix_Tools.Host_Adapters.Path_Separators;
+with Posix_Tools.Paths;
 with Posix_Tools.Text.Find_Expressions;
 
 package body Posix_Tools.Commands.Find_Evaluation is
@@ -30,7 +30,7 @@ package body Posix_Tools.Commands.Find_Evaluation is
       View    : Entry_View;
       Result  : out Path_Result)
    is
-      Name    : constant String := Posix_Tools.Commands.File_Helpers.Simple_Name (Path);
+      Name    : constant String := Posix_Tools.Paths.Basename (Path);
       Is_Link : constant Boolean := View.Is_Link;
       Kind    : constant FS.File_Kind := View.Kind;
       Exists  : constant Boolean := Is_Link or else Kind /= FS.Missing_File;

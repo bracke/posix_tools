@@ -1,12 +1,12 @@
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
-with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Copying;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Cp is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
@@ -131,7 +131,7 @@ package body Posix_Tools.Commands.Cp is
                Copy
                  (Operands.Element (I),
                   FS.Child_Path
-                    (Target, Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I))));
+                    (Target, Posix_Tools.Paths.Basename (Operands.Element (I))));
             end loop;
          elsif Count = 2 then
             Copy (Operands.Element (1), Target);

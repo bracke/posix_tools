@@ -130,7 +130,6 @@ package Posix_Tools.Host_Adapters.File_System is
    function Set_File_Times (Path : String; Access_Time, Modified_Time : File_Time) return Boolean;
    function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean;
    function Set_Permissions (Path : String; Mode : Natural) return Boolean;
-   function Simple_Name (Path : String) return String;
    function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer
      with Post => Allocated_Size'Result >= 0;
    function Size (Path : String) return Long_Long_Integer

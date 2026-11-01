@@ -1,12 +1,12 @@
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
-with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Operation_Reports;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Moving;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Mv is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
@@ -108,7 +108,7 @@ package body Posix_Tools.Commands.Mv is
                   then Target
                   else FS.Child_Path
                     (Target,
-                     Posix_Tools.Commands.File_Helpers.Simple_Name (Operands.Element (I))));
+                     Posix_Tools.Paths.Basename (Operands.Element (I))));
                --  Each entry that could not be moved is reported for itself,
                --  with why.
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);

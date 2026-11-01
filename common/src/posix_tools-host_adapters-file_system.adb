@@ -826,11 +826,6 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Hostkit.Metadata.Set_Permissions (Path, Mode);
    end Set_Permissions;
 
-   function Simple_Name (Path : String) return String is
-   begin
-      return Ada.Directories.Simple_Name (Path);
-   end Simple_Name;
-
    function Size (Path : String) return Long_Long_Integer is
    begin
       return Long_Long_Integer (Ada.Directories.Size (Path));
