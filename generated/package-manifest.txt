@@ -658,7 +658,7 @@ tests/src/command_tests-surface_smoke.adb bytes= 482 fnv1a64=dd646ff1ee5f6ecd
 tests/src/command_tests-surface_smoke.ads bytes= 521 fnv1a64=2b1737e65f3c6409
 tests/src/command_tests.adb bytes= 263413 fnv1a64=a2b92816a9c99d4c
 tests/src/command_tests.ads bytes= 7004 fnv1a64=0c353ab9598470f5
-tests/src/conformance_checks.adb bytes= 35523 fnv1a64=c6080e0ee299f5d0
+tests/src/conformance_checks.adb bytes= 35699 fnv1a64=a3263ad8d93ec6e5
 tests/src/conformance_checks.ads bytes= 279 fnv1a64=bbf61351bbe0f159
 tests/src/file_command_tests.adb bytes= 41730 fnv1a64=97c76022d1acd114
 tests/src/file_command_tests.ads bytes= 1519 fnv1a64=d752ed41839ab540
@@ -682,7 +682,7 @@ tests/src/metadata_checks-requirements.adb bytes= 8528 fnv1a64=ecd18ea2cafac929
 tests/src/metadata_checks-requirements.ads bytes= 160 fnv1a64=73868310d1a39b88
 tests/src/metadata_checks-source_rules.adb bytes= 45166 fnv1a64=512ffcc5f350d4c0
 tests/src/metadata_checks-source_rules.ads bytes= 172 fnv1a64=4e29bd14befbc143
-tests/src/metadata_checks-test_coverage.adb bytes= 32000 fnv1a64=cd14cedba3623cf4
+tests/src/metadata_checks-test_coverage.adb bytes= 18045 fnv1a64=1172ac182cfa77e6
 tests/src/metadata_checks-test_coverage.ads bytes= 184 fnv1a64=de916819cd8bfa30
 tests/src/metadata_checks-tooling_docs.adb bytes= 10651 fnv1a64=b9e9ca101841858b
 tests/src/metadata_checks-tooling_docs.ads bytes= 234 fnv1a64=f08636e8dfe4ac1d
@@ -695,6 +695,8 @@ tests/src/package_entries.ads bytes= 956 fnv1a64=de11d7076b110865
 tests/src/posix_tools_tests.adb bytes= 21899 fnv1a64=39dc3ce314840cd4
 tests/src/proof_targets.adb bytes= 5955 fnv1a64=03739b5391e5f537
 tests/src/proof_targets.ads bytes= 223 fnv1a64=475067eec08dea3a
+tests/src/registered_tests.adb bytes= 1852 fnv1a64=da89390546b6597d
+tests/src/registered_tests.ads bytes= 361 fnv1a64=c8bf10473101c819
 tests/src/selector_smoke.adb bytes= 5753 fnv1a64=3edfbcc94140550a
 tests/src/selector_smoke.ads bytes= 226 fnv1a64=acbe0f694736ce0e
 tests/src/suite_filters.adb bytes= 1260 fnv1a64=6e6d2b317b1e35b6
@@ -1233,4 +1235,4 @@ tools/xargs/src/xargs.adb bytes= 234 fnv1a64=5bacba927e1d5d45
 tools/yes/alire.toml bytes= 407 fnv1a64=db058e6bb3b97ff8
 tools/yes/posix_tools_yes.gpr bytes= 343 fnv1a64=6b7f3ad8fcd0c4f9
 tools/yes/src/yes.adb bytes= 224 fnv1a64=966fcf1cba1a2def
-generated/package-files.txt bytes= 46412 fnv1a64=954ab05203559d4c
+generated/package-files.txt bytes= 46474 fnv1a64=5fb3ec1b7fd94e75

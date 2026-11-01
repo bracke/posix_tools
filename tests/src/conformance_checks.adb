@@ -8,6 +8,7 @@ with Posix_Tools.Text.Line_Breaks;
 with Posix_Tools.Text.Matching;
 with Project_Tools.Files;
 with Project_Tools.Text;
+with Registered_Tests;
 with Tooling_Checks;
 with Tooling_Support;
 
@@ -197,18 +198,24 @@ package body Conformance_Checks is
 
       function Referenced_Path_Exists (Reference : String) return Boolean is
       begin
+         --  A pattern over every command stands for each command's file.
          if Reference = "generated/man/*.1" then
-            return Project_Tools.Files.File_Exists
-                (Project_Tools.Files.Join (Root, "generated/man/basename.1"));
+            return (for all I in 1 .. Posix_Tools.Command_Inventory.Command_Count =>
+                      Project_Tools.Files.File_Exists
+                        (Project_Tools.Files.Join
+                           (Root, "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1")));
          elsif Reference = "tools/*/src/*.adb" then
-            return Project_Tools.Files.File_Exists
-                (Project_Tools.Files.Join (Root, "tools/basename/src/basename.adb"));
+            return (for all I in 1 .. Posix_Tools.Command_Inventory.Command_Count =>
+                      Project_Tools.Files.File_Exists
+                        (Project_Tools.Files.Join (Root, Posix_Tools.Command_Inventory.Wrapper_Path (I))));
          elsif Reference = "tools/*/alire.toml" then
-            return Project_Tools.Files.File_Exists
-                (Project_Tools.Files.Join (Root, "tools/basename/alire.toml"));
+            return (for all I in 1 .. Posix_Tools.Command_Inventory.Command_Count =>
+                      Project_Tools.Files.File_Exists
+                        (Project_Tools.Files.Join (Root, Posix_Tools.Command_Inventory.Manifest_Path (I))));
          elsif Reference = "docs/commands/*.md" then
-            return Project_Tools.Files.File_Exists
-                (Project_Tools.Files.Join (Root, "docs/commands/basename.md"));
+            return (for all I in 1 .. Posix_Tools.Command_Inventory.Command_Count =>
+                      Project_Tools.Files.File_Exists
+                        (Project_Tools.Files.Join (Root, Posix_Tools.Command_Inventory.Documentation_Path (I))));
          else
             return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Reference))
               or else Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, Reference))
@@ -228,15 +235,6 @@ package body Conformance_Checks is
             return Referenced_Path_Exists (Item);
          end if;
       end Implementation_Reference_Exists;
-
-      function Has_AUnit_Test (Name : String) return Boolean is
-         Needle : constant String := """" & Name & """";
-      begin
-         return Project_Tools.Files.File_Contains
-             (Project_Tools.Files.Join (Root, "tests/src/basic_tests-suite.adb"), Needle)
-           or else Project_Tools.Files.File_Contains
-             (Project_Tools.Files.Join (Root, "tests/src/command_tests-suite_entries.adb"), Needle);
-      end Has_AUnit_Test;
 
       function Has_Regression_Id (Name : String) return Boolean is
       begin
@@ -288,7 +286,7 @@ package body Conformance_Checks is
          elsif Project_Tools.Text.Contains (Item, "/") then
             return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Item));
          else
-            return Has_AUnit_Test (Item) or else Is_Project_Tooling_Test (Item);
+            return Registered_Tests.Is_Registered (Item) or else Is_Project_Tooling_Test (Item);
          end if;
       end Test_Reference_Exists;
 

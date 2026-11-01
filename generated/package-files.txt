@@ -694,6 +694,8 @@ tests/src/package_entries.ads
 tests/src/posix_tools_tests.adb
 tests/src/proof_targets.adb
 tests/src/proof_targets.ads
+tests/src/registered_tests.adb
+tests/src/registered_tests.ads
 tests/src/selector_smoke.adb
 tests/src/selector_smoke.ads
 tests/src/suite_filters.adb
