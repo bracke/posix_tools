@@ -305,6 +305,37 @@ package body Posix_Tools.Commands.Helpers is
             & Posix_Tools.Localization.Text (Context.Effective_Locale, Message_Key, Default)));
    end Subject_Operational_Error;
 
+   procedure Operational_Error
+     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Message_Key : String;
+      Name        : String;
+      Value       : String;
+      Default     : String)
+   is
+      Shown  : constant String := Escape_Untrusted (Value);
+      Marker : constant String := "{" & Name & "}";
+
+      --  Default with its placeholder filled in by Shown.
+      function Filled_Default return String;
+
+      function Filled_Default return String is
+      begin
+         for I in Default'First .. Default'Last - Marker'Length + 1 loop
+            if Default (I .. I + Marker'Length - 1) = Marker then
+               return Default (Default'First .. I - 1) & Shown & Default (I + Marker'Length .. Default'Last);
+            end if;
+         end loop;
+         return Default;
+      end Filled_Default;
+   begin
+      Context.Put_Error_Line
+        (Diagnostic_Line
+           (Context,
+            Context.Command_Name & ": "
+            & Posix_Tools.Localization.Text_1
+                (Context.Effective_Locale, Message_Key, Name, Shown, Filled_Default)));
+   end Operational_Error;
+
    function Standard_Input_Name
      (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
    is

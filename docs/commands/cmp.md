@@ -13,7 +13,8 @@ Compares two byte streams and reports whether they differ.
 `file1`, `file2`: input paths. `-` reads standard input.
 
 ## Options
-`-l` lists each differing byte number and byte values in octal. `-s` suppresses ordinary difference output. Project
+`-l` lists each differing byte number and byte values in octal. `-s` suppresses ordinary difference output. Options
+may be grouped, as in `-ls`. Project
 extensions `--help`, `--version`, and `--posix-tools-identify` are recognized. The end-of-options marker `--` is
 accepted.
 
@@ -25,10 +26,12 @@ In default mode, the first byte and line difference is reported. With `-l`, all 
 listed. Equal files produce no output.
 
 ## Standard Error
-Diagnostics for invalid usage and input failures.
+Diagnostics for invalid usage and input failures. When one file is a prefix of the other, `cmp: EOF on file`, naming
+the shorter file, unless `-s` is given.
 
 ## Exit Status
-`0` files are equal, `1` files differ or an operational failure occurred, `2` invalid usage, `125` internal failure.
+`0` files are equal, `1` files differ, `2` invalid usage, a file that cannot be read or output that cannot be written,
+`125` internal failure.
 
 ## Behavioral Details
 Comparison is byte-oriented. LF bytes update the reported line number.
@@ -38,7 +41,7 @@ The command treats `--` as the end of options. Option-like filenames are accepte
 Comparison and data output are not localized. Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
-EOF differences use a concise project diagnostic shape.
+The EOF diagnostic carries no additional information after the file name.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.

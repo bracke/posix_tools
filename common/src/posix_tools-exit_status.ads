@@ -15,6 +15,10 @@ is
    Xargs_Utility_Failed         : constant Code := 123;
    Xargs_Utility_Requested_Stop : constant Code := 124;
 
+   --  cmp: the files differ is 1, trouble, a file it could not read or
+   --  output it could not write, is this.
+   Cmp_Trouble : constant Code := 2;
+
    --  expr: a null or zero result is 1, an invalid expression 2 and any
    --  other error, such as output it could not write, this.
    Expr_Error : constant Code := 3;

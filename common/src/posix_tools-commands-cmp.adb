@@ -16,42 +16,61 @@ package body Posix_Tools.Commands.Cmp is
    is
       Silent : Boolean := False;
       List   : Boolean := False;
-      First  : Positive := 1;
+      First  : Positive;
+      Valid  : Boolean;
       Left   : Unbounded_String;
       Right  : Unbounded_String;
       Ok     : Boolean;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         if Name = 's' then
+            Silent := True;
+         else
+            List := True;
+         end if;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         if Context.Argument (First) = "-s" then
-            Silent := True;
-            First := First + 1;
-         elsif Context.Argument (First) = "-l" then
-            List := True;
-            First := First + 1;
-         elsif Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         else
-            exit;
-         end if;
-      end loop;
-      if Context.Argument_Count /= First + 1 then
+      Parse (Context, Result, "ls", "", First, Valid);
+      if not Valid then
+         return;
+      elsif Context.Argument_Count < First + 1 then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
+         return;
+      elsif Context.Argument_Count > First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
          return;
       end if;
 
+      --  Exit status 1 says the files differ, so a file that cannot be read
+      --  is trouble, a status above it.
       Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (First), Left, Ok);
       if not Ok then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         Result.Status := Posix_Tools.Exit_Status.Cmp_Trouble;
          return;
       end if;
       Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (First + 1), Right, Ok);
       if not Ok then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         Result.Status := Posix_Tools.Exit_Status.Cmp_Trouble;
          return;
       end if;
 
@@ -63,7 +82,9 @@ package body Posix_Tools.Commands.Cmp is
          for I in 1 .. Natural'Min (L'Length, R'Length) loop
             if L (I) /= R (I) then
                Different := True;
-               if List and then not Silent then
+               if Silent then
+                  exit;
+               elsif List then
                   Context.Put_Line
                     (Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image
                        (Long_Long_Integer (I)) & " "
@@ -71,7 +92,8 @@ package body Posix_Tools.Commands.Cmp is
                        (Character'Pos (L (I)), 3) & " "
                      & Posix_Tools.Text.Numeric_Images.Fixed_Octal_Image
                        (Character'Pos (R (I)), 3));
-               elsif not Silent then
+                  exit when Context.Output_Failed;
+               else
                   Context.Put_Line
                     (Context.Argument (First) & " " & Context.Argument (First + 1)
                      & " differ: byte "
@@ -81,24 +103,32 @@ package body Posix_Tools.Commands.Cmp is
                        Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image
                          (Posix_Tools.Text.Line_Breaks.Line_Number_Through
                             (L, I)));
-                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+                  Result.Status :=
+                    (if Context.Output_Failed then Posix_Tools.Exit_Status.Cmp_Trouble
+                     else Posix_Tools.Exit_Status.Operational_Failure);
                   return;
                end if;
             end if;
          end loop;
-         if L'Length /= R'Length then
+
+         if Context.Output_Failed then
+            Result.Status := Posix_Tools.Exit_Status.Cmp_Trouble;
+         elsif L'Length /= R'Length then
+            --  POSIX writes "cmp: EOF on %s%s\n", naming the shorter file,
+            --  to standard error.
             if not Silent then
-               Context.Put_Line
-                 ("cmp: EOF on "
-                  & (if L'Length < R'Length then Context.Argument (First) else Context.Argument (First + 1)));
+               Posix_Tools.Commands.Helpers.Operational_Error
+                 (Context,
+                  "posix_tools.cmp.eof",
+                  "file",
+                  (if L'Length < R'Length then Context.Argument (First) else Context.Argument (First + 1)),
+                  "EOF on {file}");
             end if;
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          elsif Different then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          else
-            Result.Status :=
-              (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-               else Posix_Tools.Exit_Status.Success);
+            Result.Status := Posix_Tools.Exit_Status.Success;
          end if;
       end;
    end Run;

@@ -81,6 +81,16 @@ package Posix_Tools.Commands.Helpers is
       Message_Key : String;
       Default     : String);
 
+   --  Report Message_Key's message, its placeholder Name filled in by
+   --  Value, escaped. Default is the English text with "{Name}" where Value
+   --  goes.
+   procedure Operational_Error
+     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Message_Key : String;
+      Name        : String;
+      Value       : String;
+      Default     : String);
+
    --  What a diagnostic calls standard input, in the messages locale.
    function Standard_Input_Name
      (Context : Posix_Tools.Commands.Contexts.Context'Class) return String;
