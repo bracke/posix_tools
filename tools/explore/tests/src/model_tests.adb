@@ -66,6 +66,7 @@ package body Model_Tests is
       Result : constant AUnit.Test_Suites.Access_Test_Suite := AUnit.Test_Suites.New_Suite;
    begin
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:paths", Test_Paths'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:file preview", Test_File_Preview'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("model:open and deliver", Test_Open_And_Deliver'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("model:stale entries dropped", Test_Stale_Entries_Dropped'Access));
@@ -202,6 +203,41 @@ package body Model_Tests is
         (not Model.Can_Leave (Browser) and then Browser.Panes (Model.Parent_Pane).State = Model.Empty,
          "the root has no parent");
    end Test_Enter_And_Leave;
+
+   procedure Test_File_Preview (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Unbounded.Unbounded_String;
+
+      Browser : Model.Browser;
+      First   : Natural;
+      Changed : Boolean;
+   begin
+      Model.Open (Browser, "/d");
+      Give (Browser, Model.Current_Pane, "sub/ a.txt");
+      Changed := Model.Preview_Changed (Browser);
+      AUnit.Assertions.Assert (Changed and then Model.File_Preview (Browser) = 0, "a directory has no file preview");
+
+      Model.Move (Browser, 1);
+      Changed := Model.Preview_Changed (Browser);
+      First := Model.File_Preview (Browser);
+      AUnit.Assertions.Assert
+        (not Changed and then First > 0 and then Browser.Panes (Model.Preview_Pane).Path = "/d/a.txt",
+         "a file's preview is wanted under a generation of its own");
+      Changed := Model.Preview_Changed (Browser);
+      AUnit.Assertions.Assert
+        (not Changed and then Model.File_Preview (Browser) = First, "and keeps it while the file is selected");
+
+      --  The directory read again, the file may have changed with it.
+      Model.Reload (Browser, Model.Current_Pane);
+      AUnit.Assertions.Assert
+        (Model.File_Preview (Browser) not in 0 | First, "reading the directory again previews the file again");
+      First := Model.File_Preview (Browser);
+      Model.Reload_All (Browser);
+      AUnit.Assertions.Assert (Model.File_Preview (Browser) not in 0 | First, "and so does reading every pane");
+
+      Browser.Panes (Model.Current_Pane).Cursor := 0;
+      AUnit.Assertions.Assert (Model.File_Preview (Browser) = 0, "nothing selected, nothing previewed");
+   end Test_File_Preview;
 
    procedure Test_History_And_Visual (T : in out Fixture) is
       pragma Unreferenced (T);

@@ -127,8 +127,8 @@ package body Explore.Application is
          Explore.Application.Workers.Collect (State, Readers);
          Explore.Application.Workers.Watch_Jobs (State);
          Explore.Application.Workers.Watch_Search (State);
-         Explore.Application.Workers.Watch_Preview (State);
          Explore.Application.Workers.Sync (State, Readers);
+         Explore.Application.Workers.Watch_Preview (State);
 
          if State.Dirty then
             Explore.Application.Display.Draw (State, Ok);

@@ -31,7 +31,8 @@ private package Explore.Application.Workers is
    procedure Watch_Jobs (State : in out Session);
 
    --  Point the preview at the selected file, and take a preview that is
-   --  ready.
+   --  ready. A preview no longer wanted is stopped. Called after Sync, which
+   --  points the preview pane at the selection.
    procedure Watch_Preview (State : in out Session);
 
    --  Start the search the current pane wants, take the results it has

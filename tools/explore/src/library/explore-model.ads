@@ -32,7 +32,9 @@ package Explore.Model is
       --  The first of Shown on screen.
       Top        : Positive := 1;
       --  Unique to each request for new entries; entries read for any other
-      --  arrive too late and are dropped.
+      --  arrive too late and are dropped. A preview pane showing a file has
+      --  no entries: its generation is that of the file's preview, new
+      --  whenever the file may have changed.
       Generation : Natural := 0;
       --  Entries have been asked for and not yet delivered. What the pane
       --  showed before stays shown meanwhile.
@@ -194,8 +196,13 @@ package Explore.Model is
    procedure Leave (Self : in out Browser);
 
    --  Point the preview at the selected entry: a directory is listed, anything
-   --  else leaves the pane empty. True when the preview needs new entries.
+   --  else leaves the pane empty, with a new generation for the file's
+   --  preview. True when the preview needs new entries.
    function Preview_Changed (Self : in out Browser) return Boolean;
+
+   --  The generation the preview of the selected file is wanted for; zero
+   --  when the cursor is on a directory, or on nothing.
+   function File_Preview (Self : Browser) return Natural;
 
    --  Recompute what the current pane shows after the filter changed, keeping
    --  the cursor on the same entry where it is still shown.

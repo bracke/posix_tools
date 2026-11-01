@@ -22,6 +22,9 @@ package body Explore.Model is
    --  Near as the entries allow.
    procedure Show (Item : in out Pane; Filter : String; Keep : String; Near : Natural);
 
+   --  Give the preview of a file a new generation, for it to be built again.
+   procedure Refresh_File_Preview (Self : in out Browser);
+
    --  Mark the entries between the visual anchor and the cursor.
    procedure Update_Visual (Self : in out Browser);
 
@@ -173,6 +176,21 @@ package body Explore.Model is
          Self.Panes (Preview_Pane) := (others => <>);
       end;
    end Enter;
+
+   function File_Preview (Self : Browser) return Natural is
+      Current : Pane renames Self.Panes (Current_Pane);
+      Preview : Pane renames Self.Panes (Preview_Pane);
+   begin
+      if Has_Selection (Current)
+        and then not Can_Enter (Self)
+        and then Preview.State = Empty
+        and then Unbounded.To_String (Preview.Path) = Selected_Path (Current)
+      then
+         return Preview.Generation;
+      else
+         return 0;
+      end if;
+   end File_Preview;
 
    function Find (Item : Pane; Name : String) return Natural is
    begin
@@ -349,11 +367,23 @@ package body Explore.Model is
          Self.Panes (Preview_Pane) := New_Pane (Self, Target);
          return True;
       else
-         --  Not a directory: the preview has nothing to list.
-         Self.Panes (Preview_Pane) := (Path => Unbounded.To_Unbounded_String (Target), others => <>);
+         --  Not a directory: the preview has nothing to list, but a file's
+         --  preview is built under a generation of its own.
+         Self.Panes (Preview_Pane) :=
+           (Path       => Unbounded.To_Unbounded_String (Target),
+            Generation => (if Target'Length > 0 then Next_Generation (Self) else 0),
+            others     => <>);
          return False;
       end if;
    end Preview_Changed;
+
+   procedure Refresh_File_Preview (Self : in out Browser) is
+      Preview : Pane renames Self.Panes (Preview_Pane);
+   begin
+      if Preview.State = Empty and then Unbounded.Length (Preview.Path) > 0 then
+         Preview.Generation := Next_Generation (Self);
+      end if;
+   end Refresh_File_Preview;
 
    procedure Reload (Self : in out Browser; Kind : Pane_Kind) is
       Item : Pane renames Self.Panes (Kind);
@@ -361,6 +391,11 @@ package body Explore.Model is
       if Item.State /= Empty and then not Item.Is_Search then
          Item.Generation := Next_Generation (Self);
          Item.Pending := True;
+      end if;
+
+      --  What changed in the current directory may be the file previewed.
+      if Kind in Current_Pane | Preview_Pane then
+         Refresh_File_Preview (Self);
       end if;
    end Reload;
 

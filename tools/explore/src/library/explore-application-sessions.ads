@@ -109,9 +109,9 @@ private package Explore.Application.Sessions is
       Submitted  : Generation_Array := [others => 0];
       Watches    : Watch_Array;
       Watching   : Path_Array;
-      --  The file whose preview was asked for, and for which generation.
-      Previewing : Unbounded.Unbounded_String;
-      Preview_Generation : Natural := 0;
+      --  The generation of the preview pane the previewer was last asked
+      --  for, zero for none: the pane's path is the file's.
+      Preview_Asked : Natural := 0;
       --  The generation of the search last started; its results go to the
       --  current pane while it shows them.
       Search_Generation : Natural := 0;

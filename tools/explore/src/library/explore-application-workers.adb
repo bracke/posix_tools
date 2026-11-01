@@ -62,6 +62,12 @@ package body Explore.Application.Workers is
                    Options    => (Include_Hidden => State.Browser.Show_Hidden, With_Status => True),
                    Order      => State.Browser.Order));
                State.Workers.Submitted (Kind) := Item.Generation;
+            elsif not Item.Pending and then State.Workers.Submitted (Kind) /= 0 then
+               --  Nothing is waited for: a read still running, as for a pane
+               --  that went empty or was replaced, is stopped, and what it
+               --  would hand back is dropped.
+               Readers.Cancel (Kind);
+               State.Workers.Submitted (Kind) := 0;
             end if;
          end;
       end loop;
@@ -182,32 +188,39 @@ package body Explore.Application.Workers is
    end Watch_Jobs;
 
    procedure Watch_Preview (State : in out Session) is
-      Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
-      Target  : constant String :=
-        (if Model.Has_Selection (Current) and then not Model.Can_Enter (State.Browser)
-         then Model.Selected_Path (Current) else "");
-      Ready   : Explore.Previews.Preview;
-      Found   : Boolean;
-   begin
-      if Target /= Unbounded.To_String (State.Workers.Previewing) then
-         State.Workers.Previewing := Unbounded.To_Unbounded_String (Target);
-         State.Frame.Preview := (others => <>);
-         Explore.Application.Display.Hide_Image (State);
+      use type Unbounded.Unbounded_String;
 
-         if Target'Length > 0 then
-            State.Workers.Preview_Generation := State.Workers.Preview_Generation + 1;
+      Shown  : Model.Pane renames State.Browser.Panes (Model.Preview_Pane);
+      Wanted : constant Natural := Model.File_Preview (State.Browser);
+      Ready  : Explore.Previews.Preview;
+      Found  : Boolean;
+   begin
+      if Wanted /= State.Workers.Preview_Asked then
+         State.Workers.Preview_Asked := Wanted;
+
+         --  The same file's preview stays shown while it is built again;
+         --  another file's is not shown in its place meanwhile.
+         if Wanted = 0 or else State.Frame.Preview.Path /= Shown.Path then
+            State.Frame.Preview := (others => <>);
+            Explore.Application.Display.Hide_Image (State);
+         end if;
+
+         if Wanted = 0 then
+            --  A preview no longer wanted is stopped, a previewer it runs too.
+            State.Workers.Previewer.Cancel (Explore.Previews.Only);
+         else
             State.Workers.Previewer.Submit
               (Explore.Previews.Only,
-               (Path       => Unbounded.To_Unbounded_String (Target),
+               (Path       => Shown.Path,
                 Rules      => State.Config.Previewers,
                 Thumbnails => State.Config.Thumbnails,
-                Generation => State.Workers.Preview_Generation));
+                Generation => Wanted));
          end if;
       end if;
 
       State.Workers.Previewer.Collect (Explore.Previews.Only, Ready, Found);
 
-      if Found and then Ready.Generation = State.Workers.Preview_Generation then
+      if Found and then Wanted > 0 and then Ready.Generation = Wanted then
          State.Frame.Preview := Ready;
          State.Dirty := True;
 

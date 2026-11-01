@@ -120,7 +120,9 @@ every key is answered within 100 milliseconds while the directory is read and so
 the end-to-end tests hold explore to these budgets.
 
 A file's preview is built on a worker task of its own from the first 64 KiB of the file, or from all of an image of up to
-16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built. An image is
+16 MiB, so a large or slow file never holds up the keyboard; moving on replaces a preview not yet built, and moving off files
+stops it. The preview is built again when the directory the file is in is read again, as when it changes or a
+program explore ran ends, and the one shown stays until then. An image is
 sent to the terminal through Kitty graphics and placed in the pane with Unicode placeholders, scaled down to fit
 without stretching and never enlarged, using the cell size the terminal reports with its size. PNG goes as Kitty's
 f=100; JPEG and GIF go as bracke-terminal's private f=1001 and f=1002, and only when the terminal advertises
