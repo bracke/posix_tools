@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
+with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.File_Helpers.Tailing is
    use Ada.Strings.Unbounded;
@@ -17,21 +18,6 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
    package Line_Vectors is new Ada.Containers.Indefinite_Vectors
      (Index_Type   => Positive,
       Element_Type => String);
-
-   function To_String
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String
-   is
-      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Result'First;
-   begin
-      for I in Buffer'First .. Last loop
-         Result (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
 
    function Character_At
      (Buffer : Ada.Streams.Stream_Element_Array;
@@ -88,7 +74,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
             end if;
 
             exit when Last < Buffer'First;
-            Context.Put (To_String (Buffer, Last));
+            Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
             if Context.Output_Failed then
                Ok := False;
                return;

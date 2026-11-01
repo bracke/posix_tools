@@ -5,6 +5,7 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.File_Descriptions;
 
 package body Posix_Tools.Commands.File is
@@ -58,9 +59,7 @@ package body Posix_Tools.Commands.File is
          is
             pragma Unreferenced (Stop);
          begin
-            for Index in Buffer'First .. Last loop
-               Append (Data, Character'Val (Integer (Buffer (Index))));
-            end loop;
+            Append (Data, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
          end Collect;
 
          procedure Read_File_Data is new FS.For_Each_File_Chunk (Collect);

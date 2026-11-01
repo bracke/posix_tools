@@ -3,27 +3,13 @@ with Posix_Tools.Counts;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Tail_Rings;
 
 package body Posix_Tools.Commands.Tail_Bytes is
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Numbers.Count;
    use type Posix_Tools.Tail_Counts.Count_Origin;
-
-   function To_String
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String
-   is
-      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Result'First;
-   begin
-      for I in Buffer'First .. Last loop
-         Result (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
 
    procedure Keep_Byte
      (Ring     : in out Ada.Streams.Stream_Element_Array;
@@ -59,19 +45,19 @@ package body Posix_Tools.Commands.Tail_Bytes is
             Last : constant Ada.Streams.Stream_Element_Offset :=
               Ring'First + Ada.Streams.Stream_Element_Offset (Filled) - Ada.Streams.Stream_Element_Offset (1);
          begin
-            Context.Put (To_String (Ring (Ring'First .. Last), Last));
+            Context.Put (Posix_Tools.Streams.Bytes.To_String (Ring (Ring'First .. Last), Last));
          end;
       else
          Start := Next;
          if Start <= Ring'Last then
-            Context.Put (To_String (Ring (Start .. Ring'Last), Ring'Last));
+            Context.Put (Posix_Tools.Streams.Bytes.To_String (Ring (Start .. Ring'Last), Ring'Last));
          end if;
          if Start > Ring'First then
             declare
                Last : constant Ada.Streams.Stream_Element_Offset :=
                  Start - Ada.Streams.Stream_Element_Offset (1);
             begin
-               Context.Put (To_String (Ring (Ring'First .. Last), Last));
+               Context.Put (Posix_Tools.Streams.Bytes.To_String (Ring (Ring'First .. Last), Last));
             end;
          end if;
       end if;
@@ -146,7 +132,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
          end if;
 
          exit when Last < Buffer'First;
-         Context.Put (To_String (Buffer, Last));
+         Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
          if Context.Output_Failed then
             Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
             Ok := False;
@@ -190,7 +176,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
                for I in Buffer'First .. Last loop
                   Position := Position + 1;
                   if Posix_Tools.Counts.Should_Emit_From_Start (Position, Requested) then
-                     Context.Put (To_String (Buffer (I .. I), I));
+                     Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer (I .. I), I));
                      exit when Context.Output_Failed;
                   end if;
                end loop;

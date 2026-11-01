@@ -4,6 +4,7 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Streams.Counting;
 with Posix_Tools.Wc_Fields;
 
@@ -19,19 +20,10 @@ package body Posix_Tools.Commands.Wc is
       Last    : Ada.Streams.Stream_Element_Offset;
       State   : in out Posix_Tools.Streams.Counting.Counter)
    is
-      Text   : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Text'First;
    begin
-      if Last < Buffer'First then
-         return;
+      if Last >= Buffer'First then
+         Posix_Tools.Streams.Counting.Process (State, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
       end if;
-
-      for I in Buffer'First .. Last loop
-         Text (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      Posix_Tools.Streams.Counting.Process (State, Text);
    end Count_Buffer;
 
    procedure Count_File

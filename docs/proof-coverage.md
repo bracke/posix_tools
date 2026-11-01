@@ -95,6 +95,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.localization`
 - `posix_tools.presentation`
 - `posix_tools.process_entry`
+- `posix_tools.streams.bytes`
 - `posix_tools.streams.lines`
 - `posix_tools.text.dd_blocks`
 - `posix_tools.text.dd_conversion_engine`

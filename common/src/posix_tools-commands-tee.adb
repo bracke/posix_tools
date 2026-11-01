@@ -1,14 +1,14 @@
 with Ada.Streams;
-
+with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
+with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Tee is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
-   use type Ada.Streams.Stream_Element_Offset;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -23,29 +23,11 @@ package body Posix_Tools.Commands.Tee is
         Posix_Tools.Host_Adapters.Signals.Default_Disposition;
       Restore_Interrupt    : Boolean := False;
 
-      function Buffer_Text
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset) return String;
-
       --  Reports a file that could not be opened, or written once open, and
       --  sets the failure status; tee goes on with the other files.
       procedure Mark_File_Failed (Path : String; Opening : Boolean);
 
       procedure Restore_Interrupt_Disposition;
-
-      function Buffer_Text
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset) return String
-      is
-         Text : String (1 .. Natural (Last - Buffer'First + 1));
-      begin
-         for I in Text'Range loop
-            Text (I) :=
-              Character'Val
-                (Integer (Buffer (Buffer'First + Ada.Streams.Stream_Element_Offset (I - 1))));
-         end loop;
-         return Text;
-      end Buffer_Text;
 
       procedure Mark_File_Failed (Path : String; Opening : Boolean) is
       begin
@@ -115,10 +97,38 @@ package body Posix_Tools.Commands.Tee is
       end if;
 
       declare
-         Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
-         Last   : Ada.Streams.Stream_Element_Offset;
          Files  : array (First .. Context.Argument_Count) of Posix_Tools.Host_Adapters.Output_Files.Output_File;
          Closed : Boolean;
+         Read   : Boolean;
+
+         --  Standard input as it arrives, to standard output and each file
+         --  still open; a file that fails is closed and the rest go on.
+         procedure Copy_Chunk
+           (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset);
+
+         procedure Copy_Chunk
+           (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset)
+         is
+            Data : constant String := Posix_Tools.Streams.Bytes.To_String (Buffer, Last);
+         begin
+            Context.Put (Data);
+            for I in Files'Range loop
+               if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
+                  Posix_Tools.Host_Adapters.Output_Files.Write (Files (I), Data, Written);
+                  if not Written then
+                     Posix_Tools.Host_Adapters.Output_Files.Close (Files (I), Closed);
+                     Mark_File_Failed (Context.Argument (I), Opening => False);
+                  end if;
+               end if;
+            end loop;
+         end Copy_Chunk;
+
+         procedure Copy_Input is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+           (Copy_Chunk, Stop_On_Output_Failure => False);
       begin
          --  Each file is opened once and written as input arrives.
          for I in Files'Range loop
@@ -128,31 +138,8 @@ package body Posix_Tools.Commands.Tee is
             end if;
          end loop;
 
-         loop
-            if not Context.Try_Read_Standard_Input (Buffer, Last) then
-               Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Posix_Tools.Commands.Helpers.Standard_Input_Name (Context),
-                  "posix_tools.diagnostic.file.read_failed", "cannot read file");
-               Ok := False;
-               exit;
-            end if;
-            exit when Last < Buffer'First;
-
-            declare
-               Data : constant String := Buffer_Text (Buffer, Last);
-            begin
-               Context.Put (Data);
-               for I in Files'Range loop
-                  if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
-                     Posix_Tools.Host_Adapters.Output_Files.Write (Files (I), Data, Written);
-                     if not Written then
-                        Posix_Tools.Host_Adapters.Output_Files.Close (Files (I), Closed);
-                        Mark_File_Failed (Context.Argument (I), Opening => False);
-                     end if;
-                  end if;
-               end loop;
-            end;
-         end loop;
+         Copy_Input (Context, "-", Read);
+         Ok := Read and then Ok;
 
          for I in Files'Range loop
             if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then

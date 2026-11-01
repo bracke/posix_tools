@@ -2,24 +2,10 @@ with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Tail_Follow is
    use type Ada.Streams.Stream_Element_Offset;
-
-   function To_String
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String
-   is
-      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Result'First;
-   begin
-      for I in Buffer'First .. Last loop
-         Result (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
 
    procedure Copy_File_From_Offset
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -34,7 +20,7 @@ package body Posix_Tools.Commands.Tail_Follow is
       is
       begin
          if Last >= Buffer'First then
-            Context.Put (To_String (Buffer, Last));
+            Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
             Stop := Context.Output_Failed;
          end if;
       end Copy_Chunk;

@@ -3,11 +3,15 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Contexts;
 
 package Posix_Tools.Commands.File_Helpers.Streaming is
+   --  Each chunk read from File_Name, standard input for "-", in turn. A
+   --  read failure is reported. Unless Stop_On_Output_Failure is False, as
+   --  for tee, which writes on to its files, a failed output ends the read.
    generic
       with procedure Action
         (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
          Buffer  : Ada.Streams.Stream_Element_Array;
          Last    : Ada.Streams.Stream_Element_Offset);
+      Stop_On_Output_Failure : Boolean := True;
    procedure For_Each_Chunk
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;

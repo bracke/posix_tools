@@ -1,5 +1,6 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.File_Helpers.Streaming is
    use Ada.Strings.Unbounded;
@@ -7,10 +8,6 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
 
    Buffer_Size : constant := 16 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
-
-   function To_String
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String;
 
    procedure Copy_Standard_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -29,7 +26,7 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
             return;
          end if;
          exit when Last < Buffer'First;
-         Context.Put (To_String (Buffer, Last));
+         Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
          if Context.Output_Failed then
             Ok := False;
             return;
@@ -57,7 +54,7 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       is
       begin
          Action (Context, Buffer, Last);
-         Stop := Context.Output_Failed;
+         Stop := Stop_On_Output_Failure and then Context.Output_Failed;
       end Scan_Chunk;
    begin
       Ok := True;
@@ -70,7 +67,7 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
             end if;
             exit when Last < Buffer'First;
             Action (Context, Buffer, Last);
-            exit when Context.Output_Failed;
+            exit when Stop_On_Output_Failure and then Context.Output_Failed;
          end loop;
       else
          declare
@@ -108,11 +105,7 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       is
          pragma Unreferenced (Context);
       begin
-         if Last >= Buffer'First then
-            for I in Buffer'First .. Last loop
-               Append (Data, Character'Val (Integer (Buffer (I))));
-            end loop;
-         end if;
+         Append (Data, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
       end Append_Chunk;
 
       procedure Each_Chunk is new For_Each_Chunk (Action => Append_Chunk);
@@ -132,18 +125,4 @@ package body Posix_Tools.Commands.File_Helpers.Streaming is
       return To_String (Text);
    end Read_File;
 
-   function To_String
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Last   : Ada.Streams.Stream_Element_Offset) return String
-   is
-      Result : String (1 .. Natural (Integer (Last) - Integer (Buffer'First) + 1));
-      Target : Positive := Result'First;
-   begin
-      for I in Buffer'First .. Last loop
-         Result (Target) := Character'Val (Integer (Buffer (I)));
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
 end Posix_Tools.Commands.File_Helpers.Streaming;
