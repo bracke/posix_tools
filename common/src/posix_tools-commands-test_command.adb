@@ -1,5 +1,4 @@
 with Ada.Strings.Unbounded;
-with I18N.Collation;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Usage_Messages;
@@ -244,36 +243,9 @@ package body Posix_Tools.Commands.Test_Command is
       end Parse_Primary;
 
       function String_Comparison (Left, Op, Right : String) return Boolean is
-         Locale   : constant String := Collation_Locale;
-         Family   : constant String := Posix_Tools.Commands.Text_Helpers.Collation.Locale_Family (Locale);
-         Compared : Integer;
+         Compared : constant Integer :=
+           Posix_Tools.Commands.Text_Helpers.Collation.Compare (Collation_Locale, Left, Right);
       begin
-         if Family = ""
-           or else Family = "c"
-           or else Family = "C"
-           or else Family = "posix"
-           or else Family = "POSIX"
-         then
-            Compared :=
-              (if Left < Right then -1
-               elsif Left > Right then 1
-               else 0);
-         elsif I18N.Collation.Available then
-            Compared := I18N.Collation.Compare (Left, Right, Locale, I18N.Collation.Tertiary);
-         else
-            declare
-               Left_Key  : constant String :=
-                 Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Left);
-               Right_Key : constant String :=
-                 Posix_Tools.Commands.Text_Helpers.Collation.Locale_Sort_Text (Locale, Right);
-            begin
-               Compared :=
-                 (if Left_Key < Right_Key then -1
-                  elsif Left_Key > Right_Key then 1
-                  else 0);
-            end;
-         end if;
-
          return
            (if Op = "<" then Compared < 0
             elsif Op = ">" then Compared > 0

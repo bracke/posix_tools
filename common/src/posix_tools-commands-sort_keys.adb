@@ -128,7 +128,7 @@ package body Posix_Tools.Commands.Sort_Keys is
          --  first; without -k and ordering options the key already did.
          Data.Use_Whole :=
            Data.Last_Resort
-           and then not Posix_Tools.Commands.Text_Helpers.Is_Byte_Collation_Locale (Locale)
+           and then not Posix_Tools.Commands.Text_Helpers.Collation.Is_Byte_Collation_Locale (Locale)
            and then not (Whole_Line and then Options.Global = Plain);
 
          Data.Keys.Reserve_Capacity (Lines.Length * Ada.Containers.Count_Type (Key_Count));

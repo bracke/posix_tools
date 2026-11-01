@@ -1,26 +1,21 @@
 with Ada.Containers.Indefinite_Hashed_Maps;
-with Ada.Containers.Indefinite_Vectors;
 with Ada.Streams;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
+with Posix_Tools.Commands.Text_Helpers.Tr_Sets;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Text.Base_Parsing;
-with Posix_Tools.Text.UTF_8;
 
 package body Posix_Tools.Commands.Tr is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
-   use type Posix_Tools.Text.UTF_8.Decode_Status;
 
-   --  One element of a set: the bytes of one character. In the C and POSIX
-   --  locales every byte is a character; elsewhere characters are UTF-8, and
-   --  a byte that does not start a valid sequence is a character of its own.
-   package Element_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
+   package Sets renames Posix_Tools.Commands.Text_Helpers.Tr_Sets;
+   package Element_Vectors renames Sets.Element_Vectors;
 
    package Element_Maps is new Ada.Containers.Indefinite_Hashed_Maps
      (Key_Type        => String,
@@ -33,208 +28,6 @@ package body Posix_Tools.Commands.Tr is
       Element_Type    => String,
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
-
-   No_Code_Point : constant Long_Long_Integer := -1;
-
-   --  The set operand Text as characters, for a locale with multibyte
-   --  characters: ranges run over code points, and [c*n] repeats a character.
-   --  Classes, equivalence classes, collating symbols and escapes are
-   --  expanded by the shared byte set parser.
-   function Character_Set (Text, Locale : String) return Element_Vectors.Vector;
-
-   --  The width of the character at Index and its code point (No_Code_Point
-   --  for an invalid byte). Width is 0 when Text ends inside a sequence more
-   --  input might complete, unless At_End.
-   procedure Decode_At
-     (Text       : String;
-      Index      : Positive;
-      At_End     : Boolean;
-      Width      : out Natural;
-      Code_Point : out Long_Long_Integer);
-
-   --  Splits bytes into one-byte elements, or into characters.
-   function Split (Text : String; Multibyte : Boolean) return Element_Vectors.Vector;
-
-   function Character_Set (Text, Locale : String) return Element_Vectors.Vector is
-      Output : Element_Vectors.Vector;
-      I      : Positive := Text'First;
-
-      procedure Append_Bytes (Bytes : String);
-
-      function Code_Point_Of (Element : String) return Long_Long_Integer;
-
-      --  Reads one element at I: an escape or one character.
-      function Next_Element return String;
-
-      --  At a '[' that may start [c*n]; False leaves I unchanged.
-      function Repetition return Boolean;
-
-      procedure Append_Bytes (Bytes : String) is
-      begin
-         for Element of Split (Bytes, True) loop
-            Output.Append (Element);
-         end loop;
-      end Append_Bytes;
-
-      function Code_Point_Of (Element : String) return Long_Long_Integer is
-         Width      : Natural;
-         Code_Point : Long_Long_Integer;
-      begin
-         if Element = "" then
-            return No_Code_Point;
-         end if;
-         Decode_At (Element, Element'First, True, Width, Code_Point);
-         return (if Width = Element'Length then Code_Point else No_Code_Point);
-      end Code_Point_Of;
-
-      function Next_Element return String is
-         First      : constant Positive := I;
-         Width      : Natural;
-         Code_Point : Long_Long_Integer;
-      begin
-         if Text (I) = '\' and then I < Text'Last then
-            I := I + 1;
-            if Text (I) in '0' .. '7' then
-               while I < Text'Last and then I - First < 3 and then Text (I + 1) in '0' .. '7' loop
-                  I := I + 1;
-               end loop;
-            end if;
-            I := I + 1;
-            return Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec
-              (Text (First .. I - 1), Locale);
-         end if;
-         Decode_At (Text, I, True, Width, Code_Point);
-         I := I + Width;
-         return Text (First .. I - 1);
-      end Next_Element;
-
-      function Repetition return Boolean is
-         Start : constant Positive := I;
-         Count : Natural := 0;
-         Close : Natural := 0;
-      begin
-         I := I + 1;
-         declare
-            Repeated : constant String := Next_Element;
-         begin
-            if I <= Text'Last and then Text (I) = '*' then
-               for J in I + 1 .. Text'Last loop
-                  if Text (J) = ']' then
-                     Close := J;
-                     exit;
-                  elsif Text (J) not in '0' .. '9' then
-                     exit;
-                  end if;
-               end loop;
-            end if;
-            if Close = 0 then
-               I := Start;
-               return False;
-            end if;
-
-            --  [c*] fills; a count with a leading zero is octal.
-            if Close = I + 1 then
-               Count := 256;
-            else
-               declare
-                  Parsed : constant Posix_Tools.Text.Base_Parsing.Parsed_Natural :=
-                    Posix_Tools.Text.Base_Parsing.Natural_Value
-                      (Text (I + 1 .. Close - 1), (if Text (I + 1) = '0' then 8 else 10));
-               begin
-                  if not Parsed.Valid then
-                     I := Start;
-                     return False;
-                  end if;
-                  Count := Parsed.Value;
-               end;
-            end if;
-            for J in 1 .. Count loop
-               Output.Append (Repeated);
-            end loop;
-            I := Close + 1;
-            return True;
-         end;
-      end Repetition;
-   begin
-      while I <= Text'Last loop
-         if Text (I) = '[' and then I < Text'Last and then Text (I + 1) in ':' | '=' | '.' then
-            declare
-               Marker : constant Character := Text (I + 1);
-               Close  : Natural := 0;
-            begin
-               for J in I + 3 .. Text'Last - 1 loop
-                  if Text (J) = Marker and then Text (J + 1) = ']' then
-                     Close := J + 1;
-                     exit;
-                  end if;
-               end loop;
-               if Close = 0 then
-                  Output.Append (Next_Element);
-               else
-                  Append_Bytes
-                    (Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec (Text (I .. Close), Locale));
-                  I := Close + 1;
-               end if;
-            end;
-         elsif Text (I) = '[' and then I + 2 <= Text'Last and then Repetition then
-            null;
-         else
-            declare
-               Low : constant String := Next_Element;
-            begin
-               if I < Text'Last and then Text (I) = '-' then
-                  I := I + 1;
-                  declare
-                     High      : constant String := Next_Element;
-                     Low_Code  : constant Long_Long_Integer := Code_Point_Of (Low);
-                     High_Code : constant Long_Long_Integer := Code_Point_Of (High);
-                  begin
-                     if Low_Code /= No_Code_Point and then High_Code /= No_Code_Point and then Low_Code <= High_Code
-                     then
-                        for Code in Low_Code .. High_Code loop
-                           if Code not in 16#D800# .. 16#DFFF# then
-                              Output.Append (Posix_Tools.Text.UTF_8.Encode (Code));
-                           end if;
-                        end loop;
-                     else
-                        Append_Bytes (Low);
-                        Output.Append ("-");
-                        Append_Bytes (High);
-                     end if;
-                  end;
-               else
-                  Append_Bytes (Low);
-               end if;
-            end;
-         end if;
-      end loop;
-      return Output;
-   end Character_Set;
-
-   procedure Decode_At
-     (Text       : String;
-      Index      : Positive;
-      At_End     : Boolean;
-      Width      : out Natural;
-      Code_Point : out Long_Long_Integer)
-   is
-      Decoder : Posix_Tools.Text.UTF_8.Decoder;
-      Status  : Posix_Tools.Text.UTF_8.Decode_Status;
-   begin
-      for I in Index .. Text'Last loop
-         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (I)), Status, Code_Point);
-         if Status = Posix_Tools.Text.UTF_8.Complete then
-            Width := I - Index + 1;
-            return;
-         elsif Status = Posix_Tools.Text.UTF_8.Invalid then
-            Width := 1;
-            Code_Point := No_Code_Point;
-            return;
-         end if;
-      end loop;
-      Width := (if At_End then 1 else 0);
-      Code_Point := No_Code_Point;
-   end Decode_At;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -289,17 +82,13 @@ package body Posix_Tools.Commands.Tr is
       declare
          Locale    : constant String :=
            Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification);
-         Multibyte : constant Boolean := Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale (Locale);
+         Multibyte : constant Boolean := Posix_Tools.Commands.Text_Helpers.Collation.Is_Multibyte_Locale (Locale);
          Has_Set2  : constant Boolean := Context.Argument_Count = First + 1;
 
-         function Parse_Set (Operand : String) return Element_Vectors.Vector is
-           (if Multibyte then Character_Set (Operand, Locale)
-            else Split
-              (Posix_Tools.Commands.Text_Helpers.Collation.Translation_Set_From_Spec (Operand, Locale), False));
-
-         Set1 : constant Element_Vectors.Vector := Parse_Set (Context.Argument (First));
+         Set1 : constant Element_Vectors.Vector := Sets.Operand_Set (Context.Argument (First), Locale, Multibyte);
          Set2 : constant Element_Vectors.Vector :=
-           (if Has_Set2 then Parse_Set (Context.Argument (First + 1)) else Element_Vectors.Empty_Vector);
+           (if Has_Set2 then Sets.Operand_Set (Context.Argument (First + 1), Locale, Multibyte)
+            else Element_Vectors.Empty_Vector);
 
          --  Where each character of a set is; a character listed twice in
          --  SET1 maps by its last occurrence.
@@ -348,7 +137,7 @@ package body Posix_Tools.Commands.Tr is
                   end if;
                end loop;
                return 0;
-            elsif Code_Point = No_Code_Point then
+            elsif Code_Point = Sets.No_Code_Point then
                return Natural'Last;
             end if;
 
@@ -357,7 +146,7 @@ package body Posix_Tools.Commands.Tr is
                   Width : Natural;
                   Code  : Long_Long_Integer;
                begin
-                  Decode_At (Member, Member'First, True, Width, Code);
+                  Sets.Decode_At (Member, Member'First, True, Width, Code);
                   if Code in 16#80# .. Code_Point - 1 and then not Seen.Contains (Member) then
                      Seen.Insert (Member, 0);
                      Below := Below + 1;
@@ -374,10 +163,10 @@ package body Posix_Tools.Commands.Tr is
             while I <= Data'Last loop
                declare
                   Width      : Natural := 1;
-                  Code_Point : Long_Long_Integer := No_Code_Point;
+                  Code_Point : Long_Long_Integer := Sets.No_Code_Point;
                begin
                   if Multibyte then
-                     Decode_At (Data, I, At_End, Width, Code_Point);
+                     Sets.Decode_At (Data, I, At_End, Width, Code_Point);
                      if Width = 0 then
                         Pending := To_Unbounded_String (Data (I .. Data'Last));
                         exit;
@@ -478,19 +267,4 @@ package body Posix_Tools.Commands.Tr is
       end;
    end Run;
 
-   function Split (Text : String; Multibyte : Boolean) return Element_Vectors.Vector is
-      Output     : Element_Vectors.Vector;
-      I          : Positive := Text'First;
-      Width      : Natural := 1;
-      Code_Point : Long_Long_Integer;
-   begin
-      while I <= Text'Last loop
-         if Multibyte then
-            Decode_At (Text, I, True, Width, Code_Point);
-         end if;
-         Output.Append (Text (I .. I + Width - 1));
-         I := I + Width;
-      end loop;
-      return Output;
-   end Split;
 end Posix_Tools.Commands.Tr;

@@ -3,7 +3,7 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Commands.Text_Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Cut_Fields;
@@ -107,7 +107,7 @@ package body Posix_Tools.Commands.Cut is
       Valid      : Boolean;
       All_Ok     : Boolean := True;
       Characters : constant Boolean :=
-        Posix_Tools.Commands.Text_Helpers.Is_Multibyte_Locale
+        Posix_Tools.Commands.Text_Helpers.Collation.Is_Multibyte_Locale
           (Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification));
 
       procedure Cut_File (Name : String; Ok : out Boolean);
