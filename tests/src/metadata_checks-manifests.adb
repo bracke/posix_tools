@@ -3,7 +3,6 @@ with Ada.Strings.Fixed;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Text.Matching;
-with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Release_Checks;
 with Project_Tools.Text;
@@ -16,116 +15,15 @@ package body Metadata_Checks.Manifests is
       Root_Manifest : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "alire.toml"));
 
-      function Boolean_Text (Value : Boolean) return String is
-      begin
-         if Value then
-            return "true";
-         else
-            return "false";
-         end if;
-      end Boolean_Text;
-
-      function Expected_Command_Inventory return String is
-         use Ada.Strings.Unbounded;
-         Content : Unbounded_String;
-      begin
-         Append
-           (Content,
-            "executable,crate,package,manifest_path,project_file_path,documentation_path,"
-            & "release_included,posix_status,help,version,identity"
-            & Character'Val (10));
-
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            Append
-              (Content,
-               Posix_Tools.Command_Inventory.Executable (I)
-               & "," & Posix_Tools.Command_Inventory.Crate (I)
-               & "," & Posix_Tools.Command_Inventory.Package_Name (I)
-               & "," & Posix_Tools.Command_Inventory.Manifest_Path (I)
-               & "," & Posix_Tools.Command_Inventory.Project_File_Path (I)
-               & "," & Posix_Tools.Command_Inventory.Documentation_Path (I)
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (I))
-               & "," & Posix_Tools.Command_Inventory.Posix_Status (I)
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (I))
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (I))
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (I))
-               & Character'Val (10));
-         end loop;
-
-         return To_String (Content);
-      end Expected_Command_Inventory;
-
       procedure Require_Command_Inventory_Current is
          Path     : constant String := "generated/command_inventory.csv";
          Actual   : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
-         Expected : constant String := Expected_Command_Inventory;
+         Expected : constant String := Command_Inventory_Csv;
       begin
          if Actual /= Expected then
             Project_Tools.Release_Checks.Fail ("generated command inventory is stale");
          end if;
       end Require_Command_Inventory_Current;
-
-      function Expected_Manpage (Index : Positive) return String is
-      begin
-         return Command_Manpage (Index);
-      end Expected_Manpage;
-
-      function Expected_Root_Manpage return String is
-      begin
-         return Root_Manpage;
-      end Expected_Root_Manpage;
-
-      function Expected_Manual_Index return String is
-         use Ada.Strings.Unbounded;
-         Content : Unbounded_String;
-      begin
-         Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
-         Append
-           (Content,
-            "Version: " & Posix_Tools.Version.Version_String
-            & Character'Val (10) & Character'Val (10));
-
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            Append
-              (Content,
-               "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`: "
-               & Posix_Tools.Command_Inventory.Documentation_Path (I)
-               & Character'Val (10));
-         end loop;
-
-         Append (Content, Character'Val (10));
-         return To_String (Content);
-      end Expected_Manual_Index;
-
-      function Expected_Command_Reference_Index return String is
-         use Ada.Strings.Unbounded;
-         Content : Unbounded_String;
-         Root_Inserted : Boolean := False;
-      begin
-         Append (Content, "# Command References" & Character'Val (10) & Character'Val (10));
-         Append (Content, "V1 command references:" & Character'Val (10) & Character'Val (10));
-
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            if not Root_Inserted
-              and then "posix-tools" < Posix_Tools.Command_Inventory.Executable (I)
-            then
-               Append (Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
-               Root_Inserted := True;
-            end if;
-
-            Append
-              (Content,
-               "- [" & Posix_Tools.Command_Inventory.Executable (I) & "]("
-               & Posix_Tools.Command_Inventory.Executable (I) & ".md)"
-               & Character'Val (10));
-         end loop;
-
-         if not Root_Inserted then
-            Append (Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
-         end if;
-
-         return To_String (Content);
-      end Expected_Command_Reference_Index;
 
       procedure Require_File_Equals (Path : String; Expected : String; Message : String) is
          Actual : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
@@ -152,15 +50,15 @@ package body Metadata_Checks.Manifests is
       begin
          Require_File_Equals
            ("docs/commands/index.md",
-            Expected_Command_Reference_Index,
+            Command_Reference_Index,
             "command reference index is stale");
          Require_File_Equals
            ("generated/manual-index.md",
-            Expected_Manual_Index,
+            Manual_Index,
             "generated manual index is stale");
          Require_File_Equals
            ("generated/man/posix-tools.1",
-            Expected_Root_Manpage,
+            Root_Manpage,
             "generated root manual page is stale");
 
          for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
@@ -169,7 +67,7 @@ package body Metadata_Checks.Manifests is
             begin
                Require_File_Equals
                  ("generated/man/" & Command & ".1",
-                  Expected_Manpage (I),
+                  Command_Manpage (I),
                   "generated manual page for " & Command & " is stale");
             end;
          end loop;

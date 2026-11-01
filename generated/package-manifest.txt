@@ -670,7 +670,7 @@ tests/src/metadata_checks-continuous_integration.adb bytes= 7278 fnv1a64=b93e38e
 tests/src/metadata_checks-continuous_integration.ads bytes= 152 fnv1a64=c2aae07f8cdb3ee3
 tests/src/metadata_checks-dependencies.adb bytes= 8249 fnv1a64=579e07dd6db7058d
 tests/src/metadata_checks-dependencies.ads bytes= 170 fnv1a64=876c9886deb601ab
-tests/src/metadata_checks-manifests.adb bytes= 22909 fnv1a64=21f0e4bf2f1d7389
+tests/src/metadata_checks-manifests.adb bytes= 18880 fnv1a64=fe2bf6de9be0dd8b
 tests/src/metadata_checks-manifests.ads bytes= 175 fnv1a64=3b256386a40201d8
 tests/src/metadata_checks-packaging.adb bytes= 31077 fnv1a64=a767768ee5ebc5d6
 tests/src/metadata_checks-packaging.ads bytes= 224 fnv1a64=ce20178e2abe830d
@@ -688,13 +688,13 @@ tests/src/operation_tests.adb bytes= 20277 fnv1a64=1447bd664b23da2b
 tests/src/operation_tests.ads bytes= 751 fnv1a64=38c2f1cc8776cc47
 tests/src/package_entries.adb bytes= 3705 fnv1a64=47dd79e0fed0c15f
 tests/src/package_entries.ads bytes= 956 fnv1a64=de11d7076b110865
-tests/src/posix_tools_tests.adb bytes= 98720 fnv1a64=19272017dbdad07f
+tests/src/posix_tools_tests.adb bytes= 95010 fnv1a64=6517bd457e288765
 tests/src/proof_targets.adb bytes= 5955 fnv1a64=03739b5391e5f537
 tests/src/proof_targets.ads bytes= 223 fnv1a64=475067eec08dea3a
 tests/src/test_contexts.adb bytes= 29098 fnv1a64=cc087ef14aacba7e
 tests/src/test_contexts.ads bytes= 10452 fnv1a64=3d1ad5c9bae26c1d
-tests/src/tooling_support.adb bytes= 6892 fnv1a64=541cb0f68cdf4a61
-tests/src/tooling_support.ads bytes= 595 fnv1a64=3e2a002768af198c
+tests/src/tooling_support.adb bytes= 10035 fnv1a64=5e8ab26f45766931
+tests/src/tooling_support.ads bytes= 995 fnv1a64=e98a9afb76c0017b
 tools/arch/alire.toml bytes= 411 fnv1a64=55ee32e45b432526
 tools/arch/posix_tools_arch.gpr bytes= 347 fnv1a64=0af452c7610ff731
 tools/arch/src/arch.adb bytes= 229 fnv1a64=d166b6981a9645be

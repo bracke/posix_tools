@@ -77,83 +77,14 @@ procedure Posix_Tools_Tests is
    end Run_Metadata_Checks;
 
    procedure Generate_Docs is
-      use Ada.Strings.Unbounded;
-      Content : Unbounded_String;
       Base    : constant String := Root;
       Man_Dir : constant String := Project_Tools.Files.Join (Base, "generated/man");
-
-      function Boolean_Text (Value : Boolean) return String is
-      begin
-         if Value then
-            return "true";
-         else
-            return "false";
-         end if;
-      end Boolean_Text;
-
-      function Render_Command_Inventory return String is
-         Inventory_Content : Unbounded_String;
-      begin
-         Append
-           (Inventory_Content,
-            "executable,crate,package,manifest_path,project_file_path,documentation_path,"
-            & "release_included,posix_status,help,version,identity"
-            & Character'Val (10));
-
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            Append
-              (Inventory_Content,
-               Posix_Tools.Command_Inventory.Executable (I)
-               & "," & Posix_Tools.Command_Inventory.Crate (I)
-               & "," & Posix_Tools.Command_Inventory.Package_Name (I)
-               & "," & Posix_Tools.Command_Inventory.Manifest_Path (I)
-               & "," & Posix_Tools.Command_Inventory.Project_File_Path (I)
-               & "," & Posix_Tools.Command_Inventory.Documentation_Path (I)
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (I))
-               & "," & Posix_Tools.Command_Inventory.Posix_Status (I)
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (I))
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (I))
-               & "," & Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (I))
-               & Character'Val (10));
-         end loop;
-
-         return To_String (Inventory_Content);
-      end Render_Command_Inventory;
-
-      function Render_Command_Reference_Index return String is
-         Index_Content : Unbounded_String;
-         Root_Inserted : Boolean := False;
-      begin
-         Append (Index_Content, "# Command References" & Character'Val (10) & Character'Val (10));
-         Append (Index_Content, "V1 command references:" & Character'Val (10) & Character'Val (10));
-
-         for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            if not Root_Inserted
-              and then "posix-tools" < Posix_Tools.Command_Inventory.Executable (I)
-            then
-               Append (Index_Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
-               Root_Inserted := True;
-            end if;
-
-            Append
-              (Index_Content,
-               "- [" & Posix_Tools.Command_Inventory.Executable (I) & "]("
-               & Posix_Tools.Command_Inventory.Executable (I) & ".md)"
-               & Character'Val (10));
-         end loop;
-
-         if not Root_Inserted then
-            Append (Index_Content, "- [posix-tools](posix-tools.md)" & Character'Val (10));
-         end if;
-
-         return To_String (Index_Content);
-      end Render_Command_Reference_Index;
 
       procedure Generate_Command_Inventory is
       begin
          Project_Tools.Files.Write_Raw_File
            (Project_Tools.Files.Join (Base, "generated/command_inventory.csv"),
-            Render_Command_Inventory);
+            Command_Inventory_Csv);
       end Generate_Command_Inventory;
 
       procedure Generate_Manpage (Index : Positive) is
@@ -175,26 +106,14 @@ procedure Posix_Tools_Tests is
 
       Generate_Command_Inventory;
       Generate_Root_Manpage;
-      Append (Content, "# Generated Manual Index" & Character'Val (10) & Character'Val (10));
-      Append
-        (Content,
-         "Version: " & Posix_Tools.Version.Version_String
-         & Character'Val (10) & Character'Val (10));
-
       for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
          Generate_Manpage (I);
-         Append
-           (Content,
-            "- `" & Posix_Tools.Command_Inventory.Executable (I) & "`: "
-            & Posix_Tools.Command_Inventory.Documentation_Path (I)
-            & Character'Val (10));
       end loop;
-      Append (Content, Character'Val (10));
 
       Project_Tools.Files.Write_Raw_File
-        (Project_Tools.Files.Join (Base, "generated/manual-index.md"), To_String (Content));
+        (Project_Tools.Files.Join (Base, "generated/manual-index.md"), Manual_Index);
       Project_Tools.Files.Write_Raw_File
-        (Project_Tools.Files.Join (Base, "docs/commands/index.md"), Render_Command_Reference_Index);
+        (Project_Tools.Files.Join (Base, "docs/commands/index.md"), Command_Reference_Index);
       Ada.Text_IO.Put_Line ("docs/commands/index.md");
       Ada.Text_IO.Put_Line ("generated/command_inventory.csv");
       Ada.Text_IO.Put_Line ("generated/manual-index.md");
@@ -721,15 +640,6 @@ procedure Posix_Tools_Tests is
          end if;
       end Check_Regression_Row;
 
-      function Inventory_Boolean_Text (Value : Boolean) return String is
-      begin
-         if Value then
-            return "true";
-         else
-            return "false";
-         end if;
-      end Inventory_Boolean_Text;
-
       procedure Check_Inventory_Path (Executable : String; Path : String; Label : String) is
       begin
          if Path = "" then
@@ -788,24 +698,24 @@ procedure Posix_Tools_Tests is
            (Executable,
             "release flag",
             Field (Line, 7),
-            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (Index)));
+            Boolean_Text (Posix_Tools.Command_Inventory.Release_Included (Index)));
          Require_Inventory_Field
            (Executable, "POSIX status", Field (Line, 8), Posix_Tools.Command_Inventory.Posix_Status (Index));
          Require_Inventory_Field
            (Executable,
             "help flag",
             Field (Line, 9),
-            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (Index)));
+            Boolean_Text (Posix_Tools.Command_Inventory.Has_Help (Index)));
          Require_Inventory_Field
            (Executable,
             "version flag",
             Field (Line, 10),
-            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (Index)));
+            Boolean_Text (Posix_Tools.Command_Inventory.Has_Version (Index)));
          Require_Inventory_Field
            (Executable,
             "identity flag",
             Field (Line, 11),
-            Inventory_Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (Index)));
+            Boolean_Text (Posix_Tools.Command_Inventory.Has_Identity (Index)));
 
          Check_Inventory_Path (Executable, Field (Line, 4), "manifest path");
          Check_Inventory_Path (Executable, Field (Line, 5), "project file path");
