@@ -870,6 +870,10 @@ tools/explore/e2e/src/session_tests.adb
 tools/explore/e2e/src/session_tests.ads
 tools/explore/posix_tools_explore.gpr
 tools/explore/src/explore_main.adb
+tools/explore/src/library/explore-application-controller-programs.adb
+tools/explore/src/library/explore-application-controller-programs.ads
+tools/explore/src/library/explore-application-controller-prompts.adb
+tools/explore/src/library/explore-application-controller-prompts.ads
 tools/explore/src/library/explore-application-controller.adb
 tools/explore/src/library/explore-application-controller.ads
 tools/explore/src/library/explore-application-display.adb

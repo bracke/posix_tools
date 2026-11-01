@@ -65,6 +65,7 @@ package body Jobs_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:overlap", Test_Overlap'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:version", Test_Version'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:answer checked", Test_Answer_Checked'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("jobs:question policy", Test_Question_Policy'Access));
       return Result;
    end Suite;
 
@@ -232,6 +233,28 @@ package body Jobs_Tests is
          "an overlapping job runs after the one before it");
       Board.Shut_Down;
    end Test_Overlap;
+
+   procedure Test_Question_Policy (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Jobs.Question_Step;
+   begin
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => True, Answering => False) = Jobs.Ask_Now,
+         "asked while browsing");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => False, Answering => False) = Jobs.Hold,
+         "held while a prompt is typed");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => True, Can_Ask => False, Answering => True) = Jobs.Ask_Again,
+         "a question asked again replaces the one shown");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => False, Can_Ask => False, Answering => True) = Jobs.Take_Down,
+         "taken down once no job asks");
+      AUnit.Assertions.Assert
+        (Jobs.Question_Step_For (Asking => False, Can_Ask => True, Answering => False) = Jobs.Leave_Alone
+         and then Jobs.Question_Step_For (Asking => False, Can_Ask => False, Answering => False) = Jobs.Leave_Alone,
+         "nothing to do when nothing asks");
+   end Test_Question_Policy;
 
    procedure Test_Queue_Bound (T : in out Fixture) is
       pragma Unreferenced (T);

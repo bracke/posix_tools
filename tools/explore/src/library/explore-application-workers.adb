@@ -12,12 +12,21 @@ package body Explore.Application.Workers is
    package File_Watches renames Posix_Tools.Host_Adapters.File_Watches;
    package Model renames Explore.Model;
 
+   use type Explore.Jobs.Question_Step;
    use type Explore.Jobs.Snapshot;
    use type Explore.Jobs.Version_Number;
    use type Explore.Previews.Preview_Kind;
 
+   --  Ask, ask again, or take down the question of the job that asks in Now,
+   --  as Explore.Jobs.Question_Step_For says.
+   procedure Follow_Question (State : in out Session; Now : Explore.Jobs.Snapshot; Can_Ask : Boolean);
+
    --  The names of Item's entries, in their order.
    function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector;
+
+   --  Read again what the jobs changed, and say how the latest that ended
+   --  went.
+   procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot);
 
    function Busy (State : Session; Readers : in out Explore.Directory_Readers.Board) return Boolean is
      (Readers.Busy
@@ -39,6 +48,37 @@ package body Explore.Application.Workers is
       end loop;
    end Collect;
 
+   procedure Follow_Question (State : in out Session; Now : Explore.Jobs.Snapshot; Can_Ask : Boolean) is
+      Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
+      Step : constant Explore.Jobs.Question_Step :=
+        Explore.Jobs.Question_Step_For
+          (Asking => Lane > 0, Can_Ask => Can_Ask, Answering => State.Interaction.Mode = Answering);
+   begin
+      State.Workers.Question_Waiting := Step = Explore.Jobs.Hold;
+
+      case Step is
+         when Explore.Jobs.Ask_Now | Explore.Jobs.Ask_Again =>
+            declare
+               Question : constant String :=
+                 Explore.Words.Conflict_Question
+                   (Unbounded.To_String (State.Config.Locale),
+                    Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)));
+            begin
+               if Step = Explore.Jobs.Ask_Again then
+                  State.Frame.Question := Unbounded.To_Unbounded_String (Question);
+               else
+                  Ask (State, Answering, Question);
+               end if;
+
+               State.Workers.Asked_About := Now.Lanes (Lane).Conflict;
+            end;
+         when Explore.Jobs.Take_Down =>
+            Leave_Mode (State);
+         when Explore.Jobs.Leave_Alone | Explore.Jobs.Hold =>
+            null;
+      end case;
+   end Follow_Question;
+
    function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector is
    begin
       return Result : Explore.String_Vectors.Vector do
@@ -55,6 +95,33 @@ package body Explore.Application.Workers is
          State.Workers.Watching (Watched) := Unbounded.Null_Unbounded_String;
       end loop;
    end Release_Watches;
+
+   procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot) is
+      use type Explore.Jobs.Outcome;
+   begin
+      Model.Reload_All (State.Browser);
+
+      if Now.History.Is_Empty then
+         return;
+      end if;
+
+      declare
+         Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
+      begin
+         if Latest.Ended = Explore.Jobs.Failed then
+            Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
+
+            if Latest.Errors > 1 then
+               Warn
+                 (State,
+                  Explore.Words.Errors_With_First
+                    (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
+            end if;
+         else
+            Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));
+         end if;
+      end;
+   end Report_Ended;
 
    procedure Sync (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
       use type Unbounded.Unbounded_String;
@@ -115,7 +182,9 @@ package body Explore.Application.Workers is
    procedure Watch_Jobs (State : in out Session) is
       Version : constant Explore.Jobs.Version_Number := State.Workers.Operations.Version;
 
-      --  Whether a question can be asked now, rather than waiting.
+      --  Whether a question can be asked now, rather than waiting. The
+      --  filter, which is typed as the panes are browsed, does not keep it
+      --  waiting.
       Can_Ask : constant Boolean := State.Interaction.Mode in Browsing | Filtering | Viewing_Jobs;
       Overdue : constant Boolean := State.Workers.Question_Waiting and then Can_Ask;
    begin
@@ -128,9 +197,7 @@ package body Explore.Application.Workers is
       State.Workers.Job_Version := Version;
 
       declare
-         Now  : constant Explore.Jobs.Snapshot := State.Workers.Operations.Status;
-         Lane : constant Natural := Explore.Jobs.Asking_Lane (Now);
-         Mode : constant Interaction_Mode := State.Interaction.Mode;
+         Now : constant Explore.Jobs.Snapshot := State.Workers.Operations.Status;
       begin
          if Now = State.Workers.Last_Job and then not Overdue then
             return;
@@ -138,60 +205,12 @@ package body Explore.Application.Workers is
 
          State.Dirty := True;
          State.Frame.Job_Line := Unbounded.To_Unbounded_String (Explore.Words.Job_Line (State.Config.Words, Now));
+         Follow_Question (State, Now, Can_Ask);
 
-         --  A question waits until what is being typed or confirmed is done
-         --  with: the job it is about waits for its answer meanwhile. The
-         --  filter, which is typed as the panes are browsed, does not keep it
-         --  waiting.
-         State.Workers.Question_Waiting := Lane > 0 and then not Can_Ask and then Mode /= Answering;
-
-         if Lane > 0 and then (Can_Ask or else Mode = Answering) then
-            declare
-               Question : constant String :=
-                 Explore.Words.Conflict_Question
-                   (Unbounded.To_String (State.Config.Locale),
-                    Explore.Paths.Name_Of (Unbounded.To_String (Now.Lanes (Lane).Conflict)));
-            begin
-               --  Already answering: the job was answered and has asked again
-               --  before the last question was taken down, so the new one
-               --  takes its place.
-               if Mode = Answering then
-                  State.Frame.Question := Unbounded.To_Unbounded_String (Question);
-               else
-                  Ask (State, Answering, Question);
-               end if;
-
-               State.Workers.Asked_About := Now.Lanes (Lane).Conflict;
-            end;
-         elsif Lane = 0 and then Mode = Answering then
-            Leave_Mode (State);
-         end if;
-
+         --  Whatever the jobs changed is read again, and the latest one to
+         --  end says how it went.
          if Now.Completed /= State.Workers.Last_Job.Completed then
-            --  Whatever the jobs changed is read again, and the latest one to
-            --  end says how it went.
-            Model.Reload_All (State.Browser);
-
-            if not Now.History.Is_Empty then
-               declare
-                  use type Explore.Jobs.Outcome;
-
-                  Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
-               begin
-                  if Latest.Ended = Explore.Jobs.Failed then
-                     Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
-
-                     if Latest.Errors > 1 then
-                        Warn
-                          (State,
-                           Explore.Words.Errors_With_First
-                             (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
-                     end if;
-                  else
-                     Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));
-                  end if;
-               end;
-            end if;
+            Report_Ended (State, Now);
          end if;
 
          if State.Interaction.Mode = Viewing_Jobs then

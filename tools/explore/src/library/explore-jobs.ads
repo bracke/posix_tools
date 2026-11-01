@@ -96,6 +96,25 @@ package Explore.Jobs is
    --  The lane whose job waits for an answer; zero when none does.
    function Asking_Lane (Item : Snapshot) return Natural;
 
+   --  What the screen does about the jobs' questions.
+   type Question_Step is
+     (Leave_Alone,  --  Nothing asks, and nothing is being answered.
+      Ask_Now,      --  Ask the question.
+      --  Already answering: a job answered has asked again, and its new
+      --  question takes the place of the one shown.
+      Ask_Again,
+      --  Wait until what is typed or confirmed is done with; the job waits
+      --  for its answer meanwhile.
+      Hold,
+      Take_Down);   --  No job asks any more: stop answering.
+
+   --  The step when a job is Asking, with the screen in a mode that can ask
+   --  a question (Can_Ask), or already Answering one.
+   function Question_Step_For (Asking, Can_Ask, Answering : Boolean) return Question_Step is
+     (if Asking then (if Answering then Ask_Again elsif Can_Ask then Ask_Now else Hold)
+      elsif Answering then Take_Down
+      else Leave_Alone);
+
    --  Counts the changes to what Status shows, so that the screen can tell
    --  that nothing changed without taking a snapshot. It goes round.
    type Version_Number is mod 2 ** 32;
