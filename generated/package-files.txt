@@ -696,6 +696,8 @@ tests/src/proof_targets.adb
 tests/src/proof_targets.ads
 tests/src/selector_smoke.adb
 tests/src/selector_smoke.ads
+tests/src/suite_filters.adb
+tests/src/suite_filters.ads
 tests/src/test_contexts.adb
 tests/src/test_contexts.ads
 tests/src/tooling_checks.adb

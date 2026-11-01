@@ -7,7 +7,6 @@ with All_Suites;
 with AUnit.Options;
 with AUnit.Reporter.Text;
 with AUnit.Run;
-with AUnit.Test_Filters;
 with AUnit;
 with Build_Checks;
 with Conformance_Checks;
@@ -32,6 +31,7 @@ with Project_Tools.Release_Checks;
 with Tooling_Checks;
 with Proof_Targets;
 with Selector_Smoke;
+with Suite_Filters;
 with Tooling_Steps;
 with Tooling_Support;
 
@@ -48,7 +48,7 @@ procedure Posix_Tools_Tests is
       Test_Case_Timer  => False,
       Report_Successes => True,
       Filter           => null);
-   Name_Filter : aliased AUnit.Test_Filters.Name_Filter;
+   Filter : aliased Suite_Filters.Filter;
 
    Command : constant String :=
      (if Ada.Command_Line.Argument_Count = 0 then "test" else Ada.Command_Line.Argument (1));
@@ -411,69 +411,77 @@ procedure Posix_Tools_Tests is
       Ada.Text_IO.Put_Line ("staged verification checks passed");
    end Run_Staged_Verification;
 
-   function Suite_Filter (Name : String) return String is
+   --  Point Filter at the tests --suite Name selects: a test group by its
+   --  prefix, or one command's tests by its whole name, so that tr does
+   --  not also select true.
+   procedure Select_Suite (Name : String) is
    begin
       if Name = "basic" or else Name = "common" then
-         return "basic:";
+         Suite_Filters.Set (Filter, "basic:", Whole_Name => False);
       elsif Name = "streams" then
-         return "streams:";
+         Suite_Filters.Set (Filter, "streams:", Whole_Name => False);
       elsif Name = "regression" then
-         return "regression:";
+         Suite_Filters.Set (Filter, "regression:", Whole_Name => False);
       elsif Name = "locale" then
-         return "locale:";
+         Suite_Filters.Set (Filter, "locale:", Whole_Name => False);
       elsif Name = "presentation" then
-         return "presentation:";
+         Suite_Filters.Set (Filter, "presentation:", Whole_Name => False);
+      elsif Name = "property" then
+         Suite_Filters.Set (Filter, "property:", Whole_Name => False);
       elsif Name = "command" or else Name = "commands" then
-         return "command:";
+         Suite_Filters.Set (Filter, "command:", Whole_Name => False);
       elsif Name = "root" or else Name = "posix-tools" then
-         return "command:root";
+         Suite_Filters.Set (Filter, "command:root", Whole_Name => True);
       elsif Posix_Tools.Command_Inventory.Contains_Executable (Name) then
-         return "command:" & Name;
+         Suite_Filters.Set (Filter, "command:" & Name, Whole_Name => True);
       else
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "posix_tools_tests: suite '" & Name & "' has no registered AUnit tests yet");
          raise Invalid_Usage;
       end if;
-   end Suite_Filter;
+   end Select_Suite;
 
-   function Test_Filter_Text return String is
-      use Ada.Strings.Unbounded;
-      Filter_Text : Unbounded_String;
-      I           : Positive := 2;
+   procedure Select_Category (Name : String) is
+   begin
+      if Name = "unit" then
+         Suite_Filters.Set (Filter, "", Whole_Name => False);
+      elsif Name = "integration" then
+         Suite_Filters.Set (Filter, "command:root", Whole_Name => True);
+      elsif Name = "conformance" then
+         Suite_Filters.Set (Filter, "basic:command inventory", Whole_Name => False);
+      elsif Name = "regression" then
+         Suite_Filters.Set (Filter, "regression:", Whole_Name => False);
+      elsif Name = "locale" then
+         Suite_Filters.Set (Filter, "locale:", Whole_Name => False);
+      elsif Name = "presentation" then
+         Suite_Filters.Set (Filter, "presentation:", Whole_Name => False);
+      else
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "posix_tools_tests: category '" & Name & "' has no registered AUnit tests yet");
+         raise Invalid_Usage;
+      end if;
+   end Select_Category;
+
+   --  Apply the test command's selectors, the last one winning.
+   procedure Select_Tests is
+      I : Positive := 2;
    begin
       if Command /= "test" then
-         return "";
+         return;
       end if;
 
       while I <= Ada.Command_Line.Argument_Count loop
          if Ada.Command_Line.Argument (I) = "--suite"
            and then I < Ada.Command_Line.Argument_Count
          then
-            Filter_Text := To_Unbounded_String (Suite_Filter (Ada.Command_Line.Argument (I + 1)));
+            Select_Suite (Ada.Command_Line.Argument (I + 1));
             I := I + 2;
          elsif Ada.Command_Line.Argument (I) = "--category"
            and then I < Ada.Command_Line.Argument_Count
          then
-            if Ada.Command_Line.Argument (I + 1) = "unit" then
-               Filter_Text := Null_Unbounded_String;
-            elsif Ada.Command_Line.Argument (I + 1) = "integration" then
-               Filter_Text := To_Unbounded_String ("command:root");
-            elsif Ada.Command_Line.Argument (I + 1) = "conformance" then
-               Filter_Text := To_Unbounded_String ("basic:command inventory");
-            elsif Ada.Command_Line.Argument (I + 1) = "regression" then
-               Filter_Text := To_Unbounded_String ("regression:");
-            elsif Ada.Command_Line.Argument (I + 1) = "locale" then
-               Filter_Text := To_Unbounded_String ("locale:");
-            elsif Ada.Command_Line.Argument (I + 1) = "presentation" then
-               Filter_Text := To_Unbounded_String ("presentation:");
-            else
-               Ada.Text_IO.Put_Line
-                 (Ada.Text_IO.Standard_Error,
-                  "posix_tools_tests: category '" & Ada.Command_Line.Argument (I + 1)
-                  & "' has no registered AUnit tests yet");
-               raise Invalid_Usage;
-            end if;
+            Select_Category (Ada.Command_Line.Argument (I + 1));
             I := I + 2;
          else
             Ada.Text_IO.Put_Line
@@ -482,20 +490,13 @@ procedure Posix_Tools_Tests is
             raise Invalid_Usage;
          end if;
       end loop;
-
-      return To_String (Filter_Text);
-   end Test_Filter_Text;
+   end Select_Tests;
 
    procedure Run_Tests is
       use type AUnit.Status;
-      Filter_Text : constant String := Test_Filter_Text;
    begin
-      if Filter_Text /= "" then
-         AUnit.Test_Filters.Set_Name (Name_Filter, Filter_Text);
-         Options.Filter := Name_Filter'Unchecked_Access;
-      else
-         Options.Filter := null;
-      end if;
+      Select_Tests;
+      Options.Filter := Filter'Unchecked_Access;
 
       if Runner (Reporter, Options) /= AUnit.Success then
          Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);

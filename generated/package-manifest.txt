@@ -692,11 +692,13 @@ tests/src/operation_tests.adb bytes= 20277 fnv1a64=1447bd664b23da2b
 tests/src/operation_tests.ads bytes= 751 fnv1a64=38c2f1cc8776cc47
 tests/src/package_entries.adb bytes= 3705 fnv1a64=47dd79e0fed0c15f
 tests/src/package_entries.ads bytes= 956 fnv1a64=de11d7076b110865
-tests/src/posix_tools_tests.adb bytes= 21739 fnv1a64=ffb03ad0a032eb3a
+tests/src/posix_tools_tests.adb bytes= 21899 fnv1a64=39dc3ce314840cd4
 tests/src/proof_targets.adb bytes= 5955 fnv1a64=03739b5391e5f537
 tests/src/proof_targets.ads bytes= 223 fnv1a64=475067eec08dea3a
-tests/src/selector_smoke.adb bytes= 7776 fnv1a64=db26c5a4d9f3c721
-tests/src/selector_smoke.ads bytes= 126 fnv1a64=d665278d5642f0a9
+tests/src/selector_smoke.adb bytes= 5753 fnv1a64=3edfbcc94140550a
+tests/src/selector_smoke.ads bytes= 226 fnv1a64=acbe0f694736ce0e
+tests/src/suite_filters.adb bytes= 1260 fnv1a64=6e6d2b317b1e35b6
+tests/src/suite_filters.ads bytes= 1181 fnv1a64=becf5473cf57c361
 tests/src/test_contexts.adb bytes= 29098 fnv1a64=cc087ef14aacba7e
 tests/src/test_contexts.ads bytes= 10452 fnv1a64=3d1ad5c9bae26c1d
 tests/src/tooling_checks.adb bytes= 2217 fnv1a64=c41126b995a1d077
@@ -1231,4 +1233,4 @@ tools/xargs/src/xargs.adb bytes= 234 fnv1a64=5bacba927e1d5d45
 tools/yes/alire.toml bytes= 407 fnv1a64=db058e6bb3b97ff8
 tools/yes/posix_tools_yes.gpr bytes= 343 fnv1a64=6b7f3ad8fcd0c4f9
 tools/yes/src/yes.adb bytes= 224 fnv1a64=966fcf1cba1a2def
-generated/package-files.txt bytes= 46356 fnv1a64=4475739e0a9d1c31
+generated/package-files.txt bytes= 46412 fnv1a64=954ab05203559d4c
