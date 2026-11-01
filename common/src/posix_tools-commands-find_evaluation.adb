@@ -1,6 +1,7 @@
 with Ada.Containers;
 with Posix_Tools.Commands.Find_Evaluation.Actions;
 with Posix_Tools.Commands.Find_Evaluation.Predicates;
+with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.Path_Separators;
 with Posix_Tools.Paths;
 with Posix_Tools.Text.File_Modes;
@@ -155,7 +156,7 @@ package body Posix_Tools.Commands.Find_Evaluation is
             Index := Index + 2;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.Mtime_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), Valid);
+                (Path, Is_Link, State.Expression.Element (Index - 1), State.Started, Valid);
          elsif Token = "-newer" then
             Index := Index + 2;
             return Active
@@ -299,6 +300,7 @@ package body Posix_Tools.Commands.Find_Evaluation is
          else Batch_Argument_Bytes - Environment_Size);
       State.Depth := (for some Token of Expression => Token = "-depth");
       State.Xdev := (for some Token of Expression => Token = "-xdev");
+      State.Started := Posix_Tools.Host_Adapters.Clock.Now;
    end Initialize;
 
    --  -path patterns name directories with '/', as POSIX writes them; a host

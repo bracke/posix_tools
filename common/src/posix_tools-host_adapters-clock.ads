@@ -10,5 +10,9 @@ package Posix_Tools.Host_Adapters.Clock is
       Zone_Name : out Ada.Strings.Unbounded.Unbounded_String)
       return Boolean;
 
+   --  The time now. A command reads it once and works from that value, so
+   --  that everything it does in one run is relative to the same instant.
+   function Now return Ada.Calendar.Time;
+
    function Set_System_Time (Time : Ada.Calendar.Time) return Boolean;
 end Posix_Tools.Host_Adapters.Clock;

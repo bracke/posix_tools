@@ -1,3 +1,4 @@
+with Ada.Calendar;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
@@ -90,5 +91,7 @@ private
       Batch_Failed : Boolean := False;
       Depth        : Boolean := False;
       Xdev         : Boolean := False;
+      --  When find began: -mtime ages are counted back from it.
+      Started      : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
    end record;
 end Posix_Tools.Commands.Find_Evaluation;

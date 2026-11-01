@@ -1,6 +1,8 @@
 with Hostkit.Clock;
 
 package body Posix_Tools.Host_Adapters.Clock is
+   function Now return Ada.Calendar.Time is (Ada.Calendar.Clock);
+
    function Resolve_Time_Zone
      (Name : String;
       Time : Ada.Calendar.Time;

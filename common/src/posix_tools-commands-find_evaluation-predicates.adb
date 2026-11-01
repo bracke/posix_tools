@@ -207,6 +207,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
      (Path  : String;
       Own   : Boolean;
       Text  : String;
+      Now   : Ada.Calendar.Time;
       Valid : in out Boolean) return Boolean
    is
       Seconds_Per_Day : constant Duration := 86_400.0;
@@ -232,7 +233,6 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
       end if;
 
       declare
-         Now : constant Ada.Calendar.Time := Ada.Calendar.Clock;
          Path_Time : Ada.Calendar.Time;
          Ok  : Boolean := True;
       begin

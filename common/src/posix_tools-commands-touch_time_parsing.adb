@@ -1,4 +1,3 @@
-with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
@@ -25,7 +24,10 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
       High   : Natural;
       Result : out Natural) return Boolean;
    function Lowered (Value : String) return String;
-   function Parse_Free_Form_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean;
+   function Parse_Free_Form_Date_Time
+     (Text   : String;
+      Now    : Ada.Calendar.Time;
+      Parsed : out FS.File_Time) return Boolean;
    function Parse_ISO_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean;
    function Parse_Month_Name_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean;
    function Parse_Normalized_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean;
@@ -34,7 +36,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
       First   : Positive;
       Minutes : out Integer) return Boolean;
    function Parse_Time (Value : String; Hour, Minute, Second : out Natural) return Boolean;
-   function Today_At (Seconds : Duration) return Ada.Calendar.Time;
+   function Today_At (Now : Ada.Calendar.Time; Seconds : Duration) return Ada.Calendar.Time;
    procedure Tokenize (Text : String; Tokens : in out String_Vectors.Vector);
    function Touch_Four_Digits (Text : String; First : Positive) return Natural;
    function Touch_Two_Digits (Text : String; First : Positive) return Natural;
@@ -99,16 +101,24 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
       return Result;
    end Lowered;
 
-   function Parse_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean is
+   function Parse_Date_Time
+     (Text   : String;
+      Now    : Ada.Calendar.Time;
+      Parsed : out FS.File_Time) return Boolean
+   is
    begin
-      return Parse_Explicit_Time (Text, Parsed)
+      return Parse_Explicit_Time (Text, Now, Parsed)
         or else Parse_ISO_Date_Time (Text, Parsed)
         or else Parse_Normalized_Date_Time (Text, Parsed)
         or else Parse_Month_Name_Date_Time (Text, Parsed)
-        or else Parse_Free_Form_Date_Time (Text, Parsed);
+        or else Parse_Free_Form_Date_Time (Text, Now, Parsed);
    end Parse_Date_Time;
 
-   function Parse_Explicit_Time (Text : String; Parsed : out FS.File_Time) return Boolean is
+   function Parse_Explicit_Time
+     (Text   : String;
+      Now    : Ada.Calendar.Time;
+      Parsed : out FS.File_Time) return Boolean
+   is
       Dot : Natural := 0;
    begin
       Parsed := FS.Current_File_Time;
@@ -140,7 +150,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
          end if;
 
          if Main'Length = 8 then
-            Year := Natural (Ada.Calendar.Year (Ada.Calendar.Clock));
+            Year := Natural (Ada.Calendar.Year (Now));
          elsif Main'Length = 10 then
             YY := Touch_Two_Digits (Main, Main'First);
             Year := (if YY <= 68 then 2000 else 1900) + YY;
@@ -159,7 +169,10 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
          return False;
    end Parse_Explicit_Time;
 
-   function Parse_Free_Form_Date_Time (Text : String; Parsed : out FS.File_Time) return Boolean is
+   function Parse_Free_Form_Date_Time
+     (Text   : String;
+      Now    : Ada.Calendar.Time;
+      Parsed : out FS.File_Time) return Boolean is
       Tokens : String_Vectors.Vector;
    begin
       Parsed := FS.Current_File_Time;
@@ -182,22 +195,22 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
                Parsed := FS.Current_File_Time;
                return True;
             elsif First = "today" then
-               return Calendar_To_File_Time (Today_At (0.0), Parsed);
+               return Calendar_To_File_Time (Today_At (Now, 0.0), Parsed);
             elsif First = "yesterday" then
-               return Calendar_To_File_Time (Today_At (0.0) - 86_400.0, Parsed);
+               return Calendar_To_File_Time (Today_At (Now, 0.0) - 86_400.0, Parsed);
             elsif First = "tomorrow" then
-               return Calendar_To_File_Time (Today_At (0.0) + 86_400.0, Parsed);
+               return Calendar_To_File_Time (Today_At (Now, 0.0) + 86_400.0, Parsed);
             elsif First = "noon" then
-               return Calendar_To_File_Time (Today_At (12.0 * 3_600.0), Parsed);
+               return Calendar_To_File_Time (Today_At (Now, 12.0 * 3_600.0), Parsed);
             elsif First = "midnight" then
-               return Calendar_To_File_Time (Today_At (0.0), Parsed);
+               return Calendar_To_File_Time (Today_At (Now, 0.0), Parsed);
             end if;
          elsif Tokens.Length = 2 and then Direction /= 0 then
             declare
                Target : constant Natural :=
                  Posix_Tools.Text.Touch_Fields.Weekday_Number (Tokens.Element (2));
                Now_Day : constant Natural :=
-                 (case Ada.Calendar.Formatting.Day_Of_Week (Ada.Calendar.Clock) is
+                 (case Ada.Calendar.Formatting.Day_Of_Week (Now) is
                     when Ada.Calendar.Formatting.Monday => 1,
                     when Ada.Calendar.Formatting.Tuesday => 2,
                     when Ada.Calendar.Formatting.Wednesday => 3,
@@ -219,7 +232,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
                end if;
 
                return Calendar_To_File_Time
-                 (Today_At (0.0) + Duration (Day_Offset * 86_400), Parsed);
+                 (Today_At (Now, 0.0) + Duration (Day_Offset * 86_400), Parsed);
             end;
          elsif Tokens.Length = 2
            and then First'Length >= 2
@@ -238,7 +251,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
                end if;
 
                return Calendar_To_File_Time
-                 (Ada.Calendar.Clock + Duration (Sign * Long_Long_Integer (Count) * Unit),
+                 (Now + Duration (Sign * Long_Long_Integer (Count) * Unit),
                   Parsed);
             end;
          elsif Tokens.Length = 3
@@ -254,7 +267,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
                end if;
 
                return Calendar_To_File_Time
-                 (Ada.Calendar.Clock - Duration (Long_Long_Integer (Count) * Unit), Parsed);
+                 (Now - Duration (Long_Long_Integer (Count) * Unit), Parsed);
             end;
          end if;
       end;
@@ -456,8 +469,7 @@ package body Posix_Tools.Commands.Touch_Time_Parsing is
       end if;
    end Parse_Time;
 
-   function Today_At (Seconds : Duration) return Ada.Calendar.Time is
-      Now : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+   function Today_At (Now : Ada.Calendar.Time; Seconds : Duration) return Ada.Calendar.Time is
       Year : Ada.Calendar.Year_Number;
       Month : Ada.Calendar.Month_Number;
       Day : Ada.Calendar.Day_Number;

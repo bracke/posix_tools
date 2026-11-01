@@ -6,6 +6,7 @@ with Posix_Tools.Commands.Date_Parsing;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Text.Date_Formats;
 
 package body Posix_Tools.Commands.Date is
@@ -16,7 +17,7 @@ package body Posix_Tools.Commands.Date is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      Now : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+      Now : constant Ada.Calendar.Time := Posix_Tools.Host_Adapters.Clock.Now;
       Time_Zone_Offset : Ada.Calendar.Time_Zones.Time_Offset :=
         Ada.Calendar.Time_Zones.UTC_Time_Offset (Now);
       Time_Zone_Name : Unbounded_String;

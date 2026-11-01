@@ -1,8 +1,10 @@
+with Ada.Calendar;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Touch_Time_Parsing;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Touch is
@@ -15,6 +17,8 @@ package body Posix_Tools.Commands.Touch is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      --  The time touch runs at, read once: what -d and -t are relative to.
+      Now : constant Ada.Calendar.Time := Posix_Tools.Host_Adapters.Clock.Now;
       Ok : Boolean := True;
       Written : Boolean;
       Create_Missing : Boolean := True;
@@ -51,7 +55,7 @@ package body Posix_Tools.Commands.Touch is
 
       procedure Select_Explicit_Time (Timestamp : String; Selected : out Boolean) is
       begin
-         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Explicit_Time (Timestamp, Target_Time) then
+         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Explicit_Time (Timestamp, Now, Target_Time) then
             Have_Target_Time := True;
             Selected := True;
          else
@@ -61,7 +65,7 @@ package body Posix_Tools.Commands.Touch is
 
       procedure Select_Date_Time (Timestamp : String; Selected : out Boolean) is
       begin
-         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Date_Time (Timestamp, Target_Time) then
+         if Posix_Tools.Commands.Touch_Time_Parsing.Parse_Date_Time (Timestamp, Now, Target_Time) then
             Have_Target_Time := True;
             Selected := True;
          else

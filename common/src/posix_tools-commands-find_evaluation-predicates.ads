@@ -25,10 +25,12 @@ private package Posix_Tools.Commands.Find_Evaluation.Predicates is
       Text  : String;
       Valid : in out Boolean) return Boolean;
 
+   --  Whether Path was last modified as long before Now as -mtime Text asks.
    function Mtime_Matches
      (Path  : String;
       Own   : Boolean;
       Text  : String;
+      Now   : Ada.Calendar.Time;
       Valid : in out Boolean) return Boolean;
 
    function Newer_Matches
