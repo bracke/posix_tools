@@ -1,3 +1,4 @@
+with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Posix_Tools.Command_Inventory;
@@ -15,6 +16,46 @@ package body Tooling_Support is
          return "..";
       end if;
    end Root;
+
+   function Built_Path (Base_Path : String) return String is
+   begin
+      if Project_Tools.Files.File_Exists (Base_Path) then
+         return Ada.Directories.Full_Name (Base_Path);
+      elsif Project_Tools.Files.File_Exists (Base_Path & ".exe") then
+         return Ada.Directories.Full_Name (Base_Path & ".exe");
+      else
+         return Base_Path;
+      end if;
+   end Built_Path;
+
+   function Built_Command_Path (Executable : String) return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "tools/" & Executable & "/bin/" & Executable)));
+
+   function Built_Root_Path return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "bin/posix-tools")));
+
+   function Built_Test_Runner_Path return String is
+     (Built_Path (Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests")));
+
+   function Display_Output (Text : String) return String is
+      use Ada.Strings.Unbounded;
+      Result : Unbounded_String;
+   begin
+      for Ch of Text loop
+         case Ch is
+            when Character'Val (10) =>
+               Append (Result, "\n");
+            when Character'Val (13) =>
+               Append (Result, "\r");
+            when Character'Val (9) =>
+               Append (Result, "\t");
+            when others =>
+               Append (Result, Ch);
+         end case;
+      end loop;
+
+      return To_String (Result);
+   end Display_Output;
 
    function Boolean_Text (Value : Boolean) return String is
      (if Value then "true" else "false");

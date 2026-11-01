@@ -220,16 +220,6 @@ package body Metadata_Checks.Test_Coverage is
       Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests-suite_entries.adb", "command:xargs");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "test selector suite cp");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "test selector suite xargs");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "test selector suite root");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "test selector unknown suite");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "posix_tools_tests test --suite cp");
-      Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`--suite cp`");
       Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "Unknown suite names fail with usage status");

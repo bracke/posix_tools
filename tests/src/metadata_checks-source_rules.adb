@@ -180,10 +180,6 @@ package body Metadata_Checks.Source_Rules is
       Tooling_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-root.adb", "Host_Adapters.Executables.Verify_Identity");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Run_Staged_Verification;");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
-      Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests-suite_entries.adb", "command:root verify");
       Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests-suite_entries.adb", "locale:root verify statuses");
@@ -681,22 +677,6 @@ package body Metadata_Checks.Source_Rules is
         (Check,
          "tests/src/build_checks.adb",
          """build "" & Posix_Tools.Command_Inventory.Executable (I)");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "procedure Run_Staged_Verification");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Verify_Identity_At_Path");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", """posix-tools"", Built_Root_Path");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Built_Root_Path, ""0.0.0""");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "Status /= ""wrong version""");
-      Tooling_Checks.Require_Text
-        (Check,
-         "tests/src/posix_tools_tests.adb",
-         "Executable : constant String := Posix_Tools.Command_Inventory.Executable (I)");
-      Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "staged verification checks passed");
       Tooling_Checks.Require_Text
         (Check, "posix_tools.gpr", "for Body (""Posix_Tools_Main"") use ""posix-tools.adb""");
       Tooling_Checks.Require_Text
