@@ -1,4 +1,8 @@
+with Posix_Tools.Host_Adapters.File_System;
+
 package body Posix_Tools.File_Operations is
+   package FS renames Posix_Tools.Host_Adapters.File_System;
+
    function Cancelled (Self : in out Observer) return Boolean is
       pragma Unreferenced (Self);
    begin
@@ -42,6 +46,25 @@ package body Posix_Tools.File_Operations is
             return "file system loop detected";
       end case;
    end Default_Message;
+
+   function Is_Empty_Directory (Path : String) return Boolean is
+      Empty  : Boolean := True;
+      Listed : Boolean;
+
+      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
+
+      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
+         pragma Unreferenced (Name, Kind);
+      begin
+         Empty := False;
+         Stop := True;
+      end Note;
+
+      procedure Each is new FS.For_Each_Listed_Entry (Note);
+   begin
+      Each (Path, Listed);
+      return Listed and then Empty;
+   end Is_Empty_Directory;
 
    function Message_Key (Error : Operation_Error) return String is
    begin

@@ -78,6 +78,9 @@ package Posix_Tools.File_Operations is
    function Confirm_Removal (Self : in out Observer; Path : String; Question : Removal_Question) return Boolean;
 
 private
+   --  Whether the directory Path could be read and holds no entries.
+   function Is_Empty_Directory (Path : String) return Boolean;
+
    --  How a whole tree ended so far as Whole, given that one of its entries
    --  ended as Part: a failure anywhere fails it, a stop anywhere else stops
    --  it, and a skipped entry leaves it as it was.

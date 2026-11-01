@@ -5,28 +5,6 @@ package body Posix_Tools.File_Operations.Removing is
 
    use type FS.File_Kind;
 
-   --  Whether the directory Path could be read and holds no entries.
-   function Is_Empty_Directory (Path : String) return Boolean;
-
-   function Is_Empty_Directory (Path : String) return Boolean is
-      Empty  : Boolean := True;
-      Listed : Boolean;
-
-      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
-
-      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
-         pragma Unreferenced (Name, Kind);
-      begin
-         Empty := False;
-         Stop := True;
-      end Note;
-
-      procedure Each is new FS.For_Each_Listed_Entry (Note);
-   begin
-      Each (Path, Listed);
-      return Listed and then Empty;
-   end Is_Empty_Directory;
-
    procedure Remove_Path
      (Path    : String;
       Options : Remove_Options;

@@ -28,9 +28,6 @@ package body Posix_Tools.File_Operations.Moving is
    function Is_Directory (Path : String) return Boolean is
      (not FS.Is_Link (Path) and then FS.Kind (Path) = FS.Directory);
 
-   --  Whether the directory Path holds no entries.
-   function Is_Empty_Directory (Path : String) return Boolean;
-
    function Is_Present (Path : String) return Boolean is (FS.Exists (Path) or else FS.Is_Link (Path));
 
    --  Why the host would not move Source to Target, as near as can be told.
@@ -45,25 +42,6 @@ package body Posix_Tools.File_Operations.Moving is
       --  reports its source once it is done.
       null;
    end Finished;
-
-   function Is_Empty_Directory (Path : String) return Boolean is
-      Empty  : Boolean := True;
-      Listed : Boolean;
-
-      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
-
-      procedure Note (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
-         pragma Unreferenced (Name, Kind);
-      begin
-         Empty := False;
-         Stop := True;
-      end Note;
-
-      procedure Each is new FS.For_Each_Listed_Entry (Note);
-   begin
-      Each (Path, Listed);
-      return Listed and then Empty;
-   end Is_Empty_Directory;
 
    procedure Move_By_Copying
      (Source  : String;
