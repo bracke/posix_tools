@@ -1,5 +1,4 @@
 with Ada.Calendar;
-with Ada.Calendar.Formatting;
 with Ada.Calendar.Time_Zones;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Date_Parsing;
@@ -17,17 +16,49 @@ package body Posix_Tools.Commands.Date is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      --  POSIX's default output format.
+      Default_Format : constant String := "%a %b %e %H:%M:%S %Z %Y";
+
       Now : constant Ada.Calendar.Time := Posix_Tools.Host_Adapters.Clock.Now;
-      Time_Zone_Offset : Ada.Calendar.Time_Zones.Time_Offset :=
-        Ada.Calendar.Time_Zones.UTC_Time_Offset (Now);
+      Time_Zone_Offset : Ada.Calendar.Time_Zones.Time_Offset;
       Time_Zone_Name : Unbounded_String;
       Has_Format : Boolean := False;
       Format_Arg : Unbounded_String;
       Has_Set_Time : Boolean := False;
+      Set_Text : Unbounded_String;
       Set_Time : Ada.Calendar.Time := Now;
       TZ_Text : constant String := Context.Environment_Value ("TZ");
       Force_UTC : Boolean := False;
       End_Options : Boolean := False;
+
+      --  The zone's offset and name at Time: UTC with -u, else TZ's zone,
+      --  else the host's local zone.
+      procedure Zone_At (Time : Ada.Calendar.Time);
+
+      procedure Zone_At (Time : Ada.Calendar.Time) is
+         Parsed_Offset : Ada.Calendar.Time_Zones.Time_Offset;
+         Parsed_Name : Unbounded_String;
+      begin
+         if Force_UTC then
+            Time_Zone_Offset := 0;
+            Time_Zone_Name := To_Unbounded_String ("UTC");
+            return;
+         end if;
+         Time_Zone_Offset := Posix_Tools.Host_Adapters.Clock.Local_Offset (Time);
+         Time_Zone_Name := Null_Unbounded_String;
+         if TZ_Text /= ""
+           and then Posix_Tools.Commands.Date_Parsing.Resolve_Time_Zone
+             (TZ_Text, Time, Context.Category_Locale (Posix_Tools.Commands.Contexts.Time),
+              Parsed_Offset, Parsed_Name)
+         then
+            Time_Zone_Offset := Parsed_Offset;
+            Time_Zone_Name := Parsed_Name;
+         end if;
+      end Zone_At;
+
+      function Parse_Set_Time (Offset : Ada.Calendar.Time_Zones.Time_Offset) return Boolean is
+        (Posix_Tools.Commands.Date_Parsing.Parse_Set_Date_Time
+           (To_String (Set_Text), Ada.Calendar.Year (Now), Offset, Set_Time));
 
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -38,8 +69,6 @@ package body Posix_Tools.Commands.Date is
          if not End_Options and then Context.Argument (I) = "--" then
             End_Options := True;
          elsif not End_Options and then Context.Argument (I) = "-u" then
-            Time_Zone_Offset := 0;
-            Time_Zone_Name := To_Unbounded_String ("UTC");
             Force_UTC := True;
          elsif Context.Argument (I)'Length > 0
            and then Context.Argument (I) (Context.Argument (I)'First) = '+'
@@ -50,37 +79,29 @@ package body Posix_Tools.Commands.Date is
               (Context.Argument (I) (Context.Argument (I)'First + 1 .. Context.Argument (I)'Last));
             Has_Format := True;
          elsif not Has_Format and then not Has_Set_Time then
-            if Posix_Tools.Commands.Date_Parsing.Parse_Set_Date_Time
-              (Context.Argument (I),
-               Ada.Calendar.Year (Now),
-               Time_Zone_Offset,
-               Set_Time)
-            then
-               Has_Set_Time := True;
-            else
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I));
-               return;
-            end if;
+            Set_Text := To_Unbounded_String (Context.Argument (I));
+            Has_Set_Time := True;
          else
             Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (I));
             return;
          end if;
       end loop;
 
-      if TZ_Text /= "" and then not Force_UTC then
+      Zone_At (Now);
+      if Has_Set_Time then
+         --  The time to set is in the zone's offset at that time, which
+         --  may differ from now's across a daylight saving change.
+         if not Parse_Set_Time (Time_Zone_Offset) then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, To_String (Set_Text));
+            return;
+         end if;
          declare
-            Parsed_Offset : Ada.Calendar.Time_Zones.Time_Offset;
-            Parsed_Name : Unbounded_String;
+            use type Ada.Calendar.Time_Zones.Time_Offset;
+            First_Offset : constant Ada.Calendar.Time_Zones.Time_Offset := Time_Zone_Offset;
          begin
-            if Posix_Tools.Commands.Date_Parsing.Resolve_Time_Zone
-              (TZ_Text,
-               (if Has_Set_Time then Set_Time else Now),
-               Context.Category_Locale (Posix_Tools.Commands.Contexts.Time),
-               Parsed_Offset,
-               Parsed_Name)
-            then
-               Time_Zone_Offset := Parsed_Offset;
-               Time_Zone_Name := Parsed_Name;
+            Zone_At (Set_Time);
+            if Time_Zone_Offset /= First_Offset and then Parse_Set_Time (Time_Zone_Offset) then
+               Zone_At (Set_Time);
             end if;
          end;
       end if;
@@ -92,20 +113,13 @@ package body Posix_Tools.Commands.Date is
          return;
       end if;
 
-      if Has_Format then
-         Context.Put_Line
-           (Posix_Tools.Text.Date_Formats.Format_Date
-              (To_String (Format_Arg),
-               (if Has_Set_Time then Set_Time else Now),
-               Time_Zone_Offset,
-               To_String (Time_Zone_Name),
-               Context.Category_Locale (Posix_Tools.Commands.Contexts.Time)));
-      else
-         Context.Put_Line
-           (Ada.Calendar.Formatting.Image
-              ((if Has_Set_Time then Set_Time else Now),
-               Time_Zone => Time_Zone_Offset));
-      end if;
+      Context.Put_Line
+        (Posix_Tools.Text.Date_Formats.Format_Date
+           ((if Has_Format then To_String (Format_Arg) else Default_Format),
+            Set_Time,
+            Time_Zone_Offset,
+            To_String (Time_Zone_Name),
+            Context.Category_Locale (Posix_Tools.Commands.Contexts.Time)));
 
       Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;

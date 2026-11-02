@@ -36,7 +36,7 @@ Diagnostics for invalid usage.
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-With no operand, the output format is the Ada calendar formatting image used by the current implementation. With
+With no `+format` operand, the output format is POSIX's `%a %b %e %H:%M:%S %Z %Y`. With
 `+format`, supported directives are expanded and unsupported directives are preserved with their leading percent sign.
 In UTC mode, `%z` emits `+0000` and `%Z` emits `UTC`. The `-u` option selects UTC and takes precedence over `TZ`.
 `TZ` environment values with
@@ -60,7 +60,7 @@ Help and diagnostics are localized. Weekday names, month names, and AM/PM marker
 through messages; numeric fields and literal format text are not localized.
 
 ## Implementation-Defined Choices
-The default timestamp format is implementation-defined. POSIX-style DST suffix and transition-rule tails on fixed-offset
+A set-time operand is read in the `TZ` zone, or the local zone, at the offset that zone has at that time. POSIX-style DST suffix and transition-rule tails on fixed-offset
 `TZ` strings are accepted but only the standard offset is applied. Named timezone support prefers hostkit host-database
 resolution and falls back to the generated tzdb subset provided by `i18n`.
 

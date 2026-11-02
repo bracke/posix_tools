@@ -439,6 +439,18 @@ package body Command_Tests.Surface_Smoke.Host is
         (Contains (Test_Contexts.Output (Context), "2026")
          and then Contains (Test_Contexts.Output (Context), "03:04:05"),
          "date set operand reports selected timestamp");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "Fri Jan  2 03:04:05 UTC 2026" & EOL,
+         "date writes POSIX's default format");
+
+      Context.Initialize ("date", One_Arg ("010203042026"));
+      Test_Contexts.Set_Environment_Value (Context, "TZ", "FOO+02:30");
+      Test_Contexts.Set_Date_Set_Allowed (Context, True);
+      Posix_Tools.Commands.Date.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "Fri Jan  2 03:04:00 FOO 2026" & EOL,
+         "date reads a time to set in TZ's zone");
 
       Context.Initialize ("date", Two_Args ("-u", "01020304"));
       Test_Contexts.Set_Date_Set_Allowed (Context, True);
