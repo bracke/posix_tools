@@ -80,13 +80,13 @@ package body Posix_Tools.Commands.Sort_Keys is
       return (if Data.Reverse_Last then -Compared else Compared);
    end Compare_Lines;
 
-   function Lines_Are_Sorted
+   function First_Disorder
      (Lines   : Posix_Tools.Streams.Lines.Segment_Vector;
-      Options : Sort_Options) return Boolean
+      Options : Sort_Options) return Natural
    is
    begin
       if Lines.Length < 2 then
-         return True;
+         return 0;
       end if;
 
       declare
@@ -97,13 +97,13 @@ package body Posix_Tools.Commands.Sort_Keys is
                Compared : constant Integer := Compare_Lines (Data, Lines, I, I + 1);
             begin
                if Compared > 0 or else (Options.Unique and then Compared = 0) then
-                  return False;
+                  return I + 1;
                end if;
             end;
          end loop;
       end;
-      return True;
-   end Lines_Are_Sorted;
+      return 0;
+   end First_Disorder;
 
    function Prepare
      (Lines   : Posix_Tools.Streams.Lines.Segment_Vector;

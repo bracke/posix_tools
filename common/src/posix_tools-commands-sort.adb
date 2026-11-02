@@ -17,10 +17,14 @@ package body Posix_Tools.Commands.Sort is
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
    package Sort_Keys renames Posix_Tools.Commands.Sort_Keys;
 
+   --  Sort the input, or check that it is sorted: -c says where it is not,
+   --  -C only exits 1.
+   type Check_Mode is (Sort_Input, Diagnose_Disorder, Quiet);
+
    type Run_Options is record
       Files       : String_Vectors.Vector;
       Output_Path : Unbounded_String;
-      Check_Only  : Boolean := False;
+      Check       : Check_Mode := Sort_Input;
       Sorting     : Sort_Keys.Sort_Options;
    end record;
 
@@ -34,7 +38,8 @@ package body Posix_Tools.Commands.Sort is
      (Text : String;
       Key  : out Sort_Keys.Sort_Key_Definition) return Boolean;
 
-   --  Concatenates every input operand, or standard input without operands.
+   --  Concatenates every input operand, or standard input without operands,
+   --  ending each that lacks one with a newline.
    procedure Read_Input
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Options : Run_Options;
@@ -52,20 +57,58 @@ package body Posix_Tools.Commands.Sort is
       Result  : out Posix_Tools.Commands.Results.Result;
       Options : out Run_Options) return Boolean
    is
-      Skip_Next : Boolean := False;
+      First : Positive;
+      Valid : Boolean;
 
-      function Add_Key (Text : String) return Boolean;
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
 
-      function Add_Key (Text : String) return Boolean is
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
          Key : Sort_Keys.Sort_Key_Definition;
       begin
-         if Parse_Sort_Key (Text, Key) then
-            Options.Sorting.Keys.Append (Key);
-            return True;
-         end if;
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
-         return False;
-      end Add_Key;
+         Valid := True;
+         case Name is
+            when 'c' => Options.Check := Diagnose_Disorder;
+            when 'C' => Options.Check := Quiet;
+            when 'b' => Options.Sorting.Global.Ignore_Leading_Blanks := True;
+            when 'd' => Options.Sorting.Global.Dictionary_Order := True;
+            when 'f' => Options.Sorting.Global.Fold_Case := True;
+            when 'i' => Options.Sorting.Global.Ignore_Nonprinting := True;
+            when 'm' => null;
+            when 'n' => Options.Sorting.Global.Numeric_Sort := True;
+            when 'r' => Options.Sorting.Global.Reverse_Order := True;
+            when 's' => Options.Sorting.Stable_Sort := True;
+            when 'u' => Options.Sorting.Unique := True;
+            when 'o' => Options.Output_Path := To_Unbounded_String (Value);
+            when 'k' =>
+               if Parse_Sort_Key (Value, Key) then
+                  Options.Sorting.Keys.Append (Key);
+               else
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+            when 't' =>
+               if Value'Length /= 1 then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               else
+                  Options.Sorting.Field_Separator := Value (Value'First);
+                  Options.Sorting.Has_Field_Separator := True;
+               end if;
+            when others =>
+               null;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       Options := (others => <>);
       Options.Sorting.Locale :=
@@ -74,71 +117,18 @@ package body Posix_Tools.Commands.Sort is
         To_Unbounded_String (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
       Result.Status := Posix_Tools.Exit_Status.Success;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg     : constant String := Context.Argument (I);
-            Has_Arg : constant Boolean := I < Context.Argument_Count;
-         begin
-            if Skip_Next then
-               Skip_Next := False;
-            elsif not Options.Files.Is_Empty then
-               Options.Files.Append (Arg);
-            elsif Arg = "--" then
-               for J in I + 1 .. Context.Argument_Count loop
-                  Options.Files.Append (Context.Argument (J));
-               end loop;
-               exit;
-            elsif Arg in "-o" | "-k" | "-t" and then not Has_Arg then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
-               return False;
-            elsif Arg = "-o" then
-               Options.Output_Path := To_Unbounded_String (Context.Argument (I + 1));
-               Skip_Next := True;
-            elsif Arg'Length > 2 and then Arg (Arg'First .. Arg'First + 1) = "-o" then
-               Options.Output_Path := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
-            elsif Arg = "-k" then
-               if not Add_Key (Context.Argument (I + 1)) then
-                  return False;
-               end if;
-               Skip_Next := True;
-            elsif Arg'Length > 2 and then Arg (Arg'First .. Arg'First + 1) = "-k" then
-               if not Add_Key (Arg (Arg'First + 2 .. Arg'Last)) then
-                  return False;
-               end if;
-            elsif Arg = "-t" then
-               if Context.Argument (I + 1)'Length /= 1 then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (I + 1));
-                  return False;
-               end if;
-               Options.Sorting.Field_Separator := Context.Argument (I + 1) (Context.Argument (I + 1)'First);
-               Options.Sorting.Has_Field_Separator := True;
-               Skip_Next := True;
-            elsif Arg'Length = 3 and then Arg (Arg'First .. Arg'First + 1) = "-t" then
-               Options.Sorting.Field_Separator := Arg (Arg'Last);
-               Options.Sorting.Has_Field_Separator := True;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'c' | 'C' => Options.Check_Only := True;
-                     when 'b' => Options.Sorting.Global.Ignore_Leading_Blanks := True;
-                     when 'd' => Options.Sorting.Global.Dictionary_Order := True;
-                     when 'f' => Options.Sorting.Global.Fold_Case := True;
-                     when 'i' => Options.Sorting.Global.Ignore_Nonprinting := True;
-                     when 'm' => null;
-                     when 'n' => Options.Sorting.Global.Numeric_Sort := True;
-                     when 'r' => Options.Sorting.Global.Reverse_Order := True;
-                     when 's' => Options.Sorting.Stable_Sort := True;
-                     when 'u' => Options.Sorting.Unique := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return False;
-                  end case;
-               end loop;
-            else
-               Options.Files.Append (Arg);
-            end if;
-         end;
+      Parse (Context, Result, "bcCdfikmnorstu", "kot", First, Valid);
+      if not Valid then
+         return False;
+      end if;
+      for I in First .. Context.Argument_Count loop
+         Options.Files.Append (Context.Argument (I));
       end loop;
+      --  -c and -C check one input.
+      if Options.Check /= Sort_Input and then Natural (Options.Files.Length) > 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Options.Files.Element (2));
+         return False;
+      end if;
       return True;
    end Parse_Options;
 
@@ -186,8 +176,15 @@ package body Posix_Tools.Commands.Sort is
       end if;
 
       for Name of Options.Files loop
-         Append (Text, Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok));
-         exit when not Ok;
+         declare
+            Data : constant String := Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok);
+         begin
+            exit when not Ok;
+            Append (Text, Data);
+            if Data'Length > 0 and then Data (Data'Last) /= LF then
+               Append (Text, LF);
+            end if;
+         end;
       end loop;
    end Read_Input;
 
@@ -215,11 +212,21 @@ package body Posix_Tools.Commands.Sort is
          Lines : String_Vectors.Vector := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Text));
       begin
          Text := Null_Unbounded_String;
-         if Options.Check_Only then
-            Result.Status :=
-              (if Sort_Keys.Lines_Are_Sorted (Lines, Options.Sorting)
-               then Posix_Tools.Exit_Status.Success
-               else Posix_Tools.Exit_Status.Operational_Failure);
+         if Options.Check /= Sort_Input then
+            declare
+               Disorder : constant Natural := Sort_Keys.First_Disorder (Lines, Options.Sorting);
+            begin
+               if Disorder = 0 then
+                  Result.Status := Posix_Tools.Exit_Status.Success;
+               else
+                  if Options.Check = Diagnose_Disorder then
+                     Posix_Tools.Commands.Helpers.Operational_Error
+                       (Context, "posix_tools.diagnostic.sort.disorder", "line",
+                        Lines.Element (Disorder), "disorder: '{line}'");
+                  end if;
+                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+               end if;
+            end;
             return;
          end if;
 

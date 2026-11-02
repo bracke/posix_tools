@@ -8,70 +8,30 @@ package body Posix_Tools.Commands.Text_Helpers.Folding is
       Output : Unbounded_String;
       I      : Positive := Text'First;
 
+      --  The UTF-8 character at Index and its Width in bytes; False for a
+      --  byte that does not start one.
       function Decode_At
         (Index      : Positive;
          Code_Point : out Long_Long_Integer;
          Width      : out Natural) return Boolean
       is
-         B1 : constant Natural := Character'Pos (Text (Index));
+         use type Posix_Tools.Text.UTF_8.Decode_Status;
+         Decoder : Posix_Tools.Text.UTF_8.Decoder;
+         Status  : Posix_Tools.Text.UTF_8.Decode_Status;
       begin
          Code_Point := 0;
          Width := 1;
-
-         if B1 <= 16#7F# then
-            Code_Point := Long_Long_Integer (B1);
-            return True;
-         elsif B1 in 16#C2# .. 16#DF# and then Index + 1 <= Text'Last then
-            declare
-               B2 : constant Natural := Character'Pos (Text (Index + 1));
-            begin
-               if B2 not in 16#80# .. 16#BF# then
-                  return False;
-               end if;
-               Code_Point := Long_Long_Integer ((B1 mod 32) * 64 + (B2 mod 64));
-               Width := 2;
+         for J in Index .. Text'Last loop
+            Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (J)), Status, Code_Point);
+            if Status = Posix_Tools.Text.UTF_8.Complete then
+               Width := J - Index + 1;
                return True;
-            end;
-         elsif B1 in 16#E0# .. 16#EF# and then Index + 2 <= Text'Last then
-            declare
-               B2 : constant Natural := Character'Pos (Text (Index + 1));
-               B3 : constant Natural := Character'Pos (Text (Index + 2));
-               Value : constant Natural := (B1 mod 16) * 4_096 + (B2 mod 64) * 64 + (B3 mod 64);
-            begin
-               if B2 not in 16#80# .. 16#BF#
-                 or else B3 not in 16#80# .. 16#BF#
-                 or else Value < 16#800#
-                 or else Value in 16#D800# .. 16#DFFF#
-               then
-                  return False;
-               end if;
-               Code_Point := Long_Long_Integer (Value);
-               Width := 3;
-               return True;
-            end;
-         elsif B1 in 16#F0# .. 16#F4# and then Index + 3 <= Text'Last then
-            declare
-               B2 : constant Natural := Character'Pos (Text (Index + 1));
-               B3 : constant Natural := Character'Pos (Text (Index + 2));
-               B4 : constant Natural := Character'Pos (Text (Index + 3));
-               Value : constant Natural :=
-                 (B1 mod 8) * 262_144 + (B2 mod 64) * 4_096 + (B3 mod 64) * 64 + (B4 mod 64);
-            begin
-               if B2 not in 16#80# .. 16#BF#
-                 or else B3 not in 16#80# .. 16#BF#
-                 or else B4 not in 16#80# .. 16#BF#
-                 or else Value < 16#10000#
-                 or else Value > 16#10FFFF#
-               then
-                  return False;
-               end if;
-               Code_Point := Long_Long_Integer (Value);
-               Width := 4;
-               return True;
-            end;
-         else
-            return False;
-         end if;
+            elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+               return False;
+            end if;
+         end loop;
+         Code_Point := 0;
+         return False;
       end Decode_At;
 
       procedure Append_Folded_Code_Point (Code_Point : Long_Long_Integer) is
@@ -82,13 +42,14 @@ package body Posix_Tools.Commands.Text_Helpers.Folding is
             Append (Output, Posix_Tools.Text.UTF_8.Encode (Code_Point + 32));
          elsif Code_Point = 16#00DF# or else Code_Point = 16#1E9E# then
             Append (Output, "ss");
+         elsif Code_Point = 16#0130# then
+            --  Before the range it lies in: it folds to i and a dot above.
+            Append (Output, "i");
+            Append (Output, Posix_Tools.Text.UTF_8.Encode (16#0307#));
          elsif Code_Point in 16#0100# .. 16#0136# and then Code_Point mod 2 = 0 then
             Append (Output, Posix_Tools.Text.UTF_8.Encode (Code_Point + 1));
          elsif Code_Point in 16#0139# .. 16#0147# and then Code_Point mod 2 = 1 then
             Append (Output, Posix_Tools.Text.UTF_8.Encode (Code_Point + 1));
-         elsif Code_Point = 16#0130# then
-            Append (Output, "i");
-            Append (Output, Posix_Tools.Text.UTF_8.Encode (16#0307#));
          elsif Code_Point = 16#014A# then
             Append (Output, Posix_Tools.Text.UTF_8.Encode (16#014B#));
          elsif Code_Point in 16#014C# .. 16#0176# and then Code_Point mod 2 = 0 then

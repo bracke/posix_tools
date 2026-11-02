@@ -13,8 +13,9 @@ Reads input lines, sorts them with the selected locale's deterministic collation
 `file`: input file path.
 
 ## Options
-`-b` ignores leading blanks for comparisons. `-c` checks that input is already sorted and writes no sorted output. `-C`
-performs the same sortedness check in silent mode. `-d` compares only blanks and ASCII alphanumeric bytes. `-f` folds
+`-b` ignores leading blanks for comparisons. `-c` checks that input is already sorted, writes no sorted output, and reports
+the first line out of order on standard error. `-C` performs the same sortedness check in silent mode. Both take at most
+one file operand. `-d` compares only blanks and ASCII alphanumeric bytes. `-f` folds
 UTF-8 Unicode case mappings, including multi-code-point special mappings used by the release collation data, before
 comparisons. `-i` ignores nonprinting bytes in comparison keys. `-k
 keydef` selects a field range
