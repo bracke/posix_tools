@@ -2,14 +2,12 @@ with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Streams.Counting;
 with Posix_Tools.Wc_Fields;
 
 package body Posix_Tools.Commands.Wc is
-   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
 
@@ -29,7 +27,7 @@ package body Posix_Tools.Commands.Wc is
    procedure Count_File
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
-      Need_Text : Boolean;
+      Single_Byte : Boolean;
       Result    : out Counts;
       Ok        : out Boolean)
    is
@@ -49,19 +47,15 @@ package body Posix_Tools.Commands.Wc is
         (Action => Count_Chunk);
    begin
       Result := (others => 0);
+      if Single_Byte then
+         Posix_Tools.Streams.Counting.Count_Single_Bytes (State);
+      end if;
       Count_Chunks (Context, File_Name, Ok);
       if not Ok then
          return;
       end if;
 
       Posix_Tools.Streams.Counting.Finish_Text (State);
-      if Need_Text and then Posix_Tools.Streams.Counting.Text_Invalid (State) then
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context, File_Name, "posix_tools.diagnostic.text.invalid_utf8", "invalid UTF-8");
-         Ok := False;
-         return;
-      end if;
-
       Result := Posix_Tools.Streams.Counting.Snapshot (State);
    end Count_File;
 
@@ -116,7 +110,12 @@ package body Posix_Tools.Commands.Wc is
       Show_M     : Boolean := False;
       Show_W     : Boolean := False;
       Show_Max_Line_Length : Boolean := False;
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
+      --  In a single-byte locale, such as C, each byte is a character.
+      Single_Byte : constant Boolean :=
+        not Posix_Tools.Commands.Text_Helpers.Collation.Is_Multibyte_Locale
+          (Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification));
       C          : Counts;
       Total      : Counts := (others => 0);
       Ok         : Boolean;
@@ -132,35 +131,41 @@ package body Posix_Tools.Commands.Wc is
             Characters => Show_M,
             Max_Line_Length => Show_Max_Line_Length);
       end Selection;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'c' => Show_C := True;
+            when 'l' => Show_L := True;
+            when 'm' => Show_M := True;
+            when 'w' => Show_W := True;
+            when others => Show_Max_Line_Length := True;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First_File <= Context.Argument_Count
-        and then Context.Argument (First_File)'Length > 1
-        and then Context.Argument (First_File) (1) = '-'
-        and then Context.Argument (First_File) /= "-"
-      loop
-         if Context.Argument (First_File) = "--" then
-            First_File := First_File + 1;
-            exit;
-         end if;
-
-         for Ch of Context.Argument (First_File) (2 .. Context.Argument (First_File)'Last) loop
-            case Ch is
-               when 'c' => Show_C := True;
-               when 'l' => Show_L := True;
-               when 'm' => Show_M := True;
-               when 'w' => Show_W := True;
-               when 'L' => Show_Max_Line_Length := True;
-               when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                  return;
-            end case;
-         end loop;
-         First_File := First_File + 1;
-      end loop;
+      Parse (Context, Result, "clmwL", "", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if not (Show_C or Show_L or Show_M or Show_W or Show_Max_Line_Length) then
          Show_L := True;
@@ -171,7 +176,7 @@ package body Posix_Tools.Commands.Wc is
       pragma Assert (Posix_Tools.Wc_Fields.Selected_Field_Count (Selection) > 0);
 
       if First_File > Context.Argument_Count then
-         Count_File (Context, "-", Posix_Tools.Wc_Fields.Needs_Text_Decoding (Selection), C, Ok);
+         Count_File (Context, "-", Single_Byte, C, Ok);
          if Ok then
             Print_Counts (Context, C, "", Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
             Ok := not Context.Output_Failed;
@@ -182,7 +187,7 @@ package body Posix_Tools.Commands.Wc is
             Count_File
               (Context,
                Context.Argument (I),
-               Posix_Tools.Wc_Fields.Needs_Text_Decoding (Selection),
+               Single_Byte,
                C,
                Ok);
             if Ok then
@@ -216,8 +221,6 @@ package body Posix_Tools.Commands.Wc is
          end if;
       end if;
 
-      Result.Status :=
-        (if All_Ok then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Wc;

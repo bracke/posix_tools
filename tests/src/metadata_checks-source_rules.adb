@@ -64,8 +64,6 @@ package body Metadata_Checks.Source_Rules is
       Tooling_Checks.Require_Text
         (Check, "common/src/posix_tools-commands-tail_bytes.adb", "posix_tools.diagnostic.resource.count_too_large");
       Tooling_Checks.Require_Text
-        (Check, "common/src/posix_tools-commands-wc.adb", "posix_tools.diagnostic.text.invalid_utf8");
-      Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests-suite_entries.adb", "locale:help");
       Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests-suite_entries.adb", "locale:diagnostic");

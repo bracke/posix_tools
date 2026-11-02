@@ -987,7 +987,7 @@ package body File_Command_Tests is
       Posix_Tools.Streams.Counting.Finish_Text (State);
       AUnit.Assertions.Assert
         (Posix_Tools.Streams.Counting.Text_Invalid (State)
-         and then Posix_Tools.Streams.Counting.Character_Count (State) = 1
+         and then Posix_Tools.Streams.Counting.Character_Count (State) = 2
          and then Posix_Tools.Streams.Counting.Word_Count (State) = 1,
          "counting keeps the character after an invalid sequence");
 
@@ -995,8 +995,8 @@ package body File_Command_Tests is
       Test_Contexts.Set_Standard_Input (Context, Broken);
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Failure and then Test_Contexts.Output (Context) = "",
-         "wc -m still refuses invalid UTF-8 without printing a partial count");
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "2" & Character'Val (10),
+         "wc -m counts the invalid sequence and the character after it");
    end Test_UTF_8_Resynchronises;
 
    procedure Write (Name, Text : String) is

@@ -2433,7 +2433,6 @@ package body Command_Tests is
       Result  : Posix_Tools.Commands.Results.Result;
       LF      : constant Character := Character'Val (10);
       Missing : constant String := Fixture_Path ("missing-da-file.txt");
-      Invalid : constant String := Fixture_Path ("invalid-da-utf8.bin");
    begin
       Context.Initialize ("dirname", Two_Args ("first", "second"));
       Test_Contexts.Set_Locale (Context, "da");
@@ -2491,17 +2490,6 @@ package body Command_Tests is
       AUnit.Assertions.Assert
         (Test_Contexts.Error_Output (Context) = "cat: '" & Missing & "': kan ikke læse fil" & LF,
          "Danish read failure diagnostic");
-
-      Write_File (Invalid, "A" & Character'Val (16#C3#));
-      Context.Initialize ("wc", Two_Args ("-m", Invalid));
-      Test_Contexts.Set_Locale (Context, "da");
-      Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "Danish invalid UTF-8 status");
-      AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Invalid & "': ugyldig UTF-8" & LF,
-         "Danish invalid UTF-8 diagnostic");
 
       Context.Initialize ("pwd", No_Args);
       Test_Contexts.Set_Locale (Context, "da");
@@ -5259,23 +5247,29 @@ package body Command_Tests is
       Write_File (Invalid, "A" & Character'Val (16#C3#));
       Context.Initialize ("wc", One_Arg (Invalid));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc default invalid suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Invalid & "': invalid UTF-8" & LF,
-         "wc default invalid diagnostic");
+        (Test_Contexts.Output (Context) = "0 1 2 " & Invalid & LF,
+         "wc default counts an invalid byte as part of a word");
+      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "wc default invalid has no diagnostic");
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+        (Result.Status = Posix_Tools.Exit_Status.Success,
          "wc default invalid status");
 
       Context.Initialize ("wc", Two_Args ("-cm", Invalid));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc mixed invalid suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Invalid & "': invalid UTF-8" & LF,
-         "wc mixed invalid diagnostic");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "2 2 " & Invalid & LF,
+         "wc -cm counts an invalid byte as a character");
+
+      Context.Initialize ("wc", One_Arg ("-mw"));
+      Test_Contexts.Set_Locale (Context, "C");
+      Test_Contexts.Set_Standard_Input (Context, "a" & Character'Val (16#E9#) & " b" & LF);
+      Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "wc mixed invalid status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "2 5" & LF,
+         "wc counts bytes as characters in the C locale");
 
       Write_File (Path, "ab" & LF & Character'Val (9) & "c" & LF & "abcd");
       Context.Initialize ("wc", Two_Args ("-L", Path));
@@ -5322,12 +5316,11 @@ package body Command_Tests is
 
       Context.Initialize ("wc", Two_Args ("-m", Path));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc -m invalid suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Path & "': invalid UTF-8" & Character'Val (10),
-         "wc -m invalid diagnostic");
+        (Test_Contexts.Output (Context) = "2 " & Path & Character'Val (10),
+         "wc -m counts an incomplete sequence as a character");
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+        (Result.Status = Posix_Tools.Exit_Status.Success,
          "wc -m invalid status");
    end Test_Wc_Text_Invalid_UTF_8;
 
@@ -5343,38 +5336,31 @@ package body Command_Tests is
       Write_File (Overlong, Character'Val (16#C0#) & Character'Val (16#AF#));
       Context.Initialize ("wc", Two_Args ("-m", Overlong));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc overlong suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Overlong & "': invalid UTF-8" & Character'Val (10),
-         "wc overlong diagnostic");
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "wc overlong status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "2 " & Overlong & Character'Val (10)
+         and then Test_Contexts.Error_Output (Context) = "",
+         "wc counts overlong UTF-8 without failing");
 
       Write_File (Bad_Continuation, Character'Val (16#E2#) & "A");
       Context.Initialize ("wc", Two_Args ("-w", Bad_Continuation));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc bad continuation suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) =
-           "wc: '" & Bad_Continuation & "': invalid UTF-8" & Character'Val (10),
-         "wc bad continuation diagnostic");
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "wc bad continuation status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1 " & Bad_Continuation & Character'Val (10)
+         and then Test_Contexts.Error_Output (Context) = "",
+         "wc counts bad continuation UTF-8 without failing");
 
       Write_File
         (Surrogate,
          Character'Val (16#ED#) & Character'Val (16#A0#) & Character'Val (16#80#));
       Context.Initialize ("wc", Two_Args ("-m", Surrogate));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc surrogate suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) = "wc: '" & Surrogate & "': invalid UTF-8" & Character'Val (10),
-         "wc surrogate diagnostic");
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "wc surrogate status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1 " & Surrogate & Character'Val (10)
+         and then Test_Contexts.Error_Output (Context) = "",
+         "wc counts surrogate UTF-8 without failing");
 
       Write_File
         (Out_Of_Range,
@@ -5382,14 +5368,11 @@ package body Command_Tests is
          & Character'Val (16#80#) & Character'Val (16#80#));
       Context.Initialize ("wc", Two_Args ("-m", Out_Of_Range));
       Posix_Tools.Commands.Wc.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "", "wc out-of-range suppresses output");
       AUnit.Assertions.Assert
-        (Test_Contexts.Error_Output (Context) =
-           "wc: '" & Out_Of_Range & "': invalid UTF-8" & Character'Val (10),
-         "wc out-of-range diagnostic");
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "wc out-of-range status");
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1 " & Out_Of_Range & Character'Val (10)
+         and then Test_Contexts.Error_Output (Context) = "",
+         "wc counts out-of-range UTF-8 without failing");
    end Test_Wc_Text_Malformed_UTF_8;
 
    procedure Test_Wc_Multiple_Files (T : in out Fixture) is

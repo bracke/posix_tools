@@ -292,11 +292,11 @@ package body Metadata_Checks.Test_Coverage is
       Tooling_Checks.Require_Text
         (Check, "tests/src/command_tests.adb", "wc -m output");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "wc mixed invalid suppresses output");
+        (Check, "tests/src/command_tests.adb", "wc -cm counts an invalid byte as a character");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "wc overlong suppresses output");
+        (Check, "tests/src/command_tests.adb", "wc counts overlong UTF-8 without failing");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/command_tests.adb", "wc surrogate suppresses output");
+        (Check, "tests/src/command_tests.adb", "wc counts surrogate UTF-8 without failing");
       Tooling_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-WC-0001");
       Tooling_Checks.Require_Text

@@ -19,15 +19,18 @@ is
        and then Self.Current.Words >= Self.Current.Words'Old
        and then Self.Invalid_Text = Self.Invalid_Text'Old;
 
+   --  A sequence that is not UTF-8 is one character, not blank.
    procedure Note_Invalid (Self : in out Counter)
      with Post =>
        Self.Current.Bytes = Self.Current.Bytes'Old
-       and then Self.Current.Characters = Self.Current.Characters'Old
+       and then Self.Current.Characters >= Self.Current.Characters'Old
        and then Self.Current.Lines = Self.Current.Lines'Old
-       and then Self.Current.Max_Line_Length = Self.Current.Max_Line_Length'Old
-       and then Self.Current_Line_Length = Self.Current_Line_Length'Old
-       and then Self.Current.Words = Self.Current.Words'Old
+       and then Self.Current.Max_Line_Length >= Self.Current.Max_Line_Length'Old
+       and then Self.Current.Words >= Self.Current.Words'Old
        and then Self.Invalid_Text;
+
+   --  Stands in for a character that is not blank and one column wide.
+   Not_Blank : constant Long_Long_Integer := 16#FFFD#;
 
    procedure Decode_Byte
      (Self : in out Counter;
@@ -92,9 +95,14 @@ is
 
    procedure Note_Invalid (Self : in out Counter) is
    begin
+      Note_Code_Point (Self, Not_Blank);
       Self.Invalid_Text := True;
-      Self.In_Word := False;
    end Note_Invalid;
+
+   procedure Count_Single_Bytes (Self : in out Counter) is
+   begin
+      Self.Single_Byte := True;
+   end Count_Single_Bytes;
 
    procedure Decode_Byte
      (Self : in out Counter;
@@ -104,6 +112,11 @@ is
       Code_Point : Long_Long_Integer;
       Consumed   : Boolean;
    begin
+      if Self.Single_Byte then
+         Note_Code_Point (Self, (if Byte < 128 then Long_Long_Integer (Byte) else Not_Blank));
+         return;
+      end if;
+
       Posix_Tools.Text.UTF_8.Decode (Self.Decoder, Byte, Status, Code_Point, Consumed);
       if Status = Posix_Tools.Text.UTF_8.Complete then
          Note_Code_Point (Self, Code_Point);
@@ -157,7 +170,6 @@ is
 
    procedure Finish_Text (Self : in out Counter) is
       Initial_Line_Length : constant Count_Value := Self.Current_Line_Length;
-      Initial_Max_Line_Length : constant Count_Value := Self.Current.Max_Line_Length;
       Status : Posix_Tools.Text.UTF_8.Decode_Status;
    begin
       Posix_Tools.Text.UTF_8.Finish (Self.Decoder, Status);
@@ -165,8 +177,11 @@ is
          Note_Invalid (Self);
       end if;
 
-      if Initial_Line_Length > Initial_Max_Line_Length then
+      if Initial_Line_Length > Self.Current.Max_Line_Length then
          Self.Current.Max_Line_Length := Initial_Line_Length;
+      end if;
+      if Self.Current_Line_Length > Self.Current.Max_Line_Length then
+         Self.Current.Max_Line_Length := Self.Current_Line_Length;
       end if;
    end Finish_Text;
 
