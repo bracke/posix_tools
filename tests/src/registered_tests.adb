@@ -42,7 +42,30 @@ package body Registered_Tests is
 
    procedure Walk is new AUnit.Run.Test_Runner (All_Suites.Suite);
 
+   procedure Load;
+
    function Is_Registered (Name : String) return Boolean is
+   begin
+      Load;
+      return Names.Contains (Name);
+   end Is_Registered;
+
+   function Has_Suite (Suite : String) return Boolean is
+   begin
+      Load;
+      for Name of Names loop
+         if Name = Suite
+           or else (Name'Length > Suite'Length
+                    and then Name (Name'First .. Name'First + Suite'Length) = Suite & ' ')
+         then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Suite;
+
+   procedure Load is
    begin
       if not Loaded then
          declare
@@ -58,7 +81,5 @@ package body Registered_Tests is
          end;
          Loaded := True;
       end if;
-
-      return Names.Contains (Name);
-   end Is_Registered;
+   end Load;
 end Registered_Tests;
