@@ -412,6 +412,8 @@ common/src/posix_tools-text-xargs_fields.ads
 common/src/posix_tools-text-xargs_parsing.adb
 common/src/posix_tools-text-xargs_parsing.ads
 common/src/posix_tools-text.ads
+common/src/posix_tools-unix_time.adb
+common/src/posix_tools-unix_time.ads
 common/src/posix_tools-version.ads
 common/src/posix_tools-wc_fields.adb
 common/src/posix_tools-wc_fields.ads

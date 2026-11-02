@@ -24,9 +24,9 @@ REG-TAIL-0003,tail,reject invalid compact and negative counts without exceptions
 REG-TAIL-0004,tail,stop suffix emission and return operational failure when stdout fails without a read diagnostic,command:tail output failure
 REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail invalid count
 REG-TAIL-0006,tail,emit bytes appended after the initial suffix for follow mode and reopen a truncated file for follow-by-name mode,command:tail follow live
-REG-WC-0002,wc,count split UTF-8 characters for -m and reject incomplete sequences in text modes,streams:utf-8 counting; command:wc invalid UTF-8
-REG-WC-0003,wc,reject overlong bad-continuation surrogate and out-of-range UTF-8 sequences in text modes without printing partial counts,command:wc malformed UTF-8
-REG-WC-0004,wc,reject surrogate and out-of-range UTF-8 code point encodings in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
+REG-WC-0002,wc,count split UTF-8 characters for -m and count an incomplete sequence as one character in text modes,streams:utf-8 counting; command:wc invalid UTF-8
+REG-WC-0003,wc,count overlong bad-continuation surrogate and out-of-range UTF-8 sequences as characters in text modes without failing,command:wc malformed UTF-8
+REG-WC-0004,wc,treat surrogate and out-of-range UTF-8 code point encodings as invalid in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
 REG-WC-0005,wc,return operational failure when stdout fails while suppressing totals after incomplete output,command:wc output failure
 REG-WC-0006,wc,continue after a failed file and print a total for successful operands while returning aggregate failure,command:wc multiple files
 REG-WC-0007,wc,implement -L maximum-line-length output consistently as a documented project extension,command:wc default and mixed text
@@ -105,3 +105,17 @@ REG-CHMOD-0001,chmod,apply X only to directories and files with an execute bit a
 REG-MKDIR-0001,mkdir,take symbolic -m modes relative to a=rwx instead of the umask-applied mode,command:mkdir mode and diagnostics
 REG-FIND-0004,find,match POSIX bracket character classes and collating elements and treat [] and [!] at the end of a pattern as literal,command:find glob brackets
 REG-WC-0008,wc,reprocess the byte that ends an invalid UTF-8 sequence instead of losing it,command:wc utf-8 resynchronises
+REG-PASTE-0002,paste,read every - operand from the one standard input taking its lines in turn,command:paste surface
+REG-WC-0009,wc,count bytes as characters in single-byte locales and never fail on invalid UTF-8,command:wc default and mixed text
+REG-CHMOD-0002,chmod,leave out the umask's bits from a symbolic mode clause without who and take -R repeated,command:chmod symbolic grammar
+REG-SORT-0011,sort,end a file without a final newline before the next input and diagnose -c disorder on standard error,command:sort surface
+REG-CUT-0003,cut,keep the delimiter after an empty first selected field and take a multibyte delimiter in UTF-8 locales,command:cut characters
+REG-OPTIONS-0003,sort uniq xargs tail env,take option arguments attached behind grouped flags and reject unknown env options,command:sort surface; command:uniq surface; command:xargs surface; command:tail invalid count; command:env surface
+REG-XARGS-0003,xargs,fill each batch up to the size limit by adding argument sizes in turn,command:xargs surface
+REG-DATE-0001,date,read a time to set in the TZ zone at that time and write POSIX's default format,command:date surface
+REG-COMM-0002,comm,compare lines in the locale's collation and report extra operands as such,command:comm surface
+REG-SPLIT-0001,split,take k and m size suffixes for -b and an attached -l count,command:split surface
+REG-STAT-0001,stat,count epoch seconds from the UTC epoch,command:stat surface
+REG-SORT-0012,sort,fold U+0130 to i with a dot above before the U+0100 range,command:sort surface
+REG-CP-0014,cp mv,escape operands in -v output,command:rm and mv prompts localized
+REG-LN-0002,ln,take -L and -P for hard links to symbolic links,command:ln same file
