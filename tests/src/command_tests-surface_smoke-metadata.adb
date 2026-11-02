@@ -168,13 +168,13 @@ package body Command_Tests.Surface_Smoke.Metadata is
         (Contains (Test_Contexts.Output (Context), "command-source.txt" & EOL),
          "find -size less default blocks output");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "bad"));
+      Context.Initialize ("find", Three_Args (Work_Path ("."), "-size", "bad"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "find rejects invalid -size count");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-size", "++1c"));
+      Context.Initialize ("find", Three_Args (Work_Path ("."), "-size", "++1c"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
@@ -198,7 +198,7 @@ package body Command_Tests.Surface_Smoke.Metadata is
         (not Contains (Test_Contexts.Output (Context), "command-source.txt" & EOL),
          "find -mtime greater than large age excludes current file");
 
-      Context.Initialize ("find", Three_Args (Fixture_Path ("."), "-mtime", "bad"));
+      Context.Initialize ("find", Three_Args (Work_Path ("."), "-mtime", "bad"));
       Posix_Tools.Commands.Find.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
@@ -959,6 +959,11 @@ package body Command_Tests.Surface_Smoke.Metadata is
             Ada.Calendar.Time_Of (2026, 8, 12, Duration (15 * 3_600 + 40 * 60 + 11))),
          "touch -m applies explicit modification timestamp");
 
+      --  A reference time far from both now and the time Touched has, so
+      --  a touch that ignored -r could not land near it.
+      AUnit.Assertions.Assert
+        (Hostkit.Metadata.Set_File_Times (Source, 1_612_325_106, 1_646_370_367),
+         "touch -r reference time setup");
       Context.Initialize ("touch", Three_Args ("-r", Source, Touched));
       Posix_Tools.Commands.Touch.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -966,6 +971,9 @@ package body Command_Tests.Surface_Smoke.Metadata is
          and then Time_Near (Ada.Directories.Modification_Time (Touched), Ada.Directories.Modification_Time (Source)),
          "touch -r status and timestamp");
 
+      AUnit.Assertions.Assert
+        (Hostkit.Metadata.Set_File_Times (Touched, 1_700_000_000, 1_700_000_000),
+         "touch compact -r target time setup");
       Context.Initialize ("touch", Two_Args ("-r" & Source, Touched));
       Posix_Tools.Commands.Touch.Run (Context, Result);
       AUnit.Assertions.Assert

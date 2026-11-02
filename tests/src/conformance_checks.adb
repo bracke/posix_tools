@@ -9,7 +9,9 @@ with Posix_Tools.Text.Matching;
 with Project_Tools.Files;
 with Project_Tools.Text;
 with Registered_Tests;
+with Test_Selection;
 with Tooling_Checks;
+with Tooling_Steps;
 with Tooling_Support;
 
 package body Conformance_Checks is
@@ -247,31 +249,42 @@ package body Conformance_Checks is
          return Project_Tools.Text.Contains (Requirements, "regression " & Name);
       end Requirement_References_Regression;
 
+      --  "posix_tools_tests" and a subcommand the driver runs, or a test
+      --  selector it accepts, judged by the tables the driver itself uses.
       function Is_Project_Tooling_Test (Reference : String) return Boolean is
+         Driver   : constant String := "posix_tools_tests ";
+         Suite    : constant String := "test --suite ";
+         Category : constant String := "test --category ";
+
+         function Starts_With (Text, Prefix : String) return Boolean is
+           (Text'Length > Prefix'Length
+            and then Text (Text'First .. Text'First + Prefix'Length - 1) = Prefix);
       begin
-         return Reference = "posix_tools_tests build"
-           or else Reference = "posix_tools_tests check"
-           or else Reference = "posix_tools_tests conformance"
-           or else Reference = "posix_tools_tests docs"
-           or else Reference = "posix_tools_tests format-check"
-           or else Reference = "posix_tools_tests package"
-           or else Reference = "posix_tools_tests prove"
-           or else Reference = "posix_tools_tests release"
-           or else Reference = "posix_tools_tests release-check"
-           or else Reference = "posix_tools_tests test --category conformance"
-           or else Reference = "posix_tools_tests test --category integration"
-           or else Reference = "posix_tools_tests test --category locale"
-           or else Reference = "posix_tools_tests test --category presentation"
-           or else Reference = "posix_tools_tests test --category regression"
-           or else Reference = "posix_tools_tests test --category unit"
-           or else Reference = "posix_tools_tests test --suite cat"
-           or else Reference = "posix_tools_tests test --suite command"
-           or else Reference = "posix_tools_tests test --suite cp"
-           or else Reference = "posix_tools_tests test --suite root"
-           or else Reference = "posix_tools_tests test --suite xargs"
-           or else Reference = "CI release check"
-           or else Reference = "posix-tools verify smoke";
+         if not Starts_With (Reference, Driver) then
+            return False;
+         end if;
+
+         declare
+            Rest : constant String := Reference (Reference'First + Driver'Length .. Reference'Last);
+         begin
+            if Starts_With (Rest, Suite) then
+               return Test_Selection.Is_Suite (Rest (Rest'First + Suite'Length .. Rest'Last));
+            elsif Starts_With (Rest, Category) then
+               return Test_Selection.Is_Category (Rest (Rest'First + Category'Length .. Rest'Last));
+            else
+               return Tooling_Steps.Is_Subcommand (Rest);
+            end if;
+         end;
       end Is_Project_Tooling_Test;
+
+      --  A test source: an existing file named for the tests it holds.
+      function Is_Test_Source (Path : String) return Boolean is
+         Suffix : constant String := "_tests.adb";
+      begin
+         return Path'Length > Suffix'Length
+           and then Path (Path'Last - Suffix'Length + 1 .. Path'Last) = Suffix
+           and then Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Path));
+      end Is_Test_Source;
 
       function Test_Reference_Exists (Reference : String) return Boolean is
          Item : constant String := Trimmed (Reference);
@@ -284,7 +297,7 @@ package body Conformance_Checks is
          then
             return Has_Regression_Id (Item (Item'First + Regression_Prefix'Length .. Item'Last));
          elsif Project_Tools.Text.Contains (Item, "/") then
-            return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Item));
+            return Is_Test_Source (Item);
          else
             return Registered_Tests.Is_Registered (Item) or else Is_Project_Tooling_Test (Item);
          end if;

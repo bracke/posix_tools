@@ -514,7 +514,7 @@ package body Metadata_Checks.Source_Rules is
         (Check, "tests/src/proof_targets.adb",
          "(To_Unbounded_String (""posix_tools.text.xargs_fields""), To_Unbounded_String (""1""))");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/posix_tools_tests.adb", "--prover=z3");
+        (Check, "tests/src/proof_checks.adb", "--prover=z3");
       Tooling_Checks.Require_Text
         (Check, "docs/development.md", "Selected GNATprove targets");
       Tooling_Checks.Require_Text

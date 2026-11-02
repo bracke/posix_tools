@@ -163,10 +163,12 @@ jobs:
         working-directory: posix_tools/tests
         shell: bash
 
+      # The prover version the proofs were last checked with locally, so a
+      # new release cannot change what the gate proves.
       - name: Install GNATprove
         run: |
           for attempt in 1 2 3; do
-            if alr -n install gnatprove; then
+            if alr -n install gnatprove=15.1.0; then
               break
             fi
             if [ "${attempt}" -eq 3 ]; then
@@ -211,8 +213,9 @@ jobs:
 
       # release-check regenerates the docs, the man pages, the command
       # inventory and the package manifest before checking them, so it
-      # cannot see that the committed copies were stale; git can.
+      # cannot see that the committed copies were stale, or that a new one
+      # was never added; git can.
       - name: Check committed generated files are current
-        run: git diff --exit-code
+        run: test -z "$(git status --porcelain)" || { git status; git diff; exit 1; }
         working-directory: posix_tools
         shell: bash

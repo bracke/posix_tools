@@ -88,6 +88,31 @@ package body Metadata_Checks.Manifests is
          return Path;
       end Simple_Name;
 
+      --  generated/man holds a page for each inventory command and the root
+      --  page, and nothing else: a page for a command that has left the
+      --  inventory would otherwise ship unnoticed.
+      procedure Require_No_Stray_Manpages is
+         Pages : constant Project_Tools.Files.Path_List :=
+           Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, "generated/man"));
+      begin
+         for Page of Pages loop
+            declare
+               Name : constant String := Simple_Name (Ada.Strings.Unbounded.To_String (Page));
+               Stem : constant String :=
+                 (if Name'Length > 2 and then Name (Name'Last - 1 .. Name'Last) = ".1"
+                  then Name (Name'First .. Name'Last - 2)
+                  else "");
+            begin
+               if Stem /= "posix-tools"
+                 and then not Posix_Tools.Command_Inventory.Contains_Executable (Stem)
+               then
+                  Tooling_Checks.Fail
+                    ("generated/man/" & Name & " is not the manual page of an inventory command");
+               end if;
+            end;
+         end loop;
+      end Require_No_Stray_Manpages;
+
       function Has_Prohibited_Tooling_Name (Path : String) return Boolean is
          Name : constant String := Simple_Name (Path);
       begin
@@ -114,7 +139,7 @@ package body Metadata_Checks.Manifests is
                  To_Unbounded_String ("alire"),
                  To_Unbounded_String ("bin"),
                  To_Unbounded_String ("config"),
-                 To_Unbounded_String ("fixtures"),
+                 To_Unbounded_String ("test-work"),
                  To_Unbounded_String ("lib"),
                  To_Unbounded_String ("obj")]);
       begin
@@ -515,6 +540,7 @@ package body Metadata_Checks.Manifests is
            (Check, "generated/man/" & Posix_Tools.Command_Inventory.Executable (I) & ".1");
       end loop;
       Require_Generated_Docs_Current;
+      Require_No_Stray_Manpages;
       Tooling_Checks.Require_File (Check, "generated/package-files.txt");
       Tooling_Checks.Require_File (Check, "generated/package-manifest.txt");
       Tooling_Checks.Require_File (Check, "generated/release-checksums.txt");

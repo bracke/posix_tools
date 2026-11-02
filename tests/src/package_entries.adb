@@ -19,7 +19,7 @@ procedure Package_Entries is
       +"SECURITY.md"];
 
    Trees : constant Project_Tools.Files.Name_List :=
-     [+".github", +"common", +"docs", +"fixtures", +"generated", +"src", +"tests", +"tools"];
+     [+".github", +"common", +"docs", +"generated", +"src", +"tests", +"tools"];
 
    --  Directories .gitignore keeps out, wherever they occur, and the test
    --  scratch directory under generated.

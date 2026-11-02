@@ -1,5 +1,6 @@
 with AUnit.Test_Caller;
 with AUnit.Test_Suites;
+with Command_Tests.Scripting;
 with Command_Tests.Surface_Smoke.Data;
 with Command_Tests.Surface_Smoke.Files;
 with Command_Tests.Surface_Smoke.Filters;
@@ -238,27 +239,49 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expand", Test_Expand'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:expr", Test_Expr'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:expr extension operands", Test_Expr_Extension_Operands'Access));
+        (Result,
+         Caller.Create
+           ("command:expr extension operands", Command_Tests.Scripting.Test_Expr_Extension_Operands'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:find exec batches", Test_Find_Exec_Batches'Access));
+        (Result,
+         Caller.Create
+           ("command:find exec batches", Command_Tests.Scripting.Test_Find_Exec_Batches'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:find missing operands", Test_Find_Missing_Operands'Access));
+        (Result,
+         Caller.Create
+           ("command:find missing operands", Command_Tests.Scripting.Test_Find_Missing_Operands'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:find symbolic links", Test_Find_Symbolic_Links'Access));
+        (Result,
+         Caller.Create
+           ("command:find symbolic links", Command_Tests.Scripting.Test_Find_Symbolic_Links'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:printf character conversion", Test_Printf_Character_Conversion'Access));
+        (Result,
+         Caller.Create
+           ("command:printf character conversion", Command_Tests.Scripting.Test_Printf_Character_Conversion'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:printf escapes", Test_Printf_Escapes'Access));
+        (Result,
+         Caller.Create
+           ("command:printf escapes", Command_Tests.Scripting.Test_Printf_Escapes'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:printf extension operands", Test_Printf_Extension_Operands'Access));
+        (Result,
+         Caller.Create
+           ("command:printf extension operands", Command_Tests.Scripting.Test_Printf_Extension_Operands'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:printf numeric arguments", Test_Printf_Numeric_Arguments'Access));
+        (Result,
+         Caller.Create
+           ("command:printf numeric arguments", Command_Tests.Scripting.Test_Printf_Numeric_Arguments'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:test argument counts", Test_Test_Argument_Counts'Access));
+        (Result,
+         Caller.Create
+           ("command:test argument counts", Command_Tests.Scripting.Test_Test_Argument_Counts'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:test extension operands", Test_Test_Extension_Operands'Access));
+        (Result,
+         Caller.Create
+           ("command:test extension operands", Command_Tests.Scripting.Test_Test_Extension_Operands'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("command:test integer operands", Test_Test_Integer_Operands'Access));
+        (Result,
+         Caller.Create
+           ("command:test integer operands", Command_Tests.Scripting.Test_Test_Integer_Operands'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:file", Test_File'Access));
       Register_Surface_Commands (Result);
       AUnit.Test_Suites.Add_Test

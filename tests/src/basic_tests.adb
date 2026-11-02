@@ -741,11 +741,7 @@ package body Basic_Tests is
       pragma Unreferenced (T);
       use type Ada.Streams.Stream_Element;
       use type Ada.Streams.Stream_Element_Offset;
-      Path   : constant String :=
-        (if Ada.Directories.Exists ("fixtures") then
-            "fixtures/reg-cat-0001.bin"
-         else
-            "../fixtures/reg-cat-0001.bin");
+      Path   : constant String := Test_Support.Work_Path ("reg-cat-0001.bin");
       File   : Ada.Streams.Stream_IO.File_Type;
       Buffer : Ada.Streams.Stream_Element_Array (1 .. 3);
       Last   : Ada.Streams.Stream_Element_Offset;

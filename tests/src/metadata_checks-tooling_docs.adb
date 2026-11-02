@@ -139,8 +139,6 @@ package body Metadata_Checks.Tooling_Docs is
       Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`test --category integration`");
       Tooling_Checks.Require_Text
-        (Check, "docs/testing.md", "`test --category conformance`");
-      Tooling_Checks.Require_Text
         (Check, "docs/testing.md", "`test --category regression`");
       Tooling_Checks.Require_Text (Check, "docs/testing.md", "`build`");
       Tooling_Checks.Require_Text (Check, "docs/testing.md", "`check`");

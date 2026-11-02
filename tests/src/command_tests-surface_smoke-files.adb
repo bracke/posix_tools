@@ -307,6 +307,8 @@ package body Command_Tests.Surface_Smoke.Files is
                and then Info.Kind = Hostkit.Fs.FIFO,
                "REG-CP-0003 cp recreates FIFO special files through hostkit");
          end;
+      else
+         Test_Support.Skip_Without_FIFOs ("REG-CP-0003 cp recreates FIFO special files");
       end if;
 
       if Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#) then

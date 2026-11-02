@@ -38,6 +38,8 @@ package Test_Support is
    --  For a test about to skip because it could not make a symbolic link:
    --  fail where links must work, so that only a host without them skips.
    procedure Skip_Without_Links (Label : String);
+   --  Likewise for a test that could not make a FIFO.
+   procedure Skip_Without_FIFOs (Label : String);
 
    --  The property tests' generators: a fixed seed, advanced by a linear
    --  congruential step, so a failing case can be named and replayed.

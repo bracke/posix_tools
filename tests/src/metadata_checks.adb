@@ -76,6 +76,40 @@ package body Metadata_Checks is
       end if;
    end Require_Exact_Line;
 
+   procedure Require_Line_Order (Path : String; Earlier : String; Later : String) is
+      Content      : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
+      Line_Number  : Natural := 0;
+      Last_Earlier : Natural := 0;
+      First_Later  : Natural := 0;
+      Start        : Positive := Content'First;
+   begin
+      for I in Content'Range loop
+         if Content (I) = Character'Val (10) or else I = Content'Last then
+            declare
+               Line : constant String :=
+                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
+                   (Content (Start .. (if Content (I) = Character'Val (10) then I - 1 else I)));
+            begin
+               Line_Number := Line_Number + 1;
+               if Line = Earlier then
+                  Last_Earlier := Line_Number;
+               elsif Line = Later and then First_Later = 0 then
+                  First_Later := Line_Number;
+               end if;
+            end;
+            Start := I + 1;
+         end if;
+      end loop;
+
+      if Last_Earlier = 0 then
+         Tooling_Checks.Fail (Path & " is missing the line: " & Earlier);
+      elsif First_Later = 0 then
+         Tooling_Checks.Fail (Path & " is missing the line: " & Later);
+      elsif Last_Earlier > First_Later then
+         Tooling_Checks.Fail (Path & " must run """ & Earlier & """ before """ & Later & """");
+      end if;
+   end Require_Line_Order;
+
    procedure Require_Synchronized_Version (Path : String) is
    begin
       Tooling_Checks.Require_Text

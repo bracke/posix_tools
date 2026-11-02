@@ -21,8 +21,8 @@ package body Selector_Smoke is
 
       Runner_Path : constant String := Built_Test_Runner_Path;
 
-      --  Run the tests Option Value selects, once, and check what ran:
-      --  every Present needle must be in the report and no Absent one.
+      --  List the tests Option Value selects, running none, and check
+      --  the list: every Present needle must be in it and no Absent one.
       procedure Expect_Selection
         (Option  : String;
          Value   : String;
@@ -31,32 +31,30 @@ package body Selector_Smoke is
       is
          Label    : constant String := "test selector " & Option & " " & Value;
          Captured : constant Project_Tools.Processes.Captured_Process :=
-           Project_Tools.Processes.Capture
-             (Label   => Label,
-              Dir     => Root,
-              Program => Runner_Path,
-              Args    => Project_Tools.Processes.Arguments
+           Capture_Within
+             (Label,
+              Runner_Path,
+              Project_Tools.Processes.Arguments
                 ([Project_Tools.Processes.Argument ("test"),
+                  Project_Tools.Processes.Argument ("--list"),
                   Project_Tools.Processes.Argument (Option),
-                  Project_Tools.Processes.Argument (Value)]),
-              Quiet   => True);
+                  Project_Tools.Processes.Argument (Value)]));
          Output   : constant String := To_String (Captured.Output);
       begin
          if Captured.Status /= 0 then
-            --  The suite's own report says which test failed and why.
             Ada.Text_IO.Put_Line (Output);
             Tooling_Checks.Fail (Label & " failed with status" & Integer'Image (Captured.Status));
          end if;
 
          for Needle of Present loop
             if not Project_Tools.Text.Contains (Output, To_String (Needle)) then
-               Tooling_Checks.Fail (Label & " did not run " & To_String (Needle));
+               Tooling_Checks.Fail (Label & " did not select " & To_String (Needle));
             end if;
          end loop;
 
          for Needle of Absent loop
             if Project_Tools.Text.Contains (Output, To_String (Needle)) then
-               Tooling_Checks.Fail (Label & " also ran " & To_String (Needle));
+               Tooling_Checks.Fail (Label & " also selected " & To_String (Needle));
             end if;
          end loop;
       end Expect_Selection;
@@ -66,10 +64,7 @@ package body Selector_Smoke is
          Args  : Project_Tools.Processes.Argument_Vectors.Vector)
       is
          Captured : constant Project_Tools.Processes.Captured_Process :=
-           Project_Tools.Processes.Capture_Command
-             (Command    => Runner_Path,
-              Arguments  => Args,
-              Err_To_Out => True);
+           Capture_Within (Label, Runner_Path, Args, Err_To_Out => True);
       begin
          if Captured.Status /= 2 then
             Tooling_Checks.Fail
@@ -94,10 +89,15 @@ package body Selector_Smoke is
         ("--suite", "command", [+"command:basename ", +"command:root "], [+"basic:", +"regression:"]);
       Expect_Selection ("--suite", "property", [+"property:"], [+"command:", +"basic:"]);
       Expect_Selection
-        ("--category", "unit", [+"basic:numbers", +"command:basename ", +"regression:REG-CAT-0001"]);
-      Expect_Selection ("--category", "integration", [+"command:root "], [+"command:cat "]);
+        ("--category",
+         "unit",
+         [+"basic:numbers", +"streams:byte counting", +"property:paths"],
+         [+"command:", +"regression:", +"locale:", +"presentation:"]);
       Expect_Selection
-        ("--category", "conformance", [+"basic:command inventory"], [+"command:", +"basic:numbers"]);
+        ("--category",
+         "integration",
+         [+"command:root ", +"command:cat "],
+         [+"basic:", +"regression:", +"locale:"]);
       Expect_Selection
         ("--category",
          "regression",
@@ -121,6 +121,12 @@ package body Selector_Smoke is
            ([Project_Tools.Processes.Argument ("test"),
              Project_Tools.Processes.Argument ("--suite"),
              Project_Tools.Processes.Argument ("unknown")]));
+      Expect_Usage_Error
+        ("test selector retired conformance category",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--category"),
+             Project_Tools.Processes.Argument ("conformance")]));
       Expect_Usage_Error
         ("test selector unknown category",
          Project_Tools.Processes.Arguments

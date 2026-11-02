@@ -45,8 +45,8 @@
 - Command implementations may import shared `Posix_Tools` units.
 - Production host integration belongs under `Posix_Tools.Host_Adapters`.
 - Tests may import AUnit, `Test_Contexts`, and command packages.
-- Ada project tooling lives in `tests/src/posix_tools_tests.adb` and uses
-  `project_tools`.
+- Ada project tooling lives in `tests/src`, driven by
+  `tests/src/posix_tools_tests.adb`, and uses `project_tools`.
 
 ## Prohibited Imports
 
