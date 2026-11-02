@@ -34,7 +34,8 @@ package body Posix_Tools.Commands.Cp is
       Force : Boolean := False;
       Interactive : Boolean := False;
       Ok       : Boolean := True;
-      Parsing_Operands : Boolean := False;
+      First    : Positive;
+      Valid    : Boolean;
 
       --  Copy Source to Destination, writing a diagnostic for each entry
       --  that could not be copied, and asking about each existing target
@@ -69,51 +70,58 @@ package body Posix_Tools.Commands.Cp is
          if not Posix_Tools.File_Operations.Succeeded (Outcome) then
             Ok := False;
          elsif Verbose and then Outcome = Posix_Tools.File_Operations.Done then
-            Context.Put_Line ("'" & Source & "' -> '" & Destination & "'");
+            Context.Put_Line
+              ("'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Source) & "' -> '"
+               & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
          end if;
       end Copy;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'f' =>
+               Force := True;
+               Interactive := False;
+            when 'i' =>
+               Force := False;
+               Interactive := True;
+            when 'H' =>
+               Links := Follow_Operands;
+            when 'L' =>
+               Links := Follow_All;
+            when 'P' =>
+               Links := Follow_None;
+            when 'p' => Preserve_Mode := True;
+            when 'R' | 'r' => Recursive := True;
+            when others => Verbose := True;  --  -v
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (I);
-         begin
-            if not Parsing_Operands and then Arg = "--" then
-               for J in I + 1 .. Context.Argument_Count loop
-                  Operands.Append (Context.Argument (J));
-               end loop;
-               exit;
-            elsif not Parsing_Operands and then Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'f' =>
-                        Force := True;
-                        Interactive := False;
-                     when 'i' =>
-                        Force := False;
-                        Interactive := True;
-                     when 'H' =>
-                        Links := Follow_Operands;
-                     when 'L' =>
-                        Links := Follow_All;
-                     when 'P' =>
-                        Links := Follow_None;
-                     when 'p' => Preserve_Mode := True;
-                     when 'R' | 'r' => Recursive := True;
-                     when 'v' => Verbose := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return;
-                  end case;
-               end loop;
-            else
-               Operands.Append (Arg);
-               Parsing_Operands := True;
-            end if;
-         end;
+      Parse (Context, Result, "fHiLPpRrv", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
+      for I in First .. Context.Argument_Count loop
+         Operands.Append (Context.Argument (I));
       end loop;
 
       if Operands.Length < 2 then

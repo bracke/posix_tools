@@ -18,7 +18,8 @@ combined output line per input file.
 `--posix-tools-identify` are recognized. The end-of-options marker `--` is accepted.
 
 ## Standard Input
-Used when no files are supplied or when an operand is `-`.
+Used when no files are supplied or when an operand is `-`. Every `-` operand reads from the one standard input, so
+`paste - -` takes its lines two at a time.
 
 ## Standard Output
 Merged lines separated by the selected delimiter bytes. The default delimiter is tab.

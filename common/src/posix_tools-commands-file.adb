@@ -3,7 +3,6 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.File_Descriptions;
@@ -20,7 +19,8 @@ package body Posix_Tools.Commands.File is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First      : Positive := 1;
+      First      : Positive;
+      Valid      : Boolean;
       All_Ok     : Boolean := True;
       Mime_Mode  : Boolean := False;
       Magic_Path : Unbounded_String;
@@ -99,46 +99,41 @@ package body Posix_Tools.Commands.File is
                end if;
          end case;
       end Description;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Result);
+      begin
+         Valid := True;
+         if Name = 'm' then
+            Magic_Path := To_Unbounded_String (Value);
+            Has_Magic := True;
+         else
+            Mime_Mode := True;
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options
+        (Handle, Long_Options => "--mime --mime-type", Long_Name => 'i');
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First);
-         begin
-            if Arg = "--" then
-               First := First + 1;
-               exit;
-            elsif Arg = "-i" or else Arg = "--mime" or else Arg = "--mime-type" then
-               Mime_Mode := True;
-               First := First + 1;
-            elsif Arg = "-m" then
-               if First >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-m");
-                  return;
-               end if;
-               Magic_Path := To_Unbounded_String (Context.Argument (First + 1));
-               Has_Magic := True;
-               First := First + 2;
-            elsif Arg'Length > 2
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) = 'm'
-            then
-               Magic_Path := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
-               Has_Magic := True;
-               First := First + 1;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Unknown_Option,
-                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "im"));
-               return;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "im", "m", First, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if First > Context.Argument_Count then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
@@ -156,9 +151,6 @@ package body Posix_Tools.Commands.File is
          end;
       end loop;
 
-      Result.Status :=
-        (if Context.Output_Failed or else not All_Ok
-         then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.File;

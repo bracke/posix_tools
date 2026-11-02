@@ -1,7 +1,6 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Rmdir is
@@ -74,7 +73,6 @@ package body Posix_Tools.Commands.Rmdir is
          end;
       end loop;
 
-      Result.Status :=
-        (if Ok then Posix_Tools.Exit_Status.Success else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Rmdir;

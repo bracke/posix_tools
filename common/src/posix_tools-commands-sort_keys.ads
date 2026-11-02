@@ -45,9 +45,10 @@ package Posix_Tools.Commands.Sort_Keys is
      (Lines   : in out Posix_Tools.Streams.Lines.Segment_Vector;
       Options : Sort_Options);
 
-   --  True when Lines is already in the order Sort_Lines would produce, and,
-   --  with Options.Unique, when no two adjacent lines have equal keys.
-   function Lines_Are_Sorted
+   --  The index of the first line of Lines out of the order Sort_Lines would
+   --  produce, or, with Options.Unique, the first whose key equals the one
+   --  before it; 0 when there is none.
+   function First_Disorder
      (Lines   : Posix_Tools.Streams.Lines.Segment_Vector;
-      Options : Sort_Options) return Boolean;
+      Options : Sort_Options) return Natural;
 end Posix_Tools.Commands.Sort_Keys;

@@ -185,6 +185,24 @@ package body File_Command_Tests is
       Posix_Tools.Commands.Chmod.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects a clause list ending in a comma");
+
+      declare
+         Previous : Natural;
+         Ignored  : Natural;
+      begin
+         if Hostkit.Fs.Set_Creation_Mask (8#022#, Previous) then
+            Check (8#444#, "+w", File, 8#644#, "chmod +w without who keeps what the umask masks");
+            Check (8#666#, "-w", File, 8#466#, "chmod -w without who keeps what the umask masks");
+            Check (8#400#, "=rw", File, 8#644#, "chmod =rw without who sets only what the umask allows");
+            Check (8#444#, "a+w", File, 8#666#, "chmod a+w ignores the umask");
+            AUnit.Assertions.Assert (FS.Set_Permissions (File, 8#444#), "fixture mode for grouped -R");
+            Context.Initialize ("chmod", Args ("-RR", "u+w", File));
+            Posix_Tools.Commands.Chmod.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Success and then Mode (File) mod 8#10000# = 8#644#, "chmod takes -R repeated");
+            AUnit.Assertions.Assert (Hostkit.Fs.Set_Creation_Mask (Previous, Ignored), "umask restored");
+         end if;
+      end;
       Remove (Root);
    end Test_Chmod_Symbolic_Grammar;
 
@@ -573,6 +591,22 @@ package body File_Command_Tests is
          and then Test_Contexts.Error_Output (Context) =
            "ln: '" & Path (Root, "missing") & "': no such file or directory" & EOL,
          "ln says a source is missing");
+
+      if FS.Create_Link ("a", Path (Root, "sym")) then
+         Context.Initialize ("ln", Args ("-L", Path (Root, "sym"), Path (Root, "followed")));
+         Posix_Tools.Commands.Ln.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then not FS.Is_Link (Path (Root, "followed"))
+            and then Read (Path (Root, "followed")) = "data",
+            "ln -L links to the file a symbolic link leads to");
+
+         Context.Initialize ("ln", Args ("-LP", Path (Root, "sym"), Path (Root, "itself")));
+         Posix_Tools.Commands.Ln.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success and then FS.Exists (Path (Root, "itself")),
+            "ln takes -P after -L, grouped");
+      end if;
       Remove (Root);
    end Test_Ln_Same_File;
 
@@ -915,6 +949,23 @@ package body File_Command_Tests is
            (Test_Contexts.Error_Output (Context) =
               "mv: overwrite '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
             "mv -i shows a name with a control character escaped");
+
+         Context.Initialize ("cp", Args ("-v", A, Odd));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then Test_Contexts.Output (Context) =
+              "'" & A & "' -> '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'" & EOL,
+            "cp -v shows a name with a control character escaped");
+
+         Context.Initialize ("mv", Args ("-v", Odd, B));
+         Posix_Tools.Commands.Mv.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then Test_Contexts.Output (Context) =
+              "'" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "' -> '" & B & "'" & EOL,
+            "mv -v shows a name with a control character escaped");
+         Write (A, "a");
       end if;
 
       Context.Initialize ("rm", Args ("-v", A));
@@ -987,7 +1038,7 @@ package body File_Command_Tests is
       Posix_Tools.Streams.Counting.Finish_Text (State);
       AUnit.Assertions.Assert
         (Posix_Tools.Streams.Counting.Text_Invalid (State)
-         and then Posix_Tools.Streams.Counting.Character_Count (State) = 1
+         and then Posix_Tools.Streams.Counting.Character_Count (State) = 2
          and then Posix_Tools.Streams.Counting.Word_Count (State) = 1,
          "counting keeps the character after an invalid sequence");
 
@@ -995,8 +1046,8 @@ package body File_Command_Tests is
       Test_Contexts.Set_Standard_Input (Context, Broken);
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Failure and then Test_Contexts.Output (Context) = "",
-         "wc -m still refuses invalid UTF-8 without printing a partial count");
+        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "2" & Character'Val (10),
+         "wc -m counts the invalid sequence and the character after it");
    end Test_UTF_8_Resynchronises;
 
    procedure Write (Name, Text : String) is

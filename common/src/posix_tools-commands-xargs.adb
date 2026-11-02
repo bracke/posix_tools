@@ -94,13 +94,20 @@ package body Posix_Tools.Commands.Xargs is
       Result  : out Posix_Tools.Commands.Results.Result;
       Options : out Run_Options) return Boolean
    is
-      Skip_Next          : Boolean := False;
-      Parsing_Fixed_Args : Boolean := False;
+      First : Positive;
+      Valid : Boolean;
 
       --  -n and -s: a positive count, from Text.
-      function Set_Count (Option : Character; Text : String) return Boolean;
+      function Set_Count
+        (Result : in out Posix_Tools.Commands.Results.Result;
+         Option : Character;
+         Text   : String) return Boolean;
 
-      function Set_Count (Option : Character; Text : String) return Boolean is
+      function Set_Count
+        (Result : in out Posix_Tools.Commands.Results.Result;
+         Option : Character;
+         Text   : String) return Boolean
+      is
          Message : constant Posix_Tools.Commands.Usage_Messages.Usage_Message :=
            (if Option = 'n' then Invalid_Argument_Count else Invalid_Command_Size);
          Value   : Natural;
@@ -117,56 +124,51 @@ package body Posix_Tools.Commands.Xargs is
          end if;
          return True;
       end Set_Count;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         case Name is
+            when '0' => Options.Null_Delimited := True;
+            when 'r' => Options.No_Run_If_Empty := True;
+            when 't' => Options.Trace_Mode := True;
+            when 'x' => Options.Exit_If_Size_Exceeded := True;
+            when 'E' =>
+               Options.Has_Eof_Marker := True;
+               Options.Eof_Marker := To_Unbounded_String (Value);
+            when 'I' =>
+               Options.Replacement_Mode := True;
+               Options.Replacement_String := To_Unbounded_String (Value);
+               Options.Batch_Size := 1;
+            when others =>
+               Valid := Set_Count (Result, Name, Value);
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options
+        (Handle, Long_Options => "--no-run-if-empty", Long_Name => 'r');
    begin
       Options := (others => <>);
       Result.Status := Posix_Tools.Exit_Status.Success;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg     : constant String := Context.Argument (I);
-            Has_Arg : constant Boolean := I < Context.Argument_Count;
-         begin
-            if Skip_Next then
-               Skip_Next := False;
-            elsif Parsing_Fixed_Args then
-               Options.Fixed_Args.Append (Arg);
-            elsif Arg = "--" then
-               Parsing_Fixed_Args := True;
-            elsif Arg = "-0" then
-               Options.Null_Delimited := True;
-            elsif Arg = "-r" or else Arg = "--no-run-if-empty" then
-               Options.No_Run_If_Empty := True;
-            elsif Arg = "-t" then
-               Options.Trace_Mode := True;
-            elsif Arg = "-x" then
-               Options.Exit_If_Size_Exceeded := True;
-            elsif Arg in "-I" | "-E" | "-n" | "-s" and then not Has_Arg then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
-               return False;
-            elsif Arg = "-E" then
-               Options.Has_Eof_Marker := True;
-               Options.Eof_Marker := To_Unbounded_String (Context.Argument (I + 1));
-               Skip_Next := True;
-            elsif Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) = "-I" then
-               Options.Replacement_Mode := True;
-               Options.Replacement_String :=
-                 To_Unbounded_String
-                   (if Arg'Length = 2 then Context.Argument (I + 1) else Arg (Arg'First + 2 .. Arg'Last));
-               Options.Batch_Size := 1;
-               Skip_Next := Arg'Length = 2;
-            elsif Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) in "-n" | "-s" then
-               if not Set_Count
-                 (Arg (Arg'First + 1),
-                  (if Arg'Length = 2 then Context.Argument (I + 1) else Arg (Arg'First + 2 .. Arg'Last)))
-               then
-                  return False;
-               end if;
-               Skip_Next := Arg'Length = 2;
-            else
-               Options.Fixed_Args.Append (Arg);
-               Parsing_Fixed_Args := True;
-            end if;
-         end;
+      Parse (Context, Result, "0rtxEIns", "EIns", First, Valid);
+      if not Valid then
+         return False;
+      end if;
+
+      for I in First .. Context.Argument_Count loop
+         Options.Fixed_Args.Append (Context.Argument (I));
       end loop;
       return True;
    end Parse_Options;
@@ -329,14 +331,31 @@ package body Posix_Tools.Commands.Xargs is
          end if;
       else
          declare
-            First : Natural := 1;
-            Last  : Natural;
+            Count      : constant Natural := Natural (Input_Args.Length);
+            --  The size of an invocation with no input arguments.
+            Fixed_Size : constant Natural :=
+              Composed_Command_Size (Options, Compose (Options, Input_Args, 1, 0));
+            First      : Natural := 1;
+            Last       : Natural;
+            Size       : Natural;
          begin
-            while First <= Natural (Input_Args.Length) loop
-               Last := Natural'Min (First + Options.Batch_Size - 1, Natural (Input_Args.Length));
+            while First <= Count loop
+               --  As many arguments, up to the batch size, as fit the size
+               --  limit, each added to the size of those before it.
+               Last := First;
+               Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Fixed_Size, Input_Args.Element (First)'Length);
+               while not Options.Replacement_Mode
+                 and then Last < Natural'Min (First + Options.Batch_Size - 1, Count)
+                 and then Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last + 1)'Length)
+                   <= Options.Command_Size_Limit
+               loop
+                  Last := Last + 1;
+                  Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last)'Length);
+               end loop;
                if Options.Exit_If_Size_Exceeded
-                 and then Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
-                   > Options.Command_Size_Limit
+                 and then (Last < Natural'Min (First + Options.Batch_Size - 1, Count)
+                           or else Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
+                             > Options.Command_Size_Limit)
                then
                   Posix_Tools.Commands.Helpers.Operational_Error
                     (Context,
@@ -345,12 +364,6 @@ package body Posix_Tools.Commands.Xargs is
                   Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
                   return;
                end if;
-               while Last > First
-                 and then Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
-                   > Options.Command_Size_Limit
-               loop
-                  Last := Last - 1;
-               end loop;
                if Execute_Batch (First, Last) = Batch_Stopped then
                   return;
                end if;

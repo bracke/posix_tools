@@ -14,5 +14,8 @@ package Posix_Tools.Host_Adapters.Clock is
    --  that everything it does in one run is relative to the same instant.
    function Now return Ada.Calendar.Time;
 
+   --  The host's local time zone's offset from UTC, in minutes, at Time.
+   function Local_Offset (Time : Ada.Calendar.Time) return Ada.Calendar.Time_Zones.Time_Offset;
+
    function Set_System_Time (Time : Ada.Calendar.Time) return Boolean;
 end Posix_Tools.Host_Adapters.Clock;

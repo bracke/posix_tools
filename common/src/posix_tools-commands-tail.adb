@@ -3,7 +3,6 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Tail_Bytes;
 with Posix_Tools.Commands.Tail_Follow;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Numbers;
 with Posix_Tools.Tail_Counts;
 
@@ -26,9 +25,8 @@ package body Posix_Tools.Commands.Tail is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First_File : Positive := 1;
+      First_File : Positive;
       Count      : constant Natural := Context.Argument_Count;
-      Parsed_Status : Posix_Tools.Numbers.Parse_Status;
       Ok         : Boolean;
       All_Ok     : Boolean := True;
       Sources    : Natural;
@@ -36,74 +34,57 @@ package body Posix_Tools.Commands.Tail is
       Requested  : Posix_Tools.Numbers.Count := 10;
       Origin     : Count_Origin := From_End;
       Follow     : Follow_Mode := No_Follow;
-      Index      : Positive := 1;
+      Valid      : Boolean;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         case Name is
+            when 'f' => Follow := Follow_Descriptor;
+            when 'F' => Follow := Follow_Name;
+            when others =>
+               Current_Mode := (if Name = 'c' then Byte_Mode else Line_Mode);
+               declare
+                  Parsed : constant Posix_Tools.Tail_Counts.Parsed_Count :=
+                    Posix_Tools.Tail_Counts.Parse_Count (Value);
+               begin
+                  Requested := Parsed.Value;
+                  Origin := Parsed.Origin;
+                  if Parsed.Status /= Posix_Tools.Numbers.Valid then
+                     --  The count as given: its own argument, or attached
+                     --  to its option.
+                     Posix_Tools.Commands.Helpers.Usage_Error
+                       (Context, Result, Invalid_Count,
+                        (if (for some I in 1 .. Count => Context.Argument (I) = Value) then Value
+                         else "-" & Name & Value));
+                     Valid := False;
+                  end if;
+               end;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options
+        (Handle, Long_Options => "--follow", Long_Name => 'F');
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while Index <= Count loop
-         if Context.Argument (Index) = "--" then
-            Index := Index + 1;
-            exit;
-         elsif Context.Argument (Index) = "-f"
-           or else Context.Argument (Index) = "-F"
-           or else Context.Argument (Index) = "--follow"
-         then
-            Follow := (if Context.Argument (Index) = "-f" then Follow_Descriptor else Follow_Name);
-            Index := Index + 1;
-         elsif Context.Argument (Index) = "-n" or else Context.Argument (Index) = "-c" then
-            if Index = Count then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Missing_Option_Argument, Context.Argument (Index));
-               return;
-            end if;
-
-            Current_Mode := (if Context.Argument (Index) = "-c" then Byte_Mode else Line_Mode);
-            declare
-               Parsed : constant Posix_Tools.Tail_Counts.Parsed_Count :=
-                 Posix_Tools.Tail_Counts.Parse_Count (Context.Argument (Index + 1));
-            begin
-               Parsed_Status := Parsed.Status;
-               Requested := Parsed.Value;
-               Origin := Parsed.Origin;
-            end;
-            if Parsed_Status /= Posix_Tools.Numbers.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Count, Context.Argument (Index + 1));
-               return;
-            end if;
-            Index := Index + 2;
-         elsif Context.Argument (Index)'Length > 2
-           and then Context.Argument (Index) (1) = '-'
-           and then (Context.Argument (Index) (2) = 'n' or else Context.Argument (Index) (2) = 'c')
-         then
-            Current_Mode := (if Context.Argument (Index) (2) = 'c' then Byte_Mode else Line_Mode);
-            declare
-               Parsed : constant Posix_Tools.Tail_Counts.Parsed_Count :=
-                 Posix_Tools.Tail_Counts.Parse_Count
-                   (Context.Argument (Index) (3 .. Context.Argument (Index)'Last));
-            begin
-               Parsed_Status := Parsed.Status;
-               Requested := Parsed.Value;
-               Origin := Parsed.Origin;
-            end;
-            if Parsed_Status /= Posix_Tools.Numbers.Valid then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Count, Context.Argument (Index));
-               return;
-            end if;
-            Index := Index + 1;
-         elsif Context.Argument (Index)'Length > 1
-           and then Context.Argument (Index) (1) = '-'
-         then
-            Posix_Tools.Commands.Helpers.Usage_Error
-              (Context, Result, Unknown_Option,
-               Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Context.Argument (Index), "cfFn"));
-            return;
-         else
-            exit;
-         end if;
-      end loop;
-      First_File := Index;
+      Parse (Context, Result, "cfFn", "cn", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       Sources := (if First_File > Count then 1 else Count - First_File + 1);
       if First_File > Count then
@@ -162,8 +143,6 @@ package body Posix_Tools.Commands.Tail is
          end if;
       end if;
 
-      Result.Status :=
-        (if All_Ok then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Tail;

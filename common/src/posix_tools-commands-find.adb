@@ -1,4 +1,5 @@
 with Ada.Containers;
+with Ada.IO_Exceptions;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Find_Evaluation;
 with Posix_Tools.Commands.Find_Validation;
@@ -193,7 +194,7 @@ package body Posix_Tools.Commands.Find is
             Evaluate_And_Maybe_Print;
          end if;
       exception
-         when others =>
+         when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Device_Error =>
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");

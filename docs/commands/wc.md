@@ -16,7 +16,8 @@ word, and byte counts.
 ## Options
 - `-c`: bytes.
 - `-l`: LF bytes.
-- `-m`: UTF-8 characters.
+- `-m`: characters: UTF-8 characters in a UTF-8 locale, bytes in a single-byte
+  locale such as `C`.
 - `-w`: words under the project Unicode whitespace policy.
 - `-L`: maximum display line length as a project extension.
 
@@ -27,15 +28,17 @@ Used when no files are present or when an operand is `-`.
 One result line per successful input and a total line for multiple operands.
 
 ## Standard Error
-Diagnostics for unreadable files and invalid UTF-8 in text-counting modes.
+Diagnostics for unreadable files.
 
 ## Exit Status
 `0` success, `1` operational failure, `2` invalid usage, `125` internal failure.
 
 ## Behavioral Details
-Byte and line counting never decode text. `-m` and `-w` use incremental UTF-8
-decoding from `Posix_Tools.Text.UTF_8` and reject malformed or incomplete
-sequences for the affected input.
+Byte and line counting never decode text. In a UTF-8 locale `-m` and `-w`
+use incremental UTF-8 decoding from `Posix_Tools.Text.UTF_8`; a malformed or
+incomplete sequence counts as one character that is not blank, so it never
+makes `wc` fail. In a single-byte locale, such as `C` or `POSIX`, each byte is a
+character, and a byte outside ASCII is not blank.
 
 `-L` also uses the incremental UTF-8 path. It counts display columns
 deterministically: LF ends a line, tab advances to the next 8-column stop,

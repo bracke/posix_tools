@@ -123,13 +123,17 @@ package Posix_Tools.Commands.Helpers is
    --  error itself, into Result, and sets Valid to False to stop. An
    --  unknown option or a missing option argument is reported here. First
    --  is the index of the first operand. Valid is False when a usage error
-   --  has been reported.
+   --  has been reported. A command that also takes long flags, such as
+   --  "--follow", lists them in Long_Options, separated by spaces; each is
+   --  handled as the flag Long_Name.
    generic
       with procedure Handle
         (Name   : Character;
          Value  : String;
          Result : in out Posix_Tools.Commands.Results.Result;
          Valid  : out Boolean);
+      Long_Options : String := "";
+      Long_Name    : Character := Character'Val (0);
    procedure Parse_Options
      (Context           : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result            : in out Posix_Tools.Commands.Results.Result;

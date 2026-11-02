@@ -62,14 +62,16 @@ is
             and then Max_Line_Length (Self) = Max_Line_Length (Self'Old)
             and then Text_Invalid (Self) = Text_Invalid (Self'Old)
             and then Word_Count (Self) = Word_Count (Self'Old));
+   --  A sequence cut short by the end of the input is counted as one
+   --  more character.
    procedure Finish_Text (Self : in out Counter)
      with Post =>
        Byte_Count (Self) = Byte_Count (Self'Old)
-       and then Character_Count (Self) = Character_Count (Self'Old)
+       and then Character_Count (Self) >= Character_Count (Self'Old)
        and then Line_Count (Self) = Line_Count (Self'Old)
-       and then Max_Line_Length (Self) =
+       and then Max_Line_Length (Self) >=
          Maximum (Max_Line_Length (Self'Old), Current_Line_Length (Self'Old))
-       and then Word_Count (Self) = Word_Count (Self'Old)
+       and then Word_Count (Self) >= Word_Count (Self'Old)
        and then (if Text_Invalid (Self'Old) then Text_Invalid (Self));
    function Snapshot (Self : Counter) return Counts
      with Post =>
@@ -78,7 +80,15 @@ is
        and then Snapshot'Result.Lines = Line_Count (Self)
        and then Snapshot'Result.Max_Line_Length = Max_Line_Length (Self)
        and then Snapshot'Result.Words = Word_Count (Self);
+   --  True when some bytes did not form UTF-8; each such sequence was
+   --  counted as one character that is not blank.
    function Text_Invalid (Self : Counter) return Boolean;
+
+   --  Count each byte as a character, as in a single-byte locale such as
+   --  C: a byte outside ASCII is a character that is not blank. Call it
+   --  before the first Process.
+   procedure Count_Single_Bytes (Self : in out Counter);
+
    function Count_Bytes (Input : String) return Counts
      with Post =>
        Count_Bytes'Result.Bytes = Count_Value (Input'Length)
@@ -96,6 +106,7 @@ private
       In_Word : Boolean := False;
       Decoder : Posix_Tools.Text.UTF_8.Decoder;
       Invalid_Text : Boolean := False;
+      Single_Byte : Boolean := False;
    end record;
 
    function Byte_Count (Self : Counter) return Count_Value is (Self.Current.Bytes);

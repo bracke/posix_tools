@@ -14,7 +14,8 @@ package Posix_Tools.Commands.Text_Helpers.File_Modes is
      (Selection    : Mode_Selection;
       Base         : Natural;
       Mask         : Natural;
-      Is_Directory : Boolean := False) return Selected_Mode;
+      Is_Directory : Boolean := False;
+      Umask        : Natural := 0) return Selected_Mode;
 
    procedure Parse
      (Text      : String;

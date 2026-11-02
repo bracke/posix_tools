@@ -81,7 +81,9 @@ package body Posix_Tools.Commands.Chmod is
             Valid := False;
             return 0;
          end if;
-         Selected := Mode_Helpers.Selected (Mode_Selection, Base, 8#10000#, FS.Kind (Path) = FS.Directory);
+         Selected :=
+           Mode_Helpers.Selected
+             (Mode_Selection, Base, 8#10000#, FS.Kind (Path) = FS.Directory, Umask => FS.Creation_Mask);
          Valid := Selected.Valid;
          return Selected.Mode;
       end Selected_Mode_For;
@@ -90,16 +92,25 @@ package body Posix_Tools.Commands.Chmod is
          return;
       end if;
 
+      --  Not Helpers.Parse_Options: a mode such as "-w" looks like an
+      --  option, so only "-R", repeated or grouped, is taken as one.
       while First <= Context.Argument_Count loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         elsif Context.Argument (First) = "-R" then
-            Recursive := True;
-            First := First + 1;
-         else
-            exit;
-         end if;
+         declare
+            Argument : constant String := Context.Argument (First);
+         begin
+            if Argument = "--" then
+               First := First + 1;
+               exit;
+            elsif Argument'Length > 1
+              and then Argument (Argument'First) = '-'
+              and then (for all C of Argument (Argument'First + 1 .. Argument'Last) => C = 'R')
+            then
+               Recursive := True;
+               First := First + 1;
+            else
+               exit;
+            end if;
+         end;
       end loop;
 
       if Context.Argument_Count < First + 1 then

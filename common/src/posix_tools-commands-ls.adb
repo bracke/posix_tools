@@ -2,12 +2,10 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Ls is
-   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
@@ -25,7 +23,8 @@ package body Posix_Tools.Commands.Ls is
 
       Hidden            : Hidden_Mode := Hide_Hidden;
       Directory_As_File : Boolean := False;
-      First             : Positive := 1;
+      First             : Positive;
+      Valid             : Boolean;
       Ok                : Boolean := True;
       Emitted           : Boolean := False;
 
@@ -88,42 +87,43 @@ package body Posix_Tools.Commands.Ls is
               (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
          end if;
       end List_Path;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         Valid := True;
+         case Name is
+            when 'a' => Hidden := All_Entries;
+            when 'A' =>
+               if Hidden /= All_Entries then
+                  Hidden := Almost_All;
+               end if;
+            when '1' => null;  --  one entry a line, as always
+            when others => Directory_As_File := True;  --  -d
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First);
-         begin
-            if Arg = "--" then
-               First := First + 1;
-               exit;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when '1' =>
-                        null;
-                     when 'a' =>
-                        Hidden := All_Entries;
-                     when 'A' =>
-                        if Hidden /= All_Entries then
-                           Hidden := Almost_All;
-                        end if;
-                     when 'd' =>
-                        Directory_As_File := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return;
-                  end case;
-               end loop;
-               First := First + 1;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "1aAd", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Context.Argument_Count < First then
          List_Path (".", False);

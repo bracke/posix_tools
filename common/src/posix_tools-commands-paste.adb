@@ -57,21 +57,47 @@ package body Posix_Tools.Commands.Paste is
       declare
          Count : constant Natural :=
            (if Context.Argument_Count < First then 1 else Context.Argument_Count - First + 1);
-         Files : Line_Vector_Array (1 .. Count);
-         Max   : Natural := 0;
-         Ok    : Boolean := True;
+
+         function Name (Index : Positive) return String is
+           (if Context.Argument_Count < First then "-" else Context.Argument (First + Index - 1));
+
+         --  Every "-" operand reads from the one standard input: its lines
+         --  are kept once, in Files (Stdin), and handed out in turn.
+         Files   : Line_Vector_Array (1 .. Count);
+         Source  : array (1 .. Count) of Positive;
+         Next    : array (1 .. Count) of Positive := [others => 1];
+         Stdin   : Natural := 0;
+         Ok      : Boolean := True;
+
+         --  Take Source (Index)'s next line into Line; False past its end.
+         function Take (Index : Positive; Line : out Unbounded_String) return Boolean is
+            S : constant Positive := Source (Index);
+         begin
+            if Next (S) > Natural (Files (S).Length) then
+               Line := Null_Unbounded_String;
+               return False;
+            end if;
+            Line := To_Unbounded_String (Files (S).Element (Next (S)));
+            Next (S) := Next (S) + 1;
+            return True;
+         end Take;
       begin
          for I in 1 .. Count loop
-            declare
-               Data : Unbounded_String;
-               Name : constant String :=
-                 (if Context.Argument_Count < First then "-" else Context.Argument (First + I - 1));
-            begin
-               Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
-               exit when not Ok;
-               Files (I) := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Data));
-               Max := Natural'Max (Max, Natural (Files (I).Length));
-            end;
+            if Name (I) = "-" and then Stdin /= 0 then
+               Source (I) := Stdin;
+            else
+               declare
+                  Data : Unbounded_String;
+               begin
+                  Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name (I), Data, Ok);
+                  exit when not Ok;
+                  Files (I) := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Data));
+                  Source (I) := I;
+                  if Name (I) = "-" then
+                     Stdin := I;
+                  end if;
+               end;
+            end if;
          end loop;
          if not Ok then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
@@ -82,26 +108,31 @@ package body Posix_Tools.Commands.Paste is
             for File_Index in 1 .. Count loop
                declare
                   Output : Unbounded_String;
+                  Line   : Unbounded_String;
+                  Row    : Natural := 0;
                begin
-                  for Row in 1 .. Natural (Files (File_Index).Length) loop
+                  while Take (File_Index, Line) loop
+                     Row := Row + 1;
                      if Row > 1 then
                         Append
                           (Output,
                            Posix_Tools.Text.Paste_Delimiters.Delimiter
                              (To_String (Delimiters), Row - 1));
                      end if;
-                     Append (Output, Files (File_Index).Element (Row));
+                     Append (Output, Line);
                   end loop;
-                  if Natural (Files (File_Index).Length) > 0 then
+                  if Row > 0 then
                      Context.Put_Line (To_String (Output));
                      exit when Context.Output_Failed;
                   end if;
                end;
             end loop;
          else
-            for Row in 1 .. Max loop
+            loop
                declare
                   Output : Unbounded_String;
+                  Line   : Unbounded_String;
+                  Any    : Boolean := False;
                begin
                   for File_Index in 1 .. Count loop
                      if File_Index > 1 then
@@ -110,14 +141,14 @@ package body Posix_Tools.Commands.Paste is
                            Posix_Tools.Text.Paste_Delimiters.Delimiter
                              (To_String (Delimiters), File_Index - 1));
                      end if;
-                     if Row <= Natural (Files (File_Index).Length) then
-                        Append (Output, Files (File_Index).Element (Row));
+                     if Take (File_Index, Line) then
+                        Any := True;
+                        Append (Output, Line);
                      end if;
                   end loop;
+                  exit when not Any;
                   Context.Put_Line (To_String (Output));
-                  if Context.Output_Failed then
-                     exit;
-                  end if;
+                  exit when Context.Output_Failed;
                end;
             end loop;
          end if;

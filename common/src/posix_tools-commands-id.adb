@@ -22,6 +22,8 @@ package body Posix_Tools.Commands.Id is
       Group_Id        : Natural := 0;
       Groups          : Host.Group_Id_List (1 .. 256);
       Group_Last      : Natural := 0;
+      First           : Positive;
+      Valid           : Boolean;
 
       procedure Append_Group (Id : Natural);
       function Group_List (Named : Boolean; Decorated : Boolean) return String;
@@ -57,42 +59,43 @@ package body Posix_Tools.Commands.Id is
          return To_String (Output);
       end Group_List;
 
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         Valid := True;
+         case Name is
+            when 'u' => Show_User := True;
+            when 'g' => Show_Group := True;
+            when 'G' => Show_All_Groups := True;
+            when others => Show_Name := True;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (I);
-         begin
-            if Arg = "--" then
-               if I < Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (I + 1));
-                  return;
-               end if;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'u' =>
-                        Show_User := True;
-                     when 'g' =>
-                        Show_Group := True;
-                     when 'G' =>
-                        Show_All_Groups := True;
-                     when 'n' =>
-                        Show_Name := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return;
-                  end case;
-               end loop;
-            else
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Arg);
-               return;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "Ggnu", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
+      if First <= Context.Argument_Count then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First));
+         return;
+      end if;
 
       if not Context.Current_User_Id (User_Id) then
          Posix_Tools.Commands.Helpers.Operational_Error

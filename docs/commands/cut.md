@@ -18,7 +18,7 @@ Writes selected portions of each input line.
 `-b list` selects byte positions. `-n` with `-b` does not split characters: as POSIX specifies, the low end of each
 range moves back to the first byte of its character, the high end moves back to the last byte of the character before
 one it would split, and a range left empty is dropped. `-c list` selects character positions. `-f list` selects delimiter-separated
-fields. `-d char` selects the field delimiter. `-s` suppresses lines without delimiters in field mode. Project
+fields. `-d char` selects the field delimiter, one character, which in a UTF-8 locale may take several bytes. `-s` suppresses lines without delimiters in field mode. Project
 extensions `--help`, `--version`, and `--posix-tools-identify` are recognized. The end-of-options marker `--` is
 accepted.
 

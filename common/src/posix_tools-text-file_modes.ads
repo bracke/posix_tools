@@ -108,12 +108,16 @@ is
    --  meaning all) and one action or more, each an op (+, -, =) and its
    --  perms (r, w, x, X, s, t) or one of u, g, and o to copy. X is x for a
    --  directory, or where Base has an execute bit set, and nothing else.
+   --  A clause without who acts as "a", except that the perms it adds or
+   --  sets leave out those Umask, the file mode creation mask, has.
    function Apply_Symbolic_Mode
      (Text         : String;
       Base         : Natural;
-      Is_Directory : Boolean := False) return Symbolic_Mode_Result
+      Is_Directory : Boolean := False;
+      Umask        : Natural := 0) return Symbolic_Mode_Result
      with Pre =>
             Base <= 8#7777#
+            and Umask <= 8#7777#
             and Text'First in Positive
             and Text'Last < Positive'Last,
           Post =>

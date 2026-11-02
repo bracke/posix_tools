@@ -24,6 +24,9 @@ package body Posix_Tools.Host_Adapters.Clock is
          return False;
    end Resolve_Time_Zone;
 
+   function Local_Offset (Time : Ada.Calendar.Time) return Ada.Calendar.Time_Zones.Time_Offset is
+     (Ada.Calendar.Time_Zones.UTC_Time_Offset (Time));
+
    function Set_System_Time (Time : Ada.Calendar.Time) return Boolean is
    begin
       return Hostkit.Clock.Set_System_Time (Time);

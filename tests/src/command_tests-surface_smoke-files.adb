@@ -1079,6 +1079,15 @@ package body Command_Tests.Surface_Smoke.Files is
          and then not Contains (Test_Contexts.Output (Context), "%w")
          and then not Contains (Test_Contexts.Output (Context), "%W"),
          "stat supports timestamp format fields");
+
+      AUnit.Assertions.Assert
+        (Hostkit.Metadata.Set_File_Times (Source, 1_577_934_245, 1_577_934_245), "stat fixture times");
+      Context.Initialize ("stat", Three_Args ("-c", "%Y", Source));
+      Posix_Tools.Commands.Stat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1577934245" & EOL,
+         "stat counts epoch seconds from the epoch in UTC");
    end Test_Stat;
 
 end Command_Tests.Surface_Smoke.Files;

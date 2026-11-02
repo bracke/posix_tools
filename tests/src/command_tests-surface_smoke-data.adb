@@ -195,6 +195,31 @@ package body Command_Tests.Surface_Smoke.Data is
            & Character'Val (9) & Character'Val (9) & "b" & EOL
            & Character'Val (9) & "c" & EOL,
          "comm honors end-of-options before operands");
+
+      Write_File (Comm_First, "a" & EOL & "B" & EOL);
+      Write_File (Comm_Second, "B" & EOL);
+      Context.Initialize ("comm", Two_Args (Comm_First, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL
+           & Character'Val (9) & Character'Val (9) & "B" & EOL,
+         "comm compares lines in the locale's collation");
+
+      Context.Initialize ("comm", Two_Args (Comm_First, Comm_Second));
+      Test_Contexts.Set_Locale (Context, "C");
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Character'Val (9) & "B" & EOL & "a" & EOL & "B" & EOL,
+         "comm compares bytes in the C locale");
+
+      Context.Initialize ("comm", Three_Args (Comm_First, Comm_Second, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "extra operand"),
+         "comm reports an extra operand as one");
    end Test_Comm;
 
    procedure Test_Cut (T : in out Surface_Fixture) is
@@ -570,6 +595,15 @@ package body Command_Tests.Surface_Smoke.Data is
            & "1" & Character'Val (9) & "2" & EOL,
          "paste serial mode combines each file separately");
 
+      Context.Initialize ("paste", Two_Args ("-", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "1" & EOL & "2" & EOL & "3" & EOL & "4" & EOL);
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1" & Character'Val (9) & "2" & EOL
+           & "3" & Character'Val (9) & "4" & EOL,
+         "paste - - takes standard input's lines in turn");
+
       Context.Initialize ("paste", One_Arg ("-d"));
       Posix_Tools.Commands.Paste.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -659,6 +693,29 @@ package body Command_Tests.Surface_Smoke.Data is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "split rejects a zero suffix length");
+
+      Context.Initialize ("split", Three_Args ("-l1", Split_Input, Split_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split -l attached status");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "ac"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c" & EOL, "split takes an attached line count");
+
+      Write_File (Split_Input, [1 .. 1500 => 'x']);
+      Context.Initialize ("split", Four_Args ("-b", "1k", Split_Input, Split_Long_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split -b 1k status");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "aa"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context)'Length = 1024, "split -b k counts kibibytes");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "ab"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context)'Length = 476, "split -b k leaves the rest");
+
+      Context.Initialize ("split", Two_Args ("-b", "1x"));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "split rejects an unknown size suffix");
    end Test_Split;
 
 end Command_Tests.Surface_Smoke.Data;

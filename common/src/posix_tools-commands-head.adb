@@ -1,7 +1,6 @@
 with Posix_Tools.Commands.File_Helpers;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Numbers;
 
 package body Posix_Tools.Commands.Head is
@@ -95,8 +94,6 @@ package body Posix_Tools.Commands.Head is
          end loop;
       end if;
 
-      Result.Status :=
-        (if All_Ok then Posix_Tools.Exit_Status.Success
-         else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Head;

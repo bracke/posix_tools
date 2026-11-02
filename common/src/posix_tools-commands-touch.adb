@@ -221,8 +221,7 @@ package body Posix_Tools.Commands.Touch is
                Fail_Open (Context, Context.Argument (I), Ok);
          end;
       end loop;
-      Result.Status :=
-        (if Ok then Posix_Tools.Exit_Status.Success else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 
    procedure Select_Time

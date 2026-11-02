@@ -347,6 +347,15 @@ package body Command_Tests.Surface_Smoke.Filters is
         (Test_Contexts.Output (Context) = "1 same" & EOL & "3 other" & EOL,
          "uniq -f output");
 
+      Context.Initialize ("uniq", Two_Args ("-cf", "1"));
+      Test_Contexts.Set_Standard_Input (Context, "1 same" & EOL & "2 same" & EOL & "3 other" & EOL);
+      Posix_Tools.Commands.Uniq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Contains (Test_Contexts.Output (Context), "2 1 same" & EOL)
+         and then Contains (Test_Contexts.Output (Context), "1 3 other" & EOL),
+         "uniq takes -f grouped behind -c");
+
       Context.Initialize ("uniq", Two_Args ("-f", "1"));
       Test_Contexts.Set_Standard_Input
         (Context,
@@ -647,6 +656,30 @@ package body Command_Tests.Surface_Smoke.Filters is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "aa" & EOL & "bb" & EOL,
          "xargs compact -s splits by composed command size");
+
+      Context.Initialize ("xargs", Three_Args ("-s", "14", "echo"));
+      Test_Contexts.Set_Standard_Input (Context, "a b c d e f g");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "a b c d" & EOL & "e f g" & EOL,
+         "xargs -s fills each batch up to the size limit");
+
+      Context.Initialize ("xargs", Two_Args ("-rt", "echo"));
+      Test_Contexts.Set_Standard_Input (Context, "a b");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a b" & EOL
+         and then Test_Contexts.Error_Output (Context) = "echo a b" & EOL,
+         "xargs takes grouped flags");
+
+      Context.Initialize ("xargs", Two_Args ("-Eeof", "echo"));
+      Test_Contexts.Set_Standard_Input (Context, "a eof b");
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL,
+         "xargs takes an attached end-of-file string");
 
       Context.Initialize ("xargs", Two_Args ("-t", "echo"));
       Test_Contexts.Set_Standard_Input (Context, "a b");

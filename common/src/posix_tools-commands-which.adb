@@ -1,6 +1,5 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Executables;
 
 package body Posix_Tools.Commands.Which is
@@ -39,12 +38,6 @@ package body Posix_Tools.Commands.Which is
          end;
       end loop;
 
-      if Context.Output_Failed then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-      elsif Missing_Any then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-      else
-         Result.Status := Posix_Tools.Exit_Status.Success;
-      end if;
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, not Missing_Any);
    end Run;
 end Posix_Tools.Commands.Which;

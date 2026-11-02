@@ -15,8 +15,6 @@ package body Posix_Tools.Commands.Cut is
    use type Posix_Tools.Text.Cut_Fields.Range_Item;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
 
-   LF : constant Character := Character'Val (10);
-
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
    package Range_Vectors is new Ada.Containers.Vectors
      (Positive, Posix_Tools.Text.Cut_Fields.Range_Item);
@@ -99,7 +97,7 @@ package body Posix_Tools.Commands.Cut is
    is
       Mode       : Character := Character'Val (0);
       Ranges     : Range_Vectors.Vector;
-      Delimiter  : Character := Character'Val (9);
+      Delimiter  : Unbounded_String := To_Unbounded_String (Character'Val (9) & "");
       Has_Delimiter : Boolean := False;
       Suppress   : Boolean := False;
       No_Split   : Boolean := False;
@@ -137,50 +135,55 @@ package body Posix_Tools.Commands.Cut is
       end Cut_File;
 
       procedure Emit_Line (Line : String) is
-         Clean  : constant String :=
-           (if Line'Length > 0 and then Line (Line'Last) = LF
-            then Line (Line'First .. Line'Last - 1)
-            else Line);
-         Output : Unbounded_String;
-         Field  : Positive := 1;
-         Start  : Positive := Clean'First;
+         Separator : constant String := To_String (Delimiter);
+         Output    : Unbounded_String;
+         Field     : Positive := 1;
+         Start     : Positive := Line'First;
+         Index     : Positive := Line'First;
          Seen_Delimiter : Boolean := False;
+         --  A field has been written, so the next one selected follows a
+         --  delimiter, even when the one written was empty.
+         Wrote_Field : Boolean := False;
+
+         procedure Field_Ends (Last : Natural);
+
+         procedure Field_Ends (Last : Natural) is
+         begin
+            if Selected (Ranges, Field) then
+               if Wrote_Field then
+                  Append (Output, Separator);
+               end if;
+               Append (Output, Line (Start .. Last));
+               Wrote_Field := True;
+            end if;
+         end Field_Ends;
       begin
          if Mode = 'c' and then Characters then
-            Context.Put_Line (Selected_Characters (Ranges, Clean));
+            Context.Put_Line (Selected_Characters (Ranges, Line));
          elsif Mode = 'b' and then No_Split and then Characters then
-            Context.Put_Line (Whole_Character_Bytes (Ranges, Clean));
+            Context.Put_Line (Whole_Character_Bytes (Ranges, Line));
          elsif Mode = 'b' or else Mode = 'c' then
-            for I in Clean'Range loop
-               if Selected (Ranges, I - Clean'First + 1) then
-                  Append (Output, Clean (I));
+            for I in Line'Range loop
+               if Selected (Ranges, I - Line'First + 1) then
+                  Append (Output, Line (I));
                end if;
             end loop;
             Context.Put_Line (To_String (Output));
          else
-            for I in Clean'Range loop
-               if Clean (I) = Delimiter then
+            while Index + Separator'Length - 1 <= Line'Last loop
+               if Line (Index .. Index + Separator'Length - 1) = Separator then
                   Seen_Delimiter := True;
-                  if Selected (Ranges, Field) then
-                     if Length (Output) > 0 then
-                        Append (Output, Delimiter);
-                     end if;
-                     Append (Output, Clean (Start .. I - 1));
-                  end if;
+                  Field_Ends (Index - 1);
                   Field := Field + 1;
-                  Start := I + 1;
+                  Index := Index + Separator'Length;
+                  Start := Index;
+               else
+                  Index := Index + 1;
                end if;
             end loop;
-            if Selected (Ranges, Field) then
-               if Length (Output) > 0 then
-                  Append (Output, Delimiter);
-               end if;
-               if Start <= Clean'Last then
-                  Append (Output, Clean (Start .. Clean'Last));
-               end if;
-            end if;
+            Field_Ends (Line'Last);
             if Seen_Delimiter or else not Suppress then
-               Context.Put_Line ((if Seen_Delimiter then To_String (Output) else Clean));
+               Context.Put_Line ((if Seen_Delimiter then To_String (Output) else Line));
             end if;
          end if;
       end Emit_Line;
@@ -199,11 +202,15 @@ package body Posix_Tools.Commands.Cut is
             when 'n' =>
                No_Split := True;
             when 'd' =>
-               if Value'Length /= 1 then
+               --  One character: in a UTF-8 locale it may take several bytes.
+               if Value'Length = 0
+                 or else (if Characters then Character_Width (Value, Value'First) /= Value'Length
+                          else Value'Length /= 1)
+               then
                   Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
                   return;
                end if;
-               Delimiter := Value (Value'First);
+               Delimiter := To_Unbounded_String (Value);
                Has_Delimiter := True;
             when others =>
                --  -b, -c or -f, with its list.

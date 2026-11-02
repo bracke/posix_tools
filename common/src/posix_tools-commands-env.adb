@@ -10,8 +10,8 @@ package body Posix_Tools.Commands.Env is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Pairs       : Posix_Tools.Arguments.Vector;
-      First       : Positive := 1;
-      End_Options : Boolean := False;
+      First       : Positive;
+      Valid       : Boolean;
 
       function Equal_Position (Text : String) return Natural;
 
@@ -71,42 +71,51 @@ package body Posix_Tools.Commands.Env is
 
          Pairs.Append (Pair);
       end Replace_Or_Append;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         if Name = 'i' then
+            Pairs.Clear;
+         elsif Value = "" or else (for some Ch of Value => Ch = '=') then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+            Valid := False;
+         else
+            Remove_Name (Value);
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
       Pairs := Context.Environment_Pairs;
-      while First <= Context.Argument_Count loop
-         if not End_Options and then Context.Argument (First) = "--" then
-            End_Options := True;
-            First := First + 1;
-         elsif not End_Options and then Context.Argument (First) = "-i" then
-            Pairs.Clear;
-            First := First + 1;
-         elsif not End_Options and then Context.Argument (First) = "-u" then
-            if First = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-u");
-               return;
-            elsif Context.Argument (First + 1) = ""
-              or else (for some Ch of Context.Argument (First + 1) => Ch = '=')
-            then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Invalid_Operand, Context.Argument (First + 1));
-               return;
-            end if;
-            Remove_Name (Context.Argument (First + 1));
-            First := First + 2;
-         elsif (for some Ch of Context.Argument (First) => Ch = '=') then
-            if Context.Argument (First) (Context.Argument (First)'First) = '=' then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
-               return;
-            end if;
-            Replace_Or_Append (Context.Argument (First));
-            First := First + 1;
-         else
-            exit;
+      Parse (Context, Result, "iu", "u", First, Valid);
+      if not Valid then
+         return;
+      end if;
+      while First <= Context.Argument_Count
+        and then (for some Ch of Context.Argument (First) => Ch = '=')
+      loop
+         if Context.Argument (First) (Context.Argument (First)'First) = '=' then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Context.Argument (First));
+            return;
          end if;
+         Replace_Or_Append (Context.Argument (First));
+         First := First + 1;
       end loop;
 
       if First <= Context.Argument_Count then

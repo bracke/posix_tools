@@ -6,7 +6,8 @@ is
    function Apply_Symbolic_Mode
      (Text         : String;
       Base         : Natural;
-      Is_Directory : Boolean := False) return Symbolic_Mode_Result is
+      Is_Directory : Boolean := False;
+      Umask        : Natural := 0) return Symbolic_Mode_Result is
    begin
       if Text = "" then
          return (Valid => False, Mode => Base);
@@ -30,7 +31,8 @@ is
             exit when Index > Text'Last;
 
             declare
-               Who_Mask : Natural := 0;
+               Who_Mask    : Natural := 0;
+               Without_Who : Boolean := False;
             begin
                while Index <= Text'Last and then Text (Index) in 'a' | 'u' | 'g' | 'o' loop
                   pragma Loop_Invariant
@@ -45,6 +47,7 @@ is
 
                if Who_Mask = 0 then
                   Who_Mask := 8#7777#;
+                  Without_Who := True;
                end if;
                if Index > Text'Last or else Text (Index) not in '+' | '-' | '=' then
                   return (Valid => False, Mode => Base);
@@ -91,6 +94,10 @@ is
                         end;
                         Index := Index + 1;
                      end loop;
+
+                     if Without_Who then
+                        Perms := Clear_Mode_Mask (Perms, Umask);
+                     end if;
 
                      declare
                         Applied : constant Symbolic_Permission_Operation_Result :=

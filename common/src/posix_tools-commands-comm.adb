@@ -1,6 +1,7 @@
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Streams.Lines;
@@ -18,7 +19,10 @@ package body Posix_Tools.Commands.Comm is
       Suppress_1 : Boolean := False;
       Suppress_2 : Boolean := False;
       Suppress_3 : Boolean := False;
-      First      : Positive := 1;
+      First      : Positive;
+      Valid      : Boolean;
+      Locale     : constant String :=
+        Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation);
       Left_Data  : Unbounded_String;
       Right_Data : Unbounded_String;
       Left_Lines : String_Vectors.Vector;
@@ -28,6 +32,42 @@ package body Posix_Tools.Commands.Comm is
       R          : Positive := 1;
 
       procedure Emit (Column : Positive; Text : String);
+
+      --  How Left collates against Right; lines the locale ranks equal
+      --  but that differ are ordered by their bytes.
+      function Compare (Left, Right : String) return Integer is
+        (declare
+            Collated : constant Integer :=
+              Posix_Tools.Commands.Text_Helpers.Collation.Compare (Locale, Left, Right);
+         begin
+           (if Collated /= 0 then Collated
+            elsif Left < Right then -1
+            elsif Left > Right then 1
+            else 0));
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when '1' => Suppress_1 := True;
+            when '2' => Suppress_2 := True;
+            when others => Suppress_3 := True;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
 
       procedure Emit (Column : Positive; Text : String) is
          Prefix : Unbounded_String;
@@ -51,27 +91,13 @@ package body Posix_Tools.Commands.Comm is
          return;
       end if;
 
-      while First <= Context.Argument_Count
-        and then Context.Argument (First)'Length > 1
-        and then Context.Argument (First) (Context.Argument (First)'First) = '-'
-      loop
-         exit when Context.Argument (First) = "--";
-         for Ch of Context.Argument (First) (Context.Argument (First)'First + 1 .. Context.Argument (First)'Last) loop
-            case Ch is
-               when '1' => Suppress_1 := True;
-               when '2' => Suppress_2 := True;
-               when '3' => Suppress_3 := True;
-               when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                  return;
-            end case;
-         end loop;
-         First := First + 1;
-      end loop;
-      if First <= Context.Argument_Count and then Context.Argument (First) = "--" then
-         First := First + 1;
-      end if;
-      if Context.Argument_Count /= First + 1 then
+      Parse (Context, Result, "123", "", First, Valid);
+      if not Valid then
+         return;
+      elsif Context.Argument_Count > First + 1 then
+         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Extra_Operand, Context.Argument (First + 2));
+         return;
+      elsif Context.Argument_Count < First + 1 then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
@@ -100,13 +126,13 @@ package body Posix_Tools.Commands.Comm is
                Emit (1, Left_Lines.Element (L));
             end if;
             L := L + 1;
-         elsif Left_Lines.Element (L) = Right_Lines.Element (R) then
+         elsif Compare (Left_Lines.Element (L), Right_Lines.Element (R)) = 0 then
             if not Suppress_3 then
                Emit (3, Left_Lines.Element (L));
             end if;
             L := L + 1;
             R := R + 1;
-         elsif Left_Lines.Element (L) < Right_Lines.Element (R) then
+         elsif Compare (Left_Lines.Element (L), Right_Lines.Element (R)) < 0 then
             if not Suppress_1 then
                Emit (1, Left_Lines.Element (L));
             end if;

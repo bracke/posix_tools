@@ -3,10 +3,10 @@ with Ada.Strings.Unbounded;
 with Posix_Tools.Localization;
 with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.Time_Fields;
+with Posix_Tools.Unix_Time;
 
 package body Posix_Tools.Text.Date_Formats is
    use Ada.Strings.Unbounded;
-   use type Ada.Calendar.Time;
    use type Ada.Calendar.Formatting.Day_Name;
 
    LF : constant Character := Character'Val (10);
@@ -75,10 +75,9 @@ package body Posix_Tools.Text.Date_Formats is
       function Time_Zone_Image return String;
 
       function Epoch_Seconds_Image return String is
-         Epoch : constant Ada.Calendar.Time := Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
       begin
          return Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image
-           (Long_Long_Integer (Time - Epoch));
+           (Posix_Tools.Unix_Time.Seconds_Since_Epoch (Time));
       end Epoch_Seconds_Image;
 
       function Time_Zone_Image return String is

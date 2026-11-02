@@ -8,6 +8,7 @@ with Posix_Tools.Commands.Dd;
 with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Sort;
+with Posix_Tools.Commands.Text_Helpers.Folding;
 with Posix_Tools.Exit_Status;
 with Test_Contexts;
 
@@ -1197,6 +1198,55 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
          "sort -c rejects unordered input");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context), "disorder: 'a'"),
+         "sort -c says which line is out of order");
+
+      Context.Initialize ("sort", Two_Args ("-C", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Error_Output (Context) = "",
+         "sort -C rejects unordered input silently");
+
+      Context.Initialize ("sort", Three_Args ("-c", Paste_First, Paste_Second));
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "extra operand"),
+         "sort -c checks one input only");
+
+      Write_File (Paste_First, "b");
+      Write_File (Paste_Second, "a" & EOL);
+      Context.Initialize ("sort", Two_Args (Paste_First, Paste_Second));
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL,
+         "sort keeps a file without a final newline apart from the next");
+
+      Context.Initialize ("sort", One_Arg ("-nk2"));
+      Test_Contexts.Set_Standard_Input (Context, "x 10" & EOL & "y 9" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "y 9" & EOL & "x 10" & EOL,
+         "sort takes a key attached behind grouped flags");
+
+      Context.Initialize ("sort", Two_Args ("-rt:", "-k2"));
+      Test_Contexts.Set_Standard_Input (Context, "a:1" & EOL & "b:2" & EOL);
+      Posix_Tools.Commands.Sort.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "b:2" & EOL & "a:1" & EOL,
+         "sort takes a separator attached behind grouped flags");
+
+      AUnit.Assertions.Assert
+        (Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text
+           ("A" & Character'Val (16#C4#) & Character'Val (16#B0#) & Character'Val (16#C4#) & Character'Val (16#80#))
+         = "ai" & Character'Val (16#CC#) & Character'Val (16#87#) & Character'Val (16#C4#) & Character'Val (16#81#),
+         "case folding takes U+0130 to i and a dot above, and U+0100 to U+0101");
 
       Context.Initialize ("sort", Two_Args ("-Cr", "-"));
       Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);

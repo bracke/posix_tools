@@ -1,13 +1,11 @@
 with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Tee is
-   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -15,7 +13,8 @@ package body Posix_Tools.Commands.Tee is
    is
       Append_Mode : Boolean := False;
       Ignore_Interrupt : Boolean := False;
-      First       : Positive := 1;
+      First       : Positive;
+      Valid       : Boolean;
       Ok          : Boolean := True;
       Written     : Boolean;
       Previous_Disposition : Posix_Tools.Host_Adapters.Signals.Disposition :=
@@ -50,34 +49,38 @@ package body Posix_Tools.Commands.Tee is
             Restore_Interrupt := False;
          end if;
       end Restore_Interrupt_Disposition;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         Valid := True;
+         case Name is
+            when 'a' => Append_Mode := True;
+            when others => Ignore_Interrupt := True;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         elsif Context.Argument (First)'Length > 1
-           and then Context.Argument (First) (1) = '-'
-         then
-            for Ch of Context.Argument (First) (2 .. Context.Argument (First)'Last) loop
-               case Ch is
-                  when 'a' =>
-                     Append_Mode := True;
-                  when 'i' =>
-                     Ignore_Interrupt := True;
-                  when others =>
-                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                     return;
-               end case;
-            end loop;
-            First := First + 1;
-         else
-            exit;
-         end if;
-      end loop;
+      Parse (Context, Result, "ai", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Ignore_Interrupt
         and then Posix_Tools.Host_Adapters.Signals.Is_Supported

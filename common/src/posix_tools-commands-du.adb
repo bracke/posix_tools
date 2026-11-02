@@ -1,13 +1,12 @@
 with Ada.Containers.Indefinite_Vectors;
+with Ada.IO_Exceptions;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Counts;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Du is
-   use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package String_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
@@ -17,7 +16,8 @@ package body Posix_Tools.Commands.Du is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First        : Positive := 1;
+      First        : Positive;
+      Valid        : Boolean;
       All_Entries  : Boolean := False;
       Summary_Only : Boolean := False;
       Unit_Size    : Long_Long_Integer := 512;
@@ -80,7 +80,7 @@ package body Posix_Tools.Commands.Du is
                   begin
                      Size_Units := Allocated_Units (Path);
                   exception
-                     when others =>
+                     when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
                         Posix_Tools.Commands.Helpers.Subject_Operational_Error
                           (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
                         Ok := False;
@@ -123,12 +123,9 @@ package body Posix_Tools.Commands.Du is
                      return;
                   end if;
                   Seen_Dirs.Append (Full_Path);
-                  begin
-                     Directory_Units := Allocated_Units (Path);
-                  exception
-                     when others =>
-                        Directory_Units := 0;
-                  end;
+                  --  A directory's own blocks are not counted: the host
+                  --  adapter has a size only for a file, not a directory.
+                  Directory_Units := 0;
 
                   Each (Path, Iteration_Ok);
                   if not Iteration_Ok then
@@ -144,36 +141,39 @@ package body Posix_Tools.Commands.Du is
                end;
          end case;
       end Walk;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         Valid := True;
+         case Name is
+            when 'a' => All_Entries := True;
+            when 's' => Summary_Only := True;
+            when others => Unit_Size := 1024;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First);
-         begin
-            exit when Arg = "" or else Arg = "-";
-            if Arg = "--" then
-               First := First + 1;
-               exit;
-            elsif Arg'Length >= 2 and then Arg (Arg'First) = '-' then
-               for I in Arg'First + 1 .. Arg'Last loop
-                  case Arg (I) is
-                     when 'a' => All_Entries := True;
-                     when 's' => Summary_Only := True;
-                     when 'k' => Unit_Size := 1024;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Arg (I));
-                        return;
-                  end case;
-               end loop;
-               First := First + 1;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "aks", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if First > Context.Argument_Count then
          declare
