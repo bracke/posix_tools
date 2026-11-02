@@ -174,7 +174,7 @@ package body Explore.Search is
             end;
 
             --  The source goes with this block; the board must not reach it.
-            Jobs.Forget (Taken);
+            Jobs.Forget (Taken, Item.Generation);
 
             Jobs.Finish
               (Taken,

@@ -62,6 +62,8 @@ package body Work_Boards_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("work_boards:priority", Test_Priority'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("work_boards:deliver", Test_Deliver'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("work_boards:cancellation", Test_Cancellation'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("work_boards:forget after supersede", Test_Forget_After_Supersede'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("work_boards:shut down", Test_Shut_Down'Access));
       return Result;
    end Suite;
@@ -87,7 +89,7 @@ package body Work_Boards_Tests is
 
       Board.Watch (First, 5, 1);
       AUnit.Assertions.Assert (Stopped (5), "watching what is not wanted stops it at once");
-      Board.Forget (First);
+      Board.Forget (First, 1);
       Stopped (5) := False;
 
       Board.Finish (First, (1, 1));
@@ -127,6 +129,34 @@ package body Work_Boards_Tests is
       Board.Collect (Second, Outcome, Found);
       AUnit.Assertions.Assert (not Found and then not Board.Busy, "idle once collected");
    end Test_Deliver;
+
+   procedure Test_Forget_After_Supersede (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Board  : Boards.Board;
+      Item   : Lane;
+      Work   : Request;
+      Closed : Boolean;
+   begin
+      Stopped := [others => False];
+      Board.Submit (First, ('a', 1));
+      Board.Take (Item, Work, Closed);
+      Board.Watch (First, 1, 1);
+
+      --  A newer request starts while the old one is still running.
+      Board.Submit (First, ('b', 2));
+      AUnit.Assertions.Assert (Stopped (1), "the superseded request is stopped");
+      Board.Take (Item, Work, Closed);
+      Board.Watch (First, 2, 2);
+
+      --  The old one ends only now, and forgets what it watched.
+      Board.Forget (First, 1);
+      Board.Finish (First, (1, 1));
+
+      Board.Cancel (First);
+      AUnit.Assertions.Assert (Stopped (2), "the newer request can still be stopped");
+      Board.Forget (First, 2);
+      Board.Finish (First, (2, 1));
+   end Test_Forget_After_Supersede;
 
    procedure Test_Priority (T : in out Fixture) is
       pragma Unreferenced (T);

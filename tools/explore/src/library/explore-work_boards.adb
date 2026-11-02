@@ -43,9 +43,11 @@ package body Explore.Work_Boards is
          Accept_Outcome (Item, Outcome);
       end Finish;
 
-      procedure Forget (Item : Slot) is
+      procedure Forget (Item : Slot; Generation : Natural) is
       begin
-         Watched (Item) := No_Stopper;
+         if Watching (Item) = Generation then
+            Watched (Item) := No_Stopper;
+         end if;
       end Forget;
 
       function Is_Wanted (Item : Slot; Generation : Natural) return Boolean is
@@ -113,6 +115,7 @@ package body Explore.Work_Boards is
       procedure Watch (Item : Slot; Handle : Stopper; Generation : Natural) is
       begin
          Watched (Item) := Handle;
+         Watching (Item) := Generation;
 
          if not Is_Wanted (Item, Generation) then
             Stop_Watched (Item);
