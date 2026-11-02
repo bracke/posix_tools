@@ -191,4 +191,8 @@ private package Explore.Application.Sessions is
    --  being typed, or the jobs panel -- the last two also beneath a question
    --  that interrupted them.
    procedure Show_Mode (State : in out Session);
+
+   --  Whether the jobs panel is shown, beneath a question too.
+   function Panel_Shown (State : Session) return Boolean is
+     (Explore.Modes.Panel_Open (State.Interaction.Mode, State.Interaction.Resume));
 end Explore.Application.Sessions;

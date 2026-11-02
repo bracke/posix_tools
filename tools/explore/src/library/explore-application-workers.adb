@@ -206,7 +206,9 @@ package body Explore.Application.Workers is
             Report_Ended (State, Now);
          end if;
 
-         if State.Interaction.Mode = Viewing_Jobs then
+         --  The panel stays open beneath a question, and shows the jobs as
+         --  they are there too.
+         if Panel_Shown (State) then
             Explore.Application.Display.Fill_Panel (State, Now);
          end if;
 
