@@ -195,6 +195,13 @@ package body Test_Support is
          Label & ": could not make a symbolic link on a host that has them");
    end Skip_Without_Links;
 
+   procedure Skip_Without_FIFOs (Label : String) is
+   begin
+      AUnit.Assertions.Assert
+        (not FIFOs_Expected,
+         Label & ": could not make a FIFO on a host that has them");
+   end Skip_Without_FIFOs;
+
    procedure Advance (Seed : in out Word_32) is
    begin
       Seed := Seed * 1_664_525 + 1_013_904_223;

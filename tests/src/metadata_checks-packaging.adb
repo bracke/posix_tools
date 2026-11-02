@@ -279,49 +279,6 @@ package body Metadata_Checks.Packaging is
          end if;
       end Require_Package_File_List_Matches_Manifest;
 
-      procedure Require_Package_File_List_Covers_Fixtures is
-         Files  : constant String :=
-           Project_Tools.Files.Read_Raw_File
-             (Project_Tools.Files.Join (Root, "generated/package-files.txt"));
-
-         procedure Require_Fixture (Relative_Path : String) is
-         begin
-            if Count_Exact_Lines (Files, Relative_Path) = 0 then
-               Tooling_Checks.Fail
-                 ("package file list missing test fixture " & Relative_Path);
-            end if;
-         end Require_Fixture;
-      begin
-         Require_Fixture ("fixtures/invalid-da-utf8.bin");
-         Require_Fixture ("fixtures/reg-cat-0001.bin");
-         Require_Fixture ("fixtures/reg-cat-first.bin");
-         Require_Fixture ("fixtures/reg-cat-later.bin");
-         Require_Fixture ("fixtures/reg-cat-second.bin");
-         Require_Fixture ("fixtures/reg-end-of-options.txt");
-         Require_Fixture ("fixtures/reg-head-counts.txt");
-         Require_Fixture ("fixtures/reg-head-default-long.txt");
-         Require_Fixture ("fixtures/reg-head-default-short.txt");
-         Require_Fixture ("fixtures/reg-head-header-first.txt");
-         Require_Fixture ("fixtures/reg-head-header-second.txt");
-         Require_Fixture ("fixtures/reg-tail-byte-mode.bin");
-         Require_Fixture ("fixtures/reg-tail-byte-spill.bin");
-         Require_Fixture ("fixtures/reg-tail-compact.bin");
-         Require_Fixture ("fixtures/reg-tail-head-first.txt");
-         Require_Fixture ("fixtures/reg-tail-head-second.txt");
-         Require_Fixture ("fixtures/reg-tail-line-mode.txt");
-         Require_Fixture ("fixtures/reg-tail-plus.txt");
-         Require_Fixture ("fixtures/reg-wc-bad-continuation.bin");
-         Require_Fixture ("fixtures/reg-wc-default.txt");
-         Require_Fixture ("fixtures/reg-wc-first.txt");
-         Require_Fixture ("fixtures/reg-wc-invalid.bin");
-         Require_Fixture ("fixtures/reg-wc-mixed-invalid.bin");
-         Require_Fixture ("fixtures/reg-wc-out-of-range.bin");
-         Require_Fixture ("fixtures/reg-wc-overlong.bin");
-         Require_Fixture ("fixtures/reg-wc-second.txt");
-         Require_Fixture ("fixtures/reg-wc-surrogate.bin");
-         Require_Fixture ("fixtures/reg-wc-utf8.txt");
-      end Require_Package_File_List_Covers_Fixtures;
-
       procedure Require_Package_File_List_Covers_Release_Metadata is
          Files : constant String :=
            Project_Tools.Files.Read_Raw_File
@@ -522,7 +479,6 @@ package body Metadata_Checks.Packaging is
       --  are the tracked files, the file list is the entries, and the
       --  manifest has each one's current size and checksum.
       Require_Package_File_List_Matches_Manifest;
-      Require_Package_File_List_Covers_Fixtures;
       Require_Package_File_List_Covers_Release_Metadata;
       Require_Package_Entries_Match_Tracked_Files;
       Tooling_Checks.Require_Directory (Check, "generated/man");

@@ -31,3 +31,6 @@
 .#*
 .DS_Store
 Thumbs.db
+
+# Test scratch files
+/generated/test-work/

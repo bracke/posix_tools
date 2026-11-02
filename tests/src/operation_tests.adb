@@ -15,6 +15,7 @@ with Posix_Tools.File_Operations.Removing;
 with Posix_Tools.Host_Adapters.File_System;
 with Project_Tools.Files;
 with Test_Contexts;
+with Test_Support;
 
 package body Operation_Tests is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -266,6 +267,8 @@ package body Operation_Tests is
            (Outcome = Ops.Done and then not FS.Is_Link (Path (Root, "src/broken"))
             and then FS.Kind (Path (Root, "src/broken")) = FS.Special_File,
             "a special file is copied over a link to nothing");
+      else
+         Test_Support.Skip_Without_FIFOs ("a special file is copied over a link to nothing");
       end if;
 
       Remove (Root);

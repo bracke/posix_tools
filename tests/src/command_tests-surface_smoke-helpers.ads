@@ -18,7 +18,6 @@ package Command_Tests.Surface_Smoke.Helpers is
    function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector
      renames Test_Support.Six_Args;
 
-   function Fixture_Path (Name : String) return String;
    function Work_Path (Name : String) return String
      renames Test_Support.Work_Path;
    function Contains (Text, Pattern : String) return Boolean
@@ -43,7 +42,7 @@ package Command_Tests.Surface_Smoke.Helpers is
 
    --  Removes every fixture a surface test makes.
    procedure Remove_Fixtures;
-   --  Removes them and puts the tracked option-operands fixture back.
+   --  Removes them and makes the option-operands directory afresh.
    procedure Restore_Fixtures;
    --  Ignores a host that cannot make symbolic links; tests check Is_Link.
    procedure Create_Symbolic_Link_If_Supported (Target, Link : String);

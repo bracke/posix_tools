@@ -149,7 +149,7 @@ package body Command_Tests.Surface_Smoke.Data is
          and then Test_Contexts.Error_Output (Context) = "cmp: extra operand 'surplus'" & EOL,
          "cmp names its first surplus operand");
 
-      Context.Initialize ("cmp", Two_Args (Cmp_First, Fixture_File ("command-cmp-missing.txt")));
+      Context.Initialize ("cmp", Two_Args (Cmp_First, Work_File ("command-cmp-missing.txt")));
       Posix_Tools.Commands.Cmp.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Cmp_Trouble,

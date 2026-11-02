@@ -515,6 +515,8 @@ procedure Posix_Tools_Tests is
    begin
       Select_Tests;
       Options.Filter := Filter'Unchecked_Access;
+      --  The tests make their scratch files here, never under fixtures.
+      Ada.Directories.Create_Path (Test_Support.Work_Path (""));
 
       if Runner (Reporter, Options) /= AUnit.Success then
          Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);

@@ -43,11 +43,6 @@ package body Command_Tests.Surface_Smoke.Helpers is
       null;
    end Create_Symbolic_Link_If_Supported;
 
-   function Fixture_Path (Name : String) return String is
-   begin
-      return Command_Tests.Surface_Smoke.Fixtures.Fixture_File (Name);
-   end Fixture_Path;
-
    function Large_Copy_Data return String is
       Data : String (1 .. 70 * 1024);
    begin
@@ -68,8 +63,11 @@ package body Command_Tests.Surface_Smoke.Helpers is
       use Command_Tests.Surface_Smoke.Fixtures;
       FIFO_Created   : constant Boolean := Hostkit.Fs.Create_FIFO (Cp_FIFO_Source, 8#600#);
       Socket_Created : constant Boolean := Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#);
-      pragma Unreferenced (FIFO_Created, Socket_Created);
+      pragma Unreferenced (Socket_Created);
    begin
+      if not FIFO_Created then
+         Test_Support.Skip_Without_FIFOs ("search fixtures");
+      end if;
       Write_File (Source, "copy-data");
       Write_File (Other, "other-data");
       Ada.Directories.Create_Directory (Made);
@@ -164,7 +162,7 @@ package body Command_Tests.Surface_Smoke.Helpers is
       use Command_Tests.Surface_Smoke.Fixtures;
    begin
       Remove_Fixtures;
-      --  The option-operands directory is tracked: put back what git has.
+      --  The option-operands tests expect these two files.
       Ada.Directories.Create_Path (Option_Dir);
       Write_File (Hostkit.Fs.Join (Option_Dir, "-c"), "x" & EOL);
       Write_File (Hostkit.Fs.Join (Option_Dir, "plain"), "x" & EOL);
