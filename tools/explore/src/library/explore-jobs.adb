@@ -450,19 +450,28 @@ package body Explore.Jobs is
          Jobs.Take (Item, Lane, Closed);
          exit when Closed;
 
-         declare
-            Watcher : Job_Observer (Jobs, Lane);
+         --  Whatever goes wrong, the job is finished, and ends as failed: a
+         --  job never finished would keep its lane, and quitting would
+         --  always ask about it.
          begin
-            for Source of Item.Sources loop
-               exit when Jobs.Cancel_Requested (Lane);
+            declare
+               Watcher : Job_Observer (Jobs, Lane);
+            begin
+               for Source of Item.Sources loop
+                  exit when Jobs.Cancel_Requested (Lane);
 
-               begin
-                  Run_Item (Item, Source, Watcher);
-               exception
-                  when others =>
-                     Jobs.Report_Error (Lane, Source, Ops.Cannot_Open);
-               end;
-            end loop;
+                  begin
+                     Run_Item (Item, Source, Watcher);
+                  exception
+                     when others =>
+                        Jobs.Report_Error (Lane, Source, Ops.Cannot_Open);
+                  end;
+               end loop;
+            end;
+         exception
+            when others =>
+               Jobs.Report_Error
+                 (Lane, (if Item.Sources.Is_Empty then "" else Item.Sources.First_Element), Ops.Cannot_Open);
          end;
 
          Jobs.Finish (Lane);

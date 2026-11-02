@@ -60,6 +60,9 @@ package body Explore.Directory_Readers is
 
             function Replaced return Boolean is (not Readers.Is_Wanted (Item, Work.Generation));
          begin
+            --  Whatever goes wrong, the request is finished, and the
+            --  directory shown as one that cannot be read: a request never
+            --  finished would keep the board busy for good.
             begin
                if Work.Look_Again then
                   Look_Again (Work, Outcome.Entries, Replaced'Access);
@@ -69,14 +72,15 @@ package body Explore.Directory_Readers is
                     (Ada.Strings.Unbounded.To_String (Work.Path), Work.Options, Outcome.Entries, Read,
                      Replaced'Access);
                end if;
+
+               if Read = Listing.Read_Complete and then not Work.Look_Again then
+                  Listing.Sort (Outcome.Entries, Work.Order);
+               end if;
             exception
                when others =>
                   Read := Listing.Read_Failed;
+                  Outcome.Entries.Clear;
             end;
-
-            if Read = Listing.Read_Complete and then not Work.Look_Again then
-               Listing.Sort (Outcome.Entries, Work.Order);
-            end if;
 
             Outcome.Readable := Read = Listing.Read_Complete;
             Readers.Finish (Item, Outcome);

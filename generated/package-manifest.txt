@@ -909,7 +909,7 @@ tools/explore/src/library/explore-application.adb bytes= 13573 fnv1a64=aa4eb1df3
 tools/explore/src/library/explore-application.ads bytes= 538 fnv1a64=3541a9b0e26cdb25
 tools/explore/src/library/explore-archives.adb bytes= 10090 fnv1a64=c829d04327f5b90c
 tools/explore/src/library/explore-archives.ads bytes= 1049 fnv1a64=8b3a7cd57354ac3e
-tools/explore/src/library/explore-directory_readers.adb bytes= 2805 fnv1a64=28bd8b101ab16bd5
+tools/explore/src/library/explore-directory_readers.adb bytes= 3062 fnv1a64=8c2f8f1fbc4c0735
 tools/explore/src/library/explore-directory_readers.ads bytes= 2327 fnv1a64=93407cbcc1156023
 tools/explore/src/library/explore-files.adb bytes= 2392 fnv1a64=e139bc1598a8f27d
 tools/explore/src/library/explore-files.ads bytes= 907 fnv1a64=2422d3d8b8b5836d
@@ -921,7 +921,7 @@ tools/explore/src/library/explore-images.adb bytes= 12213 fnv1a64=a923438dcf43c5
 tools/explore/src/library/explore-images.ads bytes= 3407 fnv1a64=4aa1d9d413bda26f
 tools/explore/src/library/explore-input.adb bytes= 23368 fnv1a64=3466cb59391a0950
 tools/explore/src/library/explore-input.ads bytes= 5349 fnv1a64=733ced17c8acdae2
-tools/explore/src/library/explore-jobs.adb bytes= 16270 fnv1a64=bc583df293408bf4
+tools/explore/src/library/explore-jobs.adb bytes= 16710 fnv1a64=b6facfe14c17b4c6
 tools/explore/src/library/explore-jobs.ads bytes= 8462 fnv1a64=df886e30e34467d9
 tools/explore/src/library/explore-keymap.adb bytes= 18421 fnv1a64=36a50c3ac5c2daed
 tools/explore/src/library/explore-keymap.ads bytes= 4923 fnv1a64=1e02b58a7728fdff
@@ -933,7 +933,7 @@ tools/explore/src/library/explore-model.adb bytes= 20749 fnv1a64=5b443358e29f41b
 tools/explore/src/library/explore-model.ads bytes= 10830 fnv1a64=5d23a1609aa90f77
 tools/explore/src/library/explore-paths.adb bytes= 2464 fnv1a64=b0006cfc86af7766
 tools/explore/src/library/explore-paths.ads bytes= 1959 fnv1a64=2fa780ffe7071e3f
-tools/explore/src/library/explore-previews.adb bytes= 24396 fnv1a64=c019b347354e63b5
+tools/explore/src/library/explore-previews.adb bytes= 24604 fnv1a64=414f46cf88b4b2eb
 tools/explore/src/library/explore-previews.ads bytes= 5618 fnv1a64=0a9e42010b0492c7
 tools/explore/src/library/explore-protocol.adb bytes= 5469 fnv1a64=37441701b88875db
 tools/explore/src/library/explore-protocol.ads bytes= 3038 fnv1a64=cb76fb1d356949da
