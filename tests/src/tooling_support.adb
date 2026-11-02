@@ -1,9 +1,12 @@
 with Ada.Directories;
+with Hostkit;
+with Hostkit.Process;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Version;
 with Project_Tools.Files;
+with Tooling_Checks;
 
 package body Tooling_Support is
    function Root return String is
@@ -36,6 +39,83 @@ package body Tooling_Support is
 
    function Built_Test_Runner_Path return String is
      (Built_Path (Project_Tools.Files.Join (Root, "tests/bin/posix_tools_tests")));
+
+   function Release_Archive_Path return String is
+     ("dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z");
+
+   procedure Run_Within
+     (Program    : String;
+      Args       : Project_Tools.Processes.Argument_Vectors.Vector;
+      Timeout    : Duration;
+      Result     : out Project_Tools.Processes.Captured_Process;
+      Started    : out Boolean;
+      Timed_Out  : out Boolean;
+      Input      : String := "";
+      Err_To_Out : Boolean := False)
+   is
+      --  Scratch files under the ignored work directory; the driver runs
+      --  one program at a time.
+      Work        : constant String := Project_Tools.Files.Join (Root, "generated/test-work");
+      Input_Path  : constant String := Project_Tools.Files.Join (Work, "tooling-run.in");
+      Output_Path : constant String := Project_Tools.Files.Join (Work, "tooling-run.out");
+      Error_Path  : constant String := Project_Tools.Files.Join (Work, "tooling-run.err");
+      Arguments   : Hostkit.String_Vectors.Vector;
+      Outcome     : Hostkit.Process.Process_Outcome;
+   begin
+      Ada.Directories.Create_Path (Work);
+      --  An empty input rather than ours, so a program that reads its
+      --  standard input sees its end at once.
+      Project_Tools.Files.Write_Raw_File (Input_Path, Input);
+      Project_Tools.Files.Delete_File_If_Present (Output_Path);
+      Project_Tools.Files.Delete_File_If_Present (Error_Path);
+      for Item of Args loop
+         Arguments.Append (Item);
+      end loop;
+
+      Outcome :=
+        Hostkit.Process.Run_Captured
+          (Program           => Program,
+           Arguments         => Arguments,
+           Working_Directory => Root,
+           Stdin_Path        => Input_Path,
+           Stdout_Path       => Output_Path,
+           Stderr_Path       => (if Err_To_Out then Output_Path else Error_Path),
+           Timeout_Ms        => Natural (Timeout * 1000));
+
+      Started := Outcome.Started;
+      Timed_Out := Outcome.Timed_Out;
+      Result :=
+        (Status => (if Outcome.Started then Outcome.Exit_Status else 127),
+         Output =>
+           Ada.Strings.Unbounded.To_Unbounded_String
+             (if Project_Tools.Files.File_Exists (Output_Path)
+              then Project_Tools.Files.Read_Raw_File (Output_Path)
+              else ""));
+   end Run_Within;
+
+   function Capture_Within
+     (Label      : String;
+      Program    : String;
+      Args       : Project_Tools.Processes.Argument_Vectors.Vector;
+      Input      : String := "";
+      Err_To_Out : Boolean := False;
+      Timeout    : Duration := 120.0) return Project_Tools.Processes.Captured_Process
+   is
+      Result    : Project_Tools.Processes.Captured_Process;
+      Started   : Boolean;
+      Timed_Out : Boolean;
+   begin
+      Run_Within (Program, Args, Timeout, Result, Started, Timed_Out, Input, Err_To_Out);
+      if not Started then
+         Tooling_Checks.Fail (Label & ": could not start " & Program);
+      elsif Timed_Out then
+         Tooling_Checks.Fail
+           (Label & ": " & Program & " did not finish within"
+            & Integer'Image (Integer (Timeout)) & " seconds");
+      end if;
+
+      return Result;
+   end Capture_Within;
 
    function Display_Output (Text : String) return String is
       use Ada.Strings.Unbounded;
@@ -224,17 +304,22 @@ package body Tooling_Support is
       return To_String (Result);
    end Roff_Text;
 
-   function Command_Manpage (Index : Positive) return String is
+   --  The manual page of Name from the reference document at Document_Path:
+   --  the document's sections in the order man pages give them, and the
+   --  document itself to see also. The root page has always ended with a
+   --  blank line, which Trailing_Blank keeps.
+   function Render_Manpage
+     (Name           : String;
+      Document_Path  : String;
+      Trailing_Blank : Boolean) return String
+   is
       use Ada.Strings.Unbounded;
-      Command  : constant String := Posix_Tools.Command_Inventory.Executable (Index);
       Document : constant String :=
-        Project_Tools.Files.Read_Raw_File
-          (Project_Tools.Files.Join (Root, Posix_Tools.Command_Inventory.Documentation_Path (Index)));
+        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Document_Path));
       Page     : Unbounded_String;
 
-      procedure Append_Section (Heading : String; Source_Heading : String := "") is
-         Source : constant String := (if Source_Heading = "" then Heading else Source_Heading);
-         Text   : constant String := Markdown_Section (Document, Source);
+      procedure Append_Section (Heading : String; Source_Heading : String) is
+         Text : constant String := Markdown_Section (Document, Source_Heading);
       begin
          if Text /= "" then
             Append (Page, ".SH " & Heading & Character'Val (10));
@@ -242,7 +327,7 @@ package body Tooling_Support is
          end if;
       end Append_Section;
    begin
-      Append (Page, ".TH " & Command & " 1" & Character'Val (10));
+      Append (Page, ".TH " & Name & " 1" & Character'Val (10));
       Append_Section ("NAME", "Name");
       Append_Section ("SYNOPSIS", "Synopsis");
       Append_Section ("DESCRIPTION", "Description");
@@ -260,49 +345,20 @@ package body Tooling_Support is
       Append_Section ("CONFORMANCE STATUS", "Conformance Status");
       Append_Section ("KNOWN LIMITATIONS", "Known Limitations");
       Append (Page, ".SH SEE ALSO" & Character'Val (10));
-      Append (Page, Posix_Tools.Command_Inventory.Documentation_Path (Index) & Character'Val (10));
+      Append (Page, Document_Path & Character'Val (10));
+      if Trailing_Blank then
+         Append (Page, Character'Val (10));
+      end if;
 
       return To_String (Page);
-   end Command_Manpage;
+   end Render_Manpage;
+
+   function Command_Manpage (Index : Positive) return String is
+     (Render_Manpage
+        (Posix_Tools.Command_Inventory.Executable (Index),
+         Posix_Tools.Command_Inventory.Documentation_Path (Index),
+         Trailing_Blank => False));
 
    function Root_Manpage return String is
-      use Ada.Strings.Unbounded;
-      Document : constant String :=
-        Project_Tools.Files.Read_Raw_File
-          (Project_Tools.Files.Join (Root, "docs/commands/posix-tools.md"));
-      Page     : Unbounded_String;
-
-      procedure Append_Section (Heading : String; Source_Heading : String := "") is
-         Source : constant String := (if Source_Heading = "" then Heading else Source_Heading);
-         Text   : constant String := Markdown_Section (Document, Source);
-      begin
-         if Text /= "" then
-            Append (Page, ".SH " & Heading & Character'Val (10));
-            Append (Page, Roff_Text (Text));
-         end if;
-      end Append_Section;
-   begin
-      Append (Page, ".TH posix-tools 1" & Character'Val (10));
-      Append_Section ("NAME", "Name");
-      Append_Section ("SYNOPSIS", "Synopsis");
-      Append_Section ("DESCRIPTION", "Description");
-      Append_Section ("OPERANDS", "Operands");
-      Append_Section ("OPTIONS", "Options");
-      Append_Section ("STANDARD INPUT", "Standard Input");
-      Append_Section ("STANDARD OUTPUT", "Standard Output");
-      Append_Section ("STANDARD ERROR", "Standard Error");
-      Append_Section ("EXIT STATUS", "Exit Status");
-      Append_Section ("BEHAVIORAL DETAILS", "Behavioral Details");
-      Append_Section ("LOCALE BEHAVIOR", "Locale Behavior");
-      Append_Section ("IMPLEMENTATION-DEFINED CHOICES", "Implementation-Defined Choices");
-      Append_Section ("EXTENSIONS", "Extensions");
-      Append_Section ("EXAMPLES", "Examples");
-      Append_Section ("CONFORMANCE STATUS", "Conformance Status");
-      Append_Section ("KNOWN LIMITATIONS", "Known Limitations");
-      Append (Page, ".SH SEE ALSO" & Character'Val (10));
-      Append (Page, "docs/commands/posix-tools.md" & Character'Val (10));
-      Append (Page, Character'Val (10));
-
-      return To_String (Page);
-   end Root_Manpage;
+     (Render_Manpage ("posix-tools", "docs/commands/posix-tools.md", Trailing_Blank => True));
 end Tooling_Support;

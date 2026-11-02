@@ -11,10 +11,10 @@ The executable accepts:
 - `test --suite property`
 - `test --category unit`
 - `test --category integration`
-- `test --category conformance`
 - `test --category regression`
 - `test --category locale`
 - `test --category presentation`
+- `test --list` with any of the selectors above
 - `build`
 - `check`
 - `format-check`
@@ -33,11 +33,14 @@ every test whose name starts with the group. A command name such as `wc`,
 `tail`, or `root` selects that command's tests by their whole name: `tr` selects
 `command:tr ...` but not `command:true ...`, and `id` does not select
 `command:identity ...`. Unknown suite names fail with usage status instead of
-running an empty AUnit selection. Category selectors map `unit` to the full suite,
-`integration` to root-command integration-shaped tests, `conformance` to
-inventory/conformance metadata tests, and `regression` to regression-prefixed
-tests. `locale` selects locale-dependent help and diagnostic tests.
-`presentation` selects terminal styling boundary tests.
+running an empty AUnit selection. Category selectors divide the suite between
+them: `unit` selects the `basic`, `streams`, and `property` groups,
+`integration` the `command` group (every command run through its entry point),
+`regression` the regression-prefixed tests, `locale` the locale-dependent help
+and diagnostic tests, and `presentation` the terminal styling boundary tests.
+Conformance is checked by the `conformance` subcommand, not by a test category.
+`--list` prints the name of each test the selectors choose, one per line, and
+runs none of them.
 
 ## What each subcommand runs
 
@@ -132,11 +135,11 @@ beside this one.
 The release gates run selector smoke tests for `--suite cat`, `--suite cp`,
 `--suite tr`, `--suite id`, `--suite xargs`, `--suite root`, `--suite command`,
 `--suite property`, `--category unit`, `--category integration`,
-`--category conformance`, `--category regression`, `--category locale`, and
-`--category presentation` through `project_tools` process execution after the
-tests executable is built. Each selector runs once, and its report must name
-the tests it selects and none it does not: `--suite cat` runs no `command:cp`
-test, `--suite tr` no `command:true` test, and the categories no command tests.
+`--category regression`, `--category locale`, and `--category presentation`
+after the tests executable is built, each with `--list` and under a deadline.
+Each list must name the tests the selector chooses and none it does not:
+`--suite cat` lists no `command:cp` test, `--suite tr` no `command:true` test,
+and the categories other than `integration` no command tests.
 They also verify that incomplete or unknown selectors fail with usage status 2
 instead of silently broadening or ignoring the requested filter.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,

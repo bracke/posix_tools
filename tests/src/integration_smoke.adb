@@ -1,3 +1,4 @@
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Posix_Tools.Command_Inventory;
@@ -22,21 +23,13 @@ package body Integration_Smoke is
          Expected_Output : String)
       is
          Captured : constant Project_Tools.Processes.Captured_Process :=
-           Project_Tools.Processes.Capture
-             (Label   => Label,
-              Dir     => Root,
-              Program => Program,
-              Args    => Args,
-              Quiet   => True);
+           Capture_Within (Label, Program, Args);
       begin
          if Captured.Status /= Expected_Status then
             --  Run it again with its errors kept: a crash says why on stderr.
             declare
                Again : constant Project_Tools.Processes.Captured_Process :=
-                 Project_Tools.Processes.Capture_Command
-                   (Command    => Program,
-                    Arguments  => Args,
-                    Err_To_Out => True);
+                 Capture_Within (Label & " with its errors", Program, Args, Err_To_Out => True);
             begin
                Ada.Text_IO.Put_Line (To_String (Again.Output));
             end;
@@ -57,12 +50,7 @@ package body Integration_Smoke is
          Args    : Project_Tools.Processes.Argument_Vectors.Vector)
       is
          Captured : constant Project_Tools.Processes.Captured_Process :=
-           Project_Tools.Processes.Capture
-             (Label   => Label,
-              Dir     => Root,
-              Program => Program,
-              Args    => Args,
-              Quiet   => True);
+           Capture_Within (Label, Program, Args);
          Output : constant String := To_String (Captured.Output);
       begin
          if Captured.Status /= 0 then
@@ -83,11 +71,7 @@ package body Integration_Smoke is
          Err_To_Out      : Boolean := False)
       is
          Captured : constant Project_Tools.Processes.Captured_Process :=
-           Project_Tools.Processes.Capture_Command
-             (Command   => Program,
-              Arguments => Args,
-              Input     => Input,
-              Err_To_Out => Err_To_Out);
+           Capture_Within (Label, Program, Args, Input => Input, Err_To_Out => Err_To_Out);
       begin
          if Captured.Status /= Expected_Status then
             Tooling_Checks.Fail
@@ -112,12 +96,33 @@ package body Integration_Smoke is
            & "version=" & Posix_Tools.Version.Version_String & LF;
       end Identity_Output;
 
+      --  The value of the string constant Name that the Ada spec at Path
+      --  declares, so the expected engine versions follow the constants
+      --  the commands report rather than a copy of them.
+      function String_Constant (Path : String; Name : String) return String is
+         Content : constant String := Project_Tools.Files.Read_Raw_File (Path);
+         Marker  : constant String := Name & " : constant String := """;
+         At_Name : constant Natural := Ada.Strings.Fixed.Index (Content, Marker);
+         From    : constant Positive := At_Name + Marker'Length;
+      begin
+         if At_Name = 0 then
+            Tooling_Checks.Fail (Path & " declares no string constant " & Name);
+         end if;
+
+         return Content (From .. Ada.Strings.Fixed.Index (Content (From .. Content'Last), """") - 1);
+      end String_Constant;
+
+      Awklib_Version : constant String :=
+        String_Constant (Project_Tools.Files.Join (Root, "../awklib/src/awklib.ads"), "Version");
+      Sedlib_Version : constant String :=
+        String_Constant (Project_Tools.Files.Join (Root, "tools/sed/src/library/sed-version.ads"), "Engine_Version");
+
       function Version_Output (Command : String) return String is
       begin
          if Command = "awk" then
             return
               "awk " & Posix_Tools.Version.Version_String & LF
-              & "awklib 0.1.0" & LF
+              & "awklib " & Awklib_Version & LF
               & "license MIT" & LF;
          elsif Command = "grep" then
             return
@@ -127,7 +132,7 @@ package body Integration_Smoke is
          elsif Command = "sed" then
             return
               "sed " & Posix_Tools.Version.Version_String & LF
-              & "engine sedlib 0.1.0-dev" & LF
+              & "engine sedlib " & Sedlib_Version & LF
               & "license MIT" & LF;
          else
             return Command & " (posix-tools) " & Posix_Tools.Version.Version_String & LF;
@@ -338,7 +343,7 @@ package body Integration_Smoke is
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument ("a+b")]),
          "a+b" & LF & "ab" & LF,
          0,
-         "a+b");
+         "a+b" & LF);
 
       Expect_Output_With_Input
         ("grep executable extended regex",
@@ -347,7 +352,7 @@ package body Integration_Smoke is
                                              Project_Tools.Processes.Argument ("a+b")]),
          "a+b" & LF & "ab" & LF,
          0,
-         "ab");
+         "ab" & LF);
 
       Expect_Output_With_Input
         ("grep executable basic regex interval",
@@ -356,7 +361,7 @@ package body Integration_Smoke is
                                              Project_Tools.Processes.Argument ("^a\{2,3\}$")]),
          "a" & LF & "aa" & LF & "aaa" & LF & "aaaa" & LF,
          0,
-         "aa" & LF & "aaa");
+         "aa" & LF & "aaa" & LF);
 
       Expect_Output_With_Input
         ("grep executable basic regex grouping",
@@ -365,7 +370,7 @@ package body Integration_Smoke is
                                              Project_Tools.Processes.Argument ("^a\(b\|c\)$")]),
          "ab" & LF & "ac" & LF & "ad" & LF,
          0,
-         "ab" & LF & "ac");
+         "ab" & LF & "ac" & LF);
 
       Expect_Output_With_Input
         ("grep executable basic regex equivalence class",
@@ -374,7 +379,7 @@ package body Integration_Smoke is
                                              Project_Tools.Processes.Argument ("[[=a=]]")]),
          "=" & LF & "a" & LF & "b" & LF,
          0,
-         "a");
+         "a" & LF);
 
       Expect_Output_With_Input
         ("grep executable basic regex collating symbol",
@@ -383,7 +388,7 @@ package body Integration_Smoke is
                                              Project_Tools.Processes.Argument ("[[.ch.]]")]),
          "cat" & LF & "hat" & LF & "chord" & LF,
          0,
-         "chord");
+         "chord" & LF);
 
       declare
          Env_Command : constant String := Project_Tools.Processes.Locate_Command ("env");
@@ -403,7 +408,7 @@ package body Integration_Smoke is
                 Project_Tools.Processes.Argument ("[n-o]")]),
             "n" & LF & N_Tilde & LF & "o" & LF & "p" & LF,
             0,
-            "n" & LF & N_Tilde & LF & "o");
+            "n" & LF & N_Tilde & LF & "o" & LF);
       end;
 
       Expect_Output
@@ -444,7 +449,7 @@ package body Integration_Smoke is
             2,
             "grep: ukendt valgmulighed '-Z'" & LF
             & "usage: grep [-EFGbciloLqRrvinHhwxs] [-A num] [-B num] [-C num] "
-            & "[-m num] [-e pattern] [-f pattern_file] pattern [file...]",
+            & "[-m num] [-e pattern] [-f pattern_file] pattern [file...]" & LF,
             True);
       end;
 
@@ -601,9 +606,9 @@ package body Integration_Smoke is
            ("tee executable data",
             Built_Command_Path ("tee"),
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Tee_Target)]),
-            "tee-data",
+            "tee-data" & LF,
             0,
-            "tee-data");
+            "tee-data" & LF);
          Expect_File ("tee executable data", Tee_Target, "tee-data" & LF);
          Project_Tools.Files.Delete_File_If_Present (Tee_Target);
       end;
@@ -645,9 +650,9 @@ package body Integration_Smoke is
         ("uniq executable data",
          Built_Command_Path ("uniq"),
          Project_Tools.Processes.No_Arguments,
-         "alpha" & LF & "alpha" & LF & "beta",
+         "alpha" & LF & "alpha" & LF & "beta" & LF,
          0,
-         "alpha" & LF & "beta");
+         "alpha" & LF & "beta" & LF);
 
       Expect_Output_With_Input
         ("xargs executable data",

@@ -400,14 +400,10 @@ package body Metadata_Checks.Packaging is
       procedure Require_Release_Checksums_Cover_Inventory is
          Path      : constant String := "generated/release-checksums.txt";
          Checksums : constant String := Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Path));
-         Archive   : constant String := "dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z";
+         Archive   : constant String := Release_Archive_Path;
 
          function Checksum_Line (Label : String; Relative_Path : String) return String is
-            Stable_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
-            Actual_Path : constant String :=
-              (if Project_Tools.Files.File_Exists (Stable_Path) then Stable_Path
-               elsif Project_Tools.Files.File_Exists (Stable_Path & ".exe") then Stable_Path & ".exe"
-               else Stable_Path);
+            Actual_Path : constant String := Built_Path (Project_Tools.Files.Join (Root, Relative_Path));
          begin
             return Label & " " & Relative_Path & " fnv1a64="
               & Project_Tools.Release_Checks.FNV1A64 (Actual_Path);
@@ -426,11 +422,7 @@ package body Metadata_Checks.Packaging is
          end Require_Header;
 
          procedure Require_Checksum_Row (Label : String; Relative_Path : String) is
-            Stable_Path : constant String := Project_Tools.Files.Join (Root, Relative_Path);
-            Actual_Path : constant String :=
-              (if Project_Tools.Files.File_Exists (Stable_Path) then Stable_Path
-               elsif Project_Tools.Files.File_Exists (Stable_Path & ".exe") then Stable_Path & ".exe"
-               else Stable_Path);
+            Actual_Path : constant String := Built_Path (Project_Tools.Files.Join (Root, Relative_Path));
             Prefix      : constant String := Label & " " & Relative_Path & " fnv1a64=";
             Count       : Natural;
          begin
