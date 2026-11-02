@@ -17,11 +17,17 @@ aunit = "*"
 [[depends-on]]
 project_tools = "*"
 
+[[depends-on]]
+greplib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../common" }
 
 [[pins]]
 project_tools = { path = "../../project_tools" }
+
+[[pins]]
+greplib = { path = "../../greplib" }
 
 [build-profiles]
 "*" = "development"

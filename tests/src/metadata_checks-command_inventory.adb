@@ -57,6 +57,9 @@ package body Metadata_Checks.Command_Inventory is
       begin
          if Executable = "explore" then
             return "tools/explore/src/library/explore-application.adb";
+         elsif Executable = "grep" then
+            --  grep's command package is in its own crate, beside greplib.
+            return "tools/grep/src/library/posix_tools-commands-grep.adb";
          elsif Executable = "false" then
             return "common/src/posix_tools-commands-false_command.adb";
          elsif Executable = "true" then
@@ -188,12 +191,6 @@ package body Metadata_Checks.Command_Inventory is
                Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");
                Tooling_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Initialize_From_Process");
                Tooling_Checks.Require_Text (Check, Wrapper, "Awk_CLI.Run");
-            elsif Posix_Tools.Command_Inventory.Executable (I) = "grep" then
-               Tooling_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
-               Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");
-               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Patterns.Compile");
-               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_File");
-               Tooling_Checks.Require_Text (Check, Wrapper, "Greplib.Collected.Search_Stream");
             elsif Posix_Tools.Command_Inventory.Executable (I) = "sed" then
                Tooling_Checks.Require_Text (Check, Wrapper, "Posix_Tools.Process_Entry");
                Tooling_Checks.Require_Text (Check, Wrapper, "Write_Identity");

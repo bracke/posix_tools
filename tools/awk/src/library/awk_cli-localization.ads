@@ -1,12 +1,13 @@
 with Ada.Strings.Unbounded;
 with Awk_CLI.Diagnostics;
-with Messages.Runtime;
 
 package Awk_CLI.Localization is
    --  Adapter for localized CLI-authored messages.
    --
-   --  This is the only package that should depend on the message catalog
-   --  formatting surface.
+   --  Messages are looked up through Posix_Tools.Localization, the project's
+   --  one adapter over the message formatting library. When the catalog
+   --  cannot be read, or lacks a message, the message's English text from
+   --  Awk_CLI.Localization.Defaults is used: a message key is never shown.
 
    package U renames Ada.Strings.Unbounded;
 
@@ -45,7 +46,7 @@ package Awk_CLI.Localization is
 
 private
    type Catalog is tagged limited record
-      Runtime : Messages.Runtime.Runtime;
-      Locale  : U.Unbounded_String;
+      Path   : U.Unbounded_String;
+      Locale : U.Unbounded_String;
    end record;
 end Awk_CLI.Localization;

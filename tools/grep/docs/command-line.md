@@ -11,8 +11,9 @@ also names standard input.
 
 ## Options
 
-- `-e pattern`: add a search pattern.
-- `-f pattern_file`: read newline-separated patterns from a file.
+- `-e pattern`: add a newline-separated pattern list.
+- `-f pattern_file`: read patterns from a file, one a line; `-` reads them
+  from standard input, and an empty file matches nothing.
 - `-F`: treat patterns as fixed strings.
 - `-G`: use POSIX basic regular-expression syntax. This is the default.
   Equivalence classes, collating symbols, and ordinary ranges use shared
@@ -43,4 +44,5 @@ also names standard input.
 
 - `0`: at least one selected record was found.
 - `1`: no selected record was found.
-- `2`: invocation, pattern, input, or internal failure.
+- `2`: invocation, pattern, input, output, or internal failure. With `-q`, a
+  selected record means `0` even after an input failure.

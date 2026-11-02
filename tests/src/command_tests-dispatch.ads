@@ -5,7 +5,7 @@ with Test_Contexts;
 --  instantiates via Host_Adapters.Run_Command, bound to the package the
 --  command inventory names. Help, version, and identity requests therefore
 --  reach Helpers.Intercept_Extension inside the command's own Run, as in
---  production. awk, grep, sed, and explore do not run through a context
+--  production. awk, sed, and explore do not run through a context
 --  (or are not linked here); for them only the shared help, version, and
 --  identity rendering is reachable.
 package Command_Tests.Dispatch is

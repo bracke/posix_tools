@@ -7,14 +7,19 @@ with Command_Tests.Surface_Smoke.Metadata;
 with Command_Tests.Surface_Smoke.Host;
 with Command_Tests.Surface_Smoke.Text;
 with File_Command_Tests;
+with Grep_Command_Tests;
 
 package body Command_Tests.Suite_Entries is
    package Caller is new AUnit.Test_Caller (Command_Tests.Fixture);
    package File_Caller is new AUnit.Test_Caller (File_Command_Tests.Fixture);
+   package Grep_Caller is new AUnit.Test_Caller (Grep_Command_Tests.Fixture);
    package Surface_Caller is new AUnit.Test_Caller (Command_Tests.Surface_Smoke.Surface_Fixture);
 
    --  The file commands' tests, each under the command it holds to POSIX.
    procedure Register_File_Commands (Result : AUnit.Test_Suites.Access_Test_Suite);
+
+   --  grep's tests, run through a capturing context.
+   procedure Register_Grep (Result : AUnit.Test_Suites.Access_Test_Suite);
 
    --  The command surface tests, one per command or small family, in the
    --  order the single surface test they replace ran them.
@@ -61,6 +66,30 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, File_Caller.Create ("command:wc utf-8 resynchronises", File_Command_Tests.Test_UTF_8_Resynchronises'Access));
    end Register_File_Commands;
+
+   procedure Register_Grep (Result : AUnit.Test_Suites.Access_Test_Suite) is
+      package T renames Grep_Command_Tests;
+   begin
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep output is not truncated", T.Test_Output_Is_Not_Truncated'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep output failure", T.Test_Output_Failure'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Grep_Caller.Create ("command:grep quiet selection wins over errors", T.Test_Quiet_Selection_Wins_Over_Errors'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep context separators", T.Test_Context_Separators'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep pattern lists", T.Test_Pattern_Lists'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep standard input label", T.Test_Standard_Input_Label'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep help and version", T.Test_Help_And_Version'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep basic to extended", T.Test_Basic_To_Extended'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Grep_Caller.Create ("command:grep event rendering", T.Test_Event_Rendering'Access));
+   end Register_Grep;
 
    procedure Register_Surface_Commands (Result : AUnit.Test_Suites.Access_Test_Suite) is
       package Data renames Command_Tests.Surface_Smoke.Data;
@@ -148,6 +177,7 @@ package body Command_Tests.Suite_Entries is
    procedure Register (Result : AUnit.Test_Suites.Access_Test_Suite) is
    begin
       Register_File_Commands (Result);
+      Register_Grep (Result);
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:basename", Test_Basename'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:basename edge cases", Test_Basename_Edge_Cases'Access));

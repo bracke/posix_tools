@@ -79,6 +79,10 @@ package Posix_Tools.Host_Adapters.File_System is
    function Delete_Link (Path : String) return Boolean;
    function Device_Id (Path : String; Available : out Boolean) return Long_Long_Integer;
    function Exists (Path : String) return Boolean;
+   --  The directory holding the running program's own executable, as the
+   --  host reports it rather than as it was invoked, or "" where the host
+   --  will not say: for a command that finds its data files beside itself.
+   function Executable_Directory return String;
    procedure File_Ownership
      (Path      : String;
       User      : out Natural;

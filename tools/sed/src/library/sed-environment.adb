@@ -1,6 +1,7 @@
 with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Posix_Tools.Host_Adapters.File_System;
 with Sed.IO.Process_Streams;
 
 package body Sed.Environment is
@@ -119,14 +120,22 @@ package body Sed.Environment is
          return Override;
       end if;
 
-      if Program_Path'Length = 0 then
+      if Program_Path'Length = 0
+        and then Posix_Tools.Host_Adapters.File_System.Executable_Directory = ""
+      then
          return "";
       end if;
 
       declare
+         --  The directory the host reports for the running executable; the
+         --  invoked name is a fallback, as a bare name found through PATH
+         --  names no directory.
+         Reported : constant String :=
+           Posix_Tools.Host_Adapters.File_System.Executable_Directory;
          Directory : constant String :=
-           Ada.Directories.Containing_Directory
-             (Ada.Directories.Full_Name (Program_Path));
+           (if Reported'Length > 0 then Reported
+            else Ada.Directories.Containing_Directory
+                   (Ada.Directories.Full_Name (Program_Path)));
          Prefix : constant String :=
            Ada.Directories.Containing_Directory (Directory);
          --  Built by concatenation rather than through Ada.Directories.Compose,
