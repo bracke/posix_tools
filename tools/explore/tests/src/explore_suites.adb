@@ -3,6 +3,7 @@ with Input_Tests;
 with Jobs_Tests;
 with Line_Editor_Tests;
 with Model_Tests;
+with Modes_Tests;
 with Preview_Tests;
 with Protocol_Tests;
 with Render_Tests;
@@ -23,6 +24,7 @@ package body Explore_Suites is
       AUnit.Test_Suites.Add_Test (Result, Render_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Model_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Jobs_Tests.Suite);
+      AUnit.Test_Suites.Add_Test (Result, Modes_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Preview_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Search_Tests.Suite);
       AUnit.Test_Suites.Add_Test (Result, Settings_Tests.Suite);

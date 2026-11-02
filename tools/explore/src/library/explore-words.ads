@@ -3,6 +3,7 @@ with Explore.Jobs;
 with Explore.Render;
 with Explore.Settings;
 with Explore.String_Vectors;
+with Posix_Tools.File_Operations;
 
 --  What explore says, put together from the interface text of the user's
 --  locale. Each text is looked up once, when the session starts, since a
@@ -49,6 +50,7 @@ package Explore.Words is
       --  Patterns of {count}.
       Found         : Ada.Strings.Unbounded.Unbounded_String;
       Too_Many      : Ada.Strings.Unbounded.Unbounded_String;
+      Search_Failed : Ada.Strings.Unbounded.Unbounded_String;
       Bookmarked    : Ada.Strings.Unbounded.Unbounded_String;
       No_Bookmark   : Ada.Strings.Unbounded.Unbounded_String;
       Unsaved       : Ada.Strings.Unbounded.Unbounded_String;
@@ -81,6 +83,23 @@ package Explore.Words is
    --  What became of an ended job, as one line.
    function Result_Line (Words : Word_Set; Item : Explore.Jobs.Result_View) return String;
 
+   --  Error about Path, in Locale, as the status line says it.
+   function Error_Text
+     (Locale : String;
+      Path   : String;
+      Error  : Posix_Tools.File_Operations.Operation_Error) return String;
+
+   --  What became of the jobs in Ended, which ended since the screen last
+   --  looked, one after another: a failed one by its first error, with how
+   --  many it met when more than one, and the others as Result_Line says.
+   function Ended_Line
+     (Words  : Word_Set;
+      Locale : String;
+      Ended  : Explore.Jobs.Result_Vectors.Vector) return String;
+
+   --  Whether any of Ended failed, for its line to be shown as an error.
+   function Any_Failed (Ended : Explore.Jobs.Result_Vectors.Vector) return Boolean;
+
    --  How many errors a job met, as "3 errors".
    function Error_Count (Words : Word_Set; Count : Natural) return String;
 
@@ -112,8 +131,13 @@ package Explore.Words is
       Problems : Explore.Settings.Problem_Vectors.Vector) return String
      with Pre => not Problems.Is_Empty;
 
-   --  How a search that found Found entries ended.
-   function Search_Result (Words : Word_Set; Found : Natural; Truncated : Boolean) return String;
+   --  How a search that found Found entries ended: Truncated when it found
+   --  more than it keeps, Failed when an error ended it before it was through.
+   function Search_Result
+     (Words     : Word_Set;
+      Found     : Natural;
+      Truncated : Boolean;
+      Failed    : Boolean := False) return String;
 
    --  The question that confirms deleting Count entries, in Locale.
    function Confirm_Delete (Locale : String; Count : Natural) return String;

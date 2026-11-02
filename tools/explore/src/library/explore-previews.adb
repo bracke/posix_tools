@@ -649,9 +649,12 @@ package body Explore.Previews is
          declare
             Result : Preview;
          begin
-            Being_Built.Set_Value ((Jobs => Jobs.all'Unchecked_Access, Generation => Work.Generation));
-
+            --  Whatever goes wrong, the request is finished, with a preview
+            --  that says the file cannot be read: a request never finished
+            --  would keep the board busy for good.
             begin
+               Being_Built.Set_Value ((Jobs => Jobs.all'Unchecked_Access, Generation => Work.Generation));
+
                --  The thumbnail directory is made when a preview first needs one.
                if not Made then
                   Thumbnails := Unbounded.To_Unbounded_String (Make_Thumbnail_Directory);

@@ -8,6 +8,7 @@ package Work_Boards_Tests is
    procedure Test_Priority (T : in out Fixture);
    procedure Test_Deliver (T : in out Fixture);
    procedure Test_Cancellation (T : in out Fixture);
+   procedure Test_Forget_After_Supersede (T : in out Fixture);
    procedure Test_Shut_Down (T : in out Fixture);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

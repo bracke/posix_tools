@@ -3,8 +3,8 @@ with Explore.Input;
 
 --  Typing a line of text, as a prompt's answer or the filter is typed: keys
 --  add their characters, Backspace takes the last character back, and a paste
---  is added whole. The text is UTF-8, so taking a character back takes all of
---  its bytes.
+--  is added whole but for its line breaks. The text is UTF-8, so taking a
+--  character back takes all of its bytes.
 package Explore.Line_Editor is
    type Outcome is
      (Typing,       --  The line is still being typed.

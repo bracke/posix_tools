@@ -6,6 +6,7 @@ with Explore.Keymap;
 with Explore.Launch;
 with Explore.Line_Editor;
 with Explore.Model;
+with Explore.Modes;
 with Explore.Paths;
 with Explore.Protocol;
 with Explore.Render;
@@ -16,6 +17,8 @@ with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Explore.Application.Controller is
+   use Explore.Modes;
+
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Input renames Explore.Input;
    package Keymap renames Explore.Keymap;
@@ -60,6 +63,7 @@ package body Explore.Application.Controller is
 
    procedure Go_Bookmark (State : in out Session; Letter : Character);
 
+   --  Go to the home directory, as a visit that Back returns from.
    procedure Go_Home (State : in out Session);
 
    --  Act on a key or a paste, as the mode says.
@@ -301,7 +305,8 @@ package body Explore.Application.Controller is
       Home : constant String := Unbounded.To_String (State.Config.Home);
    begin
       if Home'Length > 0 and then FS.Kind (Home) = FS.Directory then
-         Model.Open (State.Browser, FS.Real_Path (Home));
+         --  A visit like any other: Back returns to the directory left.
+         Model.Jump (State.Browser, FS.Real_Path (Home));
       end if;
    end Go_Home;
 

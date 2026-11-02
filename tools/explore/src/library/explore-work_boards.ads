@@ -58,9 +58,12 @@ package Explore.Work_Boards is
       function Is_Wanted (Item : Slot; Generation : Natural) return Boolean;
 
       --  The running request for Generation is stopped through Handle once it
-      --  is no longer wanted -- at once if it already is not -- until Forget.
+      --  is no longer wanted -- at once if it already is not -- until Forget
+      --  for the same Generation. A request superseded while it runs can end
+      --  after the newer one started watching: its Forget leaves the newer
+      --  one's Handle alone.
       procedure Watch (Item : Slot; Handle : Stopper; Generation : Natural);
-      procedure Forget (Item : Slot);
+      procedure Forget (Item : Slot; Generation : Natural);
 
       --  Hand over part of what a request produces, while it goes on.
       procedure Deliver (Item : Slot; Outcome : Result);
@@ -89,6 +92,8 @@ package Explore.Work_Boards is
       Held     : Result_Array;
       Ready    : Flag_Array := [others => False];
       Watched  : Stopper_Array := [others => No_Stopper];
+      --  The generation of the request each slot's stopper is for.
+      Watching : Generation_Array := [others => 0];
       Closed   : Boolean := False;
       --  What a slot holds with nothing to collect.
       Nothing  : Result;

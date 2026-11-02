@@ -68,6 +68,7 @@ package body Session_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:clipboard", Test_Clipboard'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:image", Test_Image'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:shell command", Test_Shell_Command'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:interrupt", Test_Interrupt'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:conflicts", Test_Conflicts'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:rename", Test_Rename'Access));
       AUnit.Test_Suites.Add_Test
@@ -232,6 +233,53 @@ package body Session_Tests is
         (E2E_Rig.Placeholder_Cells (Session) > 0, "and placed in the preview pane with placeholders");
       Quit (Session);
    end Test_Image;
+
+   procedure Test_Interrupt (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root    : constant String := E2E_Rig.Fixture ("interrupt");
+      Session : E2E_Rig.Rig;
+      Ended   : Boolean;
+      Code    : Integer;
+   begin
+      E2E_Rig.Write_File (Root & "/one", "");
+      Open (Session, Root);
+      AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "one"), "listed");
+
+      --  An interrupt while a command has the terminal is the command's,
+      --  and explore carries on. The one sent once explore has the terminal
+      --  back, when the test makes the file "go", ends the session.
+      E2E_Rig.Send (Session, "!");
+      E2E_Rig.Pump (Session, 50);
+      E2E_Rig.Send
+        (Session,
+         "kill -INT $PPID; echo survived; "
+         & "(while [ ! -e go ]; do sleep 0.05; done; kill -INT $PPID) </dev/null >/dev/null 2>&1 &" & CR);
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For (Session, "press Enter") and then E2E_Rig.Wait_For (Session, "survived"),
+         "the command ran on");
+      E2E_Rig.Send (Session, "" & CR);
+      E2E_Rig.Expect
+        (Session,
+         E2E_Rig.Wait_For (Session, "q quit") and then E2E_Rig.Modes (Session).Alternate_Screen,
+         "explore took the terminal back, the interrupt meant for the command forgotten");
+
+      E2E_Rig.Write_File (Root & "/go", "");
+      E2E_Rig.Wait_Exit (Session, Ended, Code);
+
+      declare
+         After : constant Terminal_Modes := E2E_Rig.Modes (Session);
+      begin
+         AUnit.Assertions.Assert
+           (Ended and then Code = 130, "ended as an interrupt ends a program, status" & Integer'Image (Code));
+         AUnit.Assertions.Assert
+           (not After.Alternate_Screen and then not After.Mouse_SGR and then not After.Bracketed_Paste
+            and then After.Keyboard_Flags = 0 and then After.Cursor_Visible,
+            "the terminal handed back as it was found");
+      end;
+
+      E2E_Rig.Stop (Session);
+   end Test_Interrupt;
 
    procedure Test_Quit_While_Copying (T : in out Fixture) is
       pragma Unreferenced (T);

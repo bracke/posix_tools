@@ -77,11 +77,17 @@ package body Line_Editor_Tests is
    procedure Test_Paste (T : in out Fixture) is
       pragma Unreferenced (T);
       Paste : constant Input.Event :=
-        (Kind => Input.Paste_Event, Text => Unbounded.To_Unbounded_String ("two" & Character'Val (10) & "lines"));
+        (Kind => Input.Paste_Event, Text => Unbounded.To_Unbounded_String ("a b" & Character'Val (9) & "c"));
+      Lines : constant Input.Event :=
+        (Kind => Input.Paste_Event,
+         Text => Unbounded.To_Unbounded_String
+                   ("two" & Character'Val (13) & Character'Val (10) & "lines" & Character'Val (10)));
    begin
       AUnit.Assertions.Assert
-        (Edited ("x", Paste, Editor.Typing, "paste") = "xtwo" & Character'Val (10) & "lines",
-         "a paste is added whole");
+        (Edited ("x", Paste, Editor.Typing, "paste") = "xa b" & Character'Val (9) & "c", "a paste is added whole");
+      AUnit.Assertions.Assert
+        (Edited ("x", Lines, Editor.Typing, "paste of lines") = "xtwolines",
+         "but for its line breaks: the line stays one line");
       AUnit.Assertions.Assert
         (Edited ("x", (Kind => Input.Focus_Event, Focused => True), Editor.Typing, "focus") = "x",
          "an event that is no key leaves the text alone");

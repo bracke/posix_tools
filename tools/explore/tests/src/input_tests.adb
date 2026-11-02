@@ -102,6 +102,9 @@ package body Input_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:progressive keys", Test_Progressive_Keys'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:escape ambiguity", Test_Escape_Ambiguity'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:split sequences", Test_Split_Sequences'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("input:split character after a pause", Test_Split_Character_After_Pause'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:pause timing", Test_Pause_Timing'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:mouse", Test_Mouse'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:resize", Test_Resize'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("input:paste", Test_Paste'Access));
@@ -267,6 +270,21 @@ package body Input_Tests is
       end;
    end Test_Paste;
 
+   procedure Test_Pause_Timing (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
+      AUnit.Assertions.Assert
+        (not Input.Pause_Ended (Input.Pause_Ms - 1) and then Input.Pause_Ended (Input.Pause_Ms),
+         "a pause ends Pause_Ms after the last byte");
+      AUnit.Assertions.Assert (Input.Read_Wait (100, False, 0) = 100, "nothing pending: the poll interval");
+      AUnit.Assertions.Assert
+        (Input.Read_Wait (100, True, 10) = Input.Pause_Ms - 10, "something pending: until the pause ends");
+      AUnit.Assertions.Assert
+        (Input.Read_Wait (15, True, 0) = 15, "a shorter poll interval is kept, but does not end the pause");
+      AUnit.Assertions.Assert
+        (Input.Read_Wait (100, True, Input.Pause_Ms) = 100, "a pause already ended: the poll interval");
+   end Test_Pause_Timing;
+
    procedure Test_Plain_Keys (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
@@ -330,6 +348,33 @@ package body Input_Tests is
          and then Item.Pixel_Width = 1000,
          "rows, columns, and pixels");
    end Test_Resize;
+
+   procedure Test_Split_Character_After_Pause (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Decoder : Input.Decoder;
+      Item    : Input.Event;
+      Found   : Boolean;
+   begin
+      Input.Feed (Decoder, [1 => Character'Val (16#C3#)]);
+      Input.Flush (Decoder);
+      Expect_Nothing (Decoder, "half a character is not a key, even after a pause");
+      AUnit.Assertions.Assert (Input.Has_Pending (Decoder), "it waits for its rest");
+      Input.Feed (Decoder, [1 => Character'Val (16#A9#)]);
+      Input.Next (Decoder, Item, Found);
+      AUnit.Assertions.Assert
+        (Found and then Input.Is_Character (Item, Wide_Wide_Character'Val (16#E9#)),
+         "the rest arriving after the pause completes it");
+      Expect_Nothing (Decoder, "nothing after it");
+
+      Input.Feed (Decoder, [1 => Character'Val (16#E2#), 2 => Character'Val (16#82#)]);
+      Input.Flush (Decoder);
+      Expect_Nothing (Decoder, "two bytes of three are not a key either");
+      Input.Feed (Decoder, "q");
+      Input.Next (Decoder, Item, Found);
+      AUnit.Assertions.Assert
+        (Found and then Input.Is_Character (Item, 'q'), "a byte that does not continue it has it dropped");
+      AUnit.Assertions.Assert (not Input.Has_Pending (Decoder), "and nothing is left");
+   end Test_Split_Character_After_Pause;
 
    procedure Test_Split_Sequences (T : in out Fixture) is
       pragma Unreferenced (T);

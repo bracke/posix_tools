@@ -21,7 +21,8 @@ Each tab browses on its own, with its own directories, history, filter, and mark
 when there is more than one, the current one in brackets.
 
 A search shows its results in the current pane as it finds them, each by its path below the directory searched, and
-the status line says what it looks for and, once it ends, how many it found. Results can be entered, previewed,
+the status line says what it looks for and, once it ends, how many it found, and whether an error ended it before it
+was through. Results can be entered, previewed,
 marked, and operated on like any entries; h goes back to the directory searched, and going elsewhere stops the
 search. A result renamed is shown by its new name at once; once the search has ended, the results are looked up again
 whenever the directory searched would be read again, so that those changed show as they are and those gone are left
@@ -99,7 +100,8 @@ Diagnostics are localized through messages and written after the terminal has be
 .SH EXIT STATUS
 0 when the user quits, 1 when the operand is not a directory, the --cwd-file file cannot be written, standard input or output is not a terminal, the
 terminal cannot be put into raw mode, the terminal does not identify itself as bracke-terminal, or output fails, 2 for
-invalid usage, 128 plus the signal number when a terminate or hangup signal ends the session, and 125 for
+invalid usage, 128 plus the signal number when a terminate, hangup, interrupt, or quit signal ends the session, and
+125 for
 unexpected internal failures at the command boundary.
 .SH BEHAVIORAL DETAILS
 At start-up explore saves the terminal's settings, puts it into raw mode, and sends the identity query
@@ -153,8 +155,8 @@ symbolic links; a copy into the directory it came from is named name_1, name_2, 
 filesystems copies and then removes the source; deletion removes links, never what they point to. The status line
 shows the first running operation, its file, and how far the copy of that file is, and how many more run or wait; up
 to sixteen wait their turn. When an operation ends the panes are read again and the status line says how it went: done,
-cancelled, or with how many errors and the first of them. The last sixteen that ended are listed in the operations
-panel. Renaming, creating, and changing permissions
+cancelled, or with how many errors and the first of them; when several end together, it says so for each. The last
+sixteen that ended are listed in the operations panel. Renaming, creating, and changing permissions
 happen at once, but never to a path that a running or waiting operation touches as the operations' own order goes: the
 status line says so and nothing is done. A symbolic permission change leaves alone an entry whose mode cannot be read.
 
@@ -243,10 +245,10 @@ letter or digit, a space, and the directory. They are read at start-up and writt
 cc, cf, and cd put text on the system clipboard with OSC 52, which bracke-terminal advertises as osc52, and
 inside tmux pass it through to the outer terminal.
 
-On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --
-explore leaves the alternate screen, turns those reports off again, restores the saved terminal settings, and puts
-back the signal dispositions it changed. A terminate or hangup signal that was ignored when explore started stays
-ignored.
+On every way out -- quitting, a terminate, hangup, interrupt, or quit signal, failing output, or an unexpected internal
+failure -- explore leaves the alternate screen, turns those reports off again, restores the saved terminal settings,
+and puts back the signal dispositions it changed. The keyboard sends no interrupt or quit while explore has the
+terminal, but another program can. A signal that was ignored when explore started stays ignored.
 
 Inside tmux (TMUX set in the environment), the identity query and every sequence meant for bracke-terminal itself
 are wrapped in tmux's DCS passthrough, which requires set -g allow-passthrough on in tmux. tmux 3.4 hands the
@@ -256,8 +258,10 @@ are ordinary text that tmux redraws itself.
 Interface text, help, and diagnostics are locale-dependent. Pathnames are shown as they are.
 .SH IMPLEMENTATION-DEFINED CHOICES
 The identity handshake waits at most 500 milliseconds. Environment variables read: HOME, XDG_CONFIG_HOME,
-XDG_STATE_HOME, TMPDIR, TMUX, and, through the shell, VISUAL, EDITOR, and SHELL. A lone ESC byte is taken as the Escape key after 100
-milliseconds without further input. Terminals that do not report resizes in band are measured again when the window
+XDG_STATE_HOME, TMPDIR, TMUX, and, through the shell, VISUAL, EDITOR, and SHELL. A lone ESC byte, or an
+escape sequence left unfinished, is taken as the Escape key once the terminal has sent nothing for 50 milliseconds
+after its last byte, however busy explore is; an unfinished UTF-8 character is never taken for a key. A line typed
+in a prompt or the filter stays one line: a paste's line breaks are left out of it. Terminals that do not report resizes in band are measured again when the window
 change signal arrives.
 .SH EXTENSIONS
 explore is a project extension command, not a POSIX utility. The command supports project-wide help, version, and

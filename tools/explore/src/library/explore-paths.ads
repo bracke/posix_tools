@@ -1,11 +1,13 @@
 --  Taking paths and names apart and putting them together, as text: nothing
 --  here touches the filesystem.
 package Explore.Paths is
-   --  The parent directory of an absolute Path; Path itself for the root.
+   --  The parent directory of an absolute Path, as dirname has it; Path
+   --  itself for the root, and for a name alone, which has no directory to
+   --  go up to.
    function Parent_Of (Path : String) return String;
 
-   --  The last component of Path, any trailing slashes aside; empty for the
-   --  root.
+   --  The last component of Path, any trailing slashes aside, as basename
+   --  has it; empty for the root.
    function Name_Of (Path : String) return String;
 
    --  The path of Name in Directory, with one slash between them.
@@ -20,9 +22,11 @@ package Explore.Paths is
    function Below (Path, Directory : String) return String;
 
    --  Whether Name can name an entry of a directory: it is not empty, nor
-   --  . or .., and has no slash in it.
+   --  . or .., and has no slash in it, nor a control character such as a
+   --  line break.
    function Is_Plain_Name (Name : String) return Boolean is
-     (Name'Length > 0 and then Name /= "." and then Name /= ".." and then (for all C of Name => C /= '/'));
+     (Name'Length > 0 and then Name /= "." and then Name /= ".."
+      and then (for all C of Name => C /= '/' and then C >= ' ' and then C /= Character'Val (127)));
 
    --  The path Text names, as a path to go to is typed: from Home after a
    --  leading ~, as it is when absolute, and otherwise relative to Current.

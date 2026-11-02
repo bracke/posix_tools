@@ -33,6 +33,9 @@ package Explore.Search is
       Finished   : Boolean := False;
       --  More was found than a search keeps.
       Truncated  : Boolean := False;
+      --  The walk ended on an error before it was through: what was found
+      --  before it stands.
+      Failed     : Boolean := False;
    end record;
 
    Max_Results : constant := 10_000;

@@ -43,8 +43,8 @@ package body Explore.Application is
    use type FS.File_Kind;
 
    --  How long one read waits before the loop looks at signals, watches, and
-   --  finished directory reads again. A lone ESC also waits this long for the
-   --  rest of a sequence.
+   --  finished directory reads again. A lone ESC waits for the rest of a
+   --  sequence as long as Explore.Input.Pause_Ms says, whatever this is.
    Idle_Poll_Ms : constant := 100;
 
    --  The wait while directories are being read, so results show promptly.

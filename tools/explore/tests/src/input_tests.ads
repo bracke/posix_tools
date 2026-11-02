@@ -9,6 +9,8 @@ package Input_Tests is
    procedure Test_Progressive_Keys (T : in out Fixture);
    procedure Test_Escape_Ambiguity (T : in out Fixture);
    procedure Test_Split_Sequences (T : in out Fixture);
+   procedure Test_Split_Character_After_Pause (T : in out Fixture);
+   procedure Test_Pause_Timing (T : in out Fixture);
    procedure Test_Mouse (T : in out Fixture);
    procedure Test_Resize (T : in out Fixture);
    procedure Test_Paste (T : in out Fixture);

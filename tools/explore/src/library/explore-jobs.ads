@@ -96,6 +96,11 @@ package Explore.Jobs is
    --  The lane whose job waits for an answer; zero when none does.
    function Asking_Lane (Item : Snapshot) return Natural;
 
+   --  The jobs that ended after the snapshot whose Completed was Before, as
+   --  far as Now's history still has them, the earliest first. More than
+   --  one can end between two looks at the board.
+   function Ended_Since (Before : Natural; Now : Snapshot) return Result_Vectors.Vector;
+
    --  What the screen does about the jobs' questions.
    type Question_Step is
      (Leave_Alone,  --  Nothing asks, and nothing is being answered.

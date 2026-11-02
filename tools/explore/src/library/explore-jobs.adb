@@ -298,6 +298,17 @@ package body Explore.Jobs is
       return Wanted;
    end Destination;
 
+   function Ended_Since (Before : Natural; Now : Snapshot) return Result_Vectors.Vector is
+      Count : constant Natural :=
+        (if Now.Completed <= Before then 0 else Natural'Min (Now.Completed - Before, Natural (Now.History.Length)));
+   begin
+      return Result : Result_Vectors.Vector do
+         for I in Natural (Now.History.Length) - Count + 1 .. Natural (Now.History.Length) loop
+            Result.Append (Now.History (I));
+         end loop;
+      end return;
+   end Ended_Since;
+
    function Overlap (Left, Right : Job) return Boolean is
       --  Whether Inner is Outer or lies inside it.
       function Within (Inner, Outer : String) return Boolean is
@@ -450,19 +461,28 @@ package body Explore.Jobs is
          Jobs.Take (Item, Lane, Closed);
          exit when Closed;
 
-         declare
-            Watcher : Job_Observer (Jobs, Lane);
+         --  Whatever goes wrong, the job is finished, and ends as failed: a
+         --  job never finished would keep its lane, and quitting would
+         --  always ask about it.
          begin
-            for Source of Item.Sources loop
-               exit when Jobs.Cancel_Requested (Lane);
+            declare
+               Watcher : Job_Observer (Jobs, Lane);
+            begin
+               for Source of Item.Sources loop
+                  exit when Jobs.Cancel_Requested (Lane);
 
-               begin
-                  Run_Item (Item, Source, Watcher);
-               exception
-                  when others =>
-                     Jobs.Report_Error (Lane, Source, Ops.Cannot_Open);
-               end;
-            end loop;
+                  begin
+                     Run_Item (Item, Source, Watcher);
+                  exception
+                     when others =>
+                        Jobs.Report_Error (Lane, Source, Ops.Cannot_Open);
+                  end;
+               end loop;
+            end;
+         exception
+            when others =>
+               Jobs.Report_Error
+                 (Lane, (if Item.Sources.Is_Empty then "" else Item.Sources.First_Element), Ops.Cannot_Open);
          end;
 
          Jobs.Finish (Lane);

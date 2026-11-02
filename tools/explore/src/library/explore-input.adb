@@ -319,7 +319,10 @@ package body Explore.Input is
             when Skip =>
                Unbounded.Delete (Self.Buffer, 1, Positive'Max (Length, 1));
             when Incomplete =>
-               if not Self.Flushed then
+               --  An unfinished UTF-8 character is never a key of its own:
+               --  it waits for its rest, a pause or not, and a byte that
+               --  does not continue it has it skipped once it comes.
+               if not Self.Flushed or else Unbounded.Element (Self.Buffer, 1) /= ESC then
                   return;
                end if;
 

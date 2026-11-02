@@ -447,6 +447,8 @@ package body Model_Tests is
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a/b") = "/a", "parent");
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a") = "/", "parent of a top directory");
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/") = "/", "the root is its own parent");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a/b/") = "/a", "parent, trailing slash");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("x") = "x", "a name alone has no parent to go to");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b") = "b", "name");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b/") = "b", "name, trailing slash");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/") = "", "the root has no name");
@@ -473,6 +475,15 @@ package body Model_Tests is
       AUnit.Assertions.Assert
         (not Explore.Paths.Is_Plain_Name ("a/b") and then not Explore.Paths.Is_Plain_Name ("a/"),
          "nor a path");
+      AUnit.Assertions.Assert
+        (not Explore.Paths.Is_Plain_Name ("a" & Character'Val (10) & "b")
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (13))
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (27) & "[1m")
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (127)),
+         "nor a name with a control character in it");
+      AUnit.Assertions.Assert
+        (Explore.Paths.Is_Plain_Name ("caf" & Character'Val (16#C3#) & Character'Val (16#A9#)),
+         "a UTF-8 name is plain");
       AUnit.Assertions.Assert (Explore.Paths.Renamed ("docs/a.md", "b.md") = "docs/b.md", "a result renamed");
       AUnit.Assertions.Assert (Explore.Paths.Renamed ("a.md", "b.md") = "b.md", "a name renamed");
       AUnit.Assertions.Assert (Explore.Paths.Below ("/r/docs/a", "/r") = "docs/a", "a path below a directory");
