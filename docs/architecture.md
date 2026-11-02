@@ -44,11 +44,17 @@ hostkit-descriptor-based identity-output validation for the root verifier.
 POSIX command packages must not import hostkit directly.
 
 `awk`, `grep`, and `sed` are integrated as binary crates under `tools/awk`,
-`tools/grep`, and `tools/sed`. They use their own process-facing CLI layers
-backed by `awklib`, `greplib`, and `sedlib`. They are included in the release
-inventory and package checks, but they do not use the in-memory
+`tools/grep`, and `tools/sed`, backed by `awklib`, `greplib`, and `sedlib`.
+They are included in the release inventory and package checks. `awk` and
+`sed` use their own process-facing CLI layers and do not use the in-memory
 `Posix_Tools.Commands.Contexts.Context` command package model used by the
-smaller utilities.
+smaller utilities. `grep` does: its command package,
+`Posix_Tools.Commands.Grep`, lives in `tools/grep/src/library` beside the
+greplib dependency only it has, runs through a thin
+`Host_Adapters.Run_Command` wrapper, and writes greplib's search events to the
+context as they arrive. The tests crate compiles that library directly, as
+explore's tests compile explore's, so grep is tested through
+`Test_Contexts.Capturing_Context`.
 
 Byte-oriented helpers live under `Posix_Tools.Streams`. `Posix_Tools.Streams.Lines`
 defines the LF segment contract used by file-oriented command behavior: newline

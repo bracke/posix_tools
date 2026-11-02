@@ -12,9 +12,14 @@ When no -e or -f option is present, the first non-option operand is the
 pattern and all remaining operands are input files. When -e or -f is
 present, every non-option operand is an input file.
 .SH OPTIONS
--e pattern adds an inline pattern.
+-e pattern adds the patterns of a newline-separated pattern list; the pattern
+operand is a pattern list too. A list that ends in a newline ends in the empty
+pattern, which matches every record.
 
--f pattern_file reads newline-separated patterns from pattern_file.
+-f pattern_file reads patterns from pattern_file, one a line, as bytes;
+the last line's newline is optional, and an empty line is the empty pattern.
+-f - reads the patterns from standard input. An empty pattern file is an
+empty pattern list, which matches no record.
 
 -F treats patterns as fixed strings.
 
@@ -57,19 +62,24 @@ recursive search starts in the current directory.
 --help, --version, and --posix-tools-identify are project extensions.
 .SH STANDARD INPUT
 Standard input is searched when no file operand is supplied or when an operand
-is exactly -.
+is exactly -. It is named (standard input) in file-name prefixes and in
+-c, -l, and -L output.
 .SH STANDARD OUTPUT
 Standard output carries selected records, counts, source names, help text, or
 version text depending on the selected mode. Data output is not localized.
+Records are written as they are found; output to a terminal is written a
+record at a time. With context, -- separates context groups that are not
+adjacent, including groups of different files.
 .SH STANDARD ERROR
 Standard error carries localized invocation, pattern, and input diagnostics
 unless -s suppresses input/search diagnostics.
 .SH EXIT STATUS
-0 indicates that at least one selected record was found.
+0 indicates that at least one selected record was found. With -q, a
+selected record means 0 even when an input could not be read.
 
 1 indicates that no selected record was found.
 
-2 indicates invocation, pattern, input, or internal failure.
+2 indicates invocation, pattern, input, output, or internal failure.
 .SH BEHAVIORAL DETAILS
 Each file operand is searched independently. Matching, invert-match selection,
 whole-word and whole-record checks, selected-record limits, context windows,
@@ -77,7 +87,9 @@ count modes, quiet mode, source-name modes, match spans, byte offsets, and
 recursive traversal are delegated to greplib.
 .SH LOCALE BEHAVIOR
 Data output formatting is locale-invariant. Diagnostics use the project
-message catalog selected by LC_ALL, LANG, or the native host locale.
+message catalog selected by LC_ALL, LC_MESSAGES, LANG, or the native host
+locale. Basic regular-expression ranges, equivalence classes, and collating
+symbols follow the collation locale: LC_ALL, LC_COLLATE, or LANG.
 Case-insensitive matching follows the ASCII folding behavior exposed by
 greplib.
 .SH IMPLEMENTATION-DEFINED CHOICES

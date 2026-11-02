@@ -230,7 +230,7 @@ is
          when 28 =>
             return "Posix_Tools.Commands.Groups";
          when 29 =>
-            return "Greplib";
+            return "Posix_Tools.Commands.Grep";
          when 30 =>
             return "Posix_Tools.Commands.Head";
          when 31 =>

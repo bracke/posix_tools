@@ -667,6 +667,8 @@ tests/src/file_operations_tests.adb
 tests/src/file_operations_tests.ads
 tests/src/format_checks.adb
 tests/src/format_checks.ads
+tests/src/grep_command_tests.adb
+tests/src/grep_command_tests.ads
 tests/src/integration_smoke.adb
 tests/src/integration_smoke.ads
 tests/src/metadata_checks-command_inventory.adb
@@ -1015,6 +1017,16 @@ tools/grep/docs/command-line.md
 tools/grep/examples/README.md
 tools/grep/posix_tools_grep.gpr
 tools/grep/src/grep.adb
+tools/grep/src/library/posix_tools-commands-grep-input.adb
+tools/grep/src/library/posix_tools-commands-grep-input.ads
+tools/grep/src/library/posix_tools-commands-grep-options.adb
+tools/grep/src/library/posix_tools-commands-grep-options.ads
+tools/grep/src/library/posix_tools-commands-grep-patterns.adb
+tools/grep/src/library/posix_tools-commands-grep-patterns.ads
+tools/grep/src/library/posix_tools-commands-grep-rendering.adb
+tools/grep/src/library/posix_tools-commands-grep-rendering.ads
+tools/grep/src/library/posix_tools-commands-grep.adb
+tools/grep/src/library/posix_tools-commands-grep.ads
 tools/groups/alire.toml
 tools/groups/posix_tools_groups.gpr
 tools/groups/src/groups.adb

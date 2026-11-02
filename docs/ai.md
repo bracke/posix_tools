@@ -34,7 +34,8 @@
   `terminal_styles`; `i18n` is used for deterministic date timezone data. The
   common crate must not depend on `aunit` or `project_tools`.
 - The tests crate depends on `posix_tools_common`, `aunit`, and
-  `project_tools`.
+  `project_tools`, and on `greplib` for grep's command library, which it
+  compiles from `tools/grep/src/library`.
 - No command crate may depend on another command crate.
 
 ## Allowed Imports
@@ -130,8 +131,9 @@
 - A monolithic command dispatcher for POSIX utilities.
 - A plugin system for V1 commands.
 - Common-runner rewrites of `awk`, `grep`, or `sed`; they are integrated as
-  `tools/awk`, `tools/grep`, and `tools/sed` around process-facing wrappers
-  backed by `awklib`, `greplib`, and `sedlib`.
+  `tools/awk`, `tools/grep`, and `tools/sed` backed by `awklib`, `greplib`,
+  and `sedlib`. `grep`'s command package runs through the command context
+  but stays in its own crate.
 - Direct Hostkit use from command algorithms.
 - Direct terminal styling in command data paths.
 - Shell, Python, JavaScript, Make, CMake, or PowerShell project tooling.

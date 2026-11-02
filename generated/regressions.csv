@@ -105,3 +105,10 @@ REG-CHMOD-0001,chmod,apply X only to directories and files with an execute bit a
 REG-MKDIR-0001,mkdir,take symbolic -m modes relative to a=rwx instead of the umask-applied mode,command:mkdir mode and diagnostics
 REG-FIND-0004,find,match POSIX bracket character classes and collating elements and treat [] and [!] at the end of a pattern as literal,command:find glob brackets
 REG-WC-0008,wc,reprocess the byte that ends an invalid UTF-8 sequence instead of losing it,command:wc utf-8 resynchronises
+REG-GREP-0001,grep,write every selected line as greplib reports it instead of silently dropping output past a collection limit,command:grep output is not truncated
+REG-GREP-0002,grep,report a standard output write failure and exit with status 2,command:grep output failure
+REG-GREP-0003,grep,exit 0 under -q when a line was selected even though another input could not be read,command:grep quiet selection wins over errors
+REG-GREP-0004,grep,write -- between non-adjacent context groups also when a group starts with a selected line and between groups of different files,command:grep context separators
+REG-GREP-0005,grep,split -e and operand pattern lists at newlines and read -f files as bytes split at LF with -f - for standard input and an empty file as a list that matches nothing,command:grep pattern lists
+REG-GREP-0006,grep,name standard input (standard input) in -H -l -L and -c output,command:grep standard input label
+REG-GREP-0007,grep,answer --help and --version through the parse outcome with their output status,command:grep help and version

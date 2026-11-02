@@ -26,6 +26,7 @@ with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Fold;
 with Posix_Tools.Commands.Getconf;
+with Posix_Tools.Commands.Grep;
 with Posix_Tools.Commands.Groups;
 with Posix_Tools.Commands.Head;
 with Posix_Tools.Commands.Hostname;
@@ -118,6 +119,7 @@ package body Command_Tests.Dispatch is
    procedure Run_Fold is new Posix_Tools.Commands.Run_Entry ("fold", Posix_Tools.Commands.Fold.Run);
    procedure Run_Getconf is new Posix_Tools.Commands.Run_Entry ("getconf", Posix_Tools.Commands.Getconf.Run);
    procedure Run_Groups is new Posix_Tools.Commands.Run_Entry ("groups", Posix_Tools.Commands.Groups.Run);
+   procedure Run_Grep is new Posix_Tools.Commands.Run_Entry ("grep", Posix_Tools.Commands.Grep.Run);
    procedure Run_Head is new Posix_Tools.Commands.Run_Entry ("head", Posix_Tools.Commands.Head.Run);
    procedure Run_Hostname is new Posix_Tools.Commands.Run_Entry ("hostname", Posix_Tools.Commands.Hostname.Run);
    procedure Run_Id is new Posix_Tools.Commands.Run_Entry ("id", Posix_Tools.Commands.Id.Run);
@@ -198,6 +200,7 @@ package body Command_Tests.Dispatch is
       (+"fold", +"Posix_Tools.Commands.Fold", Run_Fold'Access),
       (+"getconf", +"Posix_Tools.Commands.Getconf", Run_Getconf'Access),
       (+"groups", +"Posix_Tools.Commands.Groups", Run_Groups'Access),
+      (+"grep", +"Posix_Tools.Commands.Grep", Run_Grep'Access),
       (+"head", +"Posix_Tools.Commands.Head", Run_Head'Access),
       (+"hostname", +"Posix_Tools.Commands.Hostname", Run_Hostname'Access),
       (+"id", +"Posix_Tools.Commands.Id", Run_Id'Access),
@@ -260,7 +263,7 @@ package body Command_Tests.Dispatch is
 
    function Is_Rendering_Only (Name : String) return Boolean is
    begin
-      return Name = "awk" or else Name = "explore" or else Name = "grep" or else Name = "sed";
+      return Name = "awk" or else Name = "explore" or else Name = "sed";
    end Is_Rendering_Only;
 
    procedure Run

@@ -2,9 +2,11 @@
 
 A POSIX-oriented command-line grep wrapper for `posix_tools`.
 
-The executable owns invocation parsing, process status, and output formatting.
-Pattern compilation and all record matching are delegated to
-[`greplib`](../../../greplib).
+The command package `Posix_Tools.Commands.Grep` in `src/library` owns
+invocation parsing, process status, and output formatting, and runs through the
+shared command context like the other commands; `src/grep.adb` is a thin
+wrapper. Pattern compilation and all record matching are delegated to
+[`greplib`](../../../greplib), whose search events are written as they arrive.
 
 ## Status
 

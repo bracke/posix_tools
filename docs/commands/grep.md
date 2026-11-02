@@ -22,9 +22,14 @@ present, every non-option operand is an input file.
 
 ## Options
 
-`-e pattern` adds an inline pattern.
+`-e pattern` adds the patterns of a newline-separated pattern list; the pattern
+operand is a pattern list too. A list that ends in a newline ends in the empty
+pattern, which matches every record.
 
-`-f pattern_file` reads newline-separated patterns from `pattern_file`.
+`-f pattern_file` reads patterns from `pattern_file`, one a line, as bytes;
+the last line's newline is optional, and an empty line is the empty pattern.
+`-f -` reads the patterns from standard input. An empty pattern file is an
+empty pattern list, which matches no record.
 
 `-F` treats patterns as fixed strings.
 
@@ -69,12 +74,16 @@ recursive search starts in the current directory.
 ## Standard Input
 
 Standard input is searched when no file operand is supplied or when an operand
-is exactly `-`.
+is exactly `-`. It is named `(standard input)` in file-name prefixes and in
+`-c`, `-l`, and `-L` output.
 
 ## Standard Output
 
 Standard output carries selected records, counts, source names, help text, or
 version text depending on the selected mode. Data output is not localized.
+Records are written as they are found; output to a terminal is written a
+record at a time. With context, `--` separates context groups that are not
+adjacent, including groups of different files.
 
 ## Standard Error
 
@@ -83,11 +92,12 @@ unless `-s` suppresses input/search diagnostics.
 
 ## Exit Status
 
-`0` indicates that at least one selected record was found.
+`0` indicates that at least one selected record was found. With `-q`, a
+selected record means `0` even when an input could not be read.
 
 `1` indicates that no selected record was found.
 
-`2` indicates invocation, pattern, input, or internal failure.
+`2` indicates invocation, pattern, input, output, or internal failure.
 
 ## Behavioral Details
 
@@ -99,7 +109,9 @@ recursive traversal are delegated to `greplib`.
 ## Locale Behavior
 
 Data output formatting is locale-invariant. Diagnostics use the project
-message catalog selected by `LC_ALL`, `LANG`, or the native host locale.
+message catalog selected by `LC_ALL`, `LC_MESSAGES`, `LANG`, or the native host
+locale. Basic regular-expression ranges, equivalence classes, and collating
+symbols follow the collation locale: `LC_ALL`, `LC_COLLATE`, or `LANG`.
 Case-insensitive matching follows the ASCII folding behavior exposed by
 `greplib`.
 
