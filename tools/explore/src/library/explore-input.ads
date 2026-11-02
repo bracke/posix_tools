@@ -6,8 +6,9 @@ with Ada.Strings.Unbounded;
 --  sequence split across two reads decodes once its second half arrives. A
 --  lone ESC is ambiguous between the Escape key and the start of a sequence;
 --  it stays pending until Flush says no more is coming, which the caller does
---  when a read times out. With disambiguated keys on, the terminal sends the
---  Escape key as a sequence of its own and the question does not arise.
+--  once the terminal has sent nothing for Pause_Ms. With disambiguated keys
+--  on, the terminal sends the Escape key as a sequence of its own and the
+--  question does not arise.
 package Explore.Input is
    type Key_Kind is
      (Character_Key,
@@ -88,12 +89,30 @@ package Explore.Input is
    --  Decode the next complete event, if there is one.
    procedure Next (Self : in out Decoder; Item : out Event; Found : out Boolean);
 
-   --  Treat what is pending as complete: a lone ESC becomes the Escape key and
-   --  an unfinished sequence other than a paste is dropped. Applies to the
-   --  following calls of Next until Feed is called again.
+   --  Treat what is pending as complete: a lone ESC becomes the Escape key,
+   --  and so does the ESC an unfinished sequence other than a paste starts
+   --  with, the rest of it taken as typed. An unfinished UTF-8 character
+   --  stays pending, never taken for a key. Applies to the following calls
+   --  of Next until Feed is called again.
    procedure Flush (Self : in out Decoder);
 
    function Has_Pending (Self : Decoder) return Boolean;
+
+   --  How long the terminal must have sent nothing, since the last byte it
+   --  sent, before what is pending is taken as complete. Measured from the
+   --  last byte, not from how often the screen looks for input, so a
+   --  sequence the terminal sends in two writes is not split into keys.
+   Pause_Ms : constant := 50;
+
+   --  Whether the terminal has been quiet long enough, Quiet_Ms since its
+   --  last byte, for Flush.
+   function Pause_Ended (Quiet_Ms : Natural) return Boolean is (Quiet_Ms >= Pause_Ms);
+
+   --  How long a read should wait for input: Poll_Ms, but, while something
+   --  is Pending, no longer than until the pause after the last byte has
+   --  ended, so that a lone ESC is taken for the Escape key on time.
+   function Read_Wait (Poll_Ms : Natural; Pending : Boolean; Quiet_Ms : Natural) return Natural is
+     (if Pending and then Quiet_Ms < Pause_Ms then Natural'Min (Poll_Ms, Pause_Ms - Quiet_Ms) else Poll_Ms);
 
    --  The most of a paste that is held waiting for its end. A paste longer
    --  than this is handed over cut short, and the rest of it dropped up to

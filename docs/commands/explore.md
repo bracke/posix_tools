@@ -280,8 +280,9 @@ Interface text, help, and diagnostics are locale-dependent. Pathnames are shown 
 ## Implementation-Defined Choices
 
 The identity handshake waits at most 500 milliseconds. Environment variables read: `HOME`, `XDG_CONFIG_HOME`,
-`XDG_STATE_HOME`, `TMPDIR`, `TMUX`, and, through the shell, `VISUAL`, `EDITOR`, and `SHELL`. A lone ESC byte is taken as the Escape key after 100
-milliseconds without further input. Terminals that do not report resizes in band are measured again when the window
+`XDG_STATE_HOME`, `TMPDIR`, `TMUX`, and, through the shell, `VISUAL`, `EDITOR`, and `SHELL`. A lone ESC byte, or an
+escape sequence left unfinished, is taken as the Escape key once the terminal has sent nothing for 50 milliseconds
+after its last byte, however busy `explore` is; an unfinished UTF-8 character is never taken for a key. Terminals that do not report resizes in band are measured again when the window
 change signal arrives.
 
 ## Extensions

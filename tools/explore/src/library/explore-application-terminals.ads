@@ -37,8 +37,9 @@ private package Explore.Application.Terminals is
    function Identify (State : in out Session) return Boolean;
 
    --  Wait up to Timeout_Ms for what the terminal sends, and hand it to the
-   --  decoder; on a timeout, what the decoder holds is taken as complete.
-   --  Ended when the terminal will send no more.
+   --  decoder; what the decoder holds is taken as complete once the terminal
+   --  has paused for Explore.Input.Pause_Ms after it, which the wait is cut
+   --  short for. Ended when the terminal will send no more.
    procedure Read_Into_Decoder (State : in out Session; Timeout_Ms : Integer; Ended : out Boolean);
 
    --  Whether a signal that ends the session arrived, noting which; a

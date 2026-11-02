@@ -1,3 +1,4 @@
+with Ada.Real_Time;
 with Ada.Streams;
 with Explore.Application.Display;
 with Explore.Image_Cache;
@@ -21,6 +22,9 @@ package body Explore.Application.Terminals is
    --  Measure the screen and draw for its size; when it cannot be measured,
    --  for the size last known, if Anyway.
    procedure Fit_To_Window (State : in out Session; Anyway : Boolean);
+
+   --  How long, in milliseconds, the terminal has sent nothing.
+   function Quiet_Ms (State : Session) return Natural;
 
    --  Have Which recorded instead of acting, saving how each was in Saved and
    --  forgetting any arrival recorded before. With Spare_Ignored, one that
@@ -112,12 +116,25 @@ package body Explore.Application.Terminals is
           then Explore.Images.Delete_All (State.Terminal.In_Tmux) else "")
          & Explore.Protocol.Leave_Screen));
 
+   function Quiet_Ms (State : Session) return Natural is
+      use type Ada.Real_Time.Time;
+
+      Quiet : constant Duration := Ada.Real_Time.To_Duration (Ada.Real_Time.Clock - State.Terminal.Last_Input);
+   begin
+      return (if Quiet >= 1_000.0 then 1_000_000 elsif Quiet <= 0.0 then 0 else Natural (Quiet * 1_000));
+   end Quiet_Ms;
+
    procedure Read_Into_Decoder (State : in out Session; Timeout_Ms : Integer; Ended : out Boolean) is
       Buffer  : Ada.Streams.Stream_Element_Array (1 .. 4096);
       Last    : Ada.Streams.Stream_Element_Offset;
       Outcome : Terminal_IO.Read_Outcome;
    begin
-      Terminal_IO.Read (Buffer, Last, Timeout_Ms, Outcome);
+      Terminal_IO.Read
+        (Buffer, Last,
+         (if Timeout_Ms < 0 then Timeout_Ms
+          else Explore.Input.Read_Wait
+                 (Timeout_Ms, Explore.Input.Has_Pending (State.Terminal.Decoder), Quiet_Ms (State))),
+         Outcome);
       Ended := Outcome = Terminal_IO.Read_End_Of_File or else Outcome = Terminal_IO.Read_Failed;
 
       if Outcome = Terminal_IO.Read_Failed then
@@ -133,8 +150,11 @@ package body Explore.Application.Terminals is
             end loop;
 
             Explore.Input.Feed (State.Terminal.Decoder, Text);
+            State.Terminal.Last_Input := Ada.Real_Time.Clock;
          end;
-      elsif Outcome = Terminal_IO.Read_Timeout then
+      elsif Outcome = Terminal_IO.Read_Timeout and then Explore.Input.Pause_Ended (Quiet_Ms (State)) then
+         --  However often the loop looks, what is pending is only taken as
+         --  complete once the terminal has paused after it.
          Explore.Input.Flush (State.Terminal.Decoder);
       end if;
    end Read_Into_Decoder;

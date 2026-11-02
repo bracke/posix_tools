@@ -1,4 +1,5 @@
 with Ada.Containers.Ordered_Maps;
+with Ada.Real_Time;
 with Ada.Strings.Unbounded;
 with Explore.Image_Cache;
 with Explore.Input;
@@ -72,6 +73,9 @@ private package Explore.Application.Sessions is
    type Terminal_State is record
       In_Tmux     : Boolean := False;
       Decoder     : Explore.Input.Decoder;
+      --  When the terminal last sent anything, which the pause that
+      --  completes what the decoder holds is measured from.
+      Last_Input  : Ada.Real_Time.Time := Ada.Real_Time.Clock;
       Identity    : Explore.Protocol.Identity;
       --  Its settings as they were found, for handing it to another program
       --  and back.
