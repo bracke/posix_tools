@@ -45,7 +45,13 @@ package body Explore.Line_Editor is
                   null;
             end case;
          when Input.Paste_Event =>
-            Unbounded.Append (Text, Item.Text);
+            --  The line is one line: a pasted line break is left out, so
+            --  that it neither ends up in a name nor runs a command early.
+            for C of Unbounded.To_String (Item.Text) loop
+               if C not in Character'Val (10) | Character'Val (13) then
+                  Unbounded.Append (Text, C);
+               end if;
+            end loop;
          when others =>
             null;
       end case;

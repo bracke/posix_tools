@@ -20,9 +20,11 @@ package Explore.Paths is
    function Below (Path, Directory : String) return String;
 
    --  Whether Name can name an entry of a directory: it is not empty, nor
-   --  . or .., and has no slash in it.
+   --  . or .., and has no slash in it, nor a control character such as a
+   --  line break.
    function Is_Plain_Name (Name : String) return Boolean is
-     (Name'Length > 0 and then Name /= "." and then Name /= ".." and then (for all C of Name => C /= '/'));
+     (Name'Length > 0 and then Name /= "." and then Name /= ".."
+      and then (for all C of Name => C /= '/' and then C >= ' ' and then C /= Character'Val (127)));
 
    --  The path Text names, as a path to go to is typed: from Home after a
    --  leading ~, as it is when absolute, and otherwise relative to Current.

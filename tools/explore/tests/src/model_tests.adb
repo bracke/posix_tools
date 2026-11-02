@@ -473,6 +473,15 @@ package body Model_Tests is
       AUnit.Assertions.Assert
         (not Explore.Paths.Is_Plain_Name ("a/b") and then not Explore.Paths.Is_Plain_Name ("a/"),
          "nor a path");
+      AUnit.Assertions.Assert
+        (not Explore.Paths.Is_Plain_Name ("a" & Character'Val (10) & "b")
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (13))
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (27) & "[1m")
+         and then not Explore.Paths.Is_Plain_Name ("a" & Character'Val (127)),
+         "nor a name with a control character in it");
+      AUnit.Assertions.Assert
+        (Explore.Paths.Is_Plain_Name ("caf" & Character'Val (16#C3#) & Character'Val (16#A9#)),
+         "a UTF-8 name is plain");
       AUnit.Assertions.Assert (Explore.Paths.Renamed ("docs/a.md", "b.md") = "docs/b.md", "a result renamed");
       AUnit.Assertions.Assert (Explore.Paths.Renamed ("a.md", "b.md") = "b.md", "a name renamed");
       AUnit.Assertions.Assert (Explore.Paths.Below ("/r/docs/a", "/r") = "docs/a", "a path below a directory");
