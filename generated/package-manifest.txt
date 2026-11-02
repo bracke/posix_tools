@@ -255,8 +255,8 @@ common/src/posix_tools-host_adapters-environment.adb bytes= 812 fnv1a64=d14e62a8
 common/src/posix_tools-host_adapters-environment.ads bytes= 277 fnv1a64=6b0e96c4d45be438
 common/src/posix_tools-host_adapters-executables.adb bytes= 8597 fnv1a64=c23a7d2cd903975a
 common/src/posix_tools-host_adapters-executables.ads bytes= 494 fnv1a64=7a0d427210113d9a
-common/src/posix_tools-host_adapters-file_system.adb bytes= 30498 fnv1a64=93846020eaa8c74c
-common/src/posix_tools-host_adapters-file_system.ads bytes= 9311 fnv1a64=e0514aeeba856350
+common/src/posix_tools-host_adapters-file_system.adb bytes= 30691 fnv1a64=61295eb95a7d630b
+common/src/posix_tools-host_adapters-file_system.ads bytes= 9584 fnv1a64=cafbe9a1700c2966
 common/src/posix_tools-host_adapters-file_watches.adb bytes= 643 fnv1a64=59ab879d78bd2604
 common/src/posix_tools-host_adapters-file_watches.ads bytes= 456 fnv1a64=f5f0252a9fc79146
 common/src/posix_tools-host_adapters-host.adb bytes= 3574 fnv1a64=e65f94fe9c3aa074
@@ -280,8 +280,8 @@ common/src/posix_tools-host_adapters-terminal_io.ads bytes= 2171 fnv1a64=1b9b0fd
 common/src/posix_tools-host_adapters-terminals.adb bytes= 1221 fnv1a64=c11b63fb97418fa0
 common/src/posix_tools-host_adapters-terminals.ads bytes= 310 fnv1a64=41c74c128302d6e4
 common/src/posix_tools-host_adapters.ads bytes= 84 fnv1a64=3c1400da91110352
-common/src/posix_tools-localization.adb bytes= 3898 fnv1a64=22bbaec1adbaa562
-common/src/posix_tools-localization.ads bytes= 712 fnv1a64=1228fcf0e2ffa385
+common/src/posix_tools-localization.adb bytes= 4327 fnv1a64=2f85984ae6acc1ae
+common/src/posix_tools-localization.ads bytes= 1104 fnv1a64=3b4f49bf7f7c8773
 common/src/posix_tools-numbers.adb bytes= 2820 fnv1a64=f2b9ffd2556c4238
 common/src/posix_tools-numbers.ads bytes= 3740 fnv1a64=f952581f42818cae
 common/src/posix_tools-option_parsing.adb bytes= 3623 fnv1a64=66ba469d3d105e7f
@@ -619,8 +619,8 @@ generated/man/whoami.1 bytes= 1097 fnv1a64=1c80fa21d2139909
 generated/man/xargs.1 bytes= 4120 fnv1a64=39532b69fef42d33
 generated/man/yes.1 bytes= 1372 fnv1a64=745a2693dd125e4d
 generated/manual-index.md bytes= 2617 fnv1a64=77fdfaafa51f5fc8
-generated/regressions.csv bytes= 16873 fnv1a64=45b34c07e361807c
-generated/requirements.csv bytes= 103982 fnv1a64=16934e4263ece910
+generated/regressions.csv bytes= 17219 fnv1a64=bdb8fcc1007aeef5
+generated/requirements.csv bytes= 104277 fnv1a64=07c99c2efc984fe1
 posix_tools.gpr bytes= 472 fnv1a64=6a3257242fbeb129
 src/posix-tools.adb bytes= 260 fnv1a64=5aab4748b581957f
 tests/alire.toml bytes= 646 fnv1a64=771556d2aa18ddb0
@@ -678,7 +678,7 @@ tests/src/metadata_checks-continuous_integration.adb bytes= 9831 fnv1a64=c484b4e
 tests/src/metadata_checks-continuous_integration.ads bytes= 152 fnv1a64=c2aae07f8cdb3ee3
 tests/src/metadata_checks-dependencies.adb bytes= 7726 fnv1a64=6a58ddd625d4f7bf
 tests/src/metadata_checks-dependencies.ads bytes= 170 fnv1a64=876c9886deb601ab
-tests/src/metadata_checks-manifests.adb bytes= 20934 fnv1a64=147641da4f1aabe8
+tests/src/metadata_checks-manifests.adb bytes= 24840 fnv1a64=294f8963ed5cc361
 tests/src/metadata_checks-manifests.ads bytes= 175 fnv1a64=3b256386a40201d8
 tests/src/metadata_checks-packaging.adb bytes= 24964 fnv1a64=b4b543c389cb8643
 tests/src/metadata_checks-packaging.ads bytes= 224 fnv1a64=ce20178e2abe830d
@@ -726,7 +726,7 @@ tools/awk/alire.toml bytes= 751 fnv1a64=910a4a393a5ca917
 tools/awk/docs/command-line-reference.md bytes= 2273 fnv1a64=359141834588896d
 tools/awk/docs/compatibility.md bytes= 2525 fnv1a64=d832b30ca2c006a1
 tools/awk/docs/diagnostics.md bytes= 1720 fnv1a64=a74457d05213d885
-tools/awk/docs/localization.md bytes= 2567 fnv1a64=f5e5cc0911f0bfc8
+tools/awk/docs/localization.md bytes= 2655 fnv1a64=befb8dee707c9708
 tools/awk/docs/quickstart.md bytes= 191 fnv1a64=9eac91ef2b8488bf
 tools/awk/posix_tools_awk.gpr bytes= 743 fnv1a64=720d154d4bf6ac19
 tools/awk/resources/messages/catalog.txt bytes= 189943 fnv1a64=db8e5dcf61f4937b
@@ -778,8 +778,10 @@ tools/awk/src/library/awk_cli-invocation.adb bytes= 2625 fnv1a64=33f30384bff55aa
 tools/awk/src/library/awk_cli-invocation.ads bytes= 779 fnv1a64=e74c00dc525f31d2
 tools/awk/src/library/awk_cli-live_context_callbacks.adb bytes= 1357 fnv1a64=f807fc183ab95bc5
 tools/awk/src/library/awk_cli-live_context_callbacks.ads bytes= 1524 fnv1a64=1095a8ddb4d97abd
-tools/awk/src/library/awk_cli-localization.adb bytes= 2935 fnv1a64=594180958e5b1eb7
-tools/awk/src/library/awk_cli-localization.ads bytes= 1753 fnv1a64=618e13db5e718eb6
+tools/awk/src/library/awk_cli-localization-defaults.adb bytes= 7061 fnv1a64=0803d4a8d9e7686d
+tools/awk/src/library/awk_cli-localization-defaults.ads bytes= 385 fnv1a64=1ef7aef5066c2d0b
+tools/awk/src/library/awk_cli-localization.adb bytes= 3644 fnv1a64=408a98fde0a4da7e
+tools/awk/src/library/awk_cli-localization.ads bytes= 1923 fnv1a64=85d5339888236d17
 tools/awk/src/library/awk_cli-operands.adb bytes= 1480 fnv1a64=cad743fa0ca73626
 tools/awk/src/library/awk_cli-operands.ads bytes= 1081 fnv1a64=1a0700df5e25e328
 tools/awk/src/library/awk_cli-options-handle_color.adb bytes= 542 fnv1a64=e55973b37bfa452a
@@ -1111,7 +1113,7 @@ tools/sed/LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 tools/sed/README.md bytes= 4225 fnv1a64=0f7cbac995af37c9
 tools/sed/alire.toml bytes= 671 fnv1a64=1943c9b4481fe274
 tools/sed/docs/command-line.md bytes= 2895 fnv1a64=0fc164ab59ed87ca
-tools/sed/docs/diagnostics-and-localization.md bytes= 4257 fnv1a64=4cf664b6ca46f697
+tools/sed/docs/diagnostics-and-localization.md bytes= 4547 fnv1a64=9afc36605eda54b6
 tools/sed/docs/input-output-model.md bytes= 3152 fnv1a64=6d8acaaa83448819
 tools/sed/docs/posix-conformance.md bytes= 10819 fnv1a64=a8020cf0bcc90092
 tools/sed/docs/testing.md bytes= 2922 fnv1a64=f95a6a626c484f23
@@ -1144,7 +1146,7 @@ tools/sed/src/library/sed-diagnostics.adb bytes= 6573 fnv1a64=f306201df57af2d6
 tools/sed/src/library/sed-diagnostics.ads bytes= 11268 fnv1a64=e740d0c24cdbbf49
 tools/sed/src/library/sed-engine.adb bytes= 4608 fnv1a64=e158fa72bab91f69
 tools/sed/src/library/sed-engine.ads bytes= 2056 fnv1a64=fc6913cacb9bcd6b
-tools/sed/src/library/sed-environment.adb bytes= 5510 fnv1a64=185ca89a37aae209
+tools/sed/src/library/sed-environment.adb bytes= 5997 fnv1a64=4e09c328f4f530e9
 tools/sed/src/library/sed-environment.ads bytes= 2411 fnv1a64=2b26bac63f4f6b47
 tools/sed/src/library/sed-execution-environment.adb bytes= 7384 fnv1a64=9e3534e3b9f79fa0
 tools/sed/src/library/sed-execution-environment.ads bytes= 4049 fnv1a64=8bb072519dbfed14
@@ -1164,8 +1166,10 @@ tools/sed/src/library/sed-io-filesystem.ads bytes= 2725 fnv1a64=2e43092cd5b17886
 tools/sed/src/library/sed-io-process_streams.adb bytes= 4668 fnv1a64=d879b763861a8c83
 tools/sed/src/library/sed-io-process_streams.ads bytes= 1893 fnv1a64=34f9377edbcc0669
 tools/sed/src/library/sed-io.ads bytes= 8937 fnv1a64=d54e6010392b3788
-tools/sed/src/library/sed-localization.adb bytes= 3356 fnv1a64=73391aeda6d63d19
-tools/sed/src/library/sed-localization.ads bytes= 3617 fnv1a64=632efe378ad3b9a9
+tools/sed/src/library/sed-localization-defaults.adb bytes= 7949 fnv1a64=82ec9f0495568e99
+tools/sed/src/library/sed-localization-defaults.ads bytes= 379 fnv1a64=725000023ab6218b
+tools/sed/src/library/sed-localization.adb bytes= 4783 fnv1a64=887bd227ab27ff75
+tools/sed/src/library/sed-localization.ads bytes= 3909 fnv1a64=b9f8d98d2fad6357
 tools/sed/src/library/sed-output-named_files.adb bytes= 7093 fnv1a64=172c61fa3af4575f
 tools/sed/src/library/sed-output-named_files.ads bytes= 3835 fnv1a64=0d03fb7a6c791008
 tools/sed/src/library/sed-output-standard.adb bytes= 3525 fnv1a64=a51a7e069794ca15
@@ -1257,4 +1261,4 @@ tools/xargs/src/xargs.adb bytes= 234 fnv1a64=5bacba927e1d5d45
 tools/yes/alire.toml bytes= 407 fnv1a64=db058e6bb3b97ff8
 tools/yes/posix_tools_yes.gpr bytes= 343 fnv1a64=6b7f3ad8fcd0c4f9
 tools/yes/src/yes.adb bytes= 224 fnv1a64=966fcf1cba1a2def
-generated/package-files.txt bytes= 47650 fnv1a64=40ae75108580fee4
+generated/package-files.txt bytes= 47866 fnv1a64=88bce45bbc56be94

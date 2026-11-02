@@ -69,16 +69,20 @@ internal-error diagnostic; it changes nothing else and is off by default.
 ## Localization
 
 Every user-facing string comes from `share/sed/messages/catalog.txt`: usage,
-help, option descriptions, version labels, diagnostics and hints. No English
-is hard-coded in production code, no sentence is assembled from translated
-fragments, and every argument is passed by name.
+help, option descriptions, version labels, diagnostics and hints. No sentence
+is assembled from translated fragments, and every argument is passed by name.
+Messages are looked up through `Posix_Tools.Localization`, the project's one
+adapter over the message library.
 
 The catalogue is resolved from `SED_MESSAGE_CATALOG`, then from
-`<executable directory>/../share/sed/messages/catalog.txt`. That second path
-is the same whether the program runs from an installation prefix or from the
-build tree, because `bin/` and `share/` are siblings in both. If no catalogue
-can be loaded, every message renders as its own key: a visible installation
-fault rather than a silent fallback to hard-coded text.
+`<executable directory>/../share/sed/messages/catalog.txt`, where the
+executable directory is the one the host reports for the running program, so
+a `sed` found through `PATH` finds its catalogue too. That second path is the
+same whether the program runs from an installation prefix or from the build
+tree, because `bin/` and `share/` are siblings in both. If no catalogue can be
+loaded, or it lacks a message, the message is rendered from its English text
+in `Sed.Localization.Defaults`, which the metadata checks hold equal to the
+catalogue's `en.` lines: a message key is never shown.
 
 English and Danish are both maintained. The integrated metadata checks fail if
 either locale is missing a key that a diagnostic code or a registered option

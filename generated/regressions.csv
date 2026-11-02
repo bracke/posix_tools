@@ -112,3 +112,5 @@ REG-GREP-0004,grep,write -- between non-adjacent context groups also when a grou
 REG-GREP-0005,grep,split -e and operand pattern lists at newlines and read -f files as bytes split at LF with -f - for standard input and an empty file as a list that matches nothing,command:grep pattern lists
 REG-GREP-0006,grep,name standard input (standard input) in -H -l -L and -c output,command:grep standard input label
 REG-GREP-0007,grep,answer --help and --version through the parse outcome with their output status,command:grep help and version
+REG-SED-0001,sed,show English messages and never message keys when the catalogue is not found beside the executable and find it beside the executable the host reports when invoked through PATH,posix_tools_tests check
+REG-AWK-0001,awk,show English messages and never message keys when the message catalogue cannot be found,posix_tools_tests check

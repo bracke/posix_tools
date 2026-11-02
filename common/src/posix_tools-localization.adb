@@ -18,16 +18,21 @@ package body Posix_Tools.Localization is
            Posix_Tools.Host_Adapters.File_System.Exists ("../../common/messages/posix_tools.catalog"));
    end Catalog_Path;
 
-   function Pattern
-     (Locale  : String;
-      Key     : String;
-      Names   : String;
-      Default : String) return String
+   function Catalog_Pattern
+     (Catalog_Path : String;
+      Locale       : String;
+      Key          : String;
+      Names        : String;
+      Default      : String) return String
    is
       Runtime : Messages.Runtime.Instance;
       Args    : Messages.Arguments.Arguments;
       First   : Positive := Names'First;
    begin
+      if Catalog_Path = "" then
+         return Default;
+      end if;
+
       Messages.Runtime.Initialize (Runtime, Catalog_Path);
       if not Messages.Runtime.Is_Valid (Runtime) then
          return Default;
@@ -57,6 +62,18 @@ package body Posix_Tools.Localization is
             return Default;
          end if;
       end;
+   exception
+      when others =>
+         return Default;
+   end Catalog_Pattern;
+
+   function Pattern
+     (Locale  : String;
+      Key     : String;
+      Names   : String;
+      Default : String) return String is
+   begin
+      return Catalog_Pattern (Catalog_Path, Locale, Key, Names, Default);
    end Pattern;
 
    function Text

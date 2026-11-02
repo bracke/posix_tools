@@ -1,10 +1,10 @@
+private with Ada.Containers.Indefinite_Vectors;
 private with Ada.Strings.Unbounded;
-private with Messages.Arguments;
-private with Messages.Runtime;
 
 --  Adapter over the message catalogue.
 --
---  This is the only package that names the message formatting library. Every
+--  Messages are looked up through Posix_Tools.Localization, the project's
+--  one adapter over the message formatting library. Every
 --  user-facing string in the program -- usage, help, option descriptions,
 --  version labels, diagnostics, hints -- is resolved through here from a
 --  stable key, so no layer builds a sentence by concatenating fragments and
@@ -14,9 +14,9 @@ private with Messages.Runtime;
 --  labels, file names and source excerpts appear only as arguments, and are
 --  escaped by the caller before they get here.
 --
---  When no catalogue can be loaded the adapter renders each message as its
---  own key. That is a visible installation fault rather than a silent
---  substitution of hard-coded English, and it is covered by a test.
+--  When no catalogue can be loaded, or it lacks a message, the adapter
+--  renders the message's English text, which Sed.Localization.Defaults holds
+--  for every message of the catalogue: a message identifier is never shown.
 package Sed.Localization is
 
    type Catalog is limited private;
@@ -63,7 +63,7 @@ package Sed.Localization is
    --
    --  @param Item Catalogue to render from.
    --  @param Key Stable message key.
-   --  @return Rendered text, or the key when it cannot be rendered.
+   --  @return Rendered text, in English when the catalogue cannot give it.
    function Text (Item : Catalog; Key : String) return String;
 
    --  Render a message with named arguments.
@@ -71,16 +71,16 @@ package Sed.Localization is
    --  @param Item Catalogue to render from.
    --  @param Key Stable message key.
    --  @param Args Named arguments.
-   --  @return Rendered text, or the key when it cannot be rendered.
+   --  @return Rendered text, in English when the catalogue cannot give it.
    function Text
      (Item : Catalog;
       Key : String;
       Args : Parameters) return String;
 
-   --  Whether a key resolves in the active locale or its fallback.
+   --  Whether a key resolves in the catalogue or the English defaults.
    --
    --  Used by catalogue validation rather than by rendering, which always
-   --  degrades to the key instead of failing.
+   --  degrades to English instead of failing.
    --
    --  @param Item Catalogue to inspect.
    --  @param Key Stable message key.
@@ -92,13 +92,21 @@ private
    package U renames Ada.Strings.Unbounded;
 
    type Catalog is limited record
-      Runtime : Messages.Runtime.Instance;
+      Path : U.Unbounded_String := U.Null_Unbounded_String;
       Locale : U.Unbounded_String := U.Null_Unbounded_String;
       Valid : Boolean := False;
    end record;
 
+   type Parameter is record
+      Name : U.Unbounded_String;
+      Value : U.Unbounded_String;
+   end record;
+
+   package Parameter_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Positive, Parameter);
+
    type Parameters is limited record
-      Values : Messages.Arguments.Arguments;
+      Values : Parameter_Vectors.Vector;
    end record;
 
 end Sed.Localization;

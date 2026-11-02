@@ -130,6 +130,91 @@ package body Metadata_Checks.Manifests is
          end loop;
       end Check_Ada_Only_Tooling;
 
+      --  Every "en." message of the catalog at Catalog_Path has its English
+      --  text, the same, in the defaults table at Defaults_Path, which the
+      --  command shows when it cannot read the catalog: never a message key.
+      procedure Require_Catalog_Defaults (Catalog_Path, Defaults_Path : String) is
+         use Ada.Strings.Unbounded;
+         LF       : constant Character := ASCII.LF;
+         Quote    : constant Character := Character'Val (39);
+         Catalog  : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Catalog_Path));
+         Raw      : constant String :=
+           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Defaults_Path));
+         Split    : constant String := """ &" & LF & "           """;
+         Defaults : Unbounded_String;
+         From     : Positive := Raw'First;
+         Start    : Positive := Catalog'First;
+
+         --  Check the catalog line Line.
+         procedure Check_Line (Line : String);
+
+         --  Text as an Ada string literal's contents.
+         function Quoted (Text : String) return String;
+
+         procedure Check_Line (Line : String) is
+            Separator : constant Natural := Ada.Strings.Fixed.Index (Line, " = ");
+         begin
+            if Line'Length > 3 and then Line (Line'First .. Line'First + 2) = "en." and then Separator > 0 then
+               declare
+                  Key   : constant String := Line (Line'First + 3 .. Separator - 1);
+                  Text  : constant String := Line (Separator + 3 .. Line'Last);
+                  Plain : Unbounded_String;
+                  I     : Natural := Text'First;
+               begin
+                  while I <= Text'Last loop
+                     Append (Plain, Text (I));
+                     if Text (I) = Quote and then I < Text'Last and then Text (I + 1) = Quote then
+                        I := I + 1;
+                     end if;
+                     I := I + 1;
+                  end loop;
+                  if not Posix_Tools.Text.Matching.Contains
+                    (To_String (Defaults),
+                     "Key = """ & Key & """ then" & LF & "         return" & LF & "           """
+                     & Quoted (To_String (Plain)) & """;")
+                  then
+                     Tooling_Checks.Fail
+                       ("message " & Key & " of " & Catalog_Path & " has no matching English default in "
+                        & Defaults_Path);
+                  end if;
+               end;
+            end if;
+         end Check_Line;
+
+         function Quoted (Text : String) return String is
+            Result : Unbounded_String;
+         begin
+            for Ch of Text loop
+               Append (Result, Ch);
+               if Ch = '"' then
+                  Append (Result, Ch);
+               end if;
+            end loop;
+            return To_String (Result);
+         end Quoted;
+      begin
+         loop
+            declare
+               At_Split : constant Natural := Ada.Strings.Fixed.Index (Raw (From .. Raw'Last), Split);
+            begin
+               if At_Split = 0 then
+                  Append (Defaults, Raw (From .. Raw'Last));
+                  exit;
+               end if;
+               Append (Defaults, Raw (From .. At_Split - 1));
+               From := At_Split + Split'Length;
+            end;
+         end loop;
+
+         for I in Catalog'Range loop
+            if Catalog (I) = LF then
+               Check_Line (Catalog (Start .. I - 1));
+               Start := I + 1;
+            end if;
+         end loop;
+      end Require_Catalog_Defaults;
+
       procedure Check_No_Silent_Broad_Handlers is
          use Ada.Strings.Unbounded;
          Silent_Handler_Token : constant String := "when others " & "=" & "> null";
@@ -438,6 +523,10 @@ package body Metadata_Checks.Manifests is
       Tooling_Checks.Require_File (Check, ".github/workflows/ci.yml");
       Check_Ada_Only_Tooling;
       Check_No_Silent_Broad_Handlers;
+      Require_Catalog_Defaults
+        ("tools/sed/share/sed/messages/catalog.txt", "tools/sed/src/library/sed-localization-defaults.adb");
+      Require_Catalog_Defaults
+        ("tools/awk/resources/messages/catalog.txt", "tools/awk/src/library/awk_cli-localization-defaults.adb");
       Check_No_Literal_Usage_Messages;
       Require_Usage_Messages_Catalogued;
       Require_Message_Keys_Catalogued;

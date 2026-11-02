@@ -777,6 +777,8 @@ tools/awk/src/library/awk_cli-invocation.adb
 tools/awk/src/library/awk_cli-invocation.ads
 tools/awk/src/library/awk_cli-live_context_callbacks.adb
 tools/awk/src/library/awk_cli-live_context_callbacks.ads
+tools/awk/src/library/awk_cli-localization-defaults.adb
+tools/awk/src/library/awk_cli-localization-defaults.ads
 tools/awk/src/library/awk_cli-localization.adb
 tools/awk/src/library/awk_cli-localization.ads
 tools/awk/src/library/awk_cli-operands.adb
@@ -1163,6 +1165,8 @@ tools/sed/src/library/sed-io-filesystem.ads
 tools/sed/src/library/sed-io-process_streams.adb
 tools/sed/src/library/sed-io-process_streams.ads
 tools/sed/src/library/sed-io.ads
+tools/sed/src/library/sed-localization-defaults.adb
+tools/sed/src/library/sed-localization-defaults.ads
 tools/sed/src/library/sed-localization.adb
 tools/sed/src/library/sed-localization.ads
 tools/sed/src/library/sed-output-named_files.adb

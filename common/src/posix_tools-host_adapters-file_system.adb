@@ -369,6 +369,14 @@ package body Posix_Tools.Host_Adapters.File_System is
         + Long_Long_Integer (Second);
    end Epoch_Seconds;
 
+   function Executable_Directory return String is
+   begin
+      return Hostkit.Fs.Own_Executable_Directory;
+   exception
+      when others =>
+         return "";
+   end Executable_Directory;
+
    function Exists (Path : String) return Boolean is
    begin
       return Ada.Directories.Exists (Path);

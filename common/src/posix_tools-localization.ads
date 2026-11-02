@@ -20,4 +20,14 @@ package Posix_Tools.Localization is
       Key     : String;
       Names   : String;
       Default : String) return String;
+
+   --  Pattern, looked up in the catalog at Catalog_Path rather than the
+   --  project's: for a command that installs a catalog of its own. Default
+   --  when that catalog cannot be read or lacks Key.
+   function Catalog_Pattern
+     (Catalog_Path : String;
+      Locale       : String;
+      Key          : String;
+      Names        : String;
+      Default      : String) return String;
 end Posix_Tools.Localization;

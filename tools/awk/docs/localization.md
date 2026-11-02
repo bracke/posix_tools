@@ -30,11 +30,12 @@ terminology and help phrasing. These references guide wording only; tests do
 not execute another AWK implementation.
 
 Locales outside the supported European state-language locale set fall back
-through the `messages` runtime to the catalog default locale. If a requested
-message key cannot render but the catalog is otherwise usable, the CLI renders
-the catalog-backed
-`awk.internal.localization_failed` message instead of exposing the raw key as
-ordinary prose. A raw escaped key is reserved only as a last-resort containment
-path when even the fallback message cannot render.
+through the `messages` runtime to the catalog default locale. Messages are
+looked up through `Posix_Tools.Localization`; when the catalog cannot be read,
+or lacks a message, the message is rendered from its English text in
+`Awk_CLI.Localization.Defaults`, which the metadata checks hold equal to the
+catalog's `en.` lines, so a message key is never shown. A key that is not a
+message of the catalog at all renders the
+`awk.internal.localization_failed` message naming it.
 
 Locale never changes AWK source, input, output, numeric conversion, filenames, variable names, variable values, or regular-expression semantics.

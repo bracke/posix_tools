@@ -1,8 +1,54 @@
-with Messages.Result;
+with Ada.Directories;
+with Posix_Tools.Localization;
+with Sed.Localization.Defaults;
 
 package body Sed.Localization is
 
-   use type Messages.Result.Render_Status;
+   --  Template with each "{name}" of Args replaced by its value.
+   function Fill (Template : String; Args : Parameters) return String;
+
+   --  The names of Args, separated by spaces.
+   function Names (Args : Parameters) return String;
+
+   ----------
+   -- Fill --
+   ----------
+
+   function Fill (Template : String; Args : Parameters) return String is
+      Result : U.Unbounded_String;
+      I : Natural := Template'First;
+   begin
+      while I <= Template'Last loop
+         declare
+            Replaced : Boolean := False;
+         begin
+            if Template (I) = '{' then
+               for Item of Args.Values loop
+                  declare
+                     Marker : constant String :=
+                       "{" & U.To_String (Item.Name) & "}";
+                  begin
+                     if I + Marker'Length - 1 <= Template'Last
+                       and then Template (I .. I + Marker'Length - 1) = Marker
+                     then
+                        U.Append (Result, Item.Value);
+                        I := I + Marker'Length;
+                        Replaced := True;
+                        exit;
+                     end if;
+                  end;
+               end loop;
+            end if;
+
+            if not Replaced then
+               U.Append (Result, Template (I));
+               I := I + 1;
+            end if;
+         end;
+      end loop;
+
+      return U.To_String (Result);
+   end Fill;
 
    ----------------
    -- Initialize --
@@ -14,20 +60,14 @@ package body Sed.Localization is
       Locale : String) is
    begin
       Item.Locale := U.To_Unbounded_String (Locale);
-      Item.Valid := False;
-
-      if Catalog_Path'Length = 0 then
-         return;
-      end if;
-
-      Messages.Runtime.Initialize (Item.Runtime, Catalog_Path);
-      Item.Valid := Messages.Runtime.Is_Valid (Item.Runtime);
+      Item.Path := U.To_Unbounded_String (Catalog_Path);
+      Item.Valid :=
+        Catalog_Path'Length > 0 and then Ada.Directories.Exists (Catalog_Path);
 
    exception
       when others =>
-         --  A catalogue the host cannot read leaves the adapter invalid; that
-         --  is reported by rendering keys, not by propagating an exception
-         --  out of program start-up.
+         --  A catalogue the host cannot inspect leaves the adapter on its
+         --  English defaults rather than failing program start-up.
          Item.Valid := False;
    end Initialize;
 
@@ -49,6 +89,23 @@ package body Sed.Localization is
       return U.To_String (Item.Locale);
    end Locale;
 
+   -----------
+   -- Names --
+   -----------
+
+   function Names (Args : Parameters) return String is
+      Result : U.Unbounded_String;
+   begin
+      for Item of Args.Values loop
+         if U.Length (Result) > 0 then
+            U.Append (Result, ' ');
+         end if;
+         U.Append (Result, Item.Name);
+      end loop;
+
+      return U.To_String (Result);
+   end Names;
+
    ---------
    -- Set --
    ---------
@@ -58,7 +115,10 @@ package body Sed.Localization is
       Name : String;
       Value : String) is
    begin
-      Messages.Arguments.Set (Args.Values, Name, Value);
+      Args.Values.Append
+        (Parameter'
+           (Name => U.To_Unbounded_String (Name),
+            Value => U.To_Unbounded_String (Value)));
    end Set;
 
    ---------
@@ -68,10 +128,12 @@ package body Sed.Localization is
    procedure Set
      (Args : in out Parameters;
       Name : String;
-      Value : Line_Count) is
+      Value : Line_Count)
+   is
+      Image : constant String := Line_Count'Image (Value);
    begin
-      Messages.Arguments.Set_Integer
-        (Args.Values, Name, Long_Long_Integer (Value));
+      --  Source locations are machine-oriented: plain decimals.
+      Set (Args, Name, Image (Image'First + 1 .. Image'Last));
    end Set;
 
    ----------
@@ -91,30 +153,26 @@ package body Sed.Localization is
    function Text
      (Item : Catalog;
       Key : String;
-      Args : Parameters) return String is
+      Args : Parameters) return String
+   is
+      Default : constant String := Defaults.Template (Key);
+      Template : constant String :=
+        (if Item.Valid
+         then Posix_Tools.Localization.Catalog_Pattern
+                (Catalog_Path => U.To_String (Item.Path),
+                 Locale => U.To_String (Item.Locale),
+                 Key => Key,
+                 Names => Names (Args),
+                 Default => Default)
+         else Default);
    begin
-      if not Item.Valid then
+      if Template = "" then
+         --  Not a message of the catalogue, which the tests rule out: show
+         --  the key rather than nothing.
          return Key;
       end if;
 
-      declare
-         Result : constant Messages.Result.Render_Result :=
-           Messages.Runtime.Render
-             (Item => Item.Runtime,
-              Locale => U.To_String (Item.Locale),
-              Key => Key,
-              Arguments => Args.Values);
-      begin
-         if Result.Status = Messages.Result.Success then
-            return Messages.Result.Output_Text (Result.Text);
-         end if;
-
-         return Key;
-      end;
-
-   exception
-      when others =>
-         return Key;
+      return Fill (Template, Args);
    end Text;
 
    -------------
@@ -122,28 +180,9 @@ package body Sed.Localization is
    -------------
 
    function Has_Key (Item : Catalog; Key : String) return Boolean is
-      Empty : Parameters;
+      pragma Unreferenced (Item);
    begin
-      if not Item.Valid then
-         return False;
-      end if;
-
-      declare
-         Result : constant Messages.Result.Render_Result :=
-           Messages.Runtime.Render
-             (Item => Item.Runtime,
-              Locale => U.To_String (Item.Locale),
-              Key => Key,
-              Arguments => Empty.Values);
-      begin
-         --  A message whose template needs arguments still resolves; only an
-         --  unknown key fails to resolve at all.
-         return Result.Status /= Messages.Result.Missing_Key;
-      end;
-
-   exception
-      when others =>
-         return False;
+      return Defaults.Template (Key) /= "";
    end Has_Key;
 
 end Sed.Localization;
