@@ -949,6 +949,23 @@ package body File_Command_Tests is
            (Test_Contexts.Error_Output (Context) =
               "mv: overwrite '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'?" & EOL,
             "mv -i shows a name with a control character escaped");
+
+         Context.Initialize ("cp", Args ("-v", A, Odd));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then Test_Contexts.Output (Context) =
+              "'" & A & "' -> '" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "'" & EOL,
+            "cp -v shows a name with a control character escaped");
+
+         Context.Initialize ("mv", Args ("-v", Odd, B));
+         Posix_Tools.Commands.Mv.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then Test_Contexts.Output (Context) =
+              "'" & Posix_Tools.Text.Escaping.Escape_Untrusted (Odd) & "' -> '" & B & "'" & EOL,
+            "mv -v shows a name with a control character escaped");
+         Write (A, "a");
       end if;
 
       Context.Initialize ("rm", Args ("-v", A));

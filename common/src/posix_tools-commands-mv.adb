@@ -126,7 +126,9 @@ package body Posix_Tools.Commands.Mv is
                   if not Posix_Tools.File_Operations.Succeeded (Moved) then
                      Ok := False;
                   elsif Verbose and then Moved = Posix_Tools.File_Operations.Done then
-                     Context.Put_Line ("'" & Operands.Element (I) & "' -> '" & Destination & "'");
+                     Context.Put_Line
+                       ("'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Operands.Element (I)) & "' -> '"
+                        & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
                   end if;
                end if;
             end;

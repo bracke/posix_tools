@@ -70,9 +70,47 @@ package body Posix_Tools.Commands.Cp is
          if not Posix_Tools.File_Operations.Succeeded (Outcome) then
             Ok := False;
          elsif Verbose and then Outcome = Posix_Tools.File_Operations.Done then
-            Context.Put_Line ("'" & Source & "' -> '" & Destination & "'");
+            Context.Put_Line
+              ("'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Source) & "' -> '"
+               & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
          end if;
       end Copy;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'f' =>
+               Force := True;
+               Interactive := False;
+            when 'i' =>
+               Force := False;
+               Interactive := True;
+            when 'H' =>
+               Links := Follow_Operands;
+            when 'L' =>
+               Links := Follow_All;
+            when 'P' =>
+               Links := Follow_None;
+            when 'p' => Preserve_Mode := True;
+            when 'R' | 'r' => Recursive := True;
+            when others => Verbose := True;  --  -v
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
