@@ -298,6 +298,17 @@ package body Explore.Jobs is
       return Wanted;
    end Destination;
 
+   function Ended_Since (Before : Natural; Now : Snapshot) return Result_Vectors.Vector is
+      Count : constant Natural :=
+        (if Now.Completed <= Before then 0 else Natural'Min (Now.Completed - Before, Natural (Now.History.Length)));
+   begin
+      return Result : Result_Vectors.Vector do
+         for I in Natural (Now.History.Length) - Count + 1 .. Natural (Now.History.Length) loop
+            Result.Append (Now.History (I));
+         end loop;
+      end return;
+   end Ended_Since;
+
    function Overlap (Left, Right : Job) return Boolean is
       --  Whether Inner is Outer or lies inside it.
       function Within (Inner, Outer : String) return Boolean is

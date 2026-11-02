@@ -24,8 +24,8 @@ package body Explore.Application.Workers is
    --  The names of Item's entries, in their order.
    function Names_Of (Item : Model.Pane) return Explore.String_Vectors.Vector;
 
-   --  Read again what the jobs changed, and say how the latest that ended
-   --  went.
+   --  Read again what the jobs changed, and say how each that ended since
+   --  the last look went.
    procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot);
 
    function Busy (State : Session; Readers : in out Explore.Directory_Readers.Board) return Boolean is
@@ -97,30 +97,20 @@ package body Explore.Application.Workers is
    end Release_Watches;
 
    procedure Report_Ended (State : in out Session; Now : Explore.Jobs.Snapshot) is
-      use type Explore.Jobs.Outcome;
+      Ended : constant Explore.Jobs.Result_Vectors.Vector :=
+        Explore.Jobs.Ended_Since (State.Workers.Last_Job.Completed, Now);
+      Line  : constant String :=
+        Explore.Words.Ended_Line (State.Config.Words, Unbounded.To_String (State.Config.Locale), Ended);
    begin
       Model.Reload_All (State.Browser);
 
-      if Now.History.Is_Empty then
+      if Ended.Is_Empty then
          return;
+      elsif Explore.Words.Any_Failed (Ended) then
+         Warn (State, Line);
+      else
+         Say (State, Line);
       end if;
-
-      declare
-         Latest : constant Explore.Jobs.Result_View := Now.History.Last_Element;
-      begin
-         if Latest.Ended = Explore.Jobs.Failed then
-            Complain (State, Unbounded.To_String (Latest.Error_Path), Latest.Error);
-
-            if Latest.Errors > 1 then
-               Warn
-                 (State,
-                  Explore.Words.Errors_With_First
-                    (State.Config.Words, Latest.Errors, Unbounded.To_String (State.Frame.Message)));
-            end if;
-         else
-            Say (State, Explore.Words.Result_Line (State.Config.Words, Latest));
-         end if;
-      end;
    end Report_Ended;
 
    procedure Sync (State : in out Session; Readers : in out Explore.Directory_Readers.Board) is
@@ -207,8 +197,8 @@ package body Explore.Application.Workers is
          State.Frame.Job_Line := Unbounded.To_Unbounded_String (Explore.Words.Job_Line (State.Config.Words, Now));
          Follow_Question (State, Now, Can_Ask);
 
-         --  Whatever the jobs changed is read again, and the latest one to
-         --  end says how it went.
+         --  Whatever the jobs changed is read again, and every one that
+         --  ended says how it went.
          if Now.Completed /= State.Workers.Last_Job.Completed then
             Report_Ended (State, Now);
          end if;

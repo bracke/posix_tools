@@ -1,5 +1,6 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
+with Ada.Containers;
 with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Explore.Jobs;
@@ -7,6 +8,7 @@ with Explore.Render;
 with Explore.Settings;
 with Explore.String_Vectors;
 with Explore.Words;
+with Posix_Tools.File_Operations;
 
 package body Words_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
@@ -54,6 +56,7 @@ package body Words_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:result line", Test_Result_Line'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:catalog", Test_Catalog'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:job line", Test_Job_Line'Access));
+      AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:ended line", Test_Ended_Line'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("words:panel", Test_Panel'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("words:configuration problem", Test_Configuration_Problem'Access));
@@ -116,6 +119,45 @@ package body Words_Tests is
         (Explore.Words.Configuration_Problem (Words, Problems) = "configuration: not valid TOML at line 7",
          "a syntax error, its line in words: " & Explore.Words.Configuration_Problem (Words, Problems));
    end Test_Configuration_Problem;
+
+   procedure Test_Ended_Line (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use type Ada.Containers.Count_Type;
+      use type Jobs.Outcome;
+
+      Copy   : constant Jobs.Job_View := (Id => 1, Kind => Jobs.Copy_Job, First => +"a", Total => 1);
+      Delete : constant Jobs.Job_View := (Id => 2, Kind => Jobs.Delete_Job, First => +"b", Total => 1);
+      Now    : Jobs.Snapshot;
+   begin
+      Now.History.Append (Jobs.Result_View'(Job => Copy, Ended => Jobs.Succeeded, others => <>));
+      Now.History.Append
+        (Jobs.Result_View'(Job => Delete, Ended => Jobs.Failed, Errors => 2, Error_Path => +"/b",
+          Error => Posix_Tools.File_Operations.Cannot_Open, others => <>));
+      Now.History.Append (Jobs.Result_View'(Job => Copy, Ended => Jobs.Cancelled, others => <>));
+      Now.Completed := 5;
+
+      declare
+         Ended : constant Jobs.Result_Vectors.Vector := Jobs.Ended_Since (3, Now);
+      begin
+         AUnit.Assertions.Assert
+           (Ended.Length = 2 and then Ended (1).Job.Id = 2 and then Ended (2).Ended = Jobs.Cancelled,
+            "both jobs that ended since the last look, the earliest first");
+         AUnit.Assertions.Assert
+           (Explore.Words.Ended_Line (Words, "en", Ended)
+            = "2 errors, " & Explore.Words.Error_Text ("en", "/b", Posix_Tools.File_Operations.Cannot_Open)
+              & "; copying a: cancelled",
+            "each is reported: " & Explore.Words.Ended_Line (Words, "en", Ended));
+         AUnit.Assertions.Assert (Explore.Words.Any_Failed (Ended), "and the line is an error's");
+      end;
+
+      AUnit.Assertions.Assert
+        (Jobs.Ended_Since (0, Now).Length = 3, "no more than the history keeps");
+      AUnit.Assertions.Assert (Jobs.Ended_Since (5, Now).Is_Empty, "none ended since the last look");
+      AUnit.Assertions.Assert
+        (Explore.Words.Ended_Line (Words, "en", Jobs.Ended_Since (4, Now)) = "copying a: cancelled"
+         and then not Explore.Words.Any_Failed (Jobs.Ended_Since (4, Now)),
+         "one alone, as before");
+   end Test_Ended_Line;
 
    procedure Test_Job_Line (T : in out Fixture) is
       pragma Unreferenced (T);

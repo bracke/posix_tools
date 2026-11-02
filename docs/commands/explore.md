@@ -175,8 +175,8 @@ symbolic links; a copy into the directory it came from is named `name_1`, `name_
 filesystems copies and then removes the source; deletion removes links, never what they point to. The status line
 shows the first running operation, its file, and how far the copy of that file is, and how many more run or wait; up
 to sixteen wait their turn. When an operation ends the panes are read again and the status line says how it went: done,
-cancelled, or with how many errors and the first of them. The last sixteen that ended are listed in the operations
-panel. Renaming, creating, and changing permissions
+cancelled, or with how many errors and the first of them; when several end together, it says so for each. The last
+sixteen that ended are listed in the operations panel. Renaming, creating, and changing permissions
 happen at once, but never to a path that a running or waiting operation touches as the operations' own order goes: the
 status line says so and nothing is done. A symbolic permission change leaves alone an entry whose mode cannot be read.
 

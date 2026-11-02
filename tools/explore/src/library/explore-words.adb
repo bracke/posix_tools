@@ -6,6 +6,7 @@ with Posix_Tools.Text.Numeric_Images;
 package body Explore.Words is
    package Unbounded renames Ada.Strings.Unbounded;
 
+   use type Explore.Jobs.Outcome;
    use type Explore.Settings.Problem_Kind;
 
    function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
@@ -25,6 +26,9 @@ package body Explore.Words is
    --  Which job, by its first entry, and how many more it has.
    function What_Of (Item : Explore.Jobs.Job_View) return String is
      (Unbounded.To_String (Item.First) & (if Item.Total > 1 then " +" & Image (Item.Total - 1) else ""));
+
+   function Any_Failed (Ended : Explore.Jobs.Result_Vectors.Vector) return Boolean is
+     (for some Item of Ended => Item.Ended = Explore.Jobs.Failed);
 
    function Configuration_Problem
      (Words    : Word_Set;
@@ -60,8 +64,45 @@ package body Explore.Words is
          Name & " exists: o overwrite, s skip, O overwrite all, S skip all");
    end Conflict_Question;
 
+   function Ended_Line
+     (Words  : Word_Set;
+      Locale : String;
+      Ended  : Explore.Jobs.Result_Vectors.Vector) return String
+   is
+      Line : Unbounded.Unbounded_String;
+   begin
+      for Item of Ended loop
+         if Unbounded.Length (Line) > 0 then
+            Unbounded.Append (Line, "; ");
+         end if;
+
+         if Item.Ended = Explore.Jobs.Failed then
+            declare
+               First : constant String := Error_Text (Locale, Unbounded.To_String (Item.Error_Path), Item.Error);
+            begin
+               Unbounded.Append
+                 (Line, (if Item.Errors > 1 then Errors_With_First (Words, Item.Errors, First) else First));
+            end;
+         else
+            Unbounded.Append (Line, Result_Line (Words, Item));
+         end if;
+      end loop;
+
+      return Unbounded.To_String (Line);
+   end Ended_Line;
+
    function Error_Count (Words : Word_Set; Count : Natural) return String is
      (Fill (Words.Errors, "count", Image (Count)));
+
+   function Error_Text
+     (Locale : String;
+      Path   : String;
+      Error  : Posix_Tools.File_Operations.Operation_Error) return String
+   is (Path & ": "
+       & Posix_Tools.Localization.Text
+           (Locale,
+            Posix_Tools.File_Operations.Message_Key (Error),
+            Posix_Tools.File_Operations.Default_Message (Error)));
 
    function Errors_With_First (Words : Word_Set; Count : Natural; Message : String) return String is
      (Fill (Words.Errors_First, "count", Image (Count), "message", Message));

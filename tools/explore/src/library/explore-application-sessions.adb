@@ -1,4 +1,3 @@
-with Posix_Tools.Localization;
 
 package body Explore.Application.Sessions is
    procedure Ask (State : in out Session; Mode : Question_Mode; Question : String) is
@@ -11,13 +10,7 @@ package body Explore.Application.Sessions is
 
    procedure Complain (State : in out Session; Path : String; Error : Posix_Tools.File_Operations.Operation_Error) is
    begin
-      Warn
-        (State,
-         Path & ": "
-         & Posix_Tools.Localization.Text
-             (Unbounded.To_String (State.Config.Locale),
-              Posix_Tools.File_Operations.Message_Key (Error),
-              Posix_Tools.File_Operations.Default_Message (Error)));
+      Warn (State, Explore.Words.Error_Text (Unbounded.To_String (State.Config.Locale), Path, Error));
    end Complain;
 
    procedure Leave_Mode (State : in out Session) is
