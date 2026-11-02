@@ -4,12 +4,13 @@ A release must build every crate, run the tests/tooling executable, verify
 metadata consistency, generate documentation, and produce checksums.
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` installs GNATprove
-and runs the Ada release gate on Linux, macOS, and Windows. A release candidate
+15.1.0 and runs the Ada release gate on Linux, macOS, and Windows. A release candidate
 should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
-After the gate, the workflow runs `git diff --exit-code`: release-check
-regenerates the docs, man pages, command inventory, and package manifest before
-checking them, so only git can see that the committed copies were stale. Every
+After the gate, the workflow fails if `git status --porcelain` reports anything:
+release-check regenerates the docs, man pages, command inventory, and package
+manifest before checking them, so only git can see that the committed copies
+were stale or that a newly generated file was never committed. Every
 runner checks files out with `core.autocrlf` off, because the manifest records
 each file's size and checksum and a Windows CRLF checkout would change them.
 The local metadata gate checks the workflow triggers, read-only repository

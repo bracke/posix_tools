@@ -152,50 +152,56 @@ package body Metadata_Checks.Continuous_Integration is
          Require_Exact_Line (Workflow, "          path: " & Name, "checkout path of " & Name);
       end loop;
       Require_Exact_Line (Workflow, "          path: posix_tools", "checkout path of posix_tools");
-      Require_Exact_Line
-        (Workflow, "        run: git config --global core.autocrlf false", "line ending setting before checkout");
 
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "ubuntu-latest");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "macos-15-intel");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "windows-latest");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "pull_request:");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "workflow_dispatch:");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "contents: read");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "timeout-minutes: 60");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "fail-fast: false");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "actions/checkout@v7");
+      --  The steps that make the gate, each once and in the order that
+      --  makes them work: committed line endings for every checkout and only
+      --  for them, the tooling built before the gate runs, and the drift
+      --  check after the gate has regenerated what it checks.
+      declare
+         Keep_Endings    : constant String := "        run: git config --global core.autocrlf false";
+         Checkout        : constant String := "        uses: actions/checkout@v7";
+         Restore_Endings : constant String := "        run: git config --global --unset core.autocrlf || true";
+         Build           : constant String := "        run: alr -n build";
+         Install_Prover  : constant String := "            if alr -n install gnatprove=15.1.0; then";
+         Gate            : constant String := "        run: ${{ matrix.test_runner }} release-check";
+         Drift_Check     : constant String :=
+           "        run: test -z ""$(git status --porcelain)"" || { git status; git diff; exit 1; }";
+      begin
+         Require_Exact_Line (Workflow, Keep_Endings, "line ending setting before checkout");
+         Require_Exact_Line (Workflow, Restore_Endings, "line ending setting after checkout");
+         Require_Exact_Line (Workflow, Build, "tooling build step");
+         Require_Exact_Line (Workflow, Install_Prover, "pinned GNATprove install");
+         Require_Exact_Line (Workflow, Gate, "release gate step");
+         Require_Exact_Line (Workflow, Drift_Check, "generated file drift check");
+         Require_Line_Order (Workflow, Keep_Endings, Checkout);
+         Require_Line_Order (Workflow, Checkout, Restore_Endings);
+         Require_Line_Order (Workflow, Restore_Endings, Build);
+         Require_Line_Order (Workflow, Build, Gate);
+         Require_Line_Order (Workflow, Install_Prover, Gate);
+         Require_Line_Order (Workflow, Gate, Drift_Check);
+      end;
+
+      Tooling_Checks.Require_Text (Check, Workflow, "ubuntu-latest");
+      Tooling_Checks.Require_Text (Check, Workflow, "macos-15-intel");
+      Tooling_Checks.Require_Text (Check, Workflow, "windows-latest");
+      Tooling_Checks.Require_Text (Check, Workflow, "pull_request:");
+      Tooling_Checks.Require_Text (Check, Workflow, "workflow_dispatch:");
+      Tooling_Checks.Require_Text (Check, Workflow, "contents: read");
+      Tooling_Checks.Require_Text (Check, Workflow, "timeout-minutes: 60");
+      Tooling_Checks.Require_Text (Check, Workflow, "fail-fast: false");
+      Forbid_Text (Workflow, "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
+      Forbid_Text (Workflow, "actions/setup-node@v4", "CI workflow must not pin Node 20 setup actions");
+      Forbid_Text (Workflow, "actions/cache/restore@v4", "CI workflow must not pin Node 20 cache actions");
+      Tooling_Checks.Require_Text (Check, Workflow, "alire-project/setup-alire@v6");
       Forbid_Text
-        (".github/workflows/ci.yml", "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
-      Forbid_Text
-        (".github/workflows/ci.yml", "actions/setup-node@v4", "CI workflow must not pin Node 20 setup actions");
-      Forbid_Text
-        (".github/workflows/ci.yml", "actions/cache/restore@v4", "CI workflow must not pin Node 20 cache actions");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "alire-project/setup-alire@v6");
-      Forbid_Text
-        (".github/workflows/ci.yml",
+        (Workflow,
          "alire-project/setup-alire@v6.0.0",
          "CI workflow must use setup-alire v6 branch with Node 24 internals");
-      Forbid_Text
-        (".github/workflows/ci.yml", "alire-project/setup-alire@v5", "CI workflow must use current setup-alire");
-      Tooling_Checks.Require_Text (Check, ".github/workflows/ci.yml", "alr -n build");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "working-directory: posix_tools/tests");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "posix_tools_tests.exe");
-      --  The gate itself, not merely the job named after it.
-      Require_Exact_Line
-        (Workflow, "        run: ${{ matrix.test_runner }} release-check", "release gate step");
-      Require_Exact_Line
-        (Workflow, "        run: git diff --exit-code", "generated file drift check");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "alr -n install gnatprove");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "GITHUB_PATH");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "cygpath -w");
-      Tooling_Checks.Require_Text
-        (Check, ".github/workflows/ci.yml", "gnatprove");
+      Forbid_Text (Workflow, "alire-project/setup-alire@v5", "CI workflow must use current setup-alire");
+      Tooling_Checks.Require_Text (Check, Workflow, "working-directory: posix_tools/tests");
+      Tooling_Checks.Require_Text (Check, Workflow, "posix_tools_tests.exe");
+      Tooling_Checks.Require_Text (Check, Workflow, "GITHUB_PATH");
+      Tooling_Checks.Require_Text (Check, Workflow, "cygpath -w");
       Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "CI-WORKFLOW-GATE-001");
       Tooling_Checks.Require_Text

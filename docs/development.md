@@ -12,8 +12,8 @@ runs the Ada `posix_tools_tests release-check` gate on Linux, macOS, and Windows
 through Alire. Its repository checkouts use the Node 24-compatible checkout action
 pinned by the release metadata gate, and the gate requires CI to check out
 every sibling repository the crates' Alire `path` pins reach. After the gate, CI
-fails if `git diff --exit-code` finds a committed generated file that the gate
-rewrote. Alire setup uses
+fails if `git status --porcelain` finds a generated file that the gate rewrote
+or wrote anew. Alire setup uses
 the upstream `setup-alire` v6 branch because it carries the Node 24/cache v5
 internals ahead of the next tagged setup-alire release. Local development should
 run the same command before opening a release PR.
