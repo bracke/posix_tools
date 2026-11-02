@@ -97,50 +97,18 @@ is
             Fixed_Decimal_U64_Image'Result (I) in '0' .. '9');
 
    function Decimal_U64_Image (Value : Interfaces.Unsigned_64) return String is
-      use type Interfaces.Unsigned_64;
-      Full : constant String := Fixed_Decimal_U64_Image (Value);
+      Full  : constant String := Fixed_Decimal_U64_Image (Value);
+      First : Positive range 1 .. 20 := 20;
    begin
-      if Value < 10 then
-         return Full (20 .. 20);
-      elsif Value < 100 then
-         return Full (19 .. 20);
-      elsif Value < 1_000 then
-         return Full (18 .. 20);
-      elsif Value < 10_000 then
-         return Full (17 .. 20);
-      elsif Value < 100_000 then
-         return Full (16 .. 20);
-      elsif Value < 1_000_000 then
-         return Full (15 .. 20);
-      elsif Value < 10_000_000 then
-         return Full (14 .. 20);
-      elsif Value < 100_000_000 then
-         return Full (13 .. 20);
-      elsif Value < 1_000_000_000 then
-         return Full (12 .. 20);
-      elsif Value < 10_000_000_000 then
-         return Full (11 .. 20);
-      elsif Value < 100_000_000_000 then
-         return Full (10 .. 20);
-      elsif Value < 1_000_000_000_000 then
-         return Full (9 .. 20);
-      elsif Value < 10_000_000_000_000 then
-         return Full (8 .. 20);
-      elsif Value < 100_000_000_000_000 then
-         return Full (7 .. 20);
-      elsif Value < 1_000_000_000_000_000 then
-         return Full (6 .. 20);
-      elsif Value < 10_000_000_000_000_000 then
-         return Full (5 .. 20);
-      elsif Value < 100_000_000_000_000_000 then
-         return Full (4 .. 20);
-      elsif Value < 1_000_000_000_000_000_000 then
-         return Full (3 .. 20);
-      elsif Value < 10_000_000_000_000_000_000 then
-         return Full (2 .. 20);
-      else
-         return Full;
-      end if;
+      --  The leading zeros dropped; zero itself keeps its last digit.
+      for I in 1 .. 19 loop
+         if Full (I) /= '0' then
+            First := I;
+            exit;
+         end if;
+      end loop;
+
+      return Full (First .. 20);
    end Decimal_U64_Image;
 
    function Dump_Format_Item (Spec : String; Index : Positive) return Parsed_Dump_Format_Item

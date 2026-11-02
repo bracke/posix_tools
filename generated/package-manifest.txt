@@ -370,7 +370,7 @@ common/src/posix_tools-text-octal_modes.adb bytes= 2348 fnv1a64=1ff2e98dc4ab309b
 common/src/posix_tools-text-octal_modes.ads bytes= 554 fnv1a64=caa030f810d89dc3
 common/src/posix_tools-text-octal_parsing.adb bytes= 1358 fnv1a64=ca78b5139a2516e7
 common/src/posix_tools-text-octal_parsing.ads bytes= 715 fnv1a64=5d647703bbabe4ba
-common/src/posix_tools-text-od_formats.adb bytes= 17473 fnv1a64=e44d253e742f4c70
+common/src/posix_tools-text-od_formats.adb bytes= 16297 fnv1a64=18fb695ac4889bb0
 common/src/posix_tools-text-od_formats.ads bytes= 5067 fnv1a64=983f70ec283eb4d9
 common/src/posix_tools-text-owner_groups.adb bytes= 1608 fnv1a64=93a4d041303bf8d0
 common/src/posix_tools-text-owner_groups.ads bytes= 1725 fnv1a64=6dd8757a4346b254
