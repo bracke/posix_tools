@@ -23,7 +23,10 @@ with Metadata_Checks.Test_Coverage;
 with Metadata_Checks.Tooling_Docs;
 with Package_Entries;
 with Posix_Tools.Command_Inventory;
+with Ada.Real_Time;
 with Posix_Tools.Host_Adapters.Executables;
+with Posix_Tools.Host_Adapters.Processes;
+with Test_Support;
 with Posix_Tools.Version;
 with Project_Tools.Files;
 with Project_Tools.Processes;
@@ -361,11 +364,26 @@ procedure Posix_Tools_Tests is
               Args    => Project_Tools.Processes.Arguments
                 ([Project_Tools.Processes.Argument ("--posix-tools-identify")]),
               Quiet   => True);
+         --  Run it once more with a long deadline and a stopwatch, to tell a
+         --  program that hangs from a slow one and either from a crash: on
+         --  Windows a crash exits with a large NTSTATUS code.
+         Started     : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+         Exit_Status : Integer;
+         Timed_Out   : Boolean;
+         Ran         : constant Boolean :=
+           Posix_Tools.Host_Adapters.Processes.Run_With_Timeout
+             (Program, Test_Support.One_Arg ("--posix-tools-identify"), 30_000, Exit_Status, Timed_Out);
+         Elapsed_Ms  : constant Integer :=
+           Integer (Ada.Real_Time.To_Duration (Ada.Real_Time."-" (Ada.Real_Time.Clock, Started)) * 1000.0);
       begin
          return
            " path=""" & Program & """"
            & " direct-status=" & Integer'Image (Captured.Status)
-           & " direct-output=""" & Display_Output (To_String (Captured.Output)) & """";
+           & " direct-output=""" & Display_Output (To_String (Captured.Output)) & """"
+           & " rerun-started=" & Boolean'Image (Ran)
+           & " rerun-timed-out=" & Boolean'Image (Timed_Out)
+           & " rerun-status=" & Integer'Image (Exit_Status)
+           & " rerun-ms=" & Integer'Image (Elapsed_Ms);
       end Identity_Diagnostic;
    begin
       declare
