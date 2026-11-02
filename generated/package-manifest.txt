@@ -439,7 +439,7 @@ docs/commands/du.md bytes= 2093 fnv1a64=e048519175cc450d
 docs/commands/echo.md bytes= 1377 fnv1a64=1e3262ccd97a96c5
 docs/commands/env.md bytes= 2229 fnv1a64=13b4c2a8979b2ee3
 docs/commands/expand.md bytes= 2239 fnv1a64=25627905f2df4881
-docs/commands/explore.md bytes= 20058 fnv1a64=e29981691ef76172
+docs/commands/explore.md bytes= 20173 fnv1a64=d65a343d201f9b11
 docs/commands/expr.md bytes= 2465 fnv1a64=5c79740ecc43bbf2
 docs/commands/false.md bytes= 1030 fnv1a64=0c7db19939130f7c
 docs/commands/file.md bytes= 2184 fnv1a64=a48bddaca63abf0c
@@ -559,7 +559,7 @@ generated/man/du.1 bytes= 2084 fnv1a64=98140c039589822f
 generated/man/echo.1 bytes= 1384 fnv1a64=801ff57c19350d31
 generated/man/env.1 bytes= 2215 fnv1a64=cb8f0fecfc87f1b7
 generated/man/expand.1 bytes= 2236 fnv1a64=8e5367c8b91ef42a
-generated/man/explore.1 bytes= 19543 fnv1a64=7aef6b581e261506
+generated/man/explore.1 bytes= 19656 fnv1a64=0d8ab08a8f8259a1
 generated/man/expr.1 bytes= 2430 fnv1a64=fa8318e5755e9678
 generated/man/false.1 bytes= 1040 fnv1a64=61b11f32d25d475c
 generated/man/file.1 bytes= 2147 fnv1a64=63f00acf0b76417d
@@ -885,8 +885,8 @@ tools/explore/e2e/src/e2e_suites.ads bytes= 125 fnv1a64=2db9203ab048e499
 tools/explore/e2e/src/explore_e2e.adb bytes= 493 fnv1a64=0b95d6f683c5fa08
 tools/explore/e2e/src/performance_tests.adb bytes= 6878 fnv1a64=e2fc435d01ba805c
 tools/explore/e2e/src/performance_tests.ads bytes= 372 fnv1a64=92402d3b1d7f64e2
-tools/explore/e2e/src/session_tests.adb bytes= 21191 fnv1a64=25b363a0bc0397bb
-tools/explore/e2e/src/session_tests.ads bytes= 881 fnv1a64=11b71bbb15766c24
+tools/explore/e2e/src/session_tests.adb bytes= 23267 fnv1a64=cf96c697bb8efcb3
+tools/explore/e2e/src/session_tests.ads bytes= 931 fnv1a64=5b99384358efaefb
 tools/explore/posix_tools_explore.gpr bytes= 653 fnv1a64=0dae4f06bba57558
 tools/explore/src/explore_main.adb bytes= 236 fnv1a64=e2b5b4919879482d
 tools/explore/src/library/explore-application-controller-programs.adb bytes= 4990 fnv1a64=8401915051ac9f9f
@@ -901,8 +901,8 @@ tools/explore/src/library/explore-application-options.adb bytes= 3302 fnv1a64=ac
 tools/explore/src/library/explore-application-options.ads bytes= 1111 fnv1a64=00363507d1fa0a81
 tools/explore/src/library/explore-application-sessions.adb bytes= 2802 fnv1a64=692b6b41d8693277
 tools/explore/src/library/explore-application-sessions.ads bytes= 9625 fnv1a64=37ea255766191a74
-tools/explore/src/library/explore-application-terminals.adb bytes= 10016 fnv1a64=f7d8189afe7c07f9
-tools/explore/src/library/explore-application-terminals.ads bytes= 3537 fnv1a64=238eda9740bd95af
+tools/explore/src/library/explore-application-terminals.adb bytes= 10635 fnv1a64=a9a6dd5f51558908
+tools/explore/src/library/explore-application-terminals.ads bytes= 3804 fnv1a64=a05a22e84e3a6eac
 tools/explore/src/library/explore-application-workers.adb bytes= 12025 fnv1a64=01e3f4d700e7ea22
 tools/explore/src/library/explore-application-workers.ads bytes= 1949 fnv1a64=c8ff0b5f73be8e72
 tools/explore/src/library/explore-application.adb bytes= 13573 fnv1a64=aa4eb1df35136e47

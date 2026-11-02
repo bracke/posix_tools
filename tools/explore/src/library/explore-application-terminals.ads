@@ -13,14 +13,18 @@ private package Explore.Application.Terminals is
    type Signal_List is array (Positive range <>) of Signals.Signal;
    type Disposition_List is array (Positive range <>) of Signals.Disposition;
 
-   --  The signals a session takes over: the two that end it, and the resize
-   --  notice for terminals that do not report sizes in band.
-   Session_Signals : constant Signal_List := [Signals.Terminate_Signal, Signals.Hangup, Signals.Window_Change];
+   --  The signals a session takes over: those that end it, and the resize
+   --  notice for terminals that do not report sizes in band. The keyboard
+   --  sends no interrupt or quit while the session has the terminal, but
+   --  another program can, and the session ends on it with the terminal put
+   --  back as it was.
+   Session_Signals : constant Signal_List :=
+     [Signals.Terminate_Signal, Signals.Hangup, Signals.Interrupt, Signals.Quit, Signals.Window_Change];
 
    subtype Session_Dispositions is Disposition_List (Session_Signals'Range);
 
    --  The keyboard's interrupt and quit, which a program run in the terminal
-   --  gets in its turn.
+   --  gets in its turn: while it runs, they do not end the session.
    Program_Signals : constant Signal_List := [Signals.Interrupt, Signals.Quit];
 
    subtype Program_Dispositions is Disposition_List (Program_Signals'Range);

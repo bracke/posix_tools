@@ -117,7 +117,8 @@ Diagnostics are localized through messages and written after the terminal has be
 
 `0` when the user quits, `1` when the operand is not a directory, the `--cwd-file` file cannot be written, standard input or output is not a terminal, the
 terminal cannot be put into raw mode, the terminal does not identify itself as bracke-terminal, or output fails, `2` for
-invalid usage, `128` plus the signal number when a terminate or hangup signal ends the session, and `125` for
+invalid usage, `128` plus the signal number when a terminate, hangup, interrupt, or quit signal ends the session, and
+`125` for
 unexpected internal failures at the command boundary.
 
 ## Behavioral Details
@@ -263,10 +264,10 @@ letter or digit, a space, and the directory. They are read at start-up and writt
 `cc`, `cf`, and `cd` put text on the system clipboard with OSC 52, which bracke-terminal advertises as `osc52`, and
 inside tmux pass it through to the outer terminal.
 
-On every way out -- quitting, a terminate or hangup signal, failing output, or an unexpected internal failure --
-`explore` leaves the alternate screen, turns those reports off again, restores the saved terminal settings, and puts
-back the signal dispositions it changed. A terminate or hangup signal that was ignored when `explore` started stays
-ignored.
+On every way out -- quitting, a terminate, hangup, interrupt, or quit signal, failing output, or an unexpected internal
+failure -- `explore` leaves the alternate screen, turns those reports off again, restores the saved terminal settings,
+and puts back the signal dispositions it changed. The keyboard sends no interrupt or quit while `explore` has the
+terminal, but another program can. A signal that was ignored when `explore` started stays ignored.
 
 Inside tmux (`TMUX` set in the environment), the identity query and every sequence meant for bracke-terminal itself
 are wrapped in tmux's DCS passthrough, which requires `set -g allow-passthrough on` in tmux. tmux 3.4 hands the

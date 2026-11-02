@@ -13,7 +13,8 @@ package body Explore.Application.Terminals is
    use type Signals.Disposition;
    use type Terminal_IO.Read_Outcome;
 
-   Ending_Signals : constant Signal_List := [Signals.Terminate_Signal, Signals.Hangup];
+   Ending_Signals : constant Signal_List :=
+     [Signals.Terminate_Signal, Signals.Hangup, Signals.Interrupt, Signals.Quit];
 
    --  How long the terminal has to answer the identity query.
    Handshake_Reads   : constant := 10;
@@ -196,7 +197,15 @@ package body Explore.Application.Terminals is
    procedure Resume (State : in out Session; Kept : Program_Dispositions; Ok : out Boolean) is
       Scratch : Terminal_IO.Saved_Mode;
    begin
-      Restore_Signals (Program_Signals, Kept);
+      --  The keyboard's interrupt and quit end the session too, so they go
+      --  back to being recorded, what arrived meanwhile forgotten; one the
+      --  session was started ignoring is ignored again. Kept cannot tell
+      --  recorded from default, a recorded signal being read as default.
+      Restore_Signals
+        (Program_Signals,
+         [for I in Kept'Range =>
+            (if Kept (I) = Signals.Ignore_Disposition or else Kept (I) = Signals.Unknown_Disposition then Kept (I)
+             else Signals.Record_Disposition)]);
       Ok := Terminal_IO.Enter_Raw (Scratch) and then Enter_Screen;
 
       if not Ok then
@@ -231,8 +240,9 @@ package body Explore.Application.Terminals is
 
    procedure Take_Signals (Saved : out Session_Dispositions) is
    begin
-      --  A terminate or hangup the session was started ignoring stays
-      --  ignored, as nohup intends.
+      --  A signal the session was started ignoring stays ignored: a
+      --  terminate or hangup as nohup intends, an interrupt or quit as a
+      --  shell starts a job in the background.
       Record_Signals (Session_Signals, Saved, Spare_Ignored => True);
    end Take_Signals;
 
