@@ -331,14 +331,31 @@ package body Posix_Tools.Commands.Xargs is
          end if;
       else
          declare
-            First : Natural := 1;
-            Last  : Natural;
+            Count      : constant Natural := Natural (Input_Args.Length);
+            --  The size of an invocation with no input arguments.
+            Fixed_Size : constant Natural :=
+              Composed_Command_Size (Options, Compose (Options, Input_Args, 1, 0));
+            First      : Natural := 1;
+            Last       : Natural;
+            Size       : Natural;
          begin
-            while First <= Natural (Input_Args.Length) loop
-               Last := Natural'Min (First + Options.Batch_Size - 1, Natural (Input_Args.Length));
+            while First <= Count loop
+               --  As many arguments, up to the batch size, as fit the size
+               --  limit, each added to the size of those before it.
+               Last := First;
+               Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Fixed_Size, Input_Args.Element (First)'Length);
+               while not Options.Replacement_Mode
+                 and then Last < Natural'Min (First + Options.Batch_Size - 1, Count)
+                 and then Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last + 1)'Length)
+                   <= Options.Command_Size_Limit
+               loop
+                  Last := Last + 1;
+                  Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last)'Length);
+               end loop;
                if Options.Exit_If_Size_Exceeded
-                 and then Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
-                   > Options.Command_Size_Limit
+                 and then (Last < Natural'Min (First + Options.Batch_Size - 1, Count)
+                           or else Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
+                             > Options.Command_Size_Limit)
                then
                   Posix_Tools.Commands.Helpers.Operational_Error
                     (Context,
