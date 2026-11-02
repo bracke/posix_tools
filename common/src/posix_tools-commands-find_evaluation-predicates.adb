@@ -1,8 +1,8 @@
 with Ada.Calendar;
-with Ada.Calendar.Formatting;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Glob;
+with Posix_Tools.Unix_Time;
 
 package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    use type Ada.Calendar.Time;
@@ -44,14 +44,12 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
 
       declare
          Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
-         Epoch  : constant Ada.Calendar.Time :=
-           Ada.Calendar.Formatting.Time_Of (1970, 1, 1, 0.0, Time_Zone => 0);
       begin
-         Time := Epoch;
+         Time := Posix_Tools.Unix_Time.Epoch;
          if not Status.Available then
             return False;
          end if;
-         Time := Epoch + Duration (Status.Modified_Seconds);
+         Time := Posix_Tools.Unix_Time.Time_Of (Status.Modified_Seconds);
          return True;
       end;
    exception

@@ -111,6 +111,7 @@ specification under `common/src` or `common/generated` that is not marked
 - `posix_tools.text.stat_formats`
 - `posix_tools.text.sort_numeric`
 - `posix_tools.text.xargs_parsing`
+- `posix_tools.unix_time`
 
 `Posix_Tools.Arguments.Parsing` is explicitly outside SPARK as a boundary
 wrapper. The pure short-option decision logic has been extracted and proved as

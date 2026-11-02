@@ -3,6 +3,7 @@ with Hostkit.Descriptors;
 with Hostkit.Directory_Listing;
 with Hostkit.Fs;
 with Hostkit.Metadata;
+with Posix_Tools.Unix_Time;
 
 package body Posix_Tools.Host_Adapters.File_System is
    use type Ada.Streams.Stream_Element_Offset;
@@ -328,45 +329,9 @@ package body Posix_Tools.Host_Adapters.File_System is
       Hour   : GNAT.OS_Lib.Hour_Type;
       Minute : GNAT.OS_Lib.Minute_Type;
       Second : GNAT.OS_Lib.Second_Type;
-
-      function Days_Before_Unix_Epoch
-        (Year  : Long_Long_Integer;
-         Month : Long_Long_Integer;
-         Day   : Long_Long_Integer)
-         return Long_Long_Integer;
-
-      function Days_Before_Unix_Epoch
-        (Year  : Long_Long_Integer;
-         Month : Long_Long_Integer;
-         Day   : Long_Long_Integer)
-         return Long_Long_Integer
-      is
-         Adjusted_Year  : Long_Long_Integer := Year;
-         Adjusted_Month : Long_Long_Integer := Month;
-         Era            : Long_Long_Integer;
-         Year_Of_Era    : Long_Long_Integer;
-         Day_Of_Year    : Long_Long_Integer;
-         Day_Of_Era     : Long_Long_Integer;
-      begin
-         if Adjusted_Month <= 2 then
-            Adjusted_Year := Adjusted_Year - 1;
-         end if;
-
-         Era := (if Adjusted_Year >= 0 then Adjusted_Year else Adjusted_Year - 399) / 400;
-         Year_Of_Era := Adjusted_Year - Era * 400;
-         Adjusted_Month := Adjusted_Month + (if Adjusted_Month > 2 then -3 else 9);
-         Day_Of_Year := (153 * Adjusted_Month + 2) / 5 + Day - 1;
-         Day_Of_Era := Year_Of_Era * 365 + Year_Of_Era / 4 - Year_Of_Era / 100 + Day_Of_Year;
-         return Era * 146_097 + Day_Of_Era - 719_468;
-      end Days_Before_Unix_Epoch;
    begin
       GNAT.OS_Lib.GM_Split (GNAT.OS_Lib.OS_Time (Time), Year, Month, Day, Hour, Minute, Second);
-      return Days_Before_Unix_Epoch
-          (Long_Long_Integer (Year), Long_Long_Integer (Month), Long_Long_Integer (Day))
-        * 86_400
-        + Long_Long_Integer (Hour) * 3_600
-        + Long_Long_Integer (Minute) * 60
-        + Long_Long_Integer (Second);
+      return Posix_Tools.Unix_Time.Seconds_Of (Year, Month, Day, Hour, Minute, Second);
    end Epoch_Seconds;
 
    function Exists (Path : String) return Boolean is

@@ -8,11 +8,11 @@ with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.Stat_Formats;
+with Posix_Tools.Unix_Time;
 
 package body Posix_Tools.Commands.Stat is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
-   use type Ada.Calendar.Time;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -45,12 +45,11 @@ package body Posix_Tools.Commands.Stat is
       end Time_Image;
 
       function Epoch_Image (Value : Ada.Calendar.Time) return String is
-         Epoch : constant Ada.Calendar.Time := Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
       begin
          return Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image
-           (Long_Long_Integer (Value - Epoch));
+           (Posix_Tools.Unix_Time.Seconds_Since_Epoch (Value));
       exception
-         when others =>
+         when Constraint_Error =>
             return "unknown";
       end Epoch_Image;
 
