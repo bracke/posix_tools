@@ -893,7 +893,7 @@ tools/explore/src/library/explore-application-controller-programs.adb bytes= 499
 tools/explore/src/library/explore-application-controller-programs.ads bytes= 909 fnv1a64=6b008701f20140fb
 tools/explore/src/library/explore-application-controller-prompts.adb bytes= 10115 fnv1a64=fd7a240802f2eacb
 tools/explore/src/library/explore-application-controller-prompts.ads bytes= 1217 fnv1a64=5ad27c2035c64a6c
-tools/explore/src/library/explore-application-controller.adb bytes= 26084 fnv1a64=c7e4b843658ae8ee
+tools/explore/src/library/explore-application-controller.adb bytes= 26225 fnv1a64=4f22104717a794b4
 tools/explore/src/library/explore-application-controller.ads bytes= 580 fnv1a64=cb52ad1008815d1b
 tools/explore/src/library/explore-application-display.adb bytes= 6791 fnv1a64=445e93df8c2a4321
 tools/explore/src/library/explore-application-display.ads bytes= 1350 fnv1a64=84cc96b78f3217fb

@@ -63,6 +63,7 @@ package body Explore.Application.Controller is
 
    procedure Go_Bookmark (State : in out Session; Letter : Character);
 
+   --  Go to the home directory, as a visit that Back returns from.
    procedure Go_Home (State : in out Session);
 
    --  Act on a key or a paste, as the mode says.
@@ -304,7 +305,8 @@ package body Explore.Application.Controller is
       Home : constant String := Unbounded.To_String (State.Config.Home);
    begin
       if Home'Length > 0 and then FS.Kind (Home) = FS.Directory then
-         Model.Open (State.Browser, FS.Real_Path (Home));
+         --  A visit like any other: Back returns to the directory left.
+         Model.Jump (State.Browser, FS.Real_Path (Home));
       end if;
    end Go_Home;
 
