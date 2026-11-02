@@ -7,6 +7,7 @@ with Explore.Jobs;
 with Explore.Keymap;
 with Explore.Launch;
 with Explore.Model;
+with Explore.Modes;
 with Explore.Previews;
 with Explore.Protocol;
 with Explore.Render;
@@ -26,32 +27,10 @@ with Posix_Tools.Host_Adapters.Terminal_IO;
 --  of, and what is shown. Also the few things every part does to it: saying
 --  something in the status line, and going into and out of a mode.
 private package Explore.Application.Sessions is
+   use Explore.Modes;
+
    package Terminal_IO renames Posix_Tools.Host_Adapters.Terminal_IO;
    package Unbounded renames Ada.Strings.Unbounded;
-
-   --  What the next key means.
-   type Interaction_Mode is
-     (Browsing,
-      Filtering,         --  Typing the filter.
-      Renaming,          --  Typing a new name for the selected entry.
-      Creating,          --  Typing the name of a file, or of a directory with a slash.
-      Changing_Mode,     --  Typing permissions, octal or symbolic.
-      Jumping,           --  Typing a path to go to.
-      Finding_Names,     --  Typing a name or glob to search for.
-      Finding_Text,      --  Typing text to search files for.
-      Shelling,          --  Typing a shell command to run on the entries.
-      --  Renaming, changing modes and shell commands act on Pending: the
-      --  entries as they were when asked, whatever a reload does meanwhile.
-      Confirming_Delete, --  y deletes the entries in Pending, anything else does not.
-      Confirming_Quit,   --  y quits and stops the jobs still running or waiting.
-      Answering,         --  A running job asks about a target that exists.
-      Viewing_Jobs);     --  The jobs panel is open.
-
-   --  The modes that type a line under a label, which Enter commits.
-   subtype Prompt_Mode is Interaction_Mode range Renaming .. Shelling;
-
-   --  The modes that wait for a key to answer a question.
-   subtype Question_Mode is Interaction_Mode range Confirming_Delete .. Answering;
 
    --  The panes whose directories are watched for changes.
    type Watched_Pane is (Watch_Parent, Watch_Current);
@@ -200,7 +179,8 @@ private package Explore.Application.Sessions is
 
    --  Ask Question, waiting for a key in Mode. Once it is answered, the
    --  filter is typed on if it was being typed, and the jobs panel stays
-   --  open if it was open; otherwise browsing resumes.
+   --  open if it was open; otherwise browsing resumes, as Explore.Modes.Ask
+   --  says.
    procedure Ask (State : in out Session; Mode : Question_Mode; Question : String);
 
    --  Go back from the mode the session is in: from a question to what it

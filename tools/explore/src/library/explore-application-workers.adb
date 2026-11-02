@@ -1,6 +1,7 @@
 with Explore.Application.Display;
 with Explore.Jobs;
 with Explore.Model;
+with Explore.Modes;
 with Explore.Paths;
 with Explore.Previews;
 with Explore.Search;
@@ -9,6 +10,8 @@ with Explore.Words;
 with Posix_Tools.Host_Adapters.File_Watches;
 
 package body Explore.Application.Workers is
+   use Explore.Modes;
+
    package File_Watches renames Posix_Tools.Host_Adapters.File_Watches;
    package Model renames Explore.Model;
 

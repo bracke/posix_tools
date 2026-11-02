@@ -3,6 +3,7 @@ with Explore.Files;
 with Explore.Launch;
 with Explore.Line_Editor;
 with Explore.Model;
+with Explore.Modes;
 with Explore.Paths;
 with Explore.String_Vectors;
 with Explore.Words;
@@ -11,6 +12,8 @@ with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.File_Modes;
 
 package body Explore.Application.Controller.Prompts is
+   use Explore.Modes;
+
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Model renames Explore.Model;
    package Modes renames Posix_Tools.Text.File_Modes;

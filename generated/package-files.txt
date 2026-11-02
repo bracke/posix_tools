@@ -930,6 +930,8 @@ tools/explore/src/library/explore-line_editor.adb
 tools/explore/src/library/explore-line_editor.ads
 tools/explore/src/library/explore-model.adb
 tools/explore/src/library/explore-model.ads
+tools/explore/src/library/explore-modes.adb
+tools/explore/src/library/explore-modes.ads
 tools/explore/src/library/explore-paths.adb
 tools/explore/src/library/explore-paths.ads
 tools/explore/src/library/explore-previews.adb
@@ -973,6 +975,8 @@ tools/explore/tests/src/line_editor_tests.adb
 tools/explore/tests/src/line_editor_tests.ads
 tools/explore/tests/src/model_tests.adb
 tools/explore/tests/src/model_tests.ads
+tools/explore/tests/src/modes_tests.adb
+tools/explore/tests/src/modes_tests.ads
 tools/explore/tests/src/preview_tests.adb
 tools/explore/tests/src/preview_tests.ads
 tools/explore/tests/src/protocol_tests.adb

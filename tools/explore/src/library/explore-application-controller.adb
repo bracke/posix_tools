@@ -6,6 +6,7 @@ with Explore.Keymap;
 with Explore.Launch;
 with Explore.Line_Editor;
 with Explore.Model;
+with Explore.Modes;
 with Explore.Paths;
 with Explore.Protocol;
 with Explore.Render;
@@ -16,6 +17,8 @@ with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Explore.Application.Controller is
+   use Explore.Modes;
+
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Input renames Explore.Input;
    package Keymap renames Explore.Keymap;
