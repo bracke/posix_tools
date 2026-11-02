@@ -581,6 +581,13 @@ package body Command_Tests.Surface_Smoke.Host is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Utility_Not_Found,
          "env treats option after -- as missing utility");
+
+      Context.Initialize ("env", Two_Args ("-x", "true"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "unknown option '-x'"),
+         "env rejects an unknown option");
    end Test_Env;
 
    procedure Test_Getconf (T : in out Surface_Fixture) is

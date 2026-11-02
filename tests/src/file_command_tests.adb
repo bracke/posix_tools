@@ -591,6 +591,22 @@ package body File_Command_Tests is
          and then Test_Contexts.Error_Output (Context) =
            "ln: '" & Path (Root, "missing") & "': no such file or directory" & EOL,
          "ln says a source is missing");
+
+      if FS.Create_Link ("a", Path (Root, "sym")) then
+         Context.Initialize ("ln", Args ("-L", Path (Root, "sym"), Path (Root, "followed")));
+         Posix_Tools.Commands.Ln.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success
+            and then not FS.Is_Link (Path (Root, "followed"))
+            and then Read (Path (Root, "followed")) = "data",
+            "ln -L links to the file a symbolic link leads to");
+
+         Context.Initialize ("ln", Args ("-LP", Path (Root, "sym"), Path (Root, "itself")));
+         Posix_Tools.Commands.Ln.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Success and then FS.Exists (Path (Root, "itself")),
+            "ln takes -P after -L, grouped");
+      end if;
       Remove (Root);
    end Test_Ln_Same_File;
 

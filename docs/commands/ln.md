@@ -4,7 +4,7 @@
 `ln` - create a link.
 
 ## Synopsis
-`ln [-fsv] [--] source... target`
+`ln [-fsv] [-L|-P] [--] source... target`
 
 ## Description
 Creates a hard link by default or a symbolic link with `-s`.
@@ -13,7 +13,9 @@ Creates a hard link by default or a symbolic link with `-s`.
 `source`: source path. `target`: target path or existing directory.
 
 ## Options
-`-f` removes an existing non-directory target before creating the replacement. `-s` creates a symbolic link. `-v`
+`-f` removes an existing non-directory target before creating the replacement. `-s` creates a symbolic link. For a hard link
+to a source that is a symbolic link, `-L` links to the file it leads to and `-P`, the default, to the symbolic link
+itself; the last of them given counts, and neither matters with `-s`. `-v`
 writes one deterministic source-to-target line after each successful link. `--` ends option recognition. Options are
 recognized before the first source operand; later option-like words are source or target operands. Project
 extensions `--help`, `--version`, and

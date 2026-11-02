@@ -1,4 +1,5 @@
 with Ada.Streams;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 
 with Posix_Tools.Arguments;
@@ -397,6 +398,20 @@ package body Posix_Tools.Commands.Helpers is
    begin
       Valid := True;
       loop
+         while Long_Options /= ""
+           and then Position.Offset = 2
+           and then Position.Index <= Natural (Arguments.Length)
+           and then Arguments.Element (Position.Index)'Length > 2
+           and then Ada.Strings.Fixed.Index
+             (" " & Long_Options & " ", " " & Arguments.Element (Position.Index) & " ") > 0
+         loop
+            Handle (Long_Name, "", Result, Valid);
+            if not Valid then
+               First := Position.Index;
+               return;
+            end if;
+            Position := (Index => Position.Index + 1, Offset => 2);
+         end loop;
          Parsed := Parsing.Parse_Short (Arguments, Position, Accepted, Requires_Argument);
          case Parsed.Status is
             when Option =>

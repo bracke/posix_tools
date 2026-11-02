@@ -34,7 +34,8 @@ package body Posix_Tools.Commands.Cp is
       Force : Boolean := False;
       Interactive : Boolean := False;
       Ok       : Boolean := True;
-      Parsing_Operands : Boolean := False;
+      First    : Positive;
+      Valid    : Boolean;
 
       --  Copy Source to Destination, writing a diagnostic for each entry
       --  that could not be copied, and asking about each existing target
@@ -77,43 +78,12 @@ package body Posix_Tools.Commands.Cp is
          return;
       end if;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (I);
-         begin
-            if not Parsing_Operands and then Arg = "--" then
-               for J in I + 1 .. Context.Argument_Count loop
-                  Operands.Append (Context.Argument (J));
-               end loop;
-               exit;
-            elsif not Parsing_Operands and then Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'f' =>
-                        Force := True;
-                        Interactive := False;
-                     when 'i' =>
-                        Force := False;
-                        Interactive := True;
-                     when 'H' =>
-                        Links := Follow_Operands;
-                     when 'L' =>
-                        Links := Follow_All;
-                     when 'P' =>
-                        Links := Follow_None;
-                     when 'p' => Preserve_Mode := True;
-                     when 'R' | 'r' => Recursive := True;
-                     when 'v' => Verbose := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return;
-                  end case;
-               end loop;
-            else
-               Operands.Append (Arg);
-               Parsing_Operands := True;
-            end if;
-         end;
+      Parse (Context, Result, "fHiLPpRrv", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
+      for I in First .. Context.Argument_Count loop
+         Operands.Append (Context.Argument (I));
       end loop;
 
       if Operands.Length < 2 then

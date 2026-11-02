@@ -21,7 +21,8 @@ package body Posix_Tools.Commands.Rm is
       Interactive : Boolean := False;
       Directory   : Boolean := False;
       Verbose     : Boolean := False;
-      First       : Positive := 1;
+      First       : Positive;
+      Valid       : Boolean;
       Ok          : Boolean := True;
 
       --  Whether Path is to be left alone before anything is done to it, and
@@ -82,40 +83,49 @@ package body Posix_Tools.Commands.Rm is
                   "removed '" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Path) & "'"));
          end if;
       end Remove;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'r' | 'R' =>
+               Recursive := True;
+            when 'f' =>
+               Force := True;
+               Interactive := False;
+            when 'i' =>
+               Force := False;
+               Interactive := True;
+            when 'd' =>
+               Directory := True;
+            when others =>
+               --  -v
+               Verbose := True;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count
-        and then Context.Argument (First)'Length > 1
-        and then Context.Argument (First) (1) = '-'
-      loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         end if;
-         for Ch of Context.Argument (First) (2 .. Context.Argument (First)'Last) loop
-            case Ch is
-               when 'r' | 'R' =>
-                  Recursive := True;
-               when 'f' =>
-                  Force := True;
-                  Interactive := False;
-               when 'i' =>
-                  Force := False;
-                  Interactive := True;
-               when 'd' =>
-                  Directory := True;
-               when 'v' =>
-                  Verbose := True;
-               when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                  return;
-            end case;
-         end loop;
-         First := First + 1;
-      end loop;
+      Parse (Context, Result, "dfiRrv", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if First > Context.Argument_Count and then not Force then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);

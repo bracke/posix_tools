@@ -17,7 +17,8 @@ package body Posix_Tools.Commands.Expand is
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Tab_Config : Posix_Tools.Commands.Text_Helpers.Tab_Stops.Configuration;
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
       All_Ok     : Boolean := True;
 
       procedure Expand_File (Name : String; Ok : out Boolean);
@@ -87,52 +88,38 @@ package body Posix_Tools.Commands.Expand is
             end if;
          end loop;
       end Expand_Text;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Name);
+      begin
+         Valid := True;
+         if not Posix_Tools.Commands.Text_Helpers.Tab_Stops.Parse (Tab_Config, Value) then
+            Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+            Valid := False;
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First_File <= Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (First_File);
-         begin
-            if Arg = "--" then
-               First_File := First_File + 1;
-               exit;
-            elsif Arg = "-t" then
-               if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-t");
-                  return;
-               elsif not Posix_Tools.Commands.Text_Helpers.Tab_Stops.Parse
-                 (Tab_Config, Context.Argument (First_File + 1))
-               then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, Invalid_Operand, Context.Argument (First_File + 1));
-                  return;
-               end if;
-               First_File := First_File + 2;
-            elsif Arg'Length > 2
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) = 't'
-            then
-               if not Posix_Tools.Commands.Text_Helpers.Tab_Stops.Parse
-                 (Tab_Config, Arg (Arg'First + 2 .. Arg'Last))
-               then
-                  Posix_Tools.Commands.Helpers.Usage_Error
-                    (Context, Result, Invalid_Operand, Arg (Arg'First + 2 .. Arg'Last));
-                  return;
-               end if;
-               First_File := First_File + 1;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Unknown_Option,
-                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "t"));
-               return;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "t", "t", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Context.Argument_Count < First_File then
          Expand_File ("-", All_Ok);

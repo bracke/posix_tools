@@ -29,7 +29,8 @@ package body Posix_Tools.Commands.Mv is
       Verbose  : Boolean := False;
       Force    : Boolean := False;
       Interactive : Boolean := False;
-      Parsing_Operands : Boolean := False;
+      First    : Positive;
+      Valid    : Boolean;
 
       function Confirm_Overwrite (Path : String) return Boolean;
 
@@ -43,41 +44,46 @@ package body Posix_Tools.Commands.Mv is
            (Context, "posix_tools.mv.overwrite.prompt", "mv: overwrite '{path}'?", Path);
       end Confirm_Overwrite;
 
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'f' =>
+               Force := True;
+               Interactive := False;
+            when 'i' =>
+               Force := False;
+               Interactive := True;
+            when others =>
+               --  -v
+               Verbose := True;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (I);
-         begin
-            if not Parsing_Operands and then Arg = "--" then
-               for J in I + 1 .. Context.Argument_Count loop
-                  Operands.Append (Context.Argument (J));
-               end loop;
-               exit;
-            elsif not Parsing_Operands and then Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'f' =>
-                        Force := True;
-                        Interactive := False;
-                     when 'i' =>
-                        Force := False;
-                        Interactive := True;
-                     when 'v' =>
-                        Verbose := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return;
-                  end case;
-               end loop;
-            else
-               Operands.Append (Arg);
-               Parsing_Operands := True;
-            end if;
-         end;
+      Parse (Context, Result, "fiv", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
+      for I in First .. Context.Argument_Count loop
+         Operands.Append (Context.Argument (I));
       end loop;
 
       if Operands.Length < 2 then

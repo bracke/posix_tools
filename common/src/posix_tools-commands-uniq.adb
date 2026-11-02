@@ -207,11 +207,19 @@ package body Posix_Tools.Commands.Uniq is
       Result  : out Posix_Tools.Commands.Results.Result;
       Options : out Run_Options) return Boolean
    is
-      Skip_Next : Boolean := False;
+      First : Positive;
+      Valid : Boolean;
 
-      function Set_Skip (Option : Character; Text : String) return Boolean;
+      function Set_Skip
+        (Result : in out Posix_Tools.Commands.Results.Result;
+         Option : Character;
+         Text   : String) return Boolean;
 
-      function Set_Skip (Option : Character; Text : String) return Boolean is
+      function Set_Skip
+        (Result : in out Posix_Tools.Commands.Results.Result;
+         Option : Character;
+         Text   : String) return Boolean
+      is
          Value : Natural;
       begin
          if not Posix_Tools.Commands.Helpers.Parse_Natural_Operand
@@ -225,50 +233,41 @@ package body Posix_Tools.Commands.Uniq is
          end if;
          return True;
       end Set_Skip;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         case Name is
+            when 'c' => Options.Counts := True;
+            when 'd' => Options.Duplicates := True;
+            when 'i' => Options.Fold_Case := True;
+            when 'u' => Options.Unique_Only := True;
+            when others => Valid := Set_Skip (Result, Name, Value);
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       Options := (others => <>);
       Result.Status := Posix_Tools.Exit_Status.Success;
 
-      for I in 1 .. Context.Argument_Count loop
-         declare
-            Arg : constant String := Context.Argument (I);
-         begin
-            if Skip_Next then
-               Skip_Next := False;
-            elsif not Options.Files.Is_Empty then
-               Options.Files.Append (Arg);
-            elsif Arg = "--" then
-               for J in I + 1 .. Context.Argument_Count loop
-                  Options.Files.Append (Context.Argument (J));
-               end loop;
-               exit;
-            elsif Arg in "-f" | "-s" and then I = Context.Argument_Count then
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
-               return False;
-            elsif Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) in "-f" | "-s" then
-               if not Set_Skip
-                 (Arg (Arg'First + 1),
-                  (if Arg'Length = 2 then Context.Argument (I + 1) else Arg (Arg'First + 2 .. Arg'Last)))
-               then
-                  return False;
-               end if;
-               Skip_Next := Arg'Length = 2;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               for Ch of Arg (Arg'First + 1 .. Arg'Last) loop
-                  case Ch is
-                     when 'c' => Options.Counts := True;
-                     when 'd' => Options.Duplicates := True;
-                     when 'i' => Options.Fold_Case := True;
-                     when 'u' => Options.Unique_Only := True;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                        return False;
-                  end case;
-               end loop;
-            else
-               Options.Files.Append (Arg);
-            end if;
-         end;
+      Parse (Context, Result, "cdfisu", "fs", First, Valid);
+      if not Valid then
+         return False;
+      end if;
+      for I in First .. Context.Argument_Count loop
+         Options.Files.Append (Context.Argument (I));
       end loop;
 
       if Options.Files.Length > 2 then

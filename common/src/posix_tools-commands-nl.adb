@@ -16,38 +16,15 @@ package body Posix_Tools.Commands.Nl is
       use type Posix_Tools.Text.NL_Fields.Number_Mode;
 
       State      : Posix_Tools.Commands.Nl_Numbering.Numbering_State;
-      First_File : Positive := 1;
+      First_File : Positive;
+      Valid      : Boolean;
       All_Ok     : Boolean := True;
-
-      procedure Invalid_Value (Text : String);
-
-      function Option_Value
-        (Arg : String;
-         Name : Character;
-         Value_Text : out Unbounded_String) return Boolean;
 
       function Parse_Mode
         (Text : String;
          Mode : out Posix_Tools.Text.NL_Fields.Number_Mode) return Boolean;
 
       function Parse_Positive_Long (Text : String; Parsed : out Long_Long_Integer) return Boolean;
-
-      procedure Set_Mode_Option (Option, Text : String; Ok : out Boolean);
-
-      procedure Invalid_Value (Text : String) is
-      begin
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Text);
-      end Invalid_Value;
-
-      function Option_Value (Arg : String; Name : Character; Value_Text : out Unbounded_String) return Boolean is
-      begin
-         if Arg'Length > 2 and then Arg (Arg'First) = '-' and then Arg (Arg'First + 1) = Name then
-            Value_Text := To_Unbounded_String (Arg (Arg'First + 2 .. Arg'Last));
-            return True;
-         end if;
-
-         return False;
-      end Option_Value;
 
       function Parse_Mode
         (Text : String;
@@ -76,150 +53,83 @@ package body Posix_Tools.Commands.Nl is
          end if;
       end Parse_Positive_Long;
 
-      procedure Set_Mode_Option (Option, Text : String; Ok : out Boolean) is
-         Parsed_Mode : Posix_Tools.Text.NL_Fields.Number_Mode;
-      begin
-         Ok := Parse_Mode (Text, Parsed_Mode);
-         if not Ok then
-            Invalid_Value (Text);
-            return;
-         end if;
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
 
-         if Option = "-b" then
-            State.Body_Mode := Parsed_Mode;
-         elsif Option = "-h" then
-            State.Header_Mode := Parsed_Mode;
-         else
-            State.Footer_Mode := Parsed_Mode;
-         end if;
-      end Set_Mode_Option;
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         case Name is
+            when 'p' =>
+               State.No_Restart := True;
+            when 'b' | 'h' | 'f' =>
+               declare
+                  Parsed_Mode : Posix_Tools.Text.NL_Fields.Number_Mode;
+               begin
+                  Valid := Parse_Mode (Value, Parsed_Mode);
+                  if not Valid then
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  elsif Name = 'b' then
+                     State.Body_Mode := Parsed_Mode;
+                  elsif Name = 'h' then
+                     State.Header_Mode := Parsed_Mode;
+                  else
+                     State.Footer_Mode := Parsed_Mode;
+                  end if;
+               end;
+            when 'i' =>
+               if not Parse_Positive_Long (Value, State.Increment) then
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+            when 'v' =>
+               if Posix_Tools.Commands.Text_Helpers.Parse_Long_Long_Text (Value, State.Value) then
+                  State.Initial_Value := State.Value;
+               else
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+            when 'w' =>
+               declare
+                  Parsed : Long_Long_Integer;
+               begin
+                  if Parse_Positive_Long (Value, Parsed) and then Parsed <= Long_Long_Integer (Natural'Last) then
+                     State.Width := Natural (Parsed);
+                  else
+                     Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                     Valid := False;
+                  end if;
+               end;
+            when 's' =>
+               State.Separator := To_Unbounded_String (Value);
+            when others =>
+               if Value'Length = 2 then
+                  State.Delimiter := [1 => Value (Value'First), 2 => Value (Value'First + 1)];
+               else
+                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
+                  Valid := False;
+               end if;
+         end case;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First_File <= Context.Argument_Count loop
-         declare
-            Arg        : constant String := Context.Argument (First_File);
-            Parsed     : Long_Long_Integer;
-            Option_Arg : Unbounded_String;
-            Mode_Ok    : Boolean;
-         begin
-            if Arg = "--" then
-               First_File := First_File + 1;
-               exit;
-            elsif Arg = "-p" then
-               State.No_Restart := True;
-               First_File := First_File + 1;
-            elsif Arg = "-b" or else Arg = "-h" or else Arg = "-f" then
-               if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
-                  return;
-               end if;
-               Set_Mode_Option (Arg, Context.Argument (First_File + 1), Mode_Ok);
-               if not Mode_Ok then
-                  return;
-               end if;
-               First_File := First_File + 2;
-            elsif Arg'Length = 3
-              and then Arg (Arg'First) = '-'
-              and then Arg (Arg'First + 1) in 'b' | 'h' | 'f'
-            then
-               Set_Mode_Option
-                 (Arg (Arg'First .. Arg'First + 1), Arg (Arg'Last .. Arg'Last), Mode_Ok);
-               if not Mode_Ok then
-                  return;
-               end if;
-               First_File := First_File + 1;
-            elsif Arg = "-i" or else Arg = "-v" or else Arg = "-w" or else Arg = "-s" or else Arg = "-d" then
-               if First_File >= Context.Argument_Count then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, Arg);
-                  return;
-               end if;
-               Option_Arg := To_Unbounded_String (Context.Argument (First_File + 1));
-               if Arg = "-i" then
-                  if not Parse_Positive_Long (To_String (Option_Arg), State.Increment) then
-                     Invalid_Value (To_String (Option_Arg));
-                     return;
-                  end if;
-               elsif Arg = "-v" then
-                  if not Posix_Tools.Commands.Text_Helpers.Parse_Long_Long_Text
-                    (To_String (Option_Arg), State.Value)
-                  then
-                     Invalid_Value (To_String (Option_Arg));
-                     return;
-                  end if;
-                  State.Initial_Value := State.Value;
-               elsif Arg = "-w" then
-                  if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
-                    or else Parsed > Long_Long_Integer (Natural'Last)
-                  then
-                     Invalid_Value (To_String (Option_Arg));
-                     return;
-                  end if;
-                  State.Width := Natural (Parsed);
-               elsif Arg = "-d" then
-                  if Length (Option_Arg) /= 2 then
-                     Invalid_Value (To_String (Option_Arg));
-                     return;
-                  end if;
-                  declare
-                     Text : constant String := To_String (Option_Arg);
-                  begin
-                     State.Delimiter := [1 => Text (Text'First), 2 => Text (Text'First + 1)];
-                  end;
-               else
-                  State.Separator := Option_Arg;
-               end if;
-               First_File := First_File + 2;
-            elsif Option_Value (Arg, 'i', Option_Arg) then
-               if not Parse_Positive_Long (To_String (Option_Arg), State.Increment) then
-                  Invalid_Value (To_String (Option_Arg));
-                  return;
-               end if;
-               First_File := First_File + 1;
-            elsif Option_Value (Arg, 'v', Option_Arg) then
-               if not Posix_Tools.Commands.Text_Helpers.Parse_Long_Long_Text
-                 (To_String (Option_Arg), State.Value)
-               then
-                  Invalid_Value (To_String (Option_Arg));
-                  return;
-               end if;
-               State.Initial_Value := State.Value;
-               First_File := First_File + 1;
-            elsif Option_Value (Arg, 'w', Option_Arg) then
-               if not Parse_Positive_Long (To_String (Option_Arg), Parsed)
-                 or else Parsed > Long_Long_Integer (Natural'Last)
-               then
-                  Invalid_Value (To_String (Option_Arg));
-                  return;
-               end if;
-               State.Width := Natural (Parsed);
-               First_File := First_File + 1;
-            elsif Option_Value (Arg, 's', Option_Arg) then
-               State.Separator := Option_Arg;
-               First_File := First_File + 1;
-            elsif Option_Value (Arg, 'd', Option_Arg) then
-               if Length (Option_Arg) /= 2 then
-                  Invalid_Value (To_String (Option_Arg));
-                  return;
-               end if;
-               declare
-                  Text : constant String := To_String (Option_Arg);
-               begin
-                  State.Delimiter := [1 => Text (Text'First), 2 => Text (Text'First + 1)];
-               end;
-               First_File := First_File + 1;
-            elsif Arg'Length > 1 and then Arg (Arg'First) = '-' then
-               Posix_Tools.Commands.Helpers.Usage_Error
-                 (Context, Result, Unknown_Option,
-                  Posix_Tools.Commands.Helpers.Unknown_Option_Subject (Arg, "bdfhipsvw"));
-               return;
-            else
-               exit;
-            end if;
-         end;
-      end loop;
+      Parse (Context, Result, "bdfhipsvw", "bdfhisvw", First_File, Valid);
+      if not Valid then
+         return;
+      end if;
 
       if Context.Argument_Count < First_File then
          Posix_Tools.Commands.Nl_Numbering.Number_File (Context, State, "-", All_Ok);

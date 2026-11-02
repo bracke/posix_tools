@@ -30,8 +30,12 @@ package body Posix_Tools.Commands.Ln is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      First    : Positive := 1;
+      First    : Positive;
+      Valid    : Boolean;
       Force    : Boolean := False;
+      --  -L: a hard link to a symbolic link links to the file it leads
+      --  to; -P, the default: to the symbolic link itself.
+      Follow   : Boolean := False;
       Symbolic : Boolean := False;
       Verbose  : Boolean := False;
 
@@ -48,6 +52,8 @@ package body Posix_Tools.Commands.Ln is
          Created_One : out Boolean)
       is
          Present : constant Boolean := FS.Exists (Target) or else FS.Is_Link (Target);
+         --  A hard link made to a symbolic link itself, under -P.
+         Link_Itself : constant Boolean := not Symbolic and then not Follow and then FS.Is_Link (Source);
          Created : Boolean;
 
          procedure Fail (Key, Default : String);
@@ -86,12 +92,12 @@ package body Posix_Tools.Commands.Ln is
          if Is_Source_Itself then
             Fail ("posix_tools.diagnostic.file.same_file", "source and destination are the same file");
             return;
-         elsif not Symbolic and then not FS.Exists (Source) then
+         elsif not Symbolic and then not Link_Itself and then not FS.Exists (Source) then
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Source, "posix_tools.diagnostic.file.missing", "no such file or directory");
             return;
-         elsif not Symbolic and then FS.Kind (Source) = FS.Directory then
+         elsif not Symbolic and then not Link_Itself and then FS.Kind (Source) = FS.Directory then
             Ok := False;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Source, "posix_tools.diagnostic.file.is_directory", "is a directory");
@@ -113,6 +119,7 @@ package body Posix_Tools.Commands.Ln is
          Created :=
            (if Symbolic
             then FS.Create_Link (Source, Target)
+            elsif Follow and then FS.Is_Link (Source) then FS.Create_Hard_Link (FS.Real_Path (Source), Target)
             else FS.Create_Hard_Link (Source, Target));
          if Created then
             Created_One := True;
@@ -121,35 +128,40 @@ package body Posix_Tools.Commands.Ln is
          end if;
       end Create_Link;
 
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+         pragma Unreferenced (Value, Result);
+      begin
+         case Name is
+            when 'f' => Force := True;
+            when 'L' => Follow := True;
+            when 'P' => Follow := False;
+            when 's' => Symbolic := True;
+            when others => Verbose := True;
+         end case;
+         Valid := True;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count
-        and then Context.Argument (First)'Length > 1
-        and then Context.Argument (First) (1) = '-'
-      loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         end if;
-
-         for Ch of Context.Argument (First) (2 .. Context.Argument (First)'Last) loop
-            case Ch is
-               when 'f' =>
-                  Force := True;
-               when 's' =>
-                  Symbolic := True;
-               when 'v' =>
-                  Verbose := True;
-               when others =>
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unknown_Option, "-" & Ch);
-                  return;
-            end case;
-         end loop;
-         First := First + 1;
-      end loop;
+      Parse (Context, Result, "fLPsv", "", First, Valid);
+      if not Valid then
+         return;
+      end if;
       if First > Context.Argument_Count or else Context.Argument_Count - First + 1 < 2 then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;

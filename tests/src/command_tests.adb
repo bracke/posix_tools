@@ -4338,6 +4338,14 @@ package body Command_Tests is
         (Test_Contexts.Error_Output (Context) = "tail: invalid count '-cabc'" & Character'Val (10),
          "tail invalid count diagnostic");
 
+      Context.Initialize ("tail", One_Arg ("-fn5"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & Character'Val (10));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail takes -n grouped behind -f");
+
       Context.Initialize ("tail", Two_Args ("-n", "-1"));
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert

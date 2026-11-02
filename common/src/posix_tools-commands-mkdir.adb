@@ -1,7 +1,6 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.File_Modes;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Paths;
 
@@ -18,7 +17,8 @@ package body Posix_Tools.Commands.Mkdir is
    is
       Parents          : Boolean := False;
       Ok               : Boolean := True;
-      First            : Positive := 1;
+      First            : Positive;
+      Parsed_Ok        : Boolean;
       Has_Mode         : Boolean := False;
       Mode_Selection   : Mode_Helpers.Mode_Selection;
 
@@ -43,69 +43,41 @@ package body Posix_Tools.Commands.Mkdir is
          Valid := Selected.Valid;
          return Selected.Mode;
       end Selected_Mode_For;
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean);
+
+      procedure Handle
+        (Name   : Character;
+         Value  : String;
+         Result : in out Posix_Tools.Commands.Results.Result;
+         Valid  : out Boolean)
+      is
+      begin
+         Valid := True;
+         if Name = 'p' then
+            Parents := True;
+         else
+            Record_Mode (Value, Valid);
+            if not Valid then
+               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Mode, Value);
+            end if;
+         end if;
+      end Handle;
+
+      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;
 
-      while First <= Context.Argument_Count loop
-         if Context.Argument (First) = "--" then
-            First := First + 1;
-            exit;
-         elsif Context.Argument (First)'Length > 1
-           and then Context.Argument (First) (Context.Argument (First)'First) = '-'
-         then
-            declare
-               Arg      : constant String := Context.Argument (First);
-               Position : Positive := Arg'First + 1;
-            begin
-               while Position <= Arg'Last loop
-                  case Arg (Position) is
-                     when 'p' =>
-                        Parents := True;
-                        Position := Position + 1;
-                     when 'm' =>
-                        if Position < Arg'Last then
-                           declare
-                              Accepted : Boolean;
-                           begin
-                              Record_Mode (Arg (Position + 1 .. Arg'Last), Accepted);
-                              if not Accepted then
-                                 Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Mode, Arg);
-                                 return;
-                              end if;
-                           end;
-                           Position := Arg'Last + 1;
-                        else
-                           if First = Context.Argument_Count then
-                              Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-m");
-                              return;
-                           end if;
-                           declare
-                              Accepted : Boolean;
-                           begin
-                              Record_Mode (Context.Argument (First + 1), Accepted);
-                              if not Accepted then
-                                 Posix_Tools.Commands.Helpers.Usage_Error
-                                   (Context, Result, Invalid_Mode, Context.Argument (First + 1));
-                                 return;
-                              end if;
-                           end;
-                           First := First + 1;
-                           Position := Arg'Last + 1;
-                        end if;
-                     when others =>
-                        Posix_Tools.Commands.Helpers.Usage_Error
-                          (Context, Result, Unknown_Option, "-" & Arg (Position));
-                        return;
-                  end case;
-               end loop;
-            end;
-            First := First + 1;
-         else
-            exit;
-         end if;
-      end loop;
+      Parse (Context, Result, "mp", "m", First, Parsed_Ok);
+      if not Parsed_Ok then
+         return;
+      end if;
       if First > Context.Argument_Count then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
@@ -142,7 +114,6 @@ package body Posix_Tools.Commands.Mkdir is
             end if;
          end;
       end loop;
-      Result.Status :=
-        (if Ok then Posix_Tools.Exit_Status.Success else Posix_Tools.Exit_Status.Operational_Failure);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Mkdir;
