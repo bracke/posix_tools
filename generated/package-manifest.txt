@@ -1,6 +1,6 @@
 posix-tools package manifest 0.1.0
 .gitattributes bytes= 212 fnv1a64=ed34e649fc0e6dcf
-.github/workflows/ci.yml bytes= 5214 fnv1a64=627470d4a0facf6b
+.github/workflows/ci.yml bytes= 6337 fnv1a64=8390818d38da5ea8
 CHANGELOG.md bytes= 1091 fnv1a64=5757008b84a9a7bc
 LICENSE bytes= 1068 fnv1a64=28438d6d2cfadc24
 README.md bytes= 1408 fnv1a64=7b7c6675246112b6

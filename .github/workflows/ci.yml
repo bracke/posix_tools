@@ -186,6 +186,29 @@ jobs:
         working-directory: posix_tools
         shell: bash
 
+      # CreateProcessW has refused grep.exe while GNAT's spawn ran it; .NET
+      # names the Win32 error that the release gate cannot see.
+      - name: Show why Windows refuses to start a command
+        if: failure() && runner.os == 'Windows'
+        working-directory: posix_tools
+        shell: pwsh
+        run: |
+          foreach ($name in 'cat', 'grep', 'patch') {
+            $exe = Join-Path $PWD "tools\$name\bin\$name.exe"
+            $info = New-Object System.Diagnostics.ProcessStartInfo $exe, '--posix-tools-identify'
+            $info.UseShellExecute = $false
+            $info.RedirectStandardOutput = $true
+            try {
+              $process = [System.Diagnostics.Process]::Start($info)
+              $output = $process.StandardOutput.ReadToEnd()
+              $process.WaitForExit()
+              '{0}: started, exit {1:X8}, output {2}' -f $name, $process.ExitCode, ($output -replace "`n", ' ')
+            } catch {
+              $cause = $_.Exception.GetBaseException()
+              '{0}: not started, error {1}: {2}' -f $name, $cause.NativeErrorCode, $cause.Message
+            }
+          }
+
       # release-check regenerates the docs, the man pages, the command
       # inventory and the package manifest before checking them, so it
       # cannot see that the committed copies were stale; git can.
