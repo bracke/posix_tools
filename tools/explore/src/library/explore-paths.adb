@@ -1,3 +1,4 @@
+with Posix_Tools.Paths;
 with Posix_Tools.Text.Glob;
 
 package body Explore.Paths is
@@ -24,36 +25,11 @@ package body Explore.Paths is
      (Posix_Tools.Text.Glob.Matches (Folded (Pattern), Folded (Name)));
 
    function Name_Of (Path : String) return String is
-      Last : Natural := Path'Last;
-   begin
-      while Last >= Path'First and then Path (Last) = '/' loop
-         Last := Last - 1;
-      end loop;
-
-      for I in reverse Path'First .. Last loop
-         if Path (I) = '/' then
-            return Path (I + 1 .. Last);
-         end if;
-      end loop;
-
-      return Path (Path'First .. Last);
-   end Name_Of;
+     (if Posix_Tools.Paths.Is_All_Slashes (Path) then ""
+      else Posix_Tools.Paths.Basename (Path));
 
    function Parent_Of (Path : String) return String is
-      Last : Natural := Path'Last;
-   begin
-      while Last > Path'First and then Path (Last) = '/' loop
-         Last := Last - 1;
-      end loop;
-
-      for I in reverse Path'First .. Last loop
-         if Path (I) = '/' then
-            return (if I = Path'First then "/" else Path (Path'First .. I - 1));
-         end if;
-      end loop;
-
-      return Path;
-   end Parent_Of;
+     (if Posix_Tools.Paths.Contains_Slash (Path) then Posix_Tools.Paths.Dirname (Path) else Path);
 
    function Renamed (Path, Name : String) return String is
    begin

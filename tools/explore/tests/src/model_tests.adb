@@ -447,6 +447,8 @@ package body Model_Tests is
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a/b") = "/a", "parent");
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a") = "/", "parent of a top directory");
       AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/") = "/", "the root is its own parent");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("/a/b/") = "/a", "parent, trailing slash");
+      AUnit.Assertions.Assert (Explore.Paths.Parent_Of ("x") = "x", "a name alone has no parent to go to");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b") = "b", "name");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/a/b/") = "b", "name, trailing slash");
       AUnit.Assertions.Assert (Explore.Paths.Name_Of ("/") = "", "the root has no name");
