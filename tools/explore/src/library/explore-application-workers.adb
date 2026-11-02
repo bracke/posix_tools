@@ -303,7 +303,7 @@ package body Explore.Application.Workers is
             Say
               (State,
                Explore.Words.Search_Result
-                 (State.Config.Words, Natural (Current.Entries.Length), Results.Truncated));
+                 (State.Config.Words, Natural (Current.Entries.Length), Results.Truncated, Results.Failed));
          end if;
       end if;
    end Watch_Search;

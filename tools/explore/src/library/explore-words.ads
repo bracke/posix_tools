@@ -49,6 +49,7 @@ package Explore.Words is
       --  Patterns of {count}.
       Found         : Ada.Strings.Unbounded.Unbounded_String;
       Too_Many      : Ada.Strings.Unbounded.Unbounded_String;
+      Search_Failed : Ada.Strings.Unbounded.Unbounded_String;
       Bookmarked    : Ada.Strings.Unbounded.Unbounded_String;
       No_Bookmark   : Ada.Strings.Unbounded.Unbounded_String;
       Unsaved       : Ada.Strings.Unbounded.Unbounded_String;
@@ -112,8 +113,13 @@ package Explore.Words is
       Problems : Explore.Settings.Problem_Vectors.Vector) return String
      with Pre => not Problems.Is_Empty;
 
-   --  How a search that found Found entries ended.
-   function Search_Result (Words : Word_Set; Found : Natural; Truncated : Boolean) return String;
+   --  How a search that found Found entries ended: Truncated when it found
+   --  more than it keeps, Failed when an error ended it before it was through.
+   function Search_Result
+     (Words     : Word_Set;
+      Found     : Natural;
+      Truncated : Boolean;
+      Failed    : Boolean := False) return String;
 
    --  The question that confirms deleting Count entries, in Locale.
    function Confirm_Delete (Locale : String; Count : Natural) return String;

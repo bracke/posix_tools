@@ -178,6 +178,7 @@ package body Explore.Words is
          Searching     => Word ("searching", "searching"),
          Found         => Pattern ("found", "count", "{count} found"),
          Too_Many      => Pattern ("too_many", "count", "{count} found, more than were kept"),
+         Search_Failed => Pattern ("search_failed", "count", "{count} found before the search failed"),
          Bookmarked    => Word ("bookmarked", "bookmarked"),
          No_Bookmark   => Word ("no_bookmark", "no such bookmark"),
          Unsaved       => Word ("bookmarks_unsaved", "bookmarks could not be saved"),
@@ -264,8 +265,14 @@ package body Explore.Words is
       end case;
    end Result_Line;
 
-   function Search_Result (Words : Word_Set; Found : Natural; Truncated : Boolean) return String is
-     (Fill ((if Truncated then Words.Too_Many else Words.Found), "count", Image (Found)));
+   function Search_Result
+     (Words     : Word_Set;
+      Found     : Natural;
+      Truncated : Boolean;
+      Failed    : Boolean := False) return String
+   is (Fill
+         ((if Failed then Words.Search_Failed elsif Truncated then Words.Too_Many else Words.Found),
+          "count", Image (Found)));
 
    function Taken (Words : Word_Set; Count : Natural; Cutting : Boolean) return String is
      (Fill ((if Cutting then Words.Cut else Words.Yanked), "count", Image (Count)));

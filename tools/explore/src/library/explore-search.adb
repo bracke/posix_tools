@@ -68,6 +68,7 @@ package body Explore.Search is
       Held.Found.Append (Outcome.Found);
       Held.Finished := Outcome.Finished;
       Held.Truncated := Outcome.Truncated;
+      Held.Failed := Outcome.Failed;
    end Merge;
 
    function Name_Matches (Pattern, Name : String) return Boolean is
@@ -81,106 +82,126 @@ package body Explore.Search is
    end Stop_Source;
 
    task body Worker is
-      Taken      : Slot;
-      Item       : Request;
-      Closed     : Boolean;
+      Taken  : Slot;
+      Item   : Request;
+      Closed : Boolean;
+
+      --  Walk the tree for Item, handing over what is found as it goes.
+      --  Truncated when more was found than a search keeps; an exception
+      --  propagates, the search having been forgotten by the board first.
+      procedure Search (Truncated : in out Boolean);
+
+      procedure Search (Truncated : in out Boolean) is
+         --  Stopped from the board, so that a file being read is left at
+         --  once, however large.
+         Source  : aliased Greplib.Cancellation.Cancellation_Source;
+         Token   : constant Greplib.Cancellation.Cancellation_Token := Greplib.Cancellation.Token (Source);
+         Pattern : constant String := Unbounded.To_String (Item.Pattern);
+         Set     : constant Greplib.Patterns.Compiled_Pattern_Set := Compile (Pattern);
+         Batch   : Listing.Entry_Vectors.Vector;
+         Count   : Natural := 0;
+
+         function Stopped return Boolean is (not Jobs.Is_Wanted (Taken, Item.Generation) or else Truncated);
+
+         --  Deliver the batch, and start the next.
+         procedure Hand_Over;
+
+         procedure Walk (Directory, Below : String; Depth : Natural);
+
+         procedure Hand_Over is
+         begin
+            Jobs.Deliver (Taken, (Generation => Item.Generation, Found => Batch, others => <>));
+            Batch.Clear;
+         end Hand_Over;
+
+         procedure Walk (Directory, Below : String; Depth : Natural) is
+            Entries : Listing.Entry_Vectors.Vector;
+            Outcome : Listing.Read_Outcome;
+         begin
+            Listing.Read_Directory
+              (Directory, (Include_Hidden => Item.Include_Hidden, With_Status => True), Entries, Outcome,
+               Stopped'Access);
+
+            if Outcome /= Listing.Read_Complete then
+               return;
+            end if;
+
+            for Found of Entries loop
+               exit when Stopped;
+
+               declare
+                  Name : constant String := Unbounded.To_String (Found.Name);
+                  Path : constant String := Explore.Paths.Child_Of (Directory, Name);
+                  Hit  : constant Boolean :=
+                    (case Item.Kind is
+                       when By_Name => Name_Matches (Pattern, Name),
+                       when By_Content =>
+                         Found.Kind = Listing.Regular_Entry and then not Found.Is_Link
+                         and then Contains (Set, Path, Token));
+               begin
+                  if Hit then
+                     if Count = Max_Results then
+                        Truncated := True;
+                     else
+                        Count := Count + 1;
+                        Batch.Append ((Found with delta Name => Unbounded.To_Unbounded_String (Below & Name)));
+
+                        if Natural (Batch.Length) >= Batch_Size then
+                           Hand_Over;
+                        end if;
+                     end if;
+                  end if;
+
+                  --  Links are not followed, so a tree that links to itself ends.
+                  if Found.Kind = Listing.Directory_Entry and then not Found.Is_Link and then Depth < Max_Depth then
+                     Walk (Path, Below & Name & "/", Depth + 1);
+                  end if;
+               end;
+            end loop;
+
+            if not Batch.Is_Empty then
+               Hand_Over;
+            end if;
+         end Walk;
+      begin
+         Jobs.Watch (Taken, Source'Unchecked_Access, Item.Generation);
+
+         begin
+            Walk (Unbounded.To_String (Item.Root), "", 0);
+         exception
+            when others =>
+               --  The source goes with this call; the board must not reach it.
+               Jobs.Forget (Taken, Item.Generation);
+               raise;
+         end;
+
+         Jobs.Forget (Taken, Item.Generation);
+      end Search;
    begin
       loop
          Jobs.Take (Taken, Item, Closed);
          exit when Closed;
 
          declare
-            --  Stopped from the board, so that a file being read is left at
-            --  once, however large.
-            Source    : aliased Greplib.Cancellation.Cancellation_Source;
-            Token     : constant Greplib.Cancellation.Cancellation_Token := Greplib.Cancellation.Token (Source);
-            Pattern   : constant String := Unbounded.To_String (Item.Pattern);
-            Set       : constant Greplib.Patterns.Compiled_Pattern_Set := Compile (Pattern);
-            Batch     : Listing.Entry_Vectors.Vector;
-            Count     : Natural := 0;
             Truncated : Boolean := False;
-
-            function Stopped return Boolean is (not Jobs.Is_Wanted (Taken, Item.Generation) or else Truncated);
-
-            --  Deliver the batch, and start the next.
-            procedure Hand_Over;
-
-            procedure Walk (Directory, Below : String; Depth : Natural);
-
-            procedure Hand_Over is
-            begin
-               Jobs.Deliver (Taken, (Generation => Item.Generation, Found => Batch, others => <>));
-               Batch.Clear;
-            end Hand_Over;
-
-            procedure Walk (Directory, Below : String; Depth : Natural) is
-               Entries : Listing.Entry_Vectors.Vector;
-               Outcome : Listing.Read_Outcome;
-            begin
-               Listing.Read_Directory
-                 (Directory, (Include_Hidden => Item.Include_Hidden, With_Status => True), Entries, Outcome,
-                  Stopped'Access);
-
-               if Outcome /= Listing.Read_Complete then
-                  return;
-               end if;
-
-               for Found of Entries loop
-                  exit when Stopped;
-
-                  declare
-                     Name : constant String := Unbounded.To_String (Found.Name);
-                     Path : constant String := Explore.Paths.Child_Of (Directory, Name);
-                     Hit  : constant Boolean :=
-                       (case Item.Kind is
-                          when By_Name => Name_Matches (Pattern, Name),
-                          when By_Content =>
-                            Found.Kind = Listing.Regular_Entry and then not Found.Is_Link
-                            and then Contains (Set, Path, Token));
-                  begin
-                     if Hit then
-                        if Count = Max_Results then
-                           Truncated := True;
-                        else
-                           Count := Count + 1;
-                           Batch.Append ((Found with delta Name => Unbounded.To_Unbounded_String (Below & Name)));
-
-                           if Natural (Batch.Length) >= Batch_Size then
-                              Hand_Over;
-                           end if;
-                        end if;
-                     end if;
-
-                     --  Links are not followed, so a tree that links to itself ends.
-                     if Found.Kind = Listing.Directory_Entry and then not Found.Is_Link and then Depth < Max_Depth then
-                        Walk (Path, Below & Name & "/", Depth + 1);
-                     end if;
-                  end;
-               end loop;
-
-               if not Batch.Is_Empty then
-                  Hand_Over;
-               end if;
-            end Walk;
+            Failed    : Boolean := False;
          begin
-            Jobs.Watch (Taken, Source'Unchecked_Access, Item.Generation);
-
+            --  Whatever goes wrong, the search is finished: what was found
+            --  stands, and it ends as failed rather than as complete. A
+            --  search never finished would keep the board busy for good.
             begin
-               Walk (Unbounded.To_String (Item.Root), "", 0);
+               Search (Truncated);
             exception
                when others =>
-                  --  What was found stands; the search ends as if cut short.
-                  Truncated := True;
+                  Failed := True;
             end;
-
-            --  The source goes with this block; the board must not reach it.
-            Jobs.Forget (Taken, Item.Generation);
 
             Jobs.Finish
               (Taken,
                (Generation => Item.Generation,
                 Finished   => True,
                 Truncated  => Truncated,
+                Failed     => Failed,
                 others     => <>));
          end;
       end loop;

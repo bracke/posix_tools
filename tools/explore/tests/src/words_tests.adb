@@ -28,6 +28,7 @@ package body Words_Tests is
       Errors_First  => +"{count} errors, {message}",
       Found         => +"{count} found",
       Too_Many      => +"{count} found, more than were kept",
+      Search_Failed => +"{count} found before the search failed",
       Queued        => +"waiting",
       No_Jobs       => +"no operations",
       Configuration => +"configuration",
@@ -191,5 +192,9 @@ package body Words_Tests is
       AUnit.Assertions.Assert
         (Explore.Words.Search_Result (Words, 7, Truncated => True) = "7 found, more than were kept",
          "a search cut short");
+      AUnit.Assertions.Assert
+        (Explore.Words.Search_Result (Words, 3, Truncated => False, Failed => True)
+         = "3 found before the search failed",
+         "a search an error ended is not said to be cut short");
    end Test_Result_Line;
 end Words_Tests;
