@@ -1,3 +1,4 @@
+with Ada.IO_Exceptions;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
@@ -400,7 +401,9 @@ package body Posix_Tools.Commands.Test_Command is
          return False;
       end if;
    exception
-      when others =>
+      --  A file that cannot be looked at fails the test; anything else is
+      --  an error, which ends test with a status above 1.
+      when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
          return False;
    end Unary_Test;
 end Posix_Tools.Commands.Test_Command;

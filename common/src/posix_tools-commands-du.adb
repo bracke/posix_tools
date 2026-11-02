@@ -1,6 +1,6 @@
 with Ada.Containers.Indefinite_Vectors;
+with Ada.IO_Exceptions;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Counts;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
@@ -80,7 +80,7 @@ package body Posix_Tools.Commands.Du is
                   begin
                      Size_Units := Allocated_Units (Path);
                   exception
-                     when others =>
+                     when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
                         Posix_Tools.Commands.Helpers.Subject_Operational_Error
                           (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
                         Ok := False;
@@ -123,12 +123,9 @@ package body Posix_Tools.Commands.Du is
                      return;
                   end if;
                   Seen_Dirs.Append (Full_Path);
-                  begin
-                     Directory_Units := Allocated_Units (Path);
-                  exception
-                     when others =>
-                        Directory_Units := 0;
-                  end;
+                  --  A directory's own blocks are not counted: the host
+                  --  adapter has a size only for a file, not a directory.
+                  Directory_Units := 0;
 
                   Each (Path, Iteration_Ok);
                   if not Iteration_Ok then
