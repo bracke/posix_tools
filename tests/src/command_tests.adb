@@ -3923,6 +3923,10 @@ package body Command_Tests is
       Check (Two_Args ("-n", "-b1-2"), "en_US.UTF-8", Line, "h" & LF,
              "cut -n -b moves a high end back before a split character");
       Check (Two_Args ("-n", "-b2-"), "en_US.UTF-8", Line, E_Acute & "llo" & LF, "cut -n -b keeps whole characters");
+      Check (Two_Args ("-d:", "-f1,2"), "C", ":a" & LF, ":a" & LF,
+             "cut -f keeps the delimiter after an empty first field");
+      Check (Two_Args ("-d" & E_Acute, "-f2"), "en_US.UTF-8", Line, "llo" & LF,
+             "cut -d takes a multibyte delimiter in a UTF-8 locale");
    end Test_Cut_Characters;
 
    procedure Test_Tee_Opens_Each_File_Once (T : in out Fixture) is
