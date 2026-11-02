@@ -570,6 +570,15 @@ package body Command_Tests.Surface_Smoke.Data is
            & "1" & Character'Val (9) & "2" & EOL,
          "paste serial mode combines each file separately");
 
+      Context.Initialize ("paste", Two_Args ("-", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "1" & EOL & "2" & EOL & "3" & EOL & "4" & EOL);
+      Posix_Tools.Commands.Paste.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "1" & Character'Val (9) & "2" & EOL
+           & "3" & Character'Val (9) & "4" & EOL,
+         "paste - - takes standard input's lines in turn");
+
       Context.Initialize ("paste", One_Arg ("-d"));
       Posix_Tools.Commands.Paste.Run (Context, Result);
       AUnit.Assertions.Assert

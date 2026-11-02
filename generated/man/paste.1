@@ -12,7 +12,8 @@ file: input file path. - reads standard input.
 -d list supplies the delimiter list. -s selects serial mode. Project extensions --help, --version, and
 --posix-tools-identify are recognized. The end-of-options marker -- is accepted.
 .SH STANDARD INPUT
-Used when no files are supplied or when an operand is -.
+Used when no files are supplied or when an operand is -. Every - operand reads from the one standard input, so
+paste - - takes its lines two at a time.
 .SH STANDARD OUTPUT
 Merged lines separated by the selected delimiter bytes. The default delimiter is tab.
 .SH STANDARD ERROR
