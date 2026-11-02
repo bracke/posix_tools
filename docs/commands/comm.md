@@ -37,7 +37,8 @@ Grouped suppression options such as `-12` are accepted and remaining columns kee
 Data output is not localized. Help and diagnostics are localized.
 
 ## Implementation-Defined Choices
-The current comparison order is bytewise Ada string ordering for this command.
+Lines are compared in the `LC_COLLATE` locale's collation, as `sort` orders them; bytes order lines the locale ranks
+equal, and order all lines in the C and POSIX locales.
 
 ## Extensions
 `--help`, `--version`, `--posix-tools-identify`.

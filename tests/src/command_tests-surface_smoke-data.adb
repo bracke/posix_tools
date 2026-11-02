@@ -195,6 +195,31 @@ package body Command_Tests.Surface_Smoke.Data is
            & Character'Val (9) & Character'Val (9) & "b" & EOL
            & Character'Val (9) & "c" & EOL,
          "comm honors end-of-options before operands");
+
+      Write_File (Comm_First, "a" & EOL & "B" & EOL);
+      Write_File (Comm_Second, "B" & EOL);
+      Context.Initialize ("comm", Two_Args (Comm_First, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "a" & EOL
+           & Character'Val (9) & Character'Val (9) & "B" & EOL,
+         "comm compares lines in the locale's collation");
+
+      Context.Initialize ("comm", Two_Args (Comm_First, Comm_Second));
+      Test_Contexts.Set_Locale (Context, "C");
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Character'Val (9) & "B" & EOL & "a" & EOL & "B" & EOL,
+         "comm compares bytes in the C locale");
+
+      Context.Initialize ("comm", Three_Args (Comm_First, Comm_Second, Comm_Second));
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
+         and then Contains (Test_Contexts.Error_Output (Context), "extra operand"),
+         "comm reports an extra operand as one");
    end Test_Comm;
 
    procedure Test_Cut (T : in out Surface_Fixture) is
