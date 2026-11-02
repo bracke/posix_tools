@@ -85,6 +85,9 @@ package Posix_Tools.Host_Adapters.File_System is
       Group     : out Natural;
       Available : out Boolean);
    function File_Permission_Bits (Path : String; Available : out Boolean) return Natural;
+
+   --  The file mode creation mask, the umask: 0 where the host has none.
+   function Creation_Mask return Natural;
    function File_Name_Limit (Path : String; Available : out Boolean) return Natural;
    function File_System_Capacity (Path : String) return Volume_Capacity;
    function Path_Name_Limit (Path : String; Available : out Boolean) return Natural;

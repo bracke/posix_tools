@@ -47,7 +47,8 @@ package body Posix_Tools.Commands.Text_Helpers.File_Modes is
      (Selection    : Mode_Selection;
       Base         : Natural;
       Mask         : Natural;
-      Is_Directory : Boolean := False) return Selected_Mode
+      Is_Directory : Boolean := False;
+      Umask        : Natural := 0) return Selected_Mode
    is
       Parsed : Posix_Tools.Text.File_Modes.Symbolic_Mode_Result;
    begin
@@ -57,7 +58,7 @@ package body Posix_Tools.Commands.Text_Helpers.File_Modes is
 
       Parsed :=
         Posix_Tools.Text.File_Modes.Apply_Symbolic_Mode
-          (To_String (Selection.Text), Base mod Mask, Is_Directory);
+          (To_String (Selection.Text), Base mod Mask, Is_Directory, Umask mod 8#10000#);
       return (Valid => Parsed.Valid, Mode => Parsed.Mode);
    end Selected;
 end Posix_Tools.Commands.Text_Helpers.File_Modes;

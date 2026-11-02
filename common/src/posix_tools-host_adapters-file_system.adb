@@ -427,6 +427,12 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Hostkit.Metadata.File_Permission_Bits (Path, Available);
    end File_Permission_Bits;
 
+   function Creation_Mask return Natural is
+      Value : Natural;
+   begin
+      return (if Hostkit.Fs.Creation_Mask (Value) then Value mod 8#1000# else 0);
+   end Creation_Mask;
+
    function File_System_Capacity (Path : String) return Volume_Capacity is
       Capacity : constant Hostkit.Metadata.Volume_Capacity := Hostkit.Metadata.Volume_Capacity_Of (Path);
    begin

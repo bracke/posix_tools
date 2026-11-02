@@ -185,6 +185,24 @@ package body File_Command_Tests is
       Posix_Tools.Commands.Chmod.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects a clause list ending in a comma");
+
+      declare
+         Previous : Natural;
+         Ignored  : Natural;
+      begin
+         if Hostkit.Fs.Set_Creation_Mask (8#022#, Previous) then
+            Check (8#444#, "+w", File, 8#644#, "chmod +w without who keeps what the umask masks");
+            Check (8#666#, "-w", File, 8#466#, "chmod -w without who keeps what the umask masks");
+            Check (8#400#, "=rw", File, 8#644#, "chmod =rw without who sets only what the umask allows");
+            Check (8#444#, "a+w", File, 8#666#, "chmod a+w ignores the umask");
+            AUnit.Assertions.Assert (FS.Set_Permissions (File, 8#444#), "fixture mode for grouped -R");
+            Context.Initialize ("chmod", Args ("-RR", "u+w", File));
+            Posix_Tools.Commands.Chmod.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Success and then Mode (File) mod 8#10000# = 8#644#, "chmod takes -R repeated");
+            AUnit.Assertions.Assert (Hostkit.Fs.Set_Creation_Mask (Previous, Ignored), "umask restored");
+         end if;
+      end;
       Remove (Root);
    end Test_Chmod_Symbolic_Grammar;
 
