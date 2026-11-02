@@ -1,6 +1,5 @@
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Counts;
-with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Text.Numeric_Images;
 
@@ -57,8 +56,6 @@ package body Posix_Tools.Commands.Df is
          end loop;
       end if;
 
-      Result.Status :=
-        (if Context.Output_Failed or else not Ok then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Df;
