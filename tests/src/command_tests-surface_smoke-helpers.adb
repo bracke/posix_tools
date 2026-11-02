@@ -155,6 +155,9 @@ package body Command_Tests.Surface_Smoke.Helpers is
       Remove_Any (Split_Input);
       Remove_Any (Split_Prefix & "aa");
       Remove_Any (Split_Prefix & "ab");
+      Remove_Any (Split_Prefix & "ac");
+      Remove_Any (Split_Long_Prefix & "aa");
+      Remove_Any (Split_Long_Prefix & "ab");
       Remove_Any (Split_Long_Prefix & "aaa");
       Remove_Any (Split_Long_Prefix & "aab");
       Remove_Any (Split_Long_Prefix & "aac");

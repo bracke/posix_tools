@@ -693,6 +693,29 @@ package body Command_Tests.Surface_Smoke.Data is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "split rejects a zero suffix length");
+
+      Context.Initialize ("split", Three_Args ("-l1", Split_Input, Split_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split -l attached status");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "ac"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c" & EOL, "split takes an attached line count");
+
+      Write_File (Split_Input, [1 .. 1500 => 'x']);
+      Context.Initialize ("split", Four_Args ("-b", "1k", Split_Input, Split_Long_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "split -b 1k status");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "aa"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context)'Length = 1024, "split -b k counts kibibytes");
+      Context.Initialize ("cat", One_Arg (Split_Long_Prefix & "ab"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert (Test_Contexts.Output (Context)'Length = 476, "split -b k leaves the rest");
+
+      Context.Initialize ("split", Two_Args ("-b", "1x"));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "split rejects an unknown size suffix");
    end Test_Split;
 
 end Command_Tests.Surface_Smoke.Data;
