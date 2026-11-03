@@ -6,7 +6,6 @@ package Basic_Tests is
    procedure Test_Numbers (T : in out Fixture);
    procedure Test_Option_Parsing (T : in out Fixture);
    procedure Test_Option_Parsing_Properties (T : in out Fixture);
-   procedure Test_Command_Inventory (T : in out Fixture);
    procedure Test_Count_Windows (T : in out Fixture);
    procedure Test_Exit_Status (T : in out Fixture);
    procedure Test_Paths (T : in out Fixture);
@@ -17,6 +16,5 @@ package Basic_Tests is
    procedure Test_Stream_Line_Properties (T : in out Fixture);
    procedure Test_Stream_Line_Split (T : in out Fixture);
    procedure Test_Stream_File_Fixture (T : in out Fixture);
-   procedure Test_Stream_UTF_8_Counting (T : in out Fixture);
    procedure Test_Version (T : in out Fixture);
 end Basic_Tests;

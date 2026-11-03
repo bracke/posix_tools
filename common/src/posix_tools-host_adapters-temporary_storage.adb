@@ -5,12 +5,23 @@ with Hostkit.Fs;
 package body Posix_Tools.Host_Adapters.Temporary_Storage is
    use type Posix_Tools.Numbers.Count;
 
+   package U renames Ada.Strings.Unbounded;
+
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
+
+   --  Finalization is best effort; command paths use Try_Cleanup directly
+   --  so a failure is observable to the caller.
+   procedure Cleanup (Self : in out Store);
 
    function Stored_Path (Self : Store) return String is
    begin
-      return Self.Path (Self.Path'First .. Self.Path_Last);
+      return U.To_String (Self.Path);
    end Stored_Path;
+
+   function Stored_Directory (Self : Store) return String is
+   begin
+      return U.To_String (Self.Directory);
+   end Stored_Directory;
 
    function Spill_Leaf (Directory : String) return String is
       type Word_64 is mod 2 ** 64;
@@ -110,27 +121,38 @@ package body Posix_Tools.Host_Adapters.Temporary_Storage is
 
    function Create (Self : in out Store; Max_Bytes : Posix_Tools.Numbers.Count) return Boolean is
       use Hostkit.Descriptors;
-      Directory : constant String := Hostkit.Fs.Create_Temporary_Directory ("posix-tools-tail");
-      Path      : constant String := Hostkit.Fs.Join (Directory, Spill_Leaf (Directory));
    begin
-      Close_File (Self);
+      --  Do not replace the only record of resources that a previous
+      --  cleanup could not remove.
+      if not Try_Cleanup (Self) then
+         return False;
+      end if;
+
       Self.Max_Size := Max_Bytes;
       Self.Current_Size := 0;
       Self.Reading := False;
       Self.Read_Position := 1;
 
-      if Directory = "" or else Directory'Length > Self.Directory'Length or else Path'Length > Self.Path'Length then
-         return False;
-      end if;
+      declare
+         Directory : constant String := Hostkit.Fs.Create_Temporary_Directory ("posix-tools-tail");
+      begin
+         if Directory = "" then
+            return False;
+         end if;
 
-      Self.Directory_Last := Directory'Length;
-      Self.Directory (Self.Directory'First .. Self.Directory'First + Directory'Length - 1) := Directory;
-      Self.Path_Last := Path'Length;
-      Self.Path (Self.Path'First .. Self.Path'First + Path'Length - 1) := Path;
-      if not Open_File (Path, Open_Write_Exclusive, Self.File) then
-         Cleanup (Self);
-         return False;
-      end if;
+         --  Record each resource before attempting the next operation so
+         --  the exception handler can always retry its removal.
+         Self.Directory := U.To_Unbounded_String (Directory);
+         declare
+            Path : constant String := Hostkit.Fs.Join (Directory, Spill_Leaf (Directory));
+         begin
+            Self.Path := U.To_Unbounded_String (Path);
+            if not Open_File (Path, Open_Write_Exclusive, Self.File) then
+               Cleanup (Self);
+               return False;
+            end if;
+         end;
+      end;
 
       return True;
    exception
@@ -245,37 +267,60 @@ package body Posix_Tools.Host_Adapters.Temporary_Storage is
       return Self.Current_Size;
    end Size;
 
-   procedure Cleanup (Self : in out Store) is
+   function Try_Cleanup (Self : in out Store) return Boolean is
+      Path_Remains      : Boolean := False;
+      Directory_Remains : Boolean := False;
    begin
-      Close_File (Self);
+      begin
+         Close_File (Self);
+      exception
+         when others =>
+            return False;
+      end;
 
-      if Self.Path_Last > 0 and then Ada.Directories.Exists (Stored_Path (Self)) then
-         Ada.Directories.Delete_File (Stored_Path (Self));
-      end if;
-
-      if Self.Directory_Last > 0 then
-         declare
-            Directory : constant String :=
-              Self.Directory (Self.Directory'First .. Self.Directory'First + Self.Directory_Last - 1);
+      if U.Length (Self.Path) > 0 then
          begin
-            if Ada.Directories.Exists (Directory) then
-               Ada.Directories.Delete_Directory (Directory);
+            if Ada.Directories.Exists (Stored_Path (Self)) then
+               Ada.Directories.Delete_File (Stored_Path (Self));
             end if;
+         exception
+            when others =>
+               Path_Remains := True;
          end;
       end if;
 
-      Self.Directory_Last := 0;
-      Self.Path_Last := 0;
+      if not Path_Remains and then U.Length (Self.Directory) > 0 then
+         begin
+            if Ada.Directories.Exists (Stored_Directory (Self)) then
+               Ada.Directories.Delete_Directory (Stored_Directory (Self));
+            end if;
+         exception
+            when others =>
+               Directory_Remains := True;
+         end;
+      end if;
+
+      if not Path_Remains then
+         Self.Path := U.Null_Unbounded_String;
+      end if;
+      if not Path_Remains and then not Directory_Remains then
+         Self.Directory := U.Null_Unbounded_String;
+      end if;
       Self.Current_Size := 0;
       Self.Reading := False;
       Self.Read_Position := 1;
-   exception
-      when others =>
-         Close_File (Self);
-         Self.Directory_Last := 0;
-         Self.Path_Last := 0;
-         Self.Current_Size := 0;
-         Self.Reading := False;
-         Self.Read_Position := 1;
+      return not Path_Remains and then not Directory_Remains;
+   end Try_Cleanup;
+
+   procedure Cleanup (Self : in out Store) is
+      Cleaned : constant Boolean := Try_Cleanup (Self);
+      pragma Unreferenced (Cleaned);
+   begin
+      null;
    end Cleanup;
+
+   overriding procedure Finalize (Self : in out Store) is
+   begin
+      Cleanup (Self);
+   end Finalize;
 end Posix_Tools.Host_Adapters.Temporary_Storage;

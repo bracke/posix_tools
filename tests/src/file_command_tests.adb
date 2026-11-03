@@ -1046,7 +1046,8 @@ package body File_Command_Tests is
       Test_Contexts.Set_Standard_Input (Context, Broken);
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "2" & Character'Val (10),
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "2" & Character'Val (10),
          "wc -m counts the invalid sequence and the character after it");
    end Test_UTF_8_Resynchronises;
 

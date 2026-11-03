@@ -75,6 +75,15 @@ package body Posix_Tools.Commands.Tail_Bytes is
       Last   : Ada.Streams.Stream_Element_Offset;
       Start  : Posix_Tools.Numbers.Count;
 
+      procedure Release_Store is
+      begin
+         if not Posix_Tools.Host_Adapters.Temporary_Storage.Try_Cleanup (Store) then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.file.remove_failed", "cannot remove");
+            Ok := False;
+         end if;
+      end Release_Store;
+
       procedure Store_Chunk
         (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
          Buffer  : Ada.Streams.Stream_Element_Array;
@@ -106,7 +115,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
             Posix_Tools.Commands.Helpers.Operational_Error
               (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
          end if;
-         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Release_Store;
          Ok := False;
          return;
       end if;
@@ -114,7 +123,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
       if not Posix_Tools.Host_Adapters.Temporary_Storage.Prepare_For_Read (Store) then
          Posix_Tools.Commands.Helpers.Operational_Error
            (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
-         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Release_Store;
          Ok := False;
          return;
       end if;
@@ -126,7 +135,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
          if not Posix_Tools.Host_Adapters.Temporary_Storage.Read (Store, Start, Buffer, Last) then
             Posix_Tools.Commands.Helpers.Operational_Error
               (Context, "posix_tools.diagnostic.file.read_failed", "cannot read file");
-            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Release_Store;
             Ok := False;
             return;
          end if;
@@ -134,7 +143,7 @@ package body Posix_Tools.Commands.Tail_Bytes is
          exit when Last < Buffer'First;
          Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
          if Context.Output_Failed then
-            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Release_Store;
             Ok := False;
             return;
          end if;
@@ -145,8 +154,8 @@ package body Posix_Tools.Commands.Tail_Bytes is
              (Last - Buffer'First + Ada.Streams.Stream_Element_Offset (1));
       end loop;
 
-      Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
       Ok := True;
+      Release_Store;
    end Copy_With_Spill;
 
    procedure Copy

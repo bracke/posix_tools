@@ -751,7 +751,13 @@ package body Command_Tests.Surface_Smoke.Text is
       Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL & "b" & EOL);
       Posix_Tools.Commands.Sort.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & EOL & "a" & EOL, "sort -ru output");
+   end Test_Sort;
 
+   procedure Test_Sort_Folding (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("sort", Two_Args ("-f", "-"));
       Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "A" & EOL);
       Posix_Tools.Commands.Sort.Run (Context, Result);
@@ -873,7 +879,15 @@ package body Command_Tests.Surface_Smoke.Text is
            Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AA#) & EOL
            & Character'Val (16#CF#) & Character'Val (16#82#) & EOL,
          "sort -f folds Unicode compatibility and final-sigma mappings");
+   end Test_Sort_Folding;
 
+   procedure Test_Sort_Keys_And_Modifiers
+     (T : in out Surface_Fixture)
+   is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("sort", No_Args);
       Test_Contexts.Set_Locale (Context, "da");
       Test_Contexts.Set_Standard_Input
@@ -1109,7 +1123,15 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "sort rejects decreasing key character range");
+   end Test_Sort_Keys_And_Modifiers;
 
+   procedure Test_Sort_Numeric_And_IO (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Write_File (Source, "copy-data");
+      Ada.Directories.Create_Directory (Made);
       Context.Initialize ("sort", Two_Args ("-n", "-"));
       Test_Contexts.Set_Standard_Input (Context, "10 ten" & EOL & " 2 two" & EOL & "-1 minus" & EOL);
       Posix_Tools.Commands.Sort.Run (Context, Result);
@@ -1297,6 +1319,6 @@ package body Command_Tests.Surface_Smoke.Text is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL,
          "sort treats option-like words after first file operand as file operands");
-   end Test_Sort;
+   end Test_Sort_Numeric_And_IO;
 
 end Command_Tests.Surface_Smoke.Text;

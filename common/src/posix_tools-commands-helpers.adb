@@ -24,13 +24,39 @@ package body Posix_Tools.Commands.Helpers is
 
    LF : constant Character := Character'Val (10);
 
+   procedure Report_Internal_Error
+     (Context      : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
+      Command_Name : String;
+      Occurrence   : Ada.Exceptions.Exception_Occurrence)
+   is
+      Debug_Variable : constant String := "POSIX_TOOLS_DEBUG";
+   begin
+      Context.Put_Error_Line
+        (Command_Name & ": "
+         & Posix_Tools.Localization.Text
+             (Context.Effective_Locale,
+              "posix_tools.diagnostic.internal_failure",
+              "internal failure"));
+
+      if Context.Environment_Defined (Debug_Variable)
+        and then Context.Environment_Value (Debug_Variable) /= ""
+      then
+         Context.Put_Error_Line (Ada.Exceptions.Exception_Information (Occurrence));
+      end if;
+   exception
+      when others =>
+         --  Intentional terminal exception barrier: callers establish the
+         --  failure status before attempting the best-effort diagnostic.
+         return;
+   end Report_Internal_Error;
+
    function Escape_Untrusted (Text : String) return String is
    begin
       return Posix_Tools.Text.Escaping.Escape_Untrusted (Text);
    end Escape_Untrusted;
 
    function Diagnostic_Line
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Message : String) return String
    is
    begin
@@ -65,7 +91,7 @@ package body Posix_Tools.Commands.Helpers is
    end Intercept_Extension;
 
    procedure Finish
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : Posix_Tools.Commands.Contexts.Stream_Context'Class;
       Result  : in out Posix_Tools.Commands.Results.Result;
       Ok      : Boolean := True) is
    begin
@@ -75,7 +101,7 @@ package body Posix_Tools.Commands.Helpers is
    end Finish;
 
    procedure Usage_Error
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Message : Posix_Tools.Commands.Usage_Messages.Usage_Message)
    is
@@ -84,7 +110,7 @@ package body Posix_Tools.Commands.Helpers is
    end Usage_Error;
 
    procedure Usage_Error
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
       Subject : String)
@@ -121,7 +147,7 @@ package body Posix_Tools.Commands.Helpers is
    end Usage_Error;
 
    function Parse_Natural_Operand
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Text    : String;
       Message : Posix_Tools.Commands.Usage_Messages.Usage_Message;
@@ -143,7 +169,7 @@ package body Posix_Tools.Commands.Helpers is
    end Parse_Natural_Operand;
 
    function Read_Affirmative_Response
-     (Context           : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context           : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
       Wait_For_Line_End : Boolean := False) return Boolean
    is
       Buffer : Ada.Streams.Stream_Element_Array (1 .. 1);
@@ -219,7 +245,7 @@ package body Posix_Tools.Commands.Helpers is
    end Decorated_Id_Text;
 
    function Group_Id_Text
-     (Context     : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
       Id          : Natural;
       Prefer_Name : Boolean := True) return String
    is
@@ -228,7 +254,7 @@ package body Posix_Tools.Commands.Helpers is
    end Group_Id_Text;
 
    function User_Id_Text
-     (Context     : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
       Id          : Natural;
       Prefer_Name : Boolean := True) return String
    is
@@ -237,7 +263,7 @@ package body Posix_Tools.Commands.Helpers is
    end User_Id_Text;
 
    function Decorated_Group_Id_Text
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
       Id      : Natural) return String
    is
    begin
@@ -245,7 +271,7 @@ package body Posix_Tools.Commands.Helpers is
    end Decorated_Group_Id_Text;
 
    function Decorated_User_Id_Text
-     (Context : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
       Id      : Natural) return String
    is
    begin
@@ -253,7 +279,7 @@ package body Posix_Tools.Commands.Helpers is
    end Decorated_User_Id_Text;
 
    function Current_User_Name
-     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class) return String
    is
       User_Id : Natural;
    begin
@@ -290,7 +316,7 @@ package body Posix_Tools.Commands.Helpers is
    end For_Each_Directory_Child;
 
    procedure Operational_Error
-     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context     : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Message_Key : String;
       Default     : String)
    is
@@ -303,7 +329,7 @@ package body Posix_Tools.Commands.Helpers is
    end Operational_Error;
 
    procedure Subject_Operational_Error
-     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context     : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Subject     : String;
       Message_Key : String;
       Default     : String)
@@ -317,7 +343,7 @@ package body Posix_Tools.Commands.Helpers is
    end Subject_Operational_Error;
 
    procedure Operational_Error
-     (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context     : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Message_Key : String;
       Name        : String;
       Value       : String;
@@ -348,7 +374,7 @@ package body Posix_Tools.Commands.Helpers is
    end Operational_Error;
 
    function Standard_Input_Name
-     (Context : Posix_Tools.Commands.Contexts.Context'Class) return String
+     (Context : Posix_Tools.Commands.Contexts.Environment_Context'Class) return String
    is
    begin
       return Posix_Tools.Localization.Text
@@ -356,7 +382,7 @@ package body Posix_Tools.Commands.Helpers is
    end Standard_Input_Name;
 
    function File_Subject
-     (Context   : Posix_Tools.Commands.Contexts.Context'Class;
+     (Context   : Posix_Tools.Commands.Contexts.Environment_Context'Class;
       File_Name : String) return String
    is
    begin
@@ -381,7 +407,7 @@ package body Posix_Tools.Commands.Helpers is
    end Unknown_Option_Subject;
 
    procedure Parse_Options
-     (Context           : in out Posix_Tools.Commands.Contexts.Context'Class;
+     (Context           : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
       Result            : in out Posix_Tools.Commands.Results.Result;
       Accepted          : String;
       Requires_Argument : String;

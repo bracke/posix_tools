@@ -9,6 +9,6 @@ project Posix_Tools_False is
       for Body ("Posix_Tools_False_Main") use "false.adb";
    end Naming;
    package Compiler is
-      for Default_Switches ("Ada") use ("-gnat2022", "-gnata", "-gnatwa", "-gnatyM120");
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnata", "-gnatwa", "-gnatyM120", "-gnatwe");
    end Compiler;
 end Posix_Tools_False;

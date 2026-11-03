@@ -42,6 +42,97 @@ package body Command_Tests.Scripting is
    procedure Write_File (Path, Data : String)
      renames Test_Support.Write_File;
 
+   procedure Test_Expr (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+
+      procedure Run_Case
+        (Words           : Word_List;
+         Expected_Output : String;
+         Expected_Status : Posix_Tools.Exit_Status.Code;
+         Label           : String) is
+      begin
+         Context.Initialize ("expr", Args (Words));
+         Posix_Tools.Commands.Expr.Run (Context, Result);
+         AUnit.Assertions.Assert (Result.Status = Expected_Status, Label & " status");
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = Expected_Output, Label & " output");
+      end Run_Case;
+   begin
+      Run_Case ([+"value"], "value" & EOL, Posix_Tools.Exit_Status.Success, "expr literal");
+      Run_Case
+        ([+"1", +"+", +"2", +"*", +"3"], "7" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr arithmetic precedence");
+      Run_Case
+        ([+"4", +"<", +"3"], "0" & EOL,
+         Posix_Tools.Exit_Status.Operational_Failure, "expr false comparison");
+      Run_Case
+        ([+"0", +"|", +"fallback"], "fallback" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr boolean or");
+      Run_Case
+        ([+"yes", +"&", +"ok"], "yes" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr boolean and");
+      Run_Case
+        ([+"abcdef", +":", +"abc.*"], "6" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr regex length");
+      Run_Case
+        ([+"abc", +":", +"a(b.)"], "bc" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr regex capture");
+      Run_Case
+        ([+"abc", +":", +"a.c"], "3" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE dot");
+      Run_Case
+        ([+"aaab", +":", +"a*b"], "4" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE star");
+      Run_Case
+        ([+"b", +":", +"[a-c]"], "1" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE bracket range");
+      Run_Case
+        ([+"7", +":", +"[[:digit:]]"], "1" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE named class");
+      Run_Case
+        ([+"g", +":", +"[^[:digit:]]"], "1" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE negated named class");
+      Run_Case
+        ([+"a", +":", +"[[=a=]]"], "1" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE equivalence class");
+      Run_Case
+        ([+"chord", +":", +"[[.ch.]]"], "2" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE multi-character collating element");
+      Run_Case
+        ([+"abc", +":", +"a\(b.\)"], "bc" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr BRE escaped capture");
+      Run_Case
+        ([+"length", +"abc"], "3" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr length");
+      Run_Case
+        ([+"index", +"abc", +"cb"], "2" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr index");
+      Run_Case
+        ([+"substr", +"abcde", +"2", +"3"], "bcd" & EOL,
+         Posix_Tools.Exit_Status.Success, "expr substr");
+
+      Context.Initialize ("expr", Args ([]));
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expr rejects missing expression");
+
+      Context.Initialize ("expr", Args ([+"1", +"+", +"x"]));
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "expr rejects non-numeric arithmetic operand");
+
+      Context.Initialize ("expr", Args ([+"1", +"+", +"2"]));
+      Test_Contexts.Set_Output_Failure_After (Context, 0);
+      Posix_Tools.Commands.Expr.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Expr_Error,
+         "expr exits 3, an error, when its output cannot be written");
+   end Test_Expr;
+
    function Args (Words : Word_List) return Posix_Tools.Arguments.Vector is
    begin
       return Result : Posix_Tools.Arguments.Vector do

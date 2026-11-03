@@ -400,6 +400,28 @@ package body E2E_Rig is
       end if;
    end UTF_8;
 
+   procedure Wait_Exit (Self : in out Rig; Ended : out Boolean; Code : out Integer; Timeout_Ms : Natural := 5_000) is
+      State : PTY.Exit_State := PTY.Still_Running;
+   begin
+      Code := -1;
+
+      for Step in 0 .. Timeout_Ms / 10 loop
+         Pump (Self, 10);
+         State := PTY.Child_State (Self.Session);
+         exit when State in PTY.Exited | PTY.Signaled;
+      end loop;
+
+      --  Whatever explore wrote last, as it left, reaches the core too.
+      Pump (Self, 20);
+      Ended := State in PTY.Exited | PTY.Signaled;
+
+      if State = PTY.Exited then
+         Code := PTY.Child_Status (Self.Session) / 256 mod 256;
+      elsif State = PTY.Signaled then
+         Code := 128 + PTY.Child_Status (Self.Session) mod 128;
+      end if;
+   end Wait_Exit;
+
    function Wait_For (Self : in out Rig; Text : String; Timeout_Ms : Natural := 5_000) return Boolean is
    begin
       for Step in 0 .. Timeout_Ms / 10 loop
@@ -439,28 +461,6 @@ package body E2E_Rig is
 
       return Ada.Strings.Fixed.Index (E2E_Rig.Row (Self, Row), Text) > 0;
    end Wait_For_Row;
-
-   procedure Wait_Exit (Self : in out Rig; Ended : out Boolean; Code : out Integer; Timeout_Ms : Natural := 5_000) is
-      State : PTY.Exit_State := PTY.Still_Running;
-   begin
-      Code := -1;
-
-      for Step in 0 .. Timeout_Ms / 10 loop
-         Pump (Self, 10);
-         State := PTY.Child_State (Self.Session);
-         exit when State in PTY.Exited | PTY.Signaled;
-      end loop;
-
-      --  Whatever explore wrote last, as it left, reaches the core too.
-      Pump (Self, 20);
-      Ended := State in PTY.Exited | PTY.Signaled;
-
-      if State = PTY.Exited then
-         Code := PTY.Child_Status (Self.Session) / 256 mod 256;
-      elsif State = PTY.Signaled then
-         Code := 128 + PTY.Child_Status (Self.Session) mod 128;
-      end if;
-   end Wait_Exit;
 
    procedure Write_File (Path, Text : String) is
    begin

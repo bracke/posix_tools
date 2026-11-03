@@ -2,7 +2,9 @@ with AUnit.Assertions;
 with Command_Tests.Surface_Smoke.Fixtures;
 with Command_Tests.Surface_Smoke.Helpers;
 with Hostkit.Signals;
+with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Arch;
+with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Date;
 with Posix_Tools.Commands.Df;
 with Posix_Tools.Commands.Env;
@@ -17,17 +19,65 @@ with Posix_Tools.Commands.Nice;
 with Posix_Tools.Commands.Nohup;
 with Posix_Tools.Commands.Printenv;
 with Posix_Tools.Commands.Results;
+with Posix_Tools.Commands.Run_Entry;
 with Posix_Tools.Commands.Sleep;
+with Posix_Tools.Commands.Timeout;
 with Posix_Tools.Commands.Uname;
 with Posix_Tools.Commands.Which;
 with Posix_Tools.Commands.Whoami;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Text.Matching;
 with Test_Contexts;
 
 package body Command_Tests.Surface_Smoke.Host is
    use type Posix_Tools.Exit_Status.Code;
    use Command_Tests.Surface_Smoke.Fixtures;
    use Command_Tests.Surface_Smoke.Helpers;
+
+   procedure Failing_Run
+     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Result  : out Posix_Tools.Commands.Results.Result)
+   is
+      pragma Unreferenced (Context, Result);
+   begin
+      raise Constraint_Error with "intentional-debug-token";
+   end Failing_Run;
+
+   procedure Run_Failing_Command is new Posix_Tools.Commands.Run_Entry
+     ("failing-command", Failing_Run);
+
+   procedure Test_Internal_Error_Diagnostics (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Empty   : Posix_Tools.Arguments.Vector;
+
+      procedure Require_Opaque (Description : String) is
+      begin
+         Run_Failing_Command (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Internal_Failure
+            and then Test_Contexts.Error_Output (Context)
+              = "failing-command: internal failure" & ASCII.LF,
+            Description);
+      end Require_Opaque;
+   begin
+      Context.Initialize ("failing-command", Empty);
+      Require_Opaque ("internal errors are opaque by default");
+
+      Context.Initialize ("failing-command", Empty);
+      Test_Contexts.Set_Environment_Value (Context, "POSIX_TOOLS_DEBUG", "");
+      Require_Opaque ("an empty debug setting remains opaque");
+
+      Context.Initialize ("failing-command", Empty);
+      Test_Contexts.Set_Environment_Value (Context, "POSIX_TOOLS_DEBUG", "1");
+      Run_Failing_Command (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Internal_Failure
+         and then Posix_Tools.Text.Matching.Contains
+           (Test_Contexts.Error_Output (Context), "intentional-debug-token"),
+         "debug mode records exception information");
+   end Test_Internal_Error_Diagnostics;
 
    procedure Test_Arch (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
@@ -590,6 +640,90 @@ package body Command_Tests.Surface_Smoke.Host is
          "env rejects an unknown option");
    end Test_Env;
 
+   procedure Test_Env_Utility_Status (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Context.Initialize ("env", Two_Args ("-i", "false"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "env propagates utility status 1");
+
+      Context.Initialize ("env", Two_Args ("-i", "xargs-cannot-invoke"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Utility_Cannot_Invoke,
+         "env maps utility status 126 to 126");
+
+      Context.Initialize ("env", Two_Args ("-i", "xargs-status-127"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Utility_Not_Found,
+         "env maps utility status 127 to 127");
+
+      Context.Initialize ("env", Two_Args ("-i", "missing-utility"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Utility_Not_Found,
+         "env maps missing utility to 127");
+   end Test_Env_Utility_Status;
+
+   procedure Test_Timeout (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context   : Test_Contexts.Capturing_Context;
+      Result    : Posix_Tools.Commands.Results.Result;
+      Arguments : Posix_Tools.Arguments.Vector;
+   begin
+      Context.Initialize ("timeout", Two_Args ("1s", "timeout-ok"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "done" & EOL,
+         "timeout propagates successful utility output and status");
+
+      Context.Initialize ("timeout", Two_Args ("1", "timeout-status-7"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (7),
+         "timeout propagates ordinary utility status");
+
+      Context.Initialize ("timeout", Two_Args ("1", "timeout-slow"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (124),
+         "timeout maps elapsed timeout to 124");
+
+      Arguments.Append ("--preserve-status");
+      Arguments.Append ("1");
+      Arguments.Append ("timeout-slow");
+      Context.Initialize ("timeout", Arguments);
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Code (124),
+         "timeout preserve-status keeps adapter timeout status when supplied");
+
+      Context.Initialize ("timeout", One_Arg ("1"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "timeout rejects missing utility operand");
+
+      Context.Initialize ("timeout", Two_Args ("bad", "timeout-ok"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "timeout rejects invalid duration");
+
+      Context.Initialize
+        ("timeout", Two_Args ("999999999999999999999999999999999999999", "timeout-ok"));
+      Posix_Tools.Commands.Timeout.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "timeout rejects overflowing duration");
+   end Test_Timeout;
+
    procedure Test_Getconf (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
@@ -907,7 +1041,9 @@ package body Command_Tests.Surface_Smoke.Host is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
          and then Test_Contexts.Output (Context) = ""
-         and then Test_Contexts.Error_Output (Context) = "sleep: invalid operand '999999999999999999999999999999999999999'" & EOL,
+         and then Test_Contexts.Error_Output (Context)
+           = "sleep: invalid operand '999999999999999999999999999999999999999'"
+             & EOL,
          "sleep rejects overflowing duration");
 
       Context.Initialize ("sleep", One_Arg ("0x"));

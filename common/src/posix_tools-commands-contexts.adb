@@ -1,7 +1,6 @@
 with Posix_Tools.Host_Adapters.Clock;
 with Posix_Tools.Host_Adapters.Environment;
 with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Processes;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;

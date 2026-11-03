@@ -27,10 +27,23 @@ package Suite_Filters is
 
    --  The rule Is_Active applies to one test name and one prefix.
    function Selects (Prefix : String; Whole_Name : Boolean; Test_Name : String) return Boolean;
+
+   --  Whether Prefix selects an alias attached to the canonical Test_Name.
+   --  Aliases are selector metadata, not duplicate AUnit registrations.
+   function Selects_Alias
+     (Prefix     : String;
+      Whole_Name : Boolean;
+      Test_Name  : String) return Boolean;
+
+   --  Whether Alias_Name is the complete alias for the canonical Test_Name.
+   function Is_Exact_Alias
+     (Alias_Name : String;
+      Test_Name  : String) return Boolean;
 private
    package Prefix_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
-   --  No prefixes selects every test.
+   --  No prefixes selects every canonical test. Regression selectors resolve
+   --  through alias metadata to those same registrations.
    type Filter is new AUnit.Test_Filters.Test_Filter with record
       Prefixes   : Prefix_Vectors.Vector;
       Whole_Name : Boolean := False;

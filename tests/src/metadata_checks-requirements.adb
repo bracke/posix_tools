@@ -21,13 +21,21 @@ package body Metadata_Checks.Requirements is
       Tooling_Checks.Require_Text
         (Check, "common/src/posix_tools-text-utf_8.adb", "Status := Invalid");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/basic_tests.adb", "incomplete UTF-8");
+        (Check,
+         "tests/src/basic_tests-text_algorithms-stream_utf_8_counting.adb",
+         "incomplete UTF-8");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/basic_tests.adb", "surrogate UTF-8 rejected");
+        (Check,
+         "tests/src/basic_tests-text_algorithms-stream_utf_8_counting.adb",
+         "surrogate UTF-8 rejected");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/basic_tests.adb", "out-of-range UTF-8 rejected");
+        (Check,
+         "tests/src/basic_tests-text_algorithms-stream_utf_8_counting.adb",
+         "out-of-range UTF-8 rejected");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/basic_tests.adb", "decoder rejects overlong starter");
+        (Check,
+         "tests/src/basic_tests-text_algorithms-stream_utf_8_counting.adb",
+         "decoder rejects overlong starter");
       Tooling_Checks.Require_Text
         (Check, "generated/regressions.csv", "REG-WC-0004");
       Tooling_Checks.Require_Text
@@ -41,7 +49,9 @@ package body Metadata_Checks.Requirements is
       Tooling_Checks.Require_Text
         (Check, "common/src/posix_tools-text-classification.adb", "Whitespace_Data.Is_Whitespace");
       Tooling_Checks.Require_Text
-        (Check, "tests/src/basic_tests.adb", "classification includes range midpoint");
+        (Check,
+         "tests/src/basic_tests-text_algorithms-escaping_time_and_glob.adb",
+         "classification includes range midpoint");
       Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "PRESENTATION-STYLES-001");
       Tooling_Checks.Require_Text

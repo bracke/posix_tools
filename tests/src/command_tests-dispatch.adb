@@ -1,5 +1,8 @@
 with Ada.Strings.Unbounded;
+with Ada.Directories;
+with Ada.Streams.Stream_IO;
 with AUnit.Assertions;
+with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Arch;
 with Posix_Tools.Commands.Basename;
 with Posix_Tools.Commands.Cat;
@@ -79,6 +82,7 @@ with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Commands.Yes;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Help;
+with Test_Support;
 
 package body Command_Tests.Dispatch is
    use Ada.Strings.Unbounded;
@@ -265,6 +269,83 @@ package body Command_Tests.Dispatch is
    begin
       return Name = "awk" or else Name = "explore" or else Name = "sed";
    end Is_Rendering_Only;
+
+   procedure Test_Command_Inventory (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Inventory renames Posix_Tools.Command_Inventory;
+      function Same_Natural (Left, Right : Natural) return Boolean is
+        (Left = Right);
+   begin
+      AUnit.Assertions.Assert (Same_Natural (Inventory.Command_Count, 78), "inventory count");
+      AUnit.Assertions.Assert (Inventory.Executable (1) = "arch", "first command");
+      AUnit.Assertions.Assert (Inventory.Executable (2) = "awk", "awk command");
+      AUnit.Assertions.Assert (Inventory.Executable (21) = "explore", "explore command");
+      AUnit.Assertions.Assert
+        (Inventory.Wrapper_Path (21) = "tools/explore/src/explore_main.adb",
+         "explore wrapper path");
+      AUnit.Assertions.Assert
+        (Inventory.Wrapper_Path (3) = "tools/basename/src/basename.adb", "wrapper path");
+      AUnit.Assertions.Assert
+        (Inventory.Wrapper_Path (56) = "tools/sed/src/sed_main.adb", "sed wrapper path");
+      AUnit.Assertions.Assert (Inventory.Executable (29) = "grep", "grep command");
+      AUnit.Assertions.Assert (Inventory.Executable (56) = "sed", "sed command");
+      AUnit.Assertions.Assert (Inventory.Executable (72) = "unlink", "unlink command");
+      AUnit.Assertions.Assert (Inventory.Executable (78) = "yes", "last command");
+      AUnit.Assertions.Assert
+        (Inventory.Manifest_Path (3) = "tools/basename/alire.toml", "manifest path");
+      AUnit.Assertions.Assert
+        (Inventory.Project_File_Path (74) = "tools/wc/posix_tools_wc.gpr", "project file path");
+      AUnit.Assertions.Assert
+        (Inventory.Documentation_Path (62) = "docs/commands/tail.md", "documentation path");
+      AUnit.Assertions.Assert
+        (Inventory.Has_Help (1) and then Inventory.Has_Version (1)
+         and then Inventory.Has_Identity (1),
+         "extension flags");
+      AUnit.Assertions.Assert
+        (Inventory.Posix_Status (60) = "conforming_with_extensions"
+         and then Inventory.Posix_Status (74) = "conforming_with_extensions",
+         "conformance status values");
+   end Test_Command_Inventory;
+
+   procedure Test_Binds_Wrappers (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root : constant String := (if Ada.Directories.Exists ("tools") then "" else "../");
+
+      function Read_File (Path : String) return String is
+         File : Ada.Streams.Stream_IO.File_Type;
+      begin
+         Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
+         declare
+            Data : String (1 .. Natural (Ada.Streams.Stream_IO.Size (File)));
+         begin
+            String'Read (Ada.Streams.Stream_IO.Stream (File), Data);
+            Ada.Streams.Stream_IO.Close (File);
+            return Data;
+         end;
+      end Read_File;
+   begin
+      for Index in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
+         declare
+            Command : constant String := Posix_Tools.Command_Inventory.Executable (Index);
+            Bound   : constant String := Bound_Package (Command);
+         begin
+            if Is_Rendering_Only (Command) then
+               AUnit.Assertions.Assert (Bound = "", Command & " is bound although it renders only");
+            else
+               AUnit.Assertions.Assert
+                 (Bound = Posix_Tools.Command_Inventory.Package_Name (Index),
+                  Command & " is bound to " & Bound & ", not the inventory's "
+                  & Posix_Tools.Command_Inventory.Package_Name (Index));
+               AUnit.Assertions.Assert
+                 (Test_Support.Contains
+                    (Read_File (Root & Posix_Tools.Command_Inventory.Wrapper_Path (Index)),
+                     "Posix_Tools.Host_Adapters.Run_Command" & Character'Val (10)
+                     & "     (""" & Command & """, " & Bound & ".Run);"),
+                  Command & " wrapper does not instantiate Run_Command with " & Bound & ".Run");
+            end if;
+         end;
+      end loop;
+   end Test_Binds_Wrappers;
 
    procedure Run
      (Name    : String;

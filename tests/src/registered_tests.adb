@@ -8,6 +8,7 @@ with AUnit.Simple_Test_Cases;
 with AUnit.Test_Filters;
 with AUnit.Test_Results;
 with AUnit.Tests;
+with Suite_Filters;
 
 package body Registered_Tests is
    package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
@@ -47,7 +48,13 @@ package body Registered_Tests is
    function Is_Registered (Name : String) return Boolean is
    begin
       Load;
-      return Names.Contains (Name);
+      if Names.Contains (Name) then
+         return True;
+      end if;
+
+      return (for some Canonical_Name of Names =>
+                Suite_Filters.Is_Exact_Alias
+                  (Name, Canonical_Name));
    end Is_Registered;
 
    function Has_Suite (Suite : String) return Boolean is
@@ -57,6 +64,8 @@ package body Registered_Tests is
          if Name = Suite
            or else (Name'Length > Suite'Length
                     and then Name (Name'First .. Name'First + Suite'Length) = Suite & ' ')
+           or else Suite_Filters.Selects_Alias
+             (Suite, Whole_Name => True, Test_Name => Name)
          then
             return True;
          end if;

@@ -357,9 +357,15 @@ package body Test_Contexts is
       for Index in Groups'Range loop
          Groups (Index) := 0;
       end loop;
-      Groups (Groups'First) := 60000;
-      Groups (Groups'First + 1) := 60001;
-      Last := 2;
+      Last := 0;
+      if Groups'Length > 0 then
+         Groups (Groups'First) := 60000;
+         Last := 1;
+      end if;
+      if Groups'Length > 1 then
+         Groups (Groups'First + 1) := 60001;
+         Last := 2;
+      end if;
       return True;
    end Current_Supplementary_Group_Ids;
 
@@ -376,9 +382,15 @@ package body Test_Contexts is
          Last := 0;
          return False;
       end if;
-      Groups (Groups'First) := 60000;
-      Groups (Groups'First + 1) := 60001;
-      Last := 2;
+      Last := 0;
+      if Groups'Length > 0 then
+         Groups (Groups'First) := 60000;
+         Last := 1;
+      end if;
+      if Groups'Length > 1 then
+         Groups (Groups'First + 1) := 60001;
+         Last := 2;
+      end if;
       return True;
    end Current_Group_Ids;
 
@@ -395,9 +407,15 @@ package body Test_Contexts is
       end loop;
 
       if User_Name = "named-user" then
-         Groups (Groups'First) := 60002;
-         Groups (Groups'First + 1) := 60000;
-         Last := 2;
+         Last := 0;
+         if Groups'Length > 0 then
+            Groups (Groups'First) := 60002;
+            Last := 1;
+         end if;
+         if Groups'Length > 1 then
+            Groups (Groups'First + 1) := 60000;
+            Last := 2;
+         end if;
          return True;
       end if;
 

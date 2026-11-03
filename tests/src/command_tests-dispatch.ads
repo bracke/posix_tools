@@ -21,4 +21,8 @@ package Command_Tests.Dispatch is
    --  Whether Name is an inventory command this package cannot run through a
    --  context.
    function Is_Rendering_Only (Name : String) return Boolean;
+
+   procedure Test_Command_Inventory (T : in out Fixture);
+   procedure Test_Binds_Wrappers (T : in out Fixture);
+
 end Command_Tests.Dispatch;

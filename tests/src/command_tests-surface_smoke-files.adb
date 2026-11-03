@@ -136,23 +136,6 @@ package body Command_Tests.Surface_Smoke.Files is
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "copy-data", "cp copied data");
 
-      declare
-         Data : constant String := Large_Copy_Data;
-      begin
-         Write_File (Large_Source, Data);
-         Context.Initialize ("cp", Two_Args (Large_Source, Large_Target));
-         Posix_Tools.Commands.Cp.Run (Context, Result);
-         AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success,
-            "REG-CP-0001 cp copies large binary file");
-
-         Context.Initialize ("cat", One_Arg (Large_Target));
-         Posix_Tools.Commands.Cat.Run (Context, Result);
-         AUnit.Assertions.Assert
-           (Test_Contexts.Output (Context) = Data,
-            "REG-CP-0001 cp preserves large binary file bytes");
-      end;
-
       Ada.Directories.Create_Directory (Option_Dir);
       Ada.Directories.Create_Directory (Hostkit.Fs.Join (Option_Dir, "copies"));
       Write_File (Hostkit.Fs.Join (Option_Dir, "plain"), "plain-data");
@@ -295,36 +278,6 @@ package body Command_Tests.Surface_Smoke.Files is
             "cp copies a special file's contents without -R");
       end if;
 
-      if Hostkit.Fs.Create_FIFO (Cp_FIFO_Source, 8#600#) then
-         Context.Initialize ("cp", Three_Args ("-R", Cp_FIFO_Source, Cp_FIFO_Target));
-         Posix_Tools.Commands.Cp.Run (Context, Result);
-         declare
-            Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Target);
-         begin
-            AUnit.Assertions.Assert
-              (Result.Status = Posix_Tools.Exit_Status.Success
-               and then Info.Available
-               and then Info.Kind = Hostkit.Fs.FIFO,
-               "REG-CP-0003 cp recreates FIFO special files through hostkit");
-         end;
-      else
-         Test_Support.Skip_Without_FIFOs ("REG-CP-0003 cp recreates FIFO special files");
-      end if;
-
-      if Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#) then
-         Context.Initialize ("cp", Three_Args ("-R", Cp_Socket_Source, Cp_Socket_Target));
-         Posix_Tools.Commands.Cp.Run (Context, Result);
-         declare
-            Info : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Target);
-         begin
-            AUnit.Assertions.Assert
-              (Result.Status = Posix_Tools.Exit_Status.Success
-               and then Info.Available
-               and then Info.Kind = Hostkit.Fs.Socket,
-               "REG-CP-0004 cp recreates Unix-domain socket files through hostkit");
-         end;
-      end if;
-
       Ada.Directories.Create_Directory (Tree);
       Write_File (Tree & "/child.txt", "child");
       Write_File (Target, "ordinary-target");
@@ -389,15 +342,6 @@ package body Command_Tests.Surface_Smoke.Files is
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "existing-data", "cp -fi preserves target");
 
-      Context.Initialize ("cp", Three_Args ("-i", Source, Target));
-      Test_Contexts.Set_Locale (Context, "da");
-      Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
-      Posix_Tools.Commands.Cp.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Error_Output (Context) = "cp: overskriv '" & Target & "'?" & EOL,
-         "REG-CP-0002 cp localizes interactive overwrite prompt");
-
       Ada.Directories.Create_Path (Tree & "/sub");
       Write_File (Tree & "/sub/file.txt", "tree-data");
       Context.Initialize ("cp", Three_Args ("-R", Tree, Tree_Copy));
@@ -420,6 +364,95 @@ package body Command_Tests.Surface_Smoke.Files is
       Posix_Tools.Commands.Cp.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "cp -Rp status");
    end Test_Cp;
+
+   procedure Test_Cp_Bounded_Binary (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Data    : constant String := Large_Copy_Data;
+   begin
+      Write_File (Large_Source, Data);
+      Context.Initialize ("cp", Two_Args (Large_Source, Large_Target));
+      Posix_Tools.Commands.Cp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "REG-CP-0001 cp copies large binary file");
+
+      Context.Initialize ("cat", One_Arg (Large_Target));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = Data,
+         "REG-CP-0001 cp preserves large binary file bytes");
+   end Test_Cp_Bounded_Binary;
+
+   procedure Test_Cp_Localized_Prompt (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Write_File (Source, "copy-data");
+      Write_File (Target, "existing-data");
+      Context.Initialize ("cp", Three_Args ("-i", Source, Target));
+      Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input (Context, "n" & EOL);
+      Posix_Tools.Commands.Cp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Error_Output (Context) = "cp: overskriv '" & Target & "'?" & EOL,
+         "REG-CP-0002 cp localizes interactive overwrite prompt");
+   end Test_Cp_Localized_Prompt;
+
+   procedure Test_Cp_FIFO_Recreation (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Remove_Any (Cp_FIFO_Source);
+      Remove_Any (Cp_FIFO_Target);
+      if Hostkit.Fs.Create_FIFO (Cp_FIFO_Source, 8#600#) then
+         Context.Initialize ("cp", Three_Args ("-R", Cp_FIFO_Source, Cp_FIFO_Target));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         declare
+            Info : constant Hostkit.Fs.Special_File_Info :=
+              Hostkit.Fs.Special_File_Info_Of (Cp_FIFO_Target);
+         begin
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success
+               and then Info.Available
+               and then Info.Kind = Hostkit.Fs.FIFO,
+               "REG-CP-0003 cp recreates FIFO special files through hostkit");
+         end;
+         Remove_Any (Cp_FIFO_Source);
+         Remove_Any (Cp_FIFO_Target);
+      else
+         Test_Support.Skip_Without_FIFOs ("REG-CP-0003 cp recreates FIFO special files");
+      end if;
+   end Test_Cp_FIFO_Recreation;
+
+   procedure Test_Cp_Socket_Recreation (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Remove_Any (Cp_Socket_Source);
+      Remove_Any (Cp_Socket_Target);
+      if Hostkit.Fs.Create_Socket (Cp_Socket_Source, 8#600#) then
+         Context.Initialize ("cp", Three_Args ("-R", Cp_Socket_Source, Cp_Socket_Target));
+         Posix_Tools.Commands.Cp.Run (Context, Result);
+         declare
+            Info : constant Hostkit.Fs.Special_File_Info :=
+              Hostkit.Fs.Special_File_Info_Of (Cp_Socket_Target);
+         begin
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success
+               and then Info.Available
+               and then Info.Kind = Hostkit.Fs.Socket,
+               "REG-CP-0004 cp recreates Unix-domain socket files through hostkit");
+         end;
+         Remove_Any (Cp_Socket_Source);
+         Remove_Any (Cp_Socket_Target);
+      end if;
+   end Test_Cp_Socket_Recreation;
 
    procedure Test_Cp_Multiple_Sources (T : in out Surface_Fixture) is
       pragma Unreferenced (T);

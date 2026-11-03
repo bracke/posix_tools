@@ -13,8 +13,7 @@ project Posix_Tools_Grep is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-g",
-         "-gnaty3abcefhiklmnoprstux", "-gnatyM120");
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-g");
    end Compiler;
 
    package Binder is

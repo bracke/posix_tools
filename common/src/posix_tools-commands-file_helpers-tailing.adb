@@ -43,6 +43,15 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
       Spill_Needed : Boolean := False;
       Spill_Ok : Boolean := True;
 
+      procedure Release_Store is
+      begin
+         if not Posix_Tools.Host_Adapters.Temporary_Storage.Try_Cleanup (Store) then
+            Posix_Tools.Commands.Helpers.Operational_Error
+              (Context, "posix_tools.diagnostic.file.remove_failed", "cannot remove");
+            Ok := False;
+         end if;
+      end Release_Store;
+
       procedure Resource_Error is
       begin
          Posix_Tools.Commands.Helpers.Operational_Error
@@ -217,7 +226,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          if File_Name = "-"
            or else Posix_Tools.Host_Adapters.File_System.Can_Open_For_Read (File_Name)
          then
-            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Release_Store;
             return;
          end if;
 
@@ -225,7 +234,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
           (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
            "posix_tools.diagnostic.file.read_failed", "cannot read file");
          Ok := False;
-         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Release_Store;
          return;
       end if;
 
@@ -236,7 +245,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
                  (Context, Posix_Tools.Commands.Helpers.Standard_Input_Name (Context),
                   "posix_tools.diagnostic.file.read_failed", "cannot read file");
                Ok := False;
-               Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+               Release_Store;
                return;
             end if;
             exit when Last < Input'First;
@@ -255,7 +264,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Posix_Tools.Commands.Helpers.File_Subject (Context, File_Name),
                "posix_tools.diagnostic.file.read_failed", "cannot read file");
-            Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+            Release_Store;
             return;
          end if;
       end if;
@@ -265,7 +274,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
       end if;
 
       if not Ok then
-         Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+         Release_Store;
          return;
       end if;
 
@@ -287,7 +296,7 @@ package body Posix_Tools.Commands.File_Helpers.Tailing is
          end loop;
       end if;
 
-      Posix_Tools.Host_Adapters.Temporary_Storage.Cleanup (Store);
+      Release_Store;
    end Copy_Line_Suffix;
 
    procedure Copy_Lines_From

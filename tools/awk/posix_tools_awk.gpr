@@ -13,7 +13,7 @@ project Posix_Tools_Awk is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-g");
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnatw.X", "-gnatwe", "-g");
    end Compiler;
 
    package Binder is

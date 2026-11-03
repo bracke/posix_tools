@@ -242,6 +242,8 @@ package body Sed.IO.Filesystem is
                end if;
             exception
                when others =>
+                  --  Intentional terminal exception barrier: releasing an
+                  --  input handle has no recoverable error channel.
                   --  Releasing a read handle cannot lose data, so a close
                   --  fault here has no observable effect to report.
                   null;
@@ -469,6 +471,8 @@ package body Sed.IO.Filesystem is
                   end if;
                exception
                   when others =>
+                     --  Intentional terminal exception barrier: finalization
+                     --  has no error channel and must release the slot.
                      null;
                end;
 

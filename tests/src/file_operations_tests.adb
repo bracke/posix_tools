@@ -1,9 +1,13 @@
 with Ada.Containers;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with GNAT.OS_Lib;
+with Hostkit.Fs;
 with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Natural_Order;
 with Project_Tools.Files;
@@ -305,6 +309,77 @@ package body File_Operations_Tests is
       AUnit.Assertions.Assert (Modes.Permission_Image (8#1777#) = "rwxrwxrwt", "sticky with execute");
       AUnit.Assertions.Assert (Modes.Permission_Image (8#1666#) = "rw-rw-rwT", "sticky without execute");
    end Test_Permission_Image;
+
+   procedure Test_Temporary_Storage_Long_Path (T : in out Fixture) is
+      pragma Unreferenced (T);
+      use Ada.Strings.Unbounded;
+      use type Hostkit.Fs.Delete_Tree_Outcome;
+
+      Was_Defined : constant Boolean := Ada.Environment_Variables.Exists ("TMPDIR");
+      Old_Value   : constant String :=
+        (if Was_Defined then Ada.Environment_Variables.Value ("TMPDIR") else "");
+      Base : constant String := Hostkit.Fs.Create_Temporary_Directory ("posix-tools-long-temp");
+      Root : Unbounded_String := To_Unbounded_String (Base);
+
+      procedure Restore is
+      begin
+         if Was_Defined then
+            Ada.Environment_Variables.Set ("TMPDIR", Old_Value);
+         else
+            Ada.Environment_Variables.Clear ("TMPDIR");
+         end if;
+      end Restore;
+
+      procedure Remove_Base is
+         Outcome : Hostkit.Fs.Delete_Tree_Outcome;
+      begin
+         if Base /= "" and then Ada.Directories.Exists (Base) then
+            Outcome := Hostkit.Fs.Delete_Tree_No_Follow (Base);
+            AUnit.Assertions.Assert (Outcome = Hostkit.Fs.Tree_Deleted, "temporary fixture removed");
+         end if;
+      end Remove_Base;
+   begin
+      --  This regression exercises the POSIX TMPDIR path.  Windows uses a
+      --  different temporary-directory API and has legacy path limits.
+      if GNAT.OS_Lib.Directory_Separator /= '/' then
+         Remove_Base;
+         return;
+      end if;
+
+      AUnit.Assertions.Assert (Base /= "", "unique temporary fixture created");
+      for Index in 1 .. 7 loop
+         Append (Root, "/segment-" & Integer'Image (Index) & String'(1 .. 80 => 'x'));
+      end loop;
+      Ada.Directories.Create_Path (To_String (Root));
+      Ada.Environment_Variables.Set ("TMPDIR", To_String (Root));
+
+      declare
+         Store : Posix_Tools.Host_Adapters.Temporary_Storage.Store;
+      begin
+         AUnit.Assertions.Assert
+           (Posix_Tools.Host_Adapters.Temporary_Storage.Create (Store, 1_024),
+            "temporary spill storage accepts paths longer than fixed legacy buffers");
+      end;
+
+      Restore;
+      --  Delete_Directory succeeds only if Store.Finalize removed its spill
+      --  file and the directory created beneath TMPDIR.
+      Ada.Directories.Delete_Directory (To_String (Root));
+      Remove_Base;
+   exception
+      when others =>
+         Restore;
+         if Base /= "" and then Ada.Directories.Exists (Base) then
+            declare
+               Ignored : constant Hostkit.Fs.Delete_Tree_Outcome :=
+                 Hostkit.Fs.Delete_Tree_No_Follow (Base);
+               pragma Unreferenced (Ignored);
+            begin
+               null;
+            end;
+         end if;
+         raise;
+   end Test_Temporary_Storage_Long_Path;
 
    procedure Write (Path : String; Size : Natural) is
       Ok : Boolean;

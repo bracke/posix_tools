@@ -33,6 +33,7 @@ package body Metadata_Checks.Test_Coverage is
        +"property:head prefix",
        +"property:head standard input",
        +"command:head invalid count",
+       +"command:head missing count",
        +"command:head multiple file headers",
        +"command:head standard input",
        +"command:pwd options",
@@ -42,6 +43,7 @@ package body Metadata_Checks.Test_Coverage is
        +"command:tail compact counts",
        +"command:tail follow live",
        +"command:tail invalid count",
+       +"command:tail missing count",
        +"command:tail line mode edges",
        +"command:tail multiple file headers",
        +"command:tail plus origin",
@@ -56,6 +58,7 @@ package body Metadata_Checks.Test_Coverage is
        +"command:wc text counts",
        +"command:wc invalid UTF-8",
        +"command:wc malformed UTF-8",
+       +"command:wc code point validity",
        +"command:wc standard input",
        +"property:wc byte count",
        +"property:wc standard input bytes",
@@ -124,6 +127,7 @@ package body Metadata_Checks.Test_Coverage is
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-TAIL-0003");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-TAIL-0005");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-TAIL-0006");
+      Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-TAIL-0007");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0001");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0002");
       Tooling_Checks.Require_Text (Check, "generated/regressions.csv", "REG-WC-0003");

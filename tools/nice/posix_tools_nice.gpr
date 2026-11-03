@@ -6,6 +6,6 @@ project Posix_Tools_Nice is
    for Exec_Dir use "bin";
    for Main use ("nice.adb");
    package Compiler is
-      for Default_Switches ("Ada") use ("-gnat2022", "-gnata", "-gnatwa", "-gnatyM120");
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnata", "-gnatwa", "-gnatyM120", "-gnatwe");
    end Compiler;
 end Posix_Tools_Nice;

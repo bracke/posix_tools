@@ -163,7 +163,9 @@ package body Preview_Tests is
       Write (Root & "/stored.zip", Zip_Of ("inner.txt", Content));
       Wanted.Clear;
       Wanted.Append ("     6  inner.txt");
-      AUnit.Assertions.Assert (Lines_Of (Root & "/stored.zip", Zip_Of ("inner.txt", Content)) = Wanted, "zip members from its central directory");
+      AUnit.Assertions.Assert
+        (Lines_Of (Root & "/stored.zip", Zip_Of ("inner.txt", Content)) = Wanted,
+         "zip members from its central directory");
 
       Item := Previews.Build (Root & "/plain.tar");
       AUnit.Assertions.Assert

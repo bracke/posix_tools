@@ -17,16 +17,16 @@ REG-WC-0001,wc,count binary file and standard input bytes without synthetic newl
 REG-HEAD-0001,head,preserve final partial line and honor zero and compact counts,command:head counts
 REG-HEAD-0002,head,reject invalid compact and negative counts without exceptions,command:head invalid count
 REG-HEAD-0003,head,stop line emission and return operational failure when stdout fails without a read diagnostic,command:head output failure
-REG-HEAD-0004,head,reject -n without a required count as invalid usage before file processing,command:head invalid count
+REG-HEAD-0004,head,reject -n without a required count as invalid usage before file processing,command:head missing count
 REG-TAIL-0001,tail,preserve binary suffix output for -c count on files and standard input,command:tail byte mode edges
 REG-TAIL-0002,tail,recognize compact and plus-prefixed tail counts as options rather than filenames,command:tail compact counts; command:tail plus origin
 REG-TAIL-0003,tail,reject invalid compact and negative counts without exceptions,command:tail invalid count
 REG-TAIL-0004,tail,stop suffix emission and return operational failure when stdout fails without a read diagnostic,command:tail output failure
-REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail invalid count
+REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail missing count
 REG-TAIL-0006,tail,emit bytes appended after the initial suffix for follow mode and reopen a truncated file for follow-by-name mode,command:tail follow live
 REG-WC-0002,wc,count split UTF-8 characters for -m and count an incomplete sequence as one character in text modes,streams:utf-8 counting; command:wc invalid UTF-8
-REG-WC-0003,wc,count overlong bad-continuation surrogate and out-of-range UTF-8 sequences as characters in text modes without failing,command:wc malformed UTF-8
-REG-WC-0004,wc,treat surrogate and out-of-range UTF-8 code point encodings as invalid in text-counting support,streams:utf-8 counting; command:wc malformed UTF-8
+REG-WC-0003,wc,recover from overlong and bad-continuation UTF-8 sequences in text modes without failing,command:wc malformed UTF-8
+REG-WC-0004,wc,treat surrogate and out-of-range UTF-8 code point encodings as invalid in text-counting support,streams:utf-8 counting; command:wc code point validity
 REG-WC-0005,wc,return operational failure when stdout fails while suppressing totals after incomplete output,command:wc output failure
 REG-WC-0006,wc,continue after a failed file and print a total for successful operands while returning aggregate failure,command:wc multiple files
 REG-WC-0007,wc,implement -L maximum-line-length output consistently as a documented project extension,command:wc default and mixed text
@@ -128,3 +128,4 @@ REG-STAT-0001,stat,count epoch seconds from the UTC epoch,command:stat surface
 REG-SORT-0012,sort,fold U+0130 to i with a dot above before the U+0100 range,command:sort surface
 REG-CP-0014,cp mv,escape operands in -v output,command:rm and mv prompts localized
 REG-LN-0002,ln,take -L and -P for hard links to symbolic links,command:ln same file
+REG-TAIL-0007,tail,create and finalize spill storage when TMPDIR produces paths longer than the legacy fixed buffers,regression:REG-TAIL-0007 temporary storage long path

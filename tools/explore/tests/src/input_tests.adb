@@ -222,7 +222,7 @@ package body Input_Tests is
 
       --  Longer than any escape sequence, and read in more than one piece.
       declare
-         Long : constant String (1 .. 10_000) := (others => 'd');
+         Long : constant String (1 .. 10_000) := [others => 'd'];
       begin
          Input.Feed (Decoder, CSI & "200~" & Long (1 .. 5_000));
          Input.Next (Decoder, Item, Found);

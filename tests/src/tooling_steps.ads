@@ -75,7 +75,7 @@ package Tooling_Steps is
      (case Item is
          when Test_Command          => [Run_Tests],
          when Check_Command         =>
-           [Run_Metadata_Checks, Run_Format_Checks, Run_Conformance_Checks, Run_Tests],
+           [Run_Build, Run_Metadata_Checks, Run_Format_Checks, Run_Conformance_Checks, Run_Tests],
          when Release_Check_Command => Release_Gate & Final_Checks,
          when Release_Command       =>
            Require_Clean_Source_Tree & Release_Gate & Generate_Release_Checksums & Final_Checks,

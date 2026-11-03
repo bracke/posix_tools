@@ -43,6 +43,8 @@ exception
          end;
       exception
          when others =>
+            --  Intentional terminal exception barrier: the exit status below
+            --  is the only remaining observable fallback.
             null;
       end;
       Posix_Tools.Process_Entry.Set_Exit_Status (70);

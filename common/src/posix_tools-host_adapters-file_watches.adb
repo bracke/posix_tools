@@ -1,5 +1,3 @@
-with Hostkit.Watch;
-
 package body Posix_Tools.Host_Adapters.File_Watches is
    procedure Watch_Path (Self : in out Watch; Path : String) is
    begin

@@ -124,8 +124,8 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
               Posix_Tools.Text.Find_Expressions.Type_Matches
                 (Filter,
                  Exists,
-                 Kind = FS.Directory,
-                 Kind = FS.Ordinary_File,
+                 False,
+                 False,
                  Is_Link,
                  Info.Available,
                  Special_Class);

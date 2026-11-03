@@ -1,4 +1,3 @@
-with AUnit.Test_Suites;
 with Command_Tests.Suite_Entries;
 
 package body Command_Tests.Suite is

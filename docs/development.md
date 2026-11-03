@@ -32,3 +32,19 @@ documented properties.
 Project tooling must be Ada code using `project_tools`. Metadata checks reject
 shell, Python, JavaScript, Make, CMake, PowerShell, and batch tooling files.
 Ada sources must not silently discard failures with null handlers.
+
+All maintained GPR projects compile warnings as errors. The core library,
+root executable, tests, proof project, and grep also use the project style
+switch set; thin command wrappers enforce the shared line-length limit. The
+core profile deliberately omits GNAT's alphabetical-body-order and
+body-must-have-a-prior-spec checks: local helpers are ordered by execution
+flow, and small package bodies may keep private helpers body-local. Explore
+retains those two additional checks. The metadata gate reads active Ada
+`Default_Switches` declarations from
+the packaged project inventory, so commented flags and build artifacts cannot
+satisfy the policy.
+
+Commands normally turn an unexpected exception into the localized, opaque
+`internal failure` diagnostic. For local debugging only, setting
+`POSIX_TOOLS_DEBUG` to a nonempty value appends Ada exception information to
+standard error. An undefined or empty value keeps the diagnostic opaque.

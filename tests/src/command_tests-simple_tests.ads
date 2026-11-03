@@ -1,0 +1,24 @@
+package Command_Tests.Simple_Tests is
+   procedure Test_Basename (T : in out Fixture);
+   procedure Test_Basename_Dirname_Command_Property (T : in out Fixture);
+   procedure Test_Basename_Edge_Cases (T : in out Fixture);
+   procedure Test_Cat_Byte_Preservation_Property (T : in out Fixture);
+   procedure Test_Cat_Continues_After_Missing_File (T : in out Fixture);
+   procedure Test_Cat_Files (T : in out Fixture);
+   procedure Test_Cat_Output_Failure (T : in out Fixture);
+   procedure Test_Cat_Standard_Input (T : in out Fixture);
+   procedure Test_Dirname (T : in out Fixture);
+   procedure Test_Dirname_Edge_Cases (T : in out Fixture);
+   procedure Test_Echo (T : in out Fixture);
+   procedure Test_Echo_Data_Edge_Cases (T : in out Fixture);
+   procedure Test_Echo_Extensions_Are_Sole_Argument (T : in out Fixture);
+   procedure Test_Echo_Output_Property (T : in out Fixture);
+   procedure Test_False (T : in out Fixture);
+   procedure Test_False_Extension_Edges (T : in out Fixture);
+   procedure Test_Host_Identity_Commands (T : in out Fixture);
+   procedure Test_True (T : in out Fixture);
+   procedure Test_True_Extension_Edges (T : in out Fixture);
+   procedure Test_True_False_Operand_Property (T : in out Fixture);
+   procedure Test_Tty (T : in out Fixture);
+   procedure Test_Yes (T : in out Fixture);
+end Command_Tests.Simple_Tests;

@@ -2,6 +2,10 @@ package Command_Tests.Surface_Smoke.Files is
    procedure Test_Chmod (T : in out Surface_Fixture);
    procedure Test_Chown_Chgrp (T : in out Surface_Fixture);
    procedure Test_Cp (T : in out Surface_Fixture);
+   procedure Test_Cp_Bounded_Binary (T : in out Surface_Fixture);
+   procedure Test_Cp_Localized_Prompt (T : in out Surface_Fixture);
+   procedure Test_Cp_FIFO_Recreation (T : in out Surface_Fixture);
+   procedure Test_Cp_Socket_Recreation (T : in out Surface_Fixture);
    procedure Test_Cp_Multiple_Sources (T : in out Surface_Fixture);
    procedure Test_Link (T : in out Surface_Fixture);
    procedure Test_Ln (T : in out Surface_Fixture);

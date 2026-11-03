@@ -140,10 +140,15 @@ package body Settings_Tests is
       Marks.Include ('b', Unbounded.To_Unbounded_String ("/usr/lib"));
       Marks.Include ('a', Unbounded.To_Unbounded_String ("/home/user/with space"));
       AUnit.Assertions.Assert
-        (Settings.Bookmarks_Image (Marks) = "a /home/user/with space" & LF & "b /usr/lib" & LF, "one line each, in order");
+        (Settings.Bookmarks_Image (Marks)
+           = "a /home/user/with space" & LF & "b /usr/lib" & LF,
+         "one line each, in order");
       AUnit.Assertions.Assert
-        (Settings.Bookmark_Maps."=" (Settings.Bookmarks_Value ("a /home/user/with space" & LF & "junk" & LF & "% /x" & LF
-                                                 & "b /usr/lib"), Marks),
+        (Settings.Bookmark_Maps."="
+           (Settings.Bookmarks_Value
+              ("a /home/user/with space" & LF & "junk" & LF
+               & "% /x" & LF & "b /usr/lib"),
+            Marks),
          "read back, skipping lines that are not bookmarks, the last without its line feed");
 
       Storage.Write_Bookmarks (Root & "/deep/explore/bookmarks", Marks, Ok);
@@ -225,7 +230,10 @@ package body Settings_Tests is
    procedure Test_Openers (T : in out Fixture) is
       pragma Unreferenced (T);
       Openers : Explore.Launch.Opener_Vectors.Vector;
-      Pdf     : Explore.Launch.Opener := (Run => Unbounded.To_Unbounded_String ("zathura"), Detach => True, others => <>);
+      Pdf     : Explore.Launch.Opener :=
+        (Run => Unbounded.To_Unbounded_String ("zathura"),
+         Detach => True,
+         others => <>);
    begin
       Pdf.Patterns.Append ("*.pdf");
       Openers.Append (Pdf);

@@ -249,7 +249,7 @@ package body Operation_Tests is
       end if;
 
       --  A copy stopped part of the way through a file leaves no part of it.
-      Write (Path (Root, "large"), (1 .. 4_000_000 => 'x'));
+      Write (Path (Root, "large"), [1 .. 4_000_000 => 'x']);
       Reset (Watcher);
       Watcher.Stop_After_Progress := 1;
       Ops.Copying.Copy_Path (Path (Root, "large"), Path (Root, "large-copy"), (others => <>), Watcher, Outcome);
@@ -274,9 +274,13 @@ package body Operation_Tests is
       Remove (Root);
    exception
       when others =>
-         if FS.Set_Permissions (Path (Root, "src/sub"), 8#755#) then
+         declare
+            Restored : constant Boolean :=
+              FS.Set_Permissions (Path (Root, "src/sub"), 8#755#);
+            pragma Unreferenced (Restored);
+         begin
             null;
-         end if;
+         end;
          raise;
    end Test_Copy_Kept_And_Stopped;
 

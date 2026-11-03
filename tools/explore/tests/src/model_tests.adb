@@ -244,6 +244,39 @@ package body Model_Tests is
       AUnit.Assertions.Assert (Model.File_Preview (Browser) = 0, "nothing selected, nothing previewed");
    end Test_File_Preview;
 
+   procedure Test_Filter (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Browser : Model.Browser;
+   begin
+      Model.Open (Browser, "/d");
+      Give (Browser, Model.Current_Pane, "Alpha beta gamma Delta");
+      Model.Move_To (Browser, 3);
+
+      Browser.Filter := Unbounded.To_Unbounded_String ("A");
+      Model.Apply_Filter (Browser);
+      AUnit.Assertions.Assert
+        (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 4,
+         "case is ignored: every name has an a");
+      Browser.Filter := Unbounded.To_Unbounded_String ("ta");
+      Model.Apply_Filter (Browser);
+      AUnit.Assertions.Assert
+        (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 2,
+         "beta and Delta");
+      AUnit.Assertions.Assert
+        (Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "Delta",
+         "the cursor stays near its place");
+      Browser.Filter := Unbounded.To_Unbounded_String ("zzz");
+      Model.Apply_Filter (Browser);
+      AUnit.Assertions.Assert
+        (not Model.Has_Selection (Browser.Panes (Model.Current_Pane)),
+         "nothing shown, nothing selected");
+      Browser.Filter := Unbounded.Null_Unbounded_String;
+      Model.Apply_Filter (Browser);
+      AUnit.Assertions.Assert
+        (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 4,
+         "filter cleared");
+   end Test_Filter;
+
    procedure Test_History_And_Visual (T : in out Fixture) is
       pragma Unreferenced (T);
       Browser : Model.Browser;
@@ -302,32 +335,6 @@ package body Model_Tests is
          "visual still runs from b once an entry came before it");
       Model.End_Visual (Browser);
    end Test_History_And_Visual;
-
-   procedure Test_Filter (T : in out Fixture) is
-      pragma Unreferenced (T);
-      Browser : Model.Browser;
-   begin
-      Model.Open (Browser, "/d");
-      Give (Browser, Model.Current_Pane, "Alpha beta gamma Delta");
-      Model.Move_To (Browser, 3);
-
-      Browser.Filter := Unbounded.To_Unbounded_String ("A");
-      Model.Apply_Filter (Browser);
-      AUnit.Assertions.Assert
-        (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 4, "case is ignored: every name has an a");
-      Browser.Filter := Unbounded.To_Unbounded_String ("ta");
-      Model.Apply_Filter (Browser);
-      AUnit.Assertions.Assert (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 2, "beta and Delta");
-      AUnit.Assertions.Assert
-        (Model.Selected_Name (Browser.Panes (Model.Current_Pane)) = "Delta", "the cursor stays near its place");
-      Browser.Filter := Unbounded.To_Unbounded_String ("zzz");
-      Model.Apply_Filter (Browser);
-      AUnit.Assertions.Assert
-        (not Model.Has_Selection (Browser.Panes (Model.Current_Pane)), "nothing shown, nothing selected");
-      Browser.Filter := Unbounded.Null_Unbounded_String;
-      Model.Apply_Filter (Browser);
-      AUnit.Assertions.Assert (Model.Shown_Count (Browser.Panes (Model.Current_Pane)) = 4, "filter cleared");
-   end Test_Filter;
 
    procedure Test_Jump_Places (T : in out Fixture) is
       pragma Unreferenced (T);

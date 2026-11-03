@@ -1,8 +1,10 @@
+with Ada.Characters.Handling;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Text.Matching;
+with Project_Tools.Ada_Source;
 with Project_Tools.Files;
 with Tooling_Checks;
 with Project_Tools.Text;
@@ -242,24 +244,336 @@ package body Metadata_Checks.Manifests is
 
       procedure Check_No_Silent_Broad_Handlers is
          use Ada.Strings.Unbounded;
-         Silent_Handler_Token : constant String := "when others " & "=" & "> null";
          Source_Roots : constant Project_Tools.Files.Name_List :=
            [To_Unbounded_String ("common/src"),
             To_Unbounded_String ("src"),
             To_Unbounded_String ("tests/src"),
             To_Unbounded_String ("tools")];
+
+         function Line_Start
+           (Content     : String;
+            Line_Number : Positive) return Natural
+         is
+            Current : Positive := 1;
+         begin
+            if Line_Number = 1 then
+               return Content'First;
+            end if;
+
+            for Index in Content'Range loop
+               if Content (Index) = Character'Val (10) then
+                  Current := Current + 1;
+                  if Current = Line_Number then
+                     return Index + 1;
+                  end if;
+               end if;
+            end loop;
+            return 0;
+         end Line_Start;
+
+         type Silent_Handler_Info is record
+            Is_Silent   : Boolean := False;
+            Intentional : Boolean := False;
+         end record;
+
+         Barrier_Marker : constant String :=
+           "intentional terminal exception barrier";
+
+         function Inspect_Silent_Handler
+           (Content     : String;
+            Line_Number : Positive) return Silent_Handler_Info
+         is
+            Cursor : Natural := Line_Start (Content, Line_Number);
+            Result : Silent_Handler_Info;
+
+            procedure Skip_Trivia is
+            begin
+               loop
+                  while Cursor <= Content'Last
+                    and then Content (Cursor) in ' ' | Character'Val (9)
+                      | Character'Val (10) | Character'Val (13)
+                  loop
+                     Cursor := Cursor + 1;
+                  end loop;
+
+                  exit when Cursor >= Content'Last
+                    or else Content (Cursor .. Cursor + 1) /= "--";
+
+                  declare
+                     First : constant Natural := Cursor;
+                  begin
+                     while Cursor <= Content'Last
+                       and then Content (Cursor) /= Character'Val (10)
+                     loop
+                        Cursor := Cursor + 1;
+                     end loop;
+                     if Ada.Strings.Fixed.Index
+                       (Ada.Characters.Handling.To_Lower
+                          (Content (First .. Cursor - 1)),
+                        Barrier_Marker) > 0
+                     then
+                        Result.Intentional := True;
+                     end if;
+                  end;
+               end loop;
+            end Skip_Trivia;
+
+            function At_Keyword (Keyword : String) return Boolean is
+               After : constant Natural := Cursor + Keyword'Length;
+            begin
+               return Cursor <= Content'Last
+                 and then Keyword'Length <= Content'Last - Cursor + 1
+                 and then Ada.Characters.Handling.To_Lower
+                   (Content (Cursor .. After - 1)) = Keyword
+                 and then
+                   (After > Content'Last
+                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
+                      (Content (After)));
+            end At_Keyword;
+
+            procedure Skip_Pragma is
+               In_Pragma_String : Boolean := False;
+            begin
+               while Cursor <= Content'Last loop
+                  if Content (Cursor) = '"' then
+                     if In_Pragma_String
+                       and then Cursor < Content'Last
+                       and then Content (Cursor + 1) = '"'
+                     then
+                        Cursor := Cursor + 2;
+                     else
+                        In_Pragma_String := not In_Pragma_String;
+                        Cursor := Cursor + 1;
+                     end if;
+                  elsif not In_Pragma_String and then Content (Cursor) = ';' then
+                     Cursor := Cursor + 1;
+                     return;
+                  else
+                     Cursor := Cursor + 1;
+                  end if;
+               end loop;
+            end Skip_Pragma;
+
+            procedure Skip_Label is
+            begin
+               Cursor := Cursor + 2;
+               while Cursor < Content'Last
+                 and then Content (Cursor .. Cursor + 1) /= ">>"
+               loop
+                  Cursor := Cursor + 1;
+               end loop;
+               if Cursor < Content'Last then
+                  Cursor := Cursor + 2;
+               end if;
+            end Skip_Label;
+
+            In_String    : Boolean := False;
+            Begin_Depth  : Natural := 0;
+         begin
+            if Cursor = 0 then
+               return Result;
+            end if;
+
+            --  Find the handler arrow as Ada code, ignoring arrows in
+            --  comments and string literals on a continued choice line.
+            while Cursor < Content'Last loop
+               if not In_String
+                 and then Content (Cursor .. Cursor + 1) = "--"
+               then
+                  while Cursor <= Content'Last
+                    and then Content (Cursor) /= Character'Val (10)
+                  loop
+                     Cursor := Cursor + 1;
+                  end loop;
+               elsif Content (Cursor) = '"' then
+                  if In_String
+                    and then Cursor < Content'Last
+                    and then Content (Cursor + 1) = '"'
+                  then
+                     Cursor := Cursor + 2;
+                  else
+                     In_String := not In_String;
+                     Cursor := Cursor + 1;
+                  end if;
+               elsif not In_String
+                 and then Content (Cursor .. Cursor + 1) = "=>"
+               then
+                  exit;
+               else
+                  Cursor := Cursor + 1;
+               end if;
+            end loop;
+            if Cursor >= Content'Last then
+               return Result;
+            end if;
+            Cursor := Cursor + 2;
+            Skip_Trivia;
+
+            --  Ignore structural wrappers around the handler's first
+            --  effective statement. Labels and declarative pragmas must not
+            --  turn a swallowed exception into an apparent action.
+            loop
+               if At_Keyword ("begin") then
+                  Begin_Depth := Begin_Depth + 1;
+                  Cursor := Cursor + 5;
+                  Skip_Trivia;
+               elsif Cursor < Content'Last
+                 and then Content (Cursor .. Cursor + 1) = "<<"
+               then
+                  Skip_Label;
+                  Skip_Trivia;
+               elsif At_Keyword ("pragma") then
+                  Skip_Pragma;
+                  Skip_Trivia;
+               else
+                  exit;
+               end if;
+            end loop;
+
+            declare
+               Keyword_Length : Natural := 0;
+            begin
+               if Cursor + 3 <= Content'Last
+                 and then Ada.Characters.Handling.To_Lower
+                   (Content (Cursor .. Cursor + 3)) = "null"
+                 and then
+                   (Cursor + 4 > Content'Last
+                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
+                      (Content (Cursor + 4)))
+               then
+                  Keyword_Length := 4;
+               elsif Cursor + 5 <= Content'Last
+                 and then Ada.Characters.Handling.To_Lower
+                   (Content (Cursor .. Cursor + 5)) = "return"
+                 and then
+                   (Cursor + 6 > Content'Last
+                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
+                      (Content (Cursor + 6)))
+               then
+                  Keyword_Length := 6;
+               else
+                  return Result;
+               end if;
+               Cursor := Cursor + Keyword_Length;
+            end;
+            Skip_Trivia;
+            if Cursor > Content'Last or else Content (Cursor) /= ';' then
+               return Result;
+            end if;
+            Cursor := Cursor + 1;
+            Skip_Trivia;
+
+            while Begin_Depth > 0 loop
+               if not At_Keyword ("end") then
+                  return Result;
+               end if;
+               Cursor := Cursor + 3;
+               Skip_Trivia;
+               if Cursor > Content'Last or else Content (Cursor) /= ';' then
+                  return Result;
+               end if;
+               Cursor := Cursor + 1;
+               Begin_Depth := Begin_Depth - 1;
+               Skip_Trivia;
+            end loop;
+
+            --  A null before another handler statement is not a silent
+            --  handler. At EOF, "when", or the handled sequence's "end",
+            --  the swallowed exception has no remaining action.
+            Result.Is_Silent :=
+              Cursor > Content'Last
+              or else At_Keyword ("when")
+              or else At_Keyword ("end");
+            return Result;
+         end Inspect_Silent_Handler;
       begin
+         declare
+            LF : constant Character := Character'Val (10);
+            Split_Null : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others -- misleading =>" & LF
+                 & "  => null" & LF & "  ;",
+                 1);
+            Marked_Null : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others =>" & LF
+                 & "  --  intentional terminal exception barrier" & LF
+                 & "  null;",
+                 1);
+            Returning : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler ("when others => return;", 1);
+            Wrapped : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others => begin" & LF
+                 & "  null;" & LF
+                 & "end;" & LF
+                 & "end;",
+                 1);
+            Labeled : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others =>" & LF
+                 & "  <<Ignored>>" & LF
+                 & "  null;" & LF
+                 & "end;",
+                 1);
+            Pragmatic : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others =>" & LF
+                 & "  pragma Warnings (Off);" & LF
+                 & "  null;" & LF
+                 & "end;",
+                 1);
+            Followed_By_Action : constant Silent_Handler_Info :=
+              Inspect_Silent_Handler
+                ("when others => null; Recover;" & LF & "end;", 1);
+         begin
+            if not Split_Null.Is_Silent
+              or else Split_Null.Intentional
+              or else not Marked_Null.Is_Silent
+              or else not Marked_Null.Intentional
+              or else not Returning.Is_Silent
+              or else Returning.Intentional
+              or else not Wrapped.Is_Silent
+              or else not Labeled.Is_Silent
+              or else not Pragmatic.Is_Silent
+              or else Followed_By_Action.Is_Silent
+            then
+               Tooling_Checks.Fail
+                 ("silent broad exception handler parser self-test failed");
+            end if;
+         end;
+
          for Source_Root of Source_Roots loop
-            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+            for Path of Project_Tools.Files.List_Tree
+              (Project_Tools.Files.Join (Root, To_String (Source_Root)))
+            loop
                declare
                   File_Path : constant String := To_String (Path);
+                  Content   : constant String :=
+                    (if Project_Tools.Text.Ends_With (File_Path, ".adb")
+                       or else Project_Tools.Text.Ends_With (File_Path, ".ads")
+                     then Project_Tools.Files.Read_Raw_File (File_Path)
+                     else "");
+
+                  procedure Check_Handler
+                    (Line_Number : Positive;
+                     Source_Line : String)
+                  is
+                     pragma Unreferenced (Source_Line);
+                     Info : constant Silent_Handler_Info :=
+                       Inspect_Silent_Handler (Content, Line_Number);
+                  begin
+                     if Info.Is_Silent and then not Info.Intentional
+                     then
+                        Tooling_Checks.Fail
+                          ("silent broad exception handler is prohibited in "
+                           & File_Path & ":" & Positive'Image (Line_Number));
+                     end if;
+                  end Check_Handler;
                begin
-                  if (Project_Tools.Text.Ends_With (File_Path, ".adb")
-                      or else Project_Tools.Text.Ends_With (File_Path, ".ads"))
-                    and then Project_Tools.Files.File_Contains (File_Path, Silent_Handler_Token)
-                  then
-                     Tooling_Checks.Fail
-                       ("silent broad exception handler is prohibited in " & File_Path);
+                  if Content /= "" then
+                     Project_Tools.Ada_Source.Scan_Broad_Exception_Handlers
+                       (File_Path, Check_Handler'Access);
                   end if;
                end;
             end loop;
@@ -380,7 +694,9 @@ package body Metadata_Checks.Manifests is
 
          procedure Require_Translation (Message : Messages.Usage_Message; Locale : String) is
          begin
-            if not Posix_Tools.Text.Matching.Contains (Catalog, ASCII.LF & Locale & "." & Messages.Key (Message) & " = ")
+            if not Posix_Tools.Text.Matching.Contains
+              (Catalog,
+               ASCII.LF & Locale & "." & Messages.Key (Message) & " = ")
             then
                Tooling_Checks.Fail
                  ("usage diagnostic " & Messages.Key (Message) & " has no " & Locale & " catalog text");

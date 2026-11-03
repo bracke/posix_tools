@@ -1,0 +1,46 @@
+with AUnit.Assertions;
+with Posix_Tools.Arguments;
+with Posix_Tools.Command_Inventory;
+with Posix_Tools.Commands.Contexts;
+with Posix_Tools.Commands.Results;
+with Posix_Tools.Exit_Status;
+with Posix_Tools.Localization;
+with Posix_Tools.Presentation;
+with Posix_Tools.Version;
+with Test_Contexts;
+with Test_Support;
+with Command_Tests.Dispatch;
+with Command_Tests.Support;
+with Posix_Tools.Commands.Basename;
+with Posix_Tools.Commands.Cat;
+with Posix_Tools.Commands.Cut;
+with Posix_Tools.Commands.Dirname;
+with Posix_Tools.Commands.Echo;
+with Posix_Tools.Commands.Expr;
+with Posix_Tools.Commands.False_Command;
+with Posix_Tools.Commands.Head;
+with Posix_Tools.Commands.Pwd;
+with Posix_Tools.Commands.Root;
+with Posix_Tools.Commands.Seq;
+with Posix_Tools.Commands.Sort;
+with Posix_Tools.Commands.Tail;
+with Posix_Tools.Commands.Touch;
+with Posix_Tools.Commands.True_Command;
+with Posix_Tools.Commands.Wc;
+
+package body Command_Tests.Locale_Tests is
+   use type Posix_Tools.Exit_Status.Code;
+   use Command_Tests.Support;
+
+   procedure Test_Diagnostic_Locales (T : in out Fixture) is separate;
+   procedure Test_Help_And_Version (T : in out Fixture) is separate;
+   procedure Test_Help_Locales (T : in out Fixture) is separate;
+   procedure Test_Identity (T : in out Fixture) is separate;
+   procedure Test_Identity_Locale_Invariance (T : in out Fixture) is separate;
+   procedure Test_Locale_Categories (T : in out Fixture) is separate;
+   procedure Test_Presentation_Styling (T : in out Fixture) is separate;
+   procedure Test_Pwd_Context_Fallbacks (T : in out Fixture) is separate;
+   procedure Test_Pwd_Option_Precedence_Property (T : in out Fixture) is separate;
+   procedure Test_Pwd_Options (T : in out Fixture) is separate;
+   procedure Test_Version_Locale_Invariance (T : in out Fixture) is separate;
+end Command_Tests.Locale_Tests;

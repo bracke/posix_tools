@@ -1,4 +1,3 @@
-with Ada.Strings.Unbounded;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Numeric_Images;
 

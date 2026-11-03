@@ -2,6 +2,7 @@
 --  says each does with symbolic links, argument counts, extension-like
 --  operands and C-constant arguments.
 package Command_Tests.Scripting is
+   procedure Test_Expr (T : in out Fixture);
    procedure Test_Expr_Extension_Operands (T : in out Fixture);
    procedure Test_Find_Exec_Batches (T : in out Fixture);
    procedure Test_Find_Missing_Operands (T : in out Fixture);

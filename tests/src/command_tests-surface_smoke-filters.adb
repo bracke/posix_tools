@@ -794,4 +794,32 @@ package body Command_Tests.Surface_Smoke.Filters is
          "xargs classifies missing utility");
    end Test_Xargs;
 
+   procedure Test_Xargs_Status_Bands (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+
+      procedure Check
+        (Utility  : String;
+         Expected : Posix_Tools.Exit_Status.Code;
+         Label    : String) is
+      begin
+         Context.Initialize ("xargs", One_Arg (Utility));
+         Test_Contexts.Set_Standard_Input (Context, "a");
+         Posix_Tools.Commands.Xargs.Run (Context, Result);
+         AUnit.Assertions.Assert (Result.Status = Expected, Label);
+      end Check;
+   begin
+      Check ("false", Posix_Tools.Exit_Status.Xargs_Utility_Failed,
+             "xargs maps utility status 1 through 125 to 123");
+      Check ("xargs-status-255", Posix_Tools.Exit_Status.Xargs_Utility_Requested_Stop,
+             "xargs maps utility status 255 to 124");
+      Check ("xargs-cannot-invoke", Posix_Tools.Exit_Status.Utility_Cannot_Invoke,
+             "xargs maps utility status 126 to 126");
+      Check ("xargs-status-127", Posix_Tools.Exit_Status.Utility_Not_Found,
+             "xargs maps utility status 127 to 127");
+      Check ("missing-utility", Posix_Tools.Exit_Status.Utility_Not_Found,
+             "xargs maps missing utility to 127");
+   end Test_Xargs_Status_Bands;
+
 end Command_Tests.Surface_Smoke.Filters;

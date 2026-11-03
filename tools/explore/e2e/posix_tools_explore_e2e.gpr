@@ -14,6 +14,6 @@ project Posix_Tools_Explore_E2E is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnoprstux", "-gnatyM120");
+        ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnoprstux", "-gnatyM120", "-gnatwe");
    end Compiler;
 end Posix_Tools_Explore_E2E;

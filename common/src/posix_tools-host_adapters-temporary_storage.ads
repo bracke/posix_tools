@@ -1,5 +1,7 @@
 with Ada.Streams;
 with Posix_Tools.Numbers;
+private with Ada.Finalization;
+private with Ada.Strings.Unbounded;
 private with Hostkit.Descriptors;
 
 package Posix_Tools.Host_Adapters.Temporary_Storage is
@@ -32,18 +34,20 @@ package Posix_Tools.Host_Adapters.Temporary_Storage is
 
    function Size (Self : Store) return Posix_Tools.Numbers.Count;
 
-   procedure Cleanup (Self : in out Store);
+   --  Try to close and remove every resource owned by Self.  A failed
+   --  removal remains recorded so a later call can retry it.
+   function Try_Cleanup (Self : in out Store) return Boolean;
 
 private
-   type Store is limited record
-      Directory : String (1 .. 512);
-      Directory_Last : Natural := 0;
-      Path : String (1 .. 640);
-      Path_Last : Natural := 0;
+   type Store is new Ada.Finalization.Limited_Controlled with record
+      Directory : Ada.Strings.Unbounded.Unbounded_String;
+      Path : Ada.Strings.Unbounded.Unbounded_String;
       File : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
       Max_Size : Posix_Tools.Numbers.Count := 0;
       Current_Size : Posix_Tools.Numbers.Count := 0;
       Reading : Boolean := False;
       Read_Position : Posix_Tools.Numbers.Count := 1;
    end record;
+
+   overriding procedure Finalize (Self : in out Store);
 end Posix_Tools.Host_Adapters.Temporary_Storage;

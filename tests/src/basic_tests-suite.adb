@@ -1,10 +1,16 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
+with Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob;
+with Basic_Tests.Text_Algorithms.Fields_And_File_Modes;
+with Basic_Tests.Text_Algorithms.Images_And_Formats;
+with Basic_Tests.Text_Algorithms.Parsing_And_Conversion;
+with Basic_Tests.Text_Algorithms.Stream_UTF_8_Counting;
+with Command_Tests.Dispatch;
 with File_Operations_Tests;
 with Operation_Tests;
 
 package body Basic_Tests.Suite is
    package Caller is new AUnit.Test_Caller (Basic_Tests.Fixture);
+   package Command_Caller is new AUnit.Test_Caller (Command_Tests.Fixture);
    package File_Operations_Caller is new AUnit.Test_Caller (File_Operations_Tests.Fixture);
    package Operation_Caller is new AUnit.Test_Caller (Operation_Tests.Fixture);
 
@@ -13,7 +19,9 @@ package body Basic_Tests.Suite is
         AUnit.Test_Suites.New_Suite;
    begin
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("basic:command inventory", Test_Command_Inventory'Access));
+        (Result,
+         Command_Caller.Create
+           ("basic:command inventory", Command_Tests.Dispatch.Test_Command_Inventory'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:numbers", Test_Numbers'Access));
       AUnit.Test_Suites.Add_Test
@@ -35,13 +43,36 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:byte counting", Test_Stream_Counting'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("streams:utf-8 counting", Test_Stream_UTF_8_Counting'Access));
+        (Result,
+         Caller.Create
+           ("streams:utf-8 counting",
+            Basic_Tests.Text_Algorithms.Stream_UTF_8_Counting.Run'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:parsing and conversion",
+            Basic_Tests.Text_Algorithms.Parsing_And_Conversion.Run'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:fields and file modes",
+            Basic_Tests.Text_Algorithms.Fields_And_File_Modes.Run'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:images and formats",
+            Basic_Tests.Text_Algorithms.Images_And_Formats.Run'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:escaping time and glob",
+            Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob.Run'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:lf segment splitting", Test_Stream_Line_Split'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:lf segment reassembly", Test_Stream_Line_Properties'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("regression:REG-CAT-0001 binary fixture", Test_Stream_File_Fixture'Access));
+        (Result, Caller.Create ("streams:file fixture", Test_Stream_File_Fixture'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:version", Test_Version'Access));
       AUnit.Test_Suites.Add_Test
@@ -61,6 +92,11 @@ package body Basic_Tests.Suite is
          File_Operations_Caller.Create
            ("basic:listing sort", File_Operations_Tests.Test_Listing_Sort'Access));
       AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:temporary storage long path",
+            File_Operations_Tests.Test_Temporary_Storage_Long_Path'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:copy tree", Operation_Tests.Test_Copy_Tree'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:copy conflicts", Operation_Tests.Test_Copy_Conflicts'Access));
@@ -71,14 +107,23 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:move", Operation_Tests.Test_Move'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Operation_Caller.Create ("basic:mv into a directory", Operation_Tests.Test_Mv_Into_Directory'Access));
+        (Result,
+         Operation_Caller.Create
+           ("basic:mv into a directory",
+            Operation_Tests.Test_Mv_Into_Directory'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Operation_Caller.Create ("basic:copy kept and stopped", Operation_Tests.Test_Copy_Kept_And_Stopped'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Operation_Caller.Create ("regression:REG-RM-0001 rm keeps link targets", Operation_Tests.Test_Rm_Keeps_Link_Targets'Access));
+        (Result,
+         Operation_Caller.Create
+           ("basic:rm keeps link targets",
+            Operation_Tests.Test_Rm_Keeps_Link_Targets'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Operation_Caller.Create ("regression:REG-CP-0005 cp keeps broken links", Operation_Tests.Test_Cp_Keeps_Broken_Links'Access));
+        (Result,
+         Operation_Caller.Create
+           ("basic:cp keeps broken links",
+            Operation_Tests.Test_Cp_Keeps_Broken_Links'Access));
       return Result;
    end Test_Suite;
 end Basic_Tests.Suite;

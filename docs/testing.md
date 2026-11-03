@@ -42,6 +42,11 @@ Conformance is checked by the `conformance` subcommand, not by a test category.
 `--list` prints the name of each test the selectors choose, one per line, and
 runs none of them.
 
+Regression-prefixed registrations are selector aliases for canonical unit or
+command registrations. An unfiltered run executes each canonical scenario
+once; `--category regression` executes the aliases so regression IDs remain
+directly selectable and visible without doubling the normal suite.
+
 ## What each subcommand runs
 
 Each subcommand runs a fixed list of steps, in order. The lists are in
@@ -51,8 +56,9 @@ clean tree plus the release checksums, the build comes before the smoke tests,
 and whatever writes generated files is followed by the metadata checks).
 
 - `test`: the AUnit suite, or the part of it a selector names.
-- `check`: the metadata checks, the format checks, the conformance metadata
-  checks, and the AUnit suite.
+- `check`: builds every maintained crate (and runs Explore's POSIX test
+  programs), then runs the metadata, format, and conformance metadata checks
+  and the AUnit suite.
 - `build`: builds the common crate, the root crate, every command crate and
   the tests crate through Alire, and on POSIX hosts builds and runs explore's
   two test crates; then the metadata checks.
