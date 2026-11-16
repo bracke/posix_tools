@@ -158,7 +158,12 @@ package body Explore.Application is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      State   : Session;
+      type Session_Access is access Session;
+
+      --  Session contains host-backed state whose elaboration is only needed
+      --  for the interactive path.  In particular, informational options
+      --  must not initialize or finalize it on Windows.
+      State   : Session_Access;
       Given   : Explore.Application.Options.Option_Set;
       Ok      : Boolean;
       Outcome : Session_Outcome;
@@ -174,6 +179,7 @@ package body Explore.Application is
          return;
       end if;
 
+      State := new Session;
       State.Config.Cwd_File := Given.Cwd_File;
       State.Config.Chooser_File := Given.Chooser_File;
 
@@ -201,7 +207,7 @@ package body Explore.Application is
          return;
       end if;
 
-      Configure (State, Context, Unbounded.To_String (Given.Config_Path));
+      Configure (State.all, Context, Unbounded.To_String (Given.Config_Path));
 
       declare
          Measured : Terminal_IO.Window_Size;
@@ -213,7 +219,7 @@ package body Explore.Application is
          Explore.Screen.Resize (State.Terminal.Wanted, Measured.Rows, Measured.Columns);
       end;
 
-      Run_Session (State, Outcome);
+      Run_Session (State.all, Outcome);
 
       case Outcome is
          when Session_Ended =>
