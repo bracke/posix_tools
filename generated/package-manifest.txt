@@ -854,7 +854,7 @@ tests/src/package_entries.adb bytes= 3623 fnv1a64=6769b91e21c36ffd
 tests/src/package_entries.ads bytes= 887 fnv1a64=093d2807b0ddfd89
 tests/src/posix_tools-host_adapters-temporary_storage-testing.adb bytes= 1398 fnv1a64=442100d95090c2b6
 tests/src/posix_tools-host_adapters-temporary_storage-testing.ads bytes= 463 fnv1a64=c41aed904d83a345
-tests/src/posix_tools_tests.adb bytes= 5062 fnv1a64=cbb754a8c25c8b13
+tests/src/posix_tools_tests.adb bytes= 5215 fnv1a64=41690a6d99c35c4d
 tests/src/proof_checks.adb bytes= 2078 fnv1a64=3b87745bbfaf8824
 tests/src/proof_checks.ads bytes= 182 fnv1a64=3acc362318ae5bce
 tests/src/proof_targets.adb bytes= 6036 fnv1a64=e0e00dc61d7f8ad6
@@ -868,7 +868,7 @@ tests/src/regression_registry.adb bytes= 9357 fnv1a64=05ae995fe505225b
 tests/src/regression_registry.ads bytes= 1041 fnv1a64=f500e64b478b2b15
 tests/src/release_artifacts.adb bytes= 8769 fnv1a64=8a2daa78ad949011
 tests/src/release_artifacts.ads bytes= 864 fnv1a64=3b671274fddba9ea
-tests/src/selector_smoke.adb bytes= 10203 fnv1a64=4188074f50631796
+tests/src/selector_smoke.adb bytes= 10267 fnv1a64=10ad260298da9295
 tests/src/selector_smoke.ads bytes= 226 fnv1a64=acbe0f694736ce0e
 tests/src/staged_verification.adb bytes= 3699 fnv1a64=4bc56f0b4837953e
 tests/src/staged_verification.ads bytes= 256 fnv1a64=9b476ee7c7467cee
@@ -876,8 +876,8 @@ tests/src/suite_filters.adb bytes= 6692 fnv1a64=a54c407990a58323
 tests/src/suite_filters.ads bytes= 2257 fnv1a64=de079dea310cedce
 tests/src/test_contexts.adb bytes= 35823 fnv1a64=3f345f73a986f802
 tests/src/test_contexts.ads bytes= 12939 fnv1a64=84dbdb571d40cadc
-tests/src/test_selection.adb bytes= 7513 fnv1a64=deb14d599d879e80
-tests/src/test_selection.ads bytes= 988 fnv1a64=f5224a22e209423b
+tests/src/test_selection.adb bytes= 7771 fnv1a64=b13cc28a03e5438d
+tests/src/test_selection.ads bytes= 973 fnv1a64=6203d78ee6a875cf
 tests/src/test_support.adb bytes= 10411 fnv1a64=65d0f34ae93e424f
 tests/src/test_support.ads bytes= 4110 fnv1a64=332cae059fed24e0
 tests/src/test_taxonomy.adb bytes= 4812 fnv1a64=134c547aee23b0ae

@@ -137,6 +137,7 @@ package body Selector_Smoke is
            Capture_Within (Label, Runner_Path, Args, Err_To_Out => True);
       begin
          if Captured.Status /= 2 then
+            Ada.Text_IO.Put_Line (To_String (Captured.Output));
             Tooling_Checks.Fail
               (Label & " returned status" & Integer'Image (Captured.Status)
                & " instead of usage status 2");

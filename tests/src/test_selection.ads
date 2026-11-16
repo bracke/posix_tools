@@ -3,8 +3,6 @@
 --  a set of groups; --list names the tests the selectors choose and runs
 --  none of them.
 package Test_Selection is
-   Invalid_Usage : exception;
-
    --  Whether `test --suite Name` and `test --category Name` are known
    --  selectors.
    function Is_Suite (Name : String) return Boolean;
@@ -16,7 +14,7 @@ package Test_Selection is
    function Canonical_Category_Match_Count (Test_Name : String) return Natural;
 
    --  Run, or list, the tests the arguments after `test` select, the last
-   --  selector winning; Invalid_Usage, said why on standard error, for
-   --  arguments that are not selectors.
-   procedure Run;
+   --  selector winning.  Return 0 for success, 1 for failed tests, or 2 after
+   --  reporting invalid selectors.
+   function Run return Integer;
 end Test_Selection;

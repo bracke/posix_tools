@@ -12,6 +12,8 @@ with Suite_Filters;
 with Test_Taxonomy;
 
 package body Test_Selection is
+   Invalid_Usage : exception;
+
    function Is_Root (Name : String) return Boolean is
      (Name = "root" or else Name = "posix-tools");
 
@@ -155,7 +157,7 @@ package body Test_Selection is
       R       : in out AUnit.Test_Results.Result'Class;
       Options : AUnit.Options.AUnit_Options := AUnit.Options.Default_Options) is null;
 
-   procedure Run is
+   function Run return Integer is
       use type AUnit.Status;
       Filter   : aliased Suite_Filters.Filter;
       Listing  : Boolean := False;
@@ -203,9 +205,13 @@ package body Test_Selection is
          Outcome       : constant AUnit.Status :=
            (if Listing then Runner (Quiet, Options) else Runner (Text_Reporter, Options));
       begin
-         if Outcome /= AUnit.Success then
-            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
-         end if;
+         return (if Outcome = AUnit.Success then 0 else 1);
       end;
+   exception
+      when Invalid_Usage =>
+         --  Convert parser control flow to an ordinary result before the
+         --  process entry point chooses its exit mechanism.  In particular,
+         --  Windows must not terminate while an Ada exception is active.
+         return 2;
    end Run;
 end Test_Selection;

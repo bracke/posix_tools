@@ -41,6 +41,8 @@ procedure Posix_Tools_Tests is
        (Tooling_Steps.Steps (Tooling_Steps.Lookup (Command)),
         Tooling_Steps.Generate_Release_Checksums);
 
+   Test_Status : Integer := 0;
+
    procedure Run_Metadata_Checks is
    begin
       Metadata_Checks.Manifests.Run;
@@ -73,53 +75,58 @@ procedure Posix_Tools_Tests is
          when Run_Format_Checks                => Format_Checks.Run (Root);
          when Run_Conformance_Checks           => Conformance_Checks.Run;
          when Run_Proof_Checks                 => Proof_Checks.Run;
-         when Run_Tests                        => Test_Selection.Run;
+         when Run_Tests                        =>
+            Test_Status := Test_Selection.Run;
       end case;
    end Run_Step;
-begin
-   if not Tooling_Steps.Is_Subcommand (Command) then
-      Ada.Text_IO.Put_Line
-        (Ada.Text_IO.Standard_Error,
-         "posix_tools_tests: unknown command '" & Command & "'");
-      Test_Support.Remove_Work_Directory;
-      Posix_Tools.Process_Entry.Complete (2);
-      return;
-   end if;
 
-   Test_Support.Prepare_Work_Directory;
-
-   declare
-      use Tooling_Steps;
-      Item : constant Subcommand := Lookup (Command);
+   function Run_Driver return Integer is
    begin
-      for Each of Steps (Item) loop
-         Run_Step (Each);
-      end loop;
-
-      if Item not in Test_Command | Check_Command | Release_Check_Command then
-         Ada.Text_IO.Put_Line (Command & ": completed by Ada project_tools driver");
+      if not Tooling_Steps.Is_Subcommand (Command) then
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "posix_tools_tests: unknown command '" & Command & "'");
+         Test_Support.Remove_Work_Directory;
+         return 2;
       end if;
-   end;
-   Test_Support.Remove_Work_Directory;
-   --  Selector smoke tests run this driver as a captured child.  Complete
-   --  preserves a stable zero result on Windows without entering the faulty
-   --  GNAT/MinGW finalization path.
-   Posix_Tools.Process_Entry.Complete (0);
-exception
-   when Test_Selection.Invalid_Usage =>
-      Test_Support.Remove_Work_Directory_Safely;
-      Posix_Tools.Process_Entry.Complete (2);
-   when Tooling_Checks.Check_Failed =>
-      --  The check has said what failed.
-      Test_Support.Remove_Work_Directory_Safely;
-      Posix_Tools.Process_Entry.Complete (1);
-   when Occurrence : others =>
-      Test_Support.Remove_Work_Directory_Safely;
-      Ada.Text_IO.Put_Line
-        (Ada.Text_IO.Standard_Error,
-         "posix_tools_tests: internal tooling failure");
-      Ada.Text_IO.Put_Line
-        (Ada.Text_IO.Standard_Error,
-         Ada.Exceptions.Exception_Information (Occurrence));
-      Posix_Tools.Process_Entry.Complete (125);
+
+      Test_Support.Prepare_Work_Directory;
+
+      declare
+         use Tooling_Steps;
+         Item : constant Subcommand := Lookup (Command);
+      begin
+         for Each of Steps (Item) loop
+            Run_Step (Each);
+            exit when Test_Status /= 0;
+         end loop;
+
+         if Test_Status = 0
+           and then Item not in Test_Command | Check_Command | Release_Check_Command
+         then
+            Ada.Text_IO.Put_Line (Command & ": completed by Ada project_tools driver");
+         end if;
+      end;
+      Test_Support.Remove_Work_Directory;
+      return Test_Status;
+   exception
+      when Tooling_Checks.Check_Failed =>
+         --  The check has said what failed.
+         Test_Support.Remove_Work_Directory_Safely;
+         return 1;
+      when Occurrence : others =>
+         Test_Support.Remove_Work_Directory_Safely;
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "posix_tools_tests: internal tooling failure");
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            Ada.Exceptions.Exception_Information (Occurrence));
+         return 125;
+   end Run_Driver;
+begin
+   --  Selector smoke tests run this driver as a captured child.  Resolving all
+   --  exceptions and statuses before calling Complete avoids the faulty
+   --  GNAT/MinGW finalization path without terminating during an exception.
+   Posix_Tools.Process_Entry.Complete (Run_Driver);
 end Posix_Tools_Tests;
