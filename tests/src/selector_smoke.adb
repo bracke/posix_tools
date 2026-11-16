@@ -39,7 +39,10 @@ package body Selector_Smoke is
                 ([Project_Tools.Processes.Argument ("test"),
                   Project_Tools.Processes.Argument ("--list"),
                   Project_Tools.Processes.Argument (Option),
-                  Project_Tools.Processes.Argument (Value)]));
+                  Project_Tools.Processes.Argument (Value)]),
+              --  Runtime diagnostics explain a child that lists correctly and
+              --  then fails while its process is being finalized.
+              Err_To_Out => True);
          Output   : constant String := To_String (Captured.Output);
 
          function Has_Line_With_Prefix (Prefix : String) return Boolean is
