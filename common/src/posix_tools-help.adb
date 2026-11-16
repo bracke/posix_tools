@@ -7,6 +7,16 @@ package body Posix_Tools.Help is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Command : String)
    is
+   begin
+      Render_Command_Help
+        (Context, Command, Context.Standard_Output_Is_Terminal);
+   end Render_Command_Help;
+
+   procedure Render_Command_Help
+     (Context                     : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Command                     : String;
+      Standard_Output_Is_Terminal : Boolean)
+   is
       Locale  : constant String := Context.Effective_Locale;
       Usage   : constant String :=
         Posix_Tools.Localization.Text (Locale, "posix_tools.help.usage", "Usage");
@@ -22,9 +32,9 @@ package body Posix_Tools.Help is
         Posix_Tools.Localization.Text
           (Locale, "posix_tools.common.option.version", "display version information and exit");
       Usage_Heading : constant String :=
-        Posix_Tools.Presentation.Header (Usage, Context.Standard_Output_Is_Terminal);
+        Posix_Tools.Presentation.Header (Usage, Standard_Output_Is_Terminal);
       Options_Heading : constant String :=
-        Posix_Tools.Presentation.Header (Options, Context.Standard_Output_Is_Terminal);
+        Posix_Tools.Presentation.Header (Options, Standard_Output_Is_Terminal);
    begin
       Context.Put
         (Usage_Heading & ": " & Command & " [OPTION]... [OPERAND]..." & Character'Val (10)
