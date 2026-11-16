@@ -71,9 +71,9 @@ is
    function Ownership_Matches
      (Available : Boolean;
       Select_User : Boolean;
-      Actual_User : Natural;
-      Actual_Group : Natural;
-      Expected : Natural) return Boolean is
+      Actual_User : Posix_Tools.Accounts.Id;
+      Actual_Group : Posix_Tools.Accounts.Id;
+      Expected : Posix_Tools.Accounts.Id) return Boolean is
    begin
       return Available
         and then

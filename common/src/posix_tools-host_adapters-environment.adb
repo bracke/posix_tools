@@ -20,10 +20,9 @@ package body Posix_Tools.Host_Adapters.Environment is
 
    function Value (Name : String) return String is
    begin
-      if Defined (Name) then
-         return Ada.Environment_Variables.Value (Name);
-      else
+      return Ada.Environment_Variables.Value (Name);
+   exception
+      when Constraint_Error =>
          return "";
-      end if;
    end Value;
 end Posix_Tools.Host_Adapters.Environment;

@@ -6,6 +6,8 @@ package body Explore.Files is
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Unbounded renames Ada.Strings.Unbounded;
 
+   Bulk_Buffer_Size : constant Positive := 64 * 1024;
+
    use type Ada.Streams.Stream_Element_Offset;
    use type FS.File_Kind;
 
@@ -36,6 +38,7 @@ package body Explore.Files is
       end;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Found := False;
    end Locate;
 
@@ -67,12 +70,20 @@ package body Explore.Files is
          Stop := Unbounded.Length (Data) >= Limit;
       end Take;
 
-      procedure Each is new FS.For_Each_File_Chunk (Take);
+      procedure Each_Bounded is new FS.For_Each_File_Chunk (Take);
+      procedure Each_Bulk is new FS.For_Each_File_Chunk
+        (Action        => Take,
+         Buffer_Length => Bulk_Buffer_Size);
    begin
       Data := Unbounded.Null_Unbounded_String;
-      Each (Path, Ok);
+      if Limit >= Bulk_Buffer_Size then
+         Each_Bulk (Path, Ok);
+      else
+         Each_Bounded (Path, Ok);
+      end if;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Ok := False;
    end Read_Head;
 end Explore.Files;

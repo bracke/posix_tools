@@ -1,27 +1,28 @@
+with Ada.Containers.Indefinite_Hashed_Maps;
+with Ada.Strings.Hash;
+
 package body Awk_CLI.Environment is
-   use type U.Unbounded_String;
+
+   package Name_Indexes is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
+      Element_Type    => Positive,
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
 
    function Normalize (Entries : Entry_Vectors.Vector) return Entry_Vectors.Vector is
       Result : Entry_Vectors.Vector;
+      Indexes : Name_Indexes.Map;
    begin
       for Item of Entries loop
          if U.Length (Item.Name) > 0 then
             declare
-               Found : Natural := 0;
+               Name : constant String := U.To_String (Item.Name);
             begin
-               if not Result.Is_Empty then
-                  for Index in Result.First_Index .. Result.Last_Index loop
-                     if Result.Element (Index).Name = Item.Name then
-                        Found := Index;
-                        exit;
-                     end if;
-                  end loop;
-               end if;
-
-               if Found = 0 then
-                  Result.Append (Item);
+               if Indexes.Contains (Name) then
+                  Result.Replace_Element (Indexes.Element (Name), Item);
                else
-                  Result.Replace_Element (Found, Item);
+                  Result.Append (Item);
+                  Indexes.Insert (Name, Result.Last_Index);
                end if;
             end;
          end if;

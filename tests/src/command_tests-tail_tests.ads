@@ -1,7 +1,11 @@
 package Command_Tests.Tail_Tests is
    procedure Test_Tail_Byte_Mode_Edges (T : in out Fixture);
+   procedure Test_Tail_Storage_Diagnostics (T : in out Fixture);
    procedure Test_Tail_Compact_Counts (T : in out Fixture);
    procedure Test_Tail_Follow_Live (T : in out Fixture);
+   procedure Test_Tail_Follow_Recovery (T : in out Fixture);
+   procedure Test_Tail_Follow_Sequential_Inputs (T : in out Fixture);
+   procedure Test_Tail_Follow_Zero_Lines (T : in out Fixture);
    procedure Test_Tail_Invalid_Count (T : in out Fixture);
    procedure Test_Tail_Missing_Count (T : in out Fixture);
    procedure Test_Tail_Line_Mode_Edges (T : in out Fixture);

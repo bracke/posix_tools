@@ -4,16 +4,22 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
 with Ada.Text_IO;
+with E2E_Files;
 with E2E_Rig;
 with GNAT.OS_Lib;
+with Hostkit.Locks;
 
 package body Performance_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
 
    use type Ada.Real_Time.Time;
    use type Ada.Real_Time.Time_Span;
+   use type GNAT.OS_Lib.File_Descriptor;
+   use type Hostkit.Locks.Lock_Outcome;
 
    Entries : constant := 100_000;
+   Fixture_Lock_Timeout : constant Ada.Real_Time.Time_Span :=
+     Ada.Real_Time.Seconds (120);
 
    --  The budgets, in milliseconds, that explore is held to: the first
    --  frame -- from explore's first output, so with its handshake but
@@ -67,8 +73,69 @@ package body Performance_Tests is
    function Large_Directory return String is
       Path   : constant String := E2E_Rig.Kept_Fixture ("large");
       Marker : constant String := Path & "/.complete";
+      Lock_Path : constant String := Path & ".lock";
+      Signature : constant String := "posix-tools-explore-large-v2:" & Image (Entries);
+      Lock      : Hostkit.Locks.Lock;
+      Lock_Status : Hostkit.Locks.Lock_Outcome;
+      Lock_Deadline : constant Ada.Real_Time.Time :=
+        Ada.Real_Time.Clock + Fixture_Lock_Timeout;
+
+      function Complete return Boolean;
+
+      function Complete return Boolean is
+         File : Ada.Text_IO.File_Type;
+      begin
+         if not Ada.Directories.Exists (Marker) then
+            return False;
+         end if;
+
+         Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Marker);
+         declare
+            Result : constant Boolean :=
+              not Ada.Text_IO.End_Of_File (File)
+              and then Ada.Text_IO.Get_Line (File) = Signature
+              and then Ada.Text_IO.End_Of_File (File);
+         begin
+            Ada.Text_IO.Close (File);
+            return Result;
+         end;
+      exception
+         when others =>
+            --  intentional terminal exception barrier
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+            return False;
+      end Complete;
    begin
-      if not Ada.Directories.Exists (Marker) then
+      if Complete then
+         return Path;
+      end if;
+
+      loop
+         Lock_Status :=
+           Hostkit.Locks.Acquire
+             (Lock_Path, Hostkit.Locks.Lock_Exclusive, Wait => False,
+              Item => Lock);
+         exit when Lock_Status = Hostkit.Locks.Lock_Ok;
+
+         if Lock_Status /= Hostkit.Locks.Lock_Busy then
+            raise Program_Error with
+              "could not lock the large-directory fixture: "
+              & Hostkit.Locks.Lock_Outcome'Image (Lock_Status);
+         elsif Complete then
+            return Path;
+         elsif Ada.Real_Time.Clock >= Lock_Deadline then
+            raise Program_Error with
+              "timed out waiting for the large-directory fixture lock";
+         end if;
+         delay 0.050;
+      end loop;
+
+      --  Another process may have completed the fixture while this process
+      --  waited for the lock.  The marker is the commit record and is written
+      --  only after every file has been created successfully.
+      if not Complete then
          if Ada.Directories.Exists (Path) then
             Ada.Directories.Delete_Tree (Path);
          end if;
@@ -81,14 +148,22 @@ package body Performance_Tests is
                Handle : constant GNAT.OS_Lib.File_Descriptor :=
                  GNAT.OS_Lib.Create_File (Path & "/file" & [1 .. 6 - Name'Length => '0'] & Name, GNAT.OS_Lib.Binary);
             begin
+               if Handle = GNAT.OS_Lib.Invalid_FD then
+                  raise Program_Error with "could not create large-directory fixture entry " & Name;
+               end if;
                GNAT.OS_Lib.Close (Handle);
             end;
          end loop;
 
-         E2E_Rig.Write_File (Marker, "");
+         E2E_Files.Write (Marker, Signature & ASCII.LF);
       end if;
 
+      Hostkit.Locks.Release (Lock);
       return Path;
+   exception
+      when others =>
+         Hostkit.Locks.Release (Lock);
+         raise;
    end Large_Directory;
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is

@@ -1,9 +1,12 @@
+with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 
 --  Helpers the AUnit tests share: argument vectors, work paths, text
 --  searches, file writing and removal, and the generators behind the
 --  deterministic property tests.
 package Test_Support is
+   type Work_Directory is limited private;
+
    function No_Args return Posix_Tools.Arguments.Vector;
    function One_Arg (A : String) return Posix_Tools.Arguments.Vector;
    function Two_Args (A, B : String) return Posix_Tools.Arguments.Vector;
@@ -12,8 +15,30 @@ package Test_Support is
    function Five_Args (A, B, C, D, E : String) return Posix_Tools.Arguments.Vector;
    function Six_Args (A, B, C, D, E, F : String) return Posix_Tools.Arguments.Vector;
 
-   --  Generated/test-work/Name, where tests make their files.
+   --  A private host temporary directory/Name, where this process makes its
+   --  files. The root is allocated atomically so concurrent runners cannot
+   --  share it, even across PID namespaces.
    function Work_Path (Name : String) return String;
+   procedure Prepare_Work_Directory;
+   --  Strict cleanup for normal driver termination.
+   procedure Remove_Work_Directory;
+   --  Best-effort cleanup that preserves an exception already in flight.
+   procedure Remove_Work_Directory_Safely;
+
+   --  Independent work directories for tests of the lifecycle itself. These
+   --  operations never disturb the suite-wide directory used by Work_Path.
+   function Work_Path
+     (Directory : in out Work_Directory;
+      Name      : String) return String;
+   procedure Prepare_Work_Directory
+     (Directory : in out Work_Directory);
+   procedure Remove_Work_Directory
+     (Directory : in out Work_Directory);
+   procedure Remove_Work_Directory_Safely
+     (Directory : in out Work_Directory);
+   --  Restore a test's working directory without replacing an exception that
+   --  is already being propagated.
+   procedure Restore_Directory_Safely (Path : String);
    function Contains (Text, Pattern : String) return Boolean;
    --  Non-overlapping occurrences of Pattern in Text.
    function Occurrences (Text, Pattern : String) return Natural;
@@ -55,4 +80,8 @@ package Test_Support is
    --  "seed 0x" and Seed in eight hexadecimal digits, for an assertion
    --  label built from the seed a test really starts from.
    function Seed_Label (Seed : Word_32) return String;
+private
+   type Work_Directory is limited record
+      Root : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
 end Test_Support;

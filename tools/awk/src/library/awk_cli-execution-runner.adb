@@ -111,6 +111,8 @@ package body Runner is
             Read_Command   => Awk_CLI.Execution.Callbacks.Read_Command'Access);
       end if;
 
+      Awk_CLI.Execution.Callbacks.Flush_Output (State);
+
       return Build_Run_Result (Status, Message, State, Output, Exit_Code, Redirs);
    exception
       when Error : others =>

@@ -6,17 +6,15 @@ with Posix_Tools.Text.Byte_Classes;
 package body Posix_Tools.Commands.Sort_Key_Text is
    use Ada.Strings.Unbounded;
 
-   function Sort_Key
-     (Text : String;
-      Fold_Case, Ignore_Leading_Blanks, Dictionary_Order, Ignore_Nonprinting : Boolean;
+   function Range_Of
+     (Text                  : String;
+      Ignore_Leading_Blanks : Boolean;
       Field_Start : Positive := 1;
       Field_End : Natural := 0;
       Character_Start : Positive := 1;
       Character_End : Natural := 0;
       Field_Separator : Character := ' ';
-      Has_Field_Separator : Boolean := False;
-      Locale : String := "";
-      Apply_Locale_Collation : Boolean := True) return String
+      Has_Field_Separator : Boolean := False) return Key_Range
    is
       --  Without a field separator a field is a run of blanks followed by
       --  the run of non-blanks after it, so its leading blanks belong to it;
@@ -92,6 +90,29 @@ package body Posix_Tools.Commands.Sort_Key_Text is
          elsif Character_End = 0 then Field_Limit (Field_End)
          else Natural'Min (Field_Limit (Field_End), Key_Base (Field_End) + Character_End - 1));
    begin
+      return (First => First, Last => Last);
+   end Range_Of;
+
+   function Sort_Key
+     (Text : String;
+      Fold_Case, Ignore_Leading_Blanks, Dictionary_Order, Ignore_Nonprinting : Boolean;
+      Field_Start : Positive := 1;
+      Field_End : Natural := 0;
+      Character_Start : Positive := 1;
+      Character_End : Natural := 0;
+      Field_Separator : Character := ' ';
+      Has_Field_Separator : Boolean := False;
+      Locale : String := "";
+      Apply_Locale_Collation : Boolean := True) return String
+   is
+      Selected : constant Key_Range :=
+        Range_Of
+          (Text, Ignore_Leading_Blanks, Field_Start, Field_End,
+           Character_Start, Character_End, Field_Separator,
+           Has_Field_Separator);
+      First : constant Natural := Selected.First;
+      Last  : constant Natural := Selected.Last;
+   begin
       if First > Text'Last or else First > Last then
          return "";
       elsif not Fold_Case and then not Dictionary_Order and then not Ignore_Nonprinting then
@@ -115,7 +136,8 @@ package body Posix_Tools.Commands.Sort_Key_Text is
          end;
       else
          declare
-            Key : Unbounded_String;
+            Key       : Unbounded_String;
+            Run_First : Natural := 0;
          begin
             for I in First .. Last loop
                if (not Dictionary_Order
@@ -123,9 +145,17 @@ package body Posix_Tools.Commands.Sort_Key_Text is
                  and then (not Ignore_Nonprinting
                            or else Posix_Tools.Text.Byte_Classes.Is_ASCII_Printable (Text (I)))
                then
-                  Append (Key, Text (I));
+                  if Run_First = 0 then
+                     Run_First := I;
+                  end if;
+               elsif Run_First /= 0 then
+                  Append (Key, Text (Run_First .. I - 1));
+                  Run_First := 0;
                end if;
             end loop;
+            if Run_First /= 0 then
+               Append (Key, Text (Run_First .. Last));
+            end if;
             declare
                Raw_Key : constant String :=
                  (if Fold_Case

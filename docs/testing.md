@@ -9,6 +9,7 @@ The executable accepts:
 - `test`
 - `test --suite <name>`
 - `test --suite property`
+- `test --suite text`
 - `test --category unit`
 - `test --category integration`
 - `test --category regression`
@@ -27,17 +28,24 @@ The executable accepts:
 
 Invoking `posix_tools_tests` with no arguments runs the normal AUnit suite.
 The `--suite` selector names a group of tests or one command's tests. The
-groups `basic` (or `common`), `streams`, `regression`, `locale`,
+groups `basic` (or `common`), `streams`, `text`, `regression`, `locale`,
 `presentation`, `property`, and `command` (all command-package tests) select
 every test whose name starts with the group. A command name such as `wc`,
 `tail`, or `root` selects that command's tests by their whole name: `tr` selects
 `command:tr ...` but not `command:true ...`, and `id` does not select
-`command:identity ...`. Unknown suite names fail with usage status instead of
-running an empty AUnit selection. Category selectors divide the suite between
-them: `unit` selects the `basic`, `streams`, and `property` groups,
+`command:identity ...`. A command whose tests live in a separate crate, such
+as `awk`, `sed`, or `explore`, is not an AUnit selector in this driver; those
+suites run through the build and release gates. Unknown suite names fail with usage status
+instead of running an empty AUnit selection, as do external-only
+suite names. Category selectors divide the suite between
+them: `unit` selects the `basic`, `streams`, `text`, and `property` groups,
 `integration` the `command` group (every command run through its entry point),
 `regression` the regression-prefixed tests, `locale` the locale-dependent help
 and diagnostic tests, and `presentation` the terminal styling boundary tests.
+Regression selectors are generated from rows of `generated/regressions.csv`
+that name canonical AUnit tests; when several regression rows share one test,
+that scenario still executes only once. Executable-only regressions name the
+`release-check` validation artifact instead and run in its integration stage.
 Conformance is checked by the `conformance` subcommand, not by a test category.
 `--list` prints the name of each test the selectors choose, one per line, and
 runs none of them.
@@ -69,15 +77,18 @@ and whatever writes generated files is followed by the metadata checks).
   `generated/manual-index.md`, and `generated/man/*.1` from the compiled
   inventory and `docs/commands/*.md`; then the metadata checks.
 - `package`: writes `generated/package-files.txt` and
-  `generated/package-manifest.txt`, then writes and integrity-tests
+  `generated/package-manifest.txt`, runs metadata validation, then writes and integrity-tests
   `dist/posix-tools-<version>-source.7z`, which needs `7z` or `7zz` on the
-  path; then the metadata checks.
+  path.
 - `release-check`: `docs` and the package manifest, the build, the selector
-  smoke, staged identity verification, the executable smoke, and the release
-  archive; then the metadata, format, conformance metadata, and proof checks
-  and the AUnit suite.
-- `release`: requires a clean source tree, then runs the release-check steps
-  with `generated/release-checksums.txt` written after the archive.
+  smoke, staged identity verification, and the executable smoke; then the
+  metadata, format, conformance metadata, and proof checks and the AUnit
+  suite. The archive is created only after every check passes.
+- `release`: requires a clean source tree, regenerates documentation and the
+  package manifest, and requires the tree to remain clean. After validation
+  succeeds it checks the tree once more immediately before creating the
+  archive and `generated/release-checksums.txt`, so released source always
+  corresponds to the committed tree.
 
 Current registered suites include path tests, numeric tests, tail ring arithmetic tests, and wc field arithmetic tests.
 They also include stream LF segment tests, stream byte and UTF-8 counting tests, command-package tests, root-command
@@ -139,15 +150,20 @@ end, typing a filter -- answered within 100 milliseconds whether or not the
 directory is still being read. It needs the `terminal` repository checked out
 beside this one.
 The release gates run selector smoke tests for `--suite cat`, `--suite cp`,
-`--suite tr`, `--suite id`, `--suite xargs`, `--suite root`, `--suite command`,
+`--suite tr`, `--suite id`, `--suite chgrp`, `--suite xargs`, `--suite root`,
+`--suite command`,
 `--suite property`, `--category unit`, `--category integration`,
 `--category regression`, `--category locale`, and `--category presentation`
 after the tests executable is built, each with `--list` and under a deadline.
 Each list must name the tests the selector chooses and none it does not:
 `--suite cat` lists no `command:cp` test, `--suite tr` no `command:true` test,
 and the categories other than `integration` no command tests.
-They also verify that incomplete or unknown selectors fail with usage status 2
+They also verify that incomplete, unknown, and external-only selectors fail with usage status 2
 instead of silently broadening or ignoring the requested filter.
+Registered AUnit procedures must have a unique fully qualified Ada name.
+Overloaded test procedures use a uniquely named, non-overloaded wrapper for
+registration so source-budget and duplicate-registration checks have a stable
+identity without attempting to reproduce compiler overload resolution.
 `posix_tools_tests format-check` scans maintained Ada, Alire/GPR, Markdown, CSV,
 and text files for tab characters, trailing whitespace, and multiple
 consecutive blank lines, skipping generated build outputs and binary fixtures.

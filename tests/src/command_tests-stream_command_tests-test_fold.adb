@@ -8,6 +8,8 @@ separate (Command_Tests.Stream_Command_Tests)
       Missing : constant String := Fixture_Path ("fold-missing.txt");
       LF      : constant Character := Character'Val (10);
       Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
+      Boundary_Prefix : constant String (1 .. 16 * 1024 - 1) :=
+        [others => 'a'];
    begin
       Context.Initialize ("fold", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "abcdefghijklmnopqrstuvwxyz");
@@ -25,6 +27,23 @@ separate (Command_Tests.Stream_Command_Tests)
          and then Test_Contexts.Output (Context) = "abcde" & LF & "fghij" & LF & "kl",
          "fold -w wraps standard input");
 
+      Context.Initialize ("fold", Two_Args ("-w", "8"));
+      Test_Contexts.Set_Standard_Input (Context, "abcd" & Character'Val (9) & "x");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "abcd" & Character'Val (9) & LF & "x",
+         "fold batches ASCII around tab stops");
+
+      Context.Initialize ("fold", Two_Args ("-w", "4"));
+      Test_Contexts.Set_Standard_Input (Context, "abcd");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abcd",
+         "fold keeps an exact-width final line unterminated");
+
       Context.Initialize ("fold", Two_Args ("-w", "4"));
       Test_Contexts.Set_Standard_Input (Context, Wide & Wide & "x");
       Posix_Tools.Commands.Fold.Run (Context, Result);
@@ -32,6 +51,16 @@ separate (Command_Tests.Stream_Command_Tests)
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Wide & Wide & LF & "x",
          "fold wraps by display columns without splitting UTF-8 sequences");
+
+      Context.Initialize ("fold", Two_Args ("-w", "16384"));
+      Test_Contexts.Set_Standard_Input
+        (Context, Boundary_Prefix & Wide & "x");
+      Posix_Tools.Commands.Fold.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context)
+           = Boundary_Prefix & LF & Wide & "x",
+         "fold carries UTF-8 sequences across input chunks");
 
       Context.Initialize ("fold", Two_Args ("-w4", Path));
       Delete_If_Exists (Path);

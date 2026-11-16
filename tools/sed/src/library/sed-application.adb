@@ -60,6 +60,10 @@ package body Sed.Application is
       --  Write the hint that points at --help.
       procedure Emit_Hint;
 
+      --  Convert an unexpected Ada exception into the public diagnostic.
+      procedure Emit_Unexpected
+        (Unexpected : Ada.Exceptions.Exception_Occurrence);
+
       ---------------
       -- Put_Error --
       ---------------
@@ -113,6 +117,23 @@ package body Sed.Application is
       begin
          Put_Error (D.Rendering.Render_Hint (Catalog, Error_Policy));
       end Emit_Hint;
+
+      procedure Emit_Unexpected
+        (Unexpected : Ada.Exceptions.Exception_Occurrence)
+      is
+         Item : D.Diagnostic := D.Make (D.Internal_Error);
+      begin
+         if Context.Development_Diagnostics then
+            --  Development diagnostic mode only. A normal run never shows an
+            --  exception name or a traceback.
+            D.Set
+              (Item,
+               D.Detail,
+               Ada.Exceptions.Exception_Information (Unexpected));
+         end if;
+
+         Emit (Item);
+      end Emit_Unexpected;
 
       Tokens : constant CL.Token_Parse := CL.Options.Parse (Arguments);
 
@@ -392,21 +413,7 @@ package body Sed.Application is
          --  an unexpected engine fault -- is contained: one localized
          --  internal-error diagnostic, internal-failure status, and no Ada
          --  traceback. Execution does not continue.
-         declare
-            Item : D.Diagnostic := D.Make (D.Internal_Error);
-         begin
-            if Context.Development_Diagnostics then
-               --  Development diagnostic mode only. A normal run never shows
-               --  an exception name or a traceback.
-               D.Set
-                 (Item,
-                  D.Detail,
-                  Ada.Exceptions.Exception_Information (Unexpected));
-            end if;
-
-            Emit (Item);
-         end;
-
+         Emit_Unexpected (Unexpected);
          Sed.Status.Record_Outcome (Status, Sed.Status.Internal_Failure);
          return Sed.Status.Current (Status);
    end Execute;

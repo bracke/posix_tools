@@ -1,4 +1,19 @@
 package Posix_Tools.Commands.Sort_Key_Text is
+   type Key_Range is record
+      First : Natural := 1;
+      Last  : Natural := 0;
+   end record;
+
+   function Range_Of
+     (Text                  : String;
+      Ignore_Leading_Blanks : Boolean;
+      Field_Start           : Positive := 1;
+      Field_End             : Natural := 0;
+      Character_Start       : Positive := 1;
+      Character_End         : Natural := 0;
+      Field_Separator       : Character := ' ';
+      Has_Field_Separator   : Boolean := False) return Key_Range;
+
    function Sort_Key
      (Text : String;
       Fold_Case, Ignore_Leading_Blanks, Dictionary_Order, Ignore_Nonprinting : Boolean;

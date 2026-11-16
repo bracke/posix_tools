@@ -69,11 +69,12 @@ package body Posix_Tools.Commands.Pathchk is
 
                declare
                   Component : constant String := Path (Start .. Stop - 1);
+                  Parent_Text : constant String := To_String (Parent);
                begin
-                  Check_Component (Path, To_String (Parent), Component);
-                  if To_String (Parent) = "/" then
+                  Check_Component (Path, Parent_Text, Component);
+                  if Parent_Text = "/" then
                      Parent := To_Unbounded_String ("/" & Component);
-                  elsif To_String (Parent) = "." then
+                  elsif Parent_Text = "." then
                      Parent := To_Unbounded_String (Component);
                   else
                      Append (Parent, "/" & Component);
@@ -85,29 +86,32 @@ package body Posix_Tools.Commands.Pathchk is
       end Check_Path;
 
       function Component_Limit (Parent_Path : String) return Natural is
-         Available : Boolean := False;
-         Limit     : constant Natural := FS.File_Name_Limit (Parent_Path, Available);
       begin
          if Portable_Mode then
             return 14;
-         elsif Available and then Limit > 0 then
-            return Limit;
-         else
-            return 255;
          end if;
+
+         declare
+            Available : Boolean := False;
+            Limit     : constant Natural :=
+              FS.File_Name_Limit (Parent_Path, Available);
+         begin
+            return (if Available and then Limit > 0 then Limit else 255);
+         end;
       end Component_Limit;
 
       function Path_Limit return Natural is
-         Available : Boolean := False;
-         Limit     : constant Natural := FS.Path_Name_Limit (".", Available);
       begin
          if Portable_Mode then
             return 256;
-         elsif Available and then Limit > 0 then
-            return Limit;
-         else
-            return 4_096;
          end if;
+
+         declare
+            Available : Boolean := False;
+            Limit     : constant Natural := FS.Path_Name_Limit (".", Available);
+         begin
+            return (if Available and then Limit > 0 then Limit else 4_096);
+         end;
       end Path_Limit;
 
       procedure Reject (Path, Key, Reason : String) is

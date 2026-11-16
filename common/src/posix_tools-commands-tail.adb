@@ -3,12 +3,14 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Tail_Bytes;
 with Posix_Tools.Commands.Tail_Follow;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Numbers;
 with Posix_Tools.Tail_Counts;
 
 package body Posix_Tools.Commands.Tail is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Posix_Tools.Commands.Tail_Follow.Follow_Mode;
+   use type Posix_Tools.Host_Adapters.File_System.Follow_Open_Status;
    use type Posix_Tools.Numbers.Parse_Status;
    use type Posix_Tools.Tail_Counts.Count_Origin;
 
@@ -98,10 +100,28 @@ package body Posix_Tools.Commands.Tail is
          All_Ok := Ok;
       else
          declare
+            Files : Posix_Tools.Commands.Tail_Follow.Follow_File_Array
+              (First_File .. Count);
+            Eligible : Posix_Tools.Commands.Tail_Follow.Follow_Eligibility_Array
+              (First_File .. Count) := [others => False];
+
+            function Any_Eligible return Boolean is
+            begin
+               return (for some Item of Eligible => Item);
+            end Any_Eligible;
+
             procedure Emit_Header (File_Index : Positive) is
             begin
                Context.Put_Line ("==> " & Context.Argument (File_Index) & " <==");
             end Emit_Header;
+
+            procedure Close_All is
+            begin
+               for File of Files loop
+                  Posix_Tools.Host_Adapters.File_System.Close_Follow_File
+                    (File);
+               end loop;
+            end Close_All;
          begin
             for I in First_File .. Count loop
                if Sources > 1 then
@@ -119,7 +139,54 @@ package body Posix_Tools.Commands.Tail is
                   end if;
                end if;
 
-               if Current_Mode = Byte_Mode then
+               if Follow /= No_Follow and then Context.Argument (I) /= "-" then
+                  declare
+                     Status : Posix_Tools.Host_Adapters.File_System.Follow_Open_Status;
+                  begin
+                     Posix_Tools.Host_Adapters.File_System.Open_Follow_File
+                       (Context.Argument (I),
+                        Files (I),
+                        Status,
+                        Require_Identity => Follow = Follow_Name);
+                     if Status /= Posix_Tools.Host_Adapters.File_System.Follow_Ready then
+                        Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                          (Context,
+                           Context.Argument (I),
+                           "posix_tools.diagnostic.file.read_failed",
+                           "cannot read file");
+                        Ok := False;
+                        Eligible (I) := Follow = Follow_Name;
+                     else
+                        Eligible (I) := True;
+                        if Current_Mode = Byte_Mode then
+                           Posix_Tools.Commands.Tail_Bytes.Copy
+                             (Context,
+                              Context.Argument (I),
+                              Requested,
+                              Origin,
+                              Ok,
+                              Files (I)'Access);
+                        elsif Origin = From_Start then
+                           Posix_Tools.Commands.File_Helpers.Tailing.Copy_Lines_From
+                             (Context,
+                              Context.Argument (I),
+                              Requested,
+                              Ok,
+                              Files (I)'Access);
+                        else
+                           Posix_Tools.Commands.File_Helpers.Tailing.Copy_Line_Suffix
+                             (Context,
+                              Context.Argument (I),
+                              Requested,
+                              Ok,
+                              Files (I)'Access);
+                        end if;
+                        if not Ok then
+                           Eligible (I) := False;
+                        end if;
+                     end if;
+                  end;
+               elsif Current_Mode = Byte_Mode then
                   Posix_Tools.Commands.Tail_Bytes.Copy
                     (Context, Context.Argument (I), Requested, Origin, Ok);
                elsif Origin = From_Start then
@@ -129,16 +196,36 @@ package body Posix_Tools.Commands.Tail is
                   Posix_Tools.Commands.File_Helpers.Tailing.Copy_Line_Suffix
                     (Context, Context.Argument (I), Requested, Ok);
                end if;
+               if Follow /= No_Follow and then Context.Argument (I) = "-" then
+                  Eligible (I) := Ok;
+               end if;
                All_Ok := All_Ok and Ok;
             end loop;
+
+            if Follow /= No_Follow
+              and then Any_Eligible
+              and then not Context.Output_Failed
+            then
+               Posix_Tools.Commands.Tail_Follow.Follow_File_Operands
+                 (Context,
+                  First_File,
+                  Count,
+                  Sources,
+                  Follow,
+                  Files,
+                  Eligible,
+                  All_Ok);
+            end if;
+            Close_All;
+         exception
+            when others =>
+               Close_All;
+               raise;
          end;
       end if;
 
       if Follow /= No_Follow and then All_Ok and then not Context.Output_Failed then
-         if First_File <= Count then
-            Posix_Tools.Commands.Tail_Follow.Follow_File_Operands
-              (Context, First_File, Count, Sources, Follow, All_Ok);
-         else
+         if First_File > Count then
             Posix_Tools.Commands.Tail_Follow.Follow_Standard_Input (Context, All_Ok);
          end if;
       end if;

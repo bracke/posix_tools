@@ -39,7 +39,12 @@ package body Explore.Line_Editor is
                   if Item.Mods.Control and then Item.Code = 'c' then
                      Result := Interrupted;
                   elsif not Item.Mods.Control and then not Item.Mods.Alt then
-                     Unbounded.Append (Text, Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Encode ([1 => Item.Code]));
+                     if Wide_Wide_Character'Pos (Item.Code) <= 16#7F# then
+                        Unbounded.Append (Text, Character'Val (Wide_Wide_Character'Pos (Item.Code)));
+                     else
+                        Unbounded.Append
+                          (Text, Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Encode ([1 => Item.Code]));
+                     end if;
                   end if;
                when others =>
                   null;
@@ -47,10 +52,14 @@ package body Explore.Line_Editor is
          when Input.Paste_Event =>
             --  The line is one line: a pasted line break is left out, so
             --  that it neither ends up in a name nor runs a command early.
-            for C of Unbounded.To_String (Item.Text) loop
-               if C not in Character'Val (10) | Character'Val (13) then
-                  Unbounded.Append (Text, C);
-               end if;
+            for I in 1 .. Unbounded.Length (Item.Text) loop
+               declare
+                  C : constant Character := Unbounded.Element (Item.Text, I);
+               begin
+                  if C not in Character'Val (10) | Character'Val (13) then
+                     Unbounded.Append (Text, C);
+                  end if;
+               end;
             end loop;
          when others =>
             null;

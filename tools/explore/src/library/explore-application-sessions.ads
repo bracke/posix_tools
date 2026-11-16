@@ -17,6 +17,7 @@ with Explore.Settings;
 with Explore.String_Vectors;
 with Explore.Tabs;
 with Explore.Words;
+with Posix_Tools.Accounts;
 with Posix_Tools.File_Operations;
 with Posix_Tools.Host_Adapters.File_Watches;
 with Posix_Tools.Host_Adapters.Signals;
@@ -46,7 +47,11 @@ private package Explore.Application.Sessions is
    type Preview_Board_Access is access all Explore.Previews.Board;
    type Search_Board_Access is access all Explore.Search.Board;
 
-   package Name_Maps is new Ada.Containers.Ordered_Maps (Natural, Unbounded.Unbounded_String, "<", Unbounded."=");
+   package Name_Maps is new Ada.Containers.Ordered_Maps
+     (Posix_Tools.Accounts.Id,
+      Unbounded.Unbounded_String,
+      Posix_Tools.Accounts."<",
+      Unbounded."=");
 
    --  The terminal, and what it shows.
    type Terminal_State is record

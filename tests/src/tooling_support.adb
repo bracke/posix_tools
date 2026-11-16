@@ -1,5 +1,8 @@
+with Ada.Command_Line;
 with Ada.Directories;
+with Ada.IO_Exceptions;
 with Hostkit;
+with Hostkit.Fs;
 with Hostkit.Process;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
@@ -9,15 +12,85 @@ with Project_Tools.Files;
 with Tooling_Checks;
 
 package body Tooling_Support is
+   Cached_Root : Ada.Strings.Unbounded.Unbounded_String;
+
    function Root return String is
+      use Ada.Strings.Unbounded;
+
+      function Is_Project_Root (Directory : String) return Boolean is
+        (Project_Tools.Files.File_Exists
+           (Project_Tools.Files.Join (Directory, "alire.toml"))
+         and then Project_Tools.Files.Directory_Exists
+           (Project_Tools.Files.Join (Directory, "common"))
+         and then Project_Tools.Files.File_Exists
+           (Project_Tools.Files.Join
+              (Directory, "common/posix_tools_common.gpr"))
+         and then Project_Tools.Files.File_Exists
+           (Project_Tools.Files.Join
+              (Directory, "tests/posix_tools_tests.gpr")));
+
+      function Search_Upward (Start : String) return String is
+         Current : Unbounded_String :=
+           To_Unbounded_String (Ada.Directories.Full_Name (Start));
+      begin
+         loop
+            if Is_Project_Root (To_String (Current)) then
+               return To_String (Current);
+            end if;
+
+            declare
+               Parent : Unbounded_String;
+            begin
+               Parent := To_Unbounded_String
+                 (Ada.Directories.Containing_Directory
+                    (To_String (Current)));
+               exit when Parent = Current;
+               Current := Parent;
+            exception
+               when Ada.IO_Exceptions.Use_Error =>
+                  return "";
+            end;
+         end loop;
+         return "";
+      end Search_Upward;
+
+      Found           : Unbounded_String;
+      Executable_Path : Unbounded_String;
    begin
-      if Project_Tools.Files.File_Exists ("alire.toml")
-        and then Project_Tools.Files.Directory_Exists ("common")
-      then
-         return ".";
-      else
-         return "..";
+      if Length (Cached_Root) > 0 then
+         return To_String (Cached_Root);
       end if;
+
+      if Project_Tools.Files.File_Exists (Ada.Command_Line.Command_Name) then
+         Executable_Path := To_Unbounded_String
+           (Ada.Directories.Full_Name (Ada.Command_Line.Command_Name));
+      else
+         Executable_Path := To_Unbounded_String
+           (Project_Tools.Processes.Locate_Command
+              (Ada.Command_Line.Command_Name));
+      end if;
+
+      --  The executable identifies this checkout more authoritatively than
+      --  an ambient working directory that happens to be another Ada project.
+      if Length (Executable_Path) > 0 then
+         Found := To_Unbounded_String
+           (Search_Upward
+              (Ada.Directories.Containing_Directory
+                 (To_String (Executable_Path))));
+      end if;
+      if Length (Found) = 0 then
+         Found := To_Unbounded_String
+           (Search_Upward (Ada.Directories.Current_Directory));
+      end if;
+      if Length (Found) = 0 then
+         Tooling_Checks.Fail
+           ("could not locate the posix_tools project root from "
+            & Ada.Directories.Current_Directory & " or executable "
+            & Ada.Command_Line.Command_Name);
+      end if;
+
+      Cached_Root := Found;
+      return To_String (Cached_Root);
    end Root;
 
    function Built_Path (Base_Path : String) return String is
@@ -43,6 +116,18 @@ package body Tooling_Support is
    function Release_Archive_Path return String is
      ("dist/posix-tools-" & Posix_Tools.Version.Version_String & "-source.7z");
 
+   procedure Best_Effort_Delete_Tree (Path : String) is
+   begin
+      if Path /= "" then
+         Project_Tools.Files.Delete_Tree (Path);
+      end if;
+   exception
+      when others =>
+         --  intentional terminal exception barrier
+         --  Cleanup is secondary to the exception already being propagated.
+         null;
+   end Best_Effort_Delete_Tree;
+
    procedure Run_Within
      (Program    : String;
       Args       : Project_Tools.Processes.Argument_Vectors.Vector;
@@ -51,46 +136,75 @@ package body Tooling_Support is
       Started    : out Boolean;
       Timed_Out  : out Boolean;
       Input      : String := "";
-      Err_To_Out : Boolean := False)
+      Err_To_Out : Boolean := False;
+      Working_Directory : String := "")
    is
-      --  Scratch files under the ignored work directory; the driver runs
-      --  one program at a time.
-      Work        : constant String := Project_Tools.Files.Join (Root, "generated/test-work");
-      Input_Path  : constant String := Project_Tools.Files.Join (Work, "tooling-run.in");
-      Output_Path : constant String := Project_Tools.Files.Join (Work, "tooling-run.out");
-      Error_Path  : constant String := Project_Tools.Files.Join (Work, "tooling-run.err");
+      --  A private directory per call keeps concurrent driver processes from
+      --  deleting or replacing one another's captured input and output.
+      Work        : Ada.Strings.Unbounded.Unbounded_String;
+      Absolute_Root : Ada.Strings.Unbounded.Unbounded_String;
       Arguments   : Hostkit.String_Vectors.Vector;
       Outcome     : Hostkit.Process.Process_Outcome;
+
    begin
-      Ada.Directories.Create_Path (Work);
-      --  An empty input rather than ours, so a program that reads its
-      --  standard input sees its end at once.
-      Project_Tools.Files.Write_Raw_File (Input_Path, Input);
-      Project_Tools.Files.Delete_File_If_Present (Output_Path);
-      Project_Tools.Files.Delete_File_If_Present (Error_Path);
-      for Item of Args loop
-         Arguments.Append (Item);
-      end loop;
+      Absolute_Root := Ada.Strings.Unbounded.To_Unbounded_String (Root);
+      Work := Ada.Strings.Unbounded.To_Unbounded_String
+        (Hostkit.Fs.Create_Temporary_Directory
+           ("posix-tools-tooling-run"));
+      if Ada.Strings.Unbounded.Length (Work) = 0 then
+         Tooling_Checks.Fail
+           ("could not create temporary directory for tooling subprocess");
+      end if;
+      declare
+         Work_Path   : constant String :=
+           Ada.Strings.Unbounded.To_String (Work);
+         Input_Path  : constant String :=
+           Project_Tools.Files.Join (Work_Path, "tooling-run.in");
+         Output_Path : constant String :=
+           Project_Tools.Files.Join (Work_Path, "tooling-run.out");
+         Error_Path  : constant String :=
+           Project_Tools.Files.Join (Work_Path, "tooling-run.err");
+      begin
+         --  An empty input rather than ours, so a program that reads its
+         --  standard input sees its end at once.
+         Project_Tools.Files.Write_Raw_File (Input_Path, Input);
+         Project_Tools.Files.Delete_File_If_Present (Output_Path);
+         Project_Tools.Files.Delete_File_If_Present (Error_Path);
+         for Item of Args loop
+            Arguments.Append (Item);
+         end loop;
 
-      Outcome :=
-        Hostkit.Process.Run_Captured
-          (Program           => Program,
-           Arguments         => Arguments,
-           Working_Directory => Root,
-           Stdin_Path        => Input_Path,
-           Stdout_Path       => Output_Path,
-           Stderr_Path       => (if Err_To_Out then Output_Path else Error_Path),
-           Timeout_Ms        => Natural (Timeout * 1000));
+         Outcome :=
+           Hostkit.Process.Run_Captured
+             (Program           => Program,
+              Arguments         => Arguments,
+              Working_Directory =>
+                (if Working_Directory = ""
+                 then Ada.Strings.Unbounded.To_String (Absolute_Root)
+                 else Working_Directory),
+              Stdin_Path        => Input_Path,
+              Stdout_Path       => Output_Path,
+              Stderr_Path       =>
+                (if Err_To_Out then Output_Path else Error_Path),
+              Timeout_Ms        => Natural (Timeout * 1000));
 
-      Started := Outcome.Started;
-      Timed_Out := Outcome.Timed_Out;
-      Result :=
-        (Status => (if Outcome.Started then Outcome.Exit_Status else 127),
-         Output =>
-           Ada.Strings.Unbounded.To_Unbounded_String
-             (if Project_Tools.Files.File_Exists (Output_Path)
-              then Project_Tools.Files.Read_Raw_File (Output_Path)
-              else ""));
+         Started := Outcome.Started;
+         Timed_Out := Outcome.Timed_Out;
+         Result :=
+           (Status => (if Outcome.Started then Outcome.Exit_Status else 127),
+            Output =>
+              Ada.Strings.Unbounded.To_Unbounded_String
+                (if Project_Tools.Files.File_Exists (Output_Path)
+                 then Project_Tools.Files.Read_Raw_File (Output_Path)
+                 else ""));
+      end;
+      Project_Tools.Files.Delete_Tree
+        (Ada.Strings.Unbounded.To_String (Work));
+   exception
+      when others =>
+         Best_Effort_Delete_Tree
+           (Ada.Strings.Unbounded.To_String (Work));
+         raise;
    end Run_Within;
 
    function Capture_Within
@@ -99,13 +213,23 @@ package body Tooling_Support is
       Args       : Project_Tools.Processes.Argument_Vectors.Vector;
       Input      : String := "";
       Err_To_Out : Boolean := False;
-      Timeout    : Duration := 120.0) return Project_Tools.Processes.Captured_Process
+      Timeout    : Duration := 120.0;
+      Working_Directory : String := "") return Project_Tools.Processes.Captured_Process
    is
       Result    : Project_Tools.Processes.Captured_Process;
       Started   : Boolean;
       Timed_Out : Boolean;
    begin
-      Run_Within (Program, Args, Timeout, Result, Started, Timed_Out, Input, Err_To_Out);
+      Run_Within
+        (Program,
+         Args,
+         Timeout,
+         Result,
+         Started,
+         Timed_Out,
+         Input,
+         Err_To_Out,
+         Working_Directory);
       if not Started then
          Tooling_Checks.Fail (Label & ": could not start " & Program);
       elsif Timed_Out then

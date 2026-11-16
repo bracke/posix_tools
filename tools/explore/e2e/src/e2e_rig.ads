@@ -18,11 +18,12 @@ package E2E_Rig is
    --  Rows by Columns cells of 10 by 20 pixels, its configuration and state
    --  directories empty fixtures of their own.
    procedure Start
-     (Self      : in out Rig;
-      Directory : String;
-      Rows      : Positive := 24;
-      Columns   : Positive := 100;
-      Options   : String := "");
+     (Self                : in out Rig;
+      Directory           : String;
+      Rows                : Positive := 24;
+      Columns             : Positive := 100;
+      Options             : String := "";
+      Temporary_Directory : String := "");
 
    --  Pass what is waiting between explore and the core, for about
    --  Milliseconds.
@@ -82,11 +83,19 @@ package E2E_Rig is
    --  status.
    procedure Wait_Exit (Self : in out Rig; Ended : out Boolean; Code : out Integer; Timeout_Ms : Natural := 5_000);
 
+   type Exit_Status_Convention is
+     (Decoded_Status, Raw_POSIX_Wait_Status);
+
+   --  Normalize the explicitly selected terminal backend convention.
+   function Exit_Code
+     (State  : Terminal.PTY.Backend.Exit_State;
+      Status : Integer;
+      Convention : Exit_Status_Convention) return Integer;
+
    procedure Stop (Self : in out Rig);
 
-   --  A fresh, empty directory for one test's files, below the crate's obj
-   --  wherever the tests were started from, with links resolved as explore
-   --  shows paths.
+   --  A fresh, empty directory for one test's files, below this process's
+   --  private run directory, with links resolved as explore shows paths.
    function Fixture (Name : String) return String;
 
    --  The same, but kept between runs as it is, for what is costly to make.
@@ -94,9 +103,6 @@ package E2E_Rig is
 
    --  Text quoted for the shell, whatever is in it.
    function Quoted (Text : String) return String;
-
-   --  Write Text to the file at Path.
-   procedure Write_File (Path, Text : String);
 
 private
    type Rig is limited record
@@ -110,4 +116,14 @@ private
       Spoke     : Boolean := False;
       Spoke_At  : Ada.Real_Time.Time := Ada.Real_Time.Time_First;
    end record;
+
+   procedure Start_With_Hook
+     (Self                : in out Rig;
+      Directory           : String;
+      Rows                : Positive := 24;
+      Columns             : Positive := 100;
+      Options             : String := "";
+      Temporary_Directory : String := "";
+      Claim_Attempts      : Positive := 500;
+      On_Ready_To_Launch  : access procedure := null);
 end E2E_Rig;

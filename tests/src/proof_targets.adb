@@ -14,6 +14,7 @@ procedure Proof_Targets (Gnatprove : String) is
       (To_Unbounded_String ("posix_tools.command_inventory"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.command_inventory.tables"), To_Unbounded_String ("2")),
       (To_Unbounded_String ("posix_tools.extension_options"), To_Unbounded_String ("1")),
+      (To_Unbounded_String ("posix_tools.accounts"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.numbers"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.paths"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.text.utf_8"), To_Unbounded_String ("1")),

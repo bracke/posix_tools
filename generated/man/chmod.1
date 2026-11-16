@@ -40,6 +40,7 @@ chmod u=rw,go=r file
 .SH CONFORMANCE STATUS
 Conforming with extensions tracked by CHMOD-POSIX-001.
 .SH KNOWN LIMITATIONS
-Host-specific permission-bit availability is determined by hostkit.
+Host-specific permission-bit availability is determined by hostkit. Recursive
+traversal is physical: symbolic links are skipped rather than followed.
 .SH SEE ALSO
 docs/commands/chmod.md

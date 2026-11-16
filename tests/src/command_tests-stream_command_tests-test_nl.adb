@@ -8,6 +8,8 @@ separate (Command_Tests.Stream_Command_Tests)
       Missing : constant String := Fixture_Path ("nl-missing.txt");
       LF      : constant Character := Character'Val (10);
       HT      : constant Character := Character'Val (9);
+      Boundary_Prefix : constant String (1 .. 16 * 1024 - 3) :=
+        [others => 'a'];
 
    begin
       Context.Initialize ("nl", No_Args);
@@ -69,6 +71,18 @@ separate (Command_Tests.Stream_Command_Tests)
            & "     4" & HT & "body" & LF
            & "     5" & HT & "foot" & LF,
          "nl processes default logical page delimiters");
+
+      Context.Initialize ("nl", Two_Args ("-ha", "-ba"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Boundary_Prefix & LF & "\:\:\:" & LF & "head" & LF);
+      Posix_Tools.Commands.Nl.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "     1" & HT & Boundary_Prefix & LF
+           & "     1" & HT & "head" & LF,
+         "nl recognizes logical delimiters split across input chunks");
 
       Context.Initialize ("nl", Five_Args ("-p", "-ha", "-d", "%%", "-v7"));
       Test_Contexts.Set_Standard_Input

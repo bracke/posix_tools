@@ -11,7 +11,6 @@ with Hostkit.Metadata;
 with Posix_Tools.Commands.Cat;
 with Posix_Tools.Commands.Find;
 with Posix_Tools.Commands.Ls;
-with Posix_Tools.Commands.Pathchk;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Test_Command;
 with Posix_Tools.Commands.Touch;
@@ -24,75 +23,6 @@ package body Command_Tests.Surface_Smoke.Metadata is
    use type Posix_Tools.Exit_Status.Code;
    use Command_Tests.Surface_Smoke.Fixtures;
    use Command_Tests.Surface_Smoke.Helpers;
-
-   procedure Test_Pathchk (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context        : Test_Contexts.Capturing_Context;
-      Result         : Posix_Tools.Commands.Results.Result;
-      Long_Component : constant String (1 .. 260) := (others => 'a');
-   begin
-      Context.Initialize ("pathchk", One_Arg ("portable/name_1.2"));
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = ""
-         and then Test_Contexts.Error_Output (Context) = "",
-         "pathchk accepts ordinary path without output");
-
-      Context.Initialize ("pathchk", Two_Args ("-p", "portable_1.2"));
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success,
-         "pathchk -p accepts portable name");
-
-      Context.Initialize ("pathchk", Two_Args ("-p", "bad@name"));
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Test_Contexts.Error_Output (Context)
-           = "pathchk: 'bad@name': non-portable character" & EOL,
-         "pathchk rejects a non-portable character");
-
-      Context.Initialize ("pathchk", One_Arg (""));
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Test_Contexts.Error_Output (Context)
-           = "pathchk: '': empty pathname" & EOL,
-         "pathchk rejects an empty pathname");
-
-      Context.Initialize ("pathchk", One_Arg (Long_Component));
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "pathchk rejects a long component");
-
-      declare
-         Capacity : constant Hostkit.Metadata.Volume_Capacity :=
-           Hostkit.Metadata.Volume_Capacity_Of (".");
-      begin
-         if Capacity.Available
-           and then Capacity.Name_Max_Known
-           and then Capacity.Name_Max < 1_024
-         then
-            declare
-               Too_Long : constant String (1 .. Capacity.Name_Max + 1) := (others => 'b');
-            begin
-               Context.Initialize ("pathchk", One_Arg (Too_Long));
-               Posix_Tools.Commands.Pathchk.Run (Context, Result);
-               AUnit.Assertions.Assert
-                 (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-                  "pathchk rejects host-reported name_max overflow");
-            end;
-         end if;
-      end;
-
-      Context.Initialize ("pathchk", No_Args);
-      Posix_Tools.Commands.Pathchk.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "pathchk rejects missing operands");
-   end Test_Pathchk;
 
    procedure Test_Find (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
@@ -131,6 +61,14 @@ package body Command_Tests.Surface_Smoke.Metadata is
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
          and then Test_Contexts.Error_Output (Context) = "find: '-name': no such file or directory" & EOL,
          "find treats option-like operand after -- as path operand");
+   end Test_Find;
+
+   procedure Test_Find_Names_And_Types (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Prepare_Search_Fixtures;
 
       Context.Initialize ("find", Three_Args (Made, "-name", "command-source.txt"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -219,6 +157,14 @@ package body Command_Tests.Surface_Smoke.Metadata is
             and then Test_Contexts.Output (Context) = "",
             "find -type b excludes character device");
       end if;
+   end Test_Find_Names_And_Types;
+
+   procedure Test_Find_Size_And_Time (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Prepare_Search_Fixtures;
 
       Context.Initialize ("find", Three_Args (Made, "-size", "9c"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -279,6 +225,14 @@ package body Command_Tests.Surface_Smoke.Metadata is
       AUnit.Assertions.Assert
         (Contains (Test_Contexts.Output (Context), "command-source.txt" & EOL),
          "find -newer reference output");
+   end Test_Find_Size_And_Time;
+
+   procedure Test_Find_Execution (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Prepare_Search_Fixtures;
 
       Context.Initialize ("find", Six_Args (Source, "-exec", "echo", "seen", "{}", ";"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -286,6 +240,13 @@ package body Command_Tests.Surface_Smoke.Metadata is
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = "seen " & Source & EOL,
          "find -exec replacement output");
+
+      Context.Initialize ("find", Six_Args (Source, "-print", "-exec", "echo", "after", ";"));
+      Posix_Tools.Commands.Find.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = Source & EOL & "after" & EOL,
+         "find flushes printed paths before executing a utility");
 
       Context.Initialize ("find", Four_Args (Source, "-exec", "false", ";"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -350,6 +311,14 @@ package body Command_Tests.Surface_Smoke.Metadata is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "find rejects unterminated -ok");
+   end Test_Find_Execution;
+
+   procedure Test_Find_Traversal_And_Metadata (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Prepare_Search_Fixtures;
 
       Context.Initialize ("find", Two_Args (Tree, "-depth"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -383,6 +352,13 @@ package body Command_Tests.Surface_Smoke.Metadata is
          AUnit.Assertions.Assert
            (Contains (Test_Contexts.Output (Context), "file.txt" & EOL),
             "find -perm exact output");
+
+         Context.Initialize
+           ("find", Five_Args (Tree, "-size", "9c", "-perm", "640"));
+         Posix_Tools.Commands.Find.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Contains (Test_Contexts.Output (Context), "file.txt" & EOL),
+            "find shares metadata across compound predicates");
 
          Context.Initialize ("find", Three_Args (Tree, "-perm", "-600"));
          Posix_Tools.Commands.Find.Run (Context, Result);
@@ -482,6 +458,14 @@ package body Command_Tests.Surface_Smoke.Metadata is
             end if;
          end;
       end if;
+   end Test_Find_Traversal_And_Metadata;
+
+   procedure Test_Find_Expressions (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
+      Prepare_Search_Fixtures;
 
       Context.Initialize ("find", Five_Args (Tree, "-type", "f", "-name", "file.txt"));
       Posix_Tools.Commands.Find.Run (Context, Result);
@@ -526,7 +510,7 @@ package body Command_Tests.Surface_Smoke.Metadata is
            (Test_Contexts.Output (Context) = Symlinked & EOL,
             "find -type l output");
       end if;
-   end Test_Find;
+   end Test_Find_Expressions;
 
    procedure Test_Ls (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
@@ -955,394 +939,6 @@ package body Command_Tests.Surface_Smoke.Metadata is
          "test rejects unknown binary operator");
    end Test_Test;
 
-   procedure Test_Touch (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Write_File (Source, "copy-data");
-      Context.Initialize ("touch", One_Arg (Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert (Ada.Directories.Exists (Touched), "touch created file");
-
-      Write_File (Touched, "touch-data");
-      Context.Initialize ("touch", One_Arg (Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "touch existing status");
-      Context.Initialize ("cat", One_Arg (Touched));
-      Posix_Tools.Commands.Cat.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "touch-data", "touch preserves existing data");
-
-      Context.Initialize ("touch", Two_Args ("-c", No_Create));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then not Ada.Directories.Exists (No_Create),
-         "touch -c leaves missing file absent");
-
-      Context.Initialize ("touch", Two_Args ("-am", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "touch -am status");
-
-      GNAT.OS_Lib.Set_File_Last_Modify_Time_Stamp
-        (Touched,
-         GNAT.OS_Lib.GM_Time_Of
-           (2026,
-            8,
-            12,
-            10,
-            0,
-            0));
-      Context.Initialize ("touch", Three_Args ("-a", "-t202608121540.11", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (10 * 3_600))),
-         "touch -a leaves modification timestamp unchanged");
-      declare
-         --  touch -t names a local time: 15:40:11 at this host's offset.
-         Expected_Access : constant Ada.Calendar.Time :=
-           Ada.Calendar.Formatting.Time_Of
-             (2026, 8, 12, 15, 40, 11,
-              Time_Zone => Ada.Calendar.Time_Zones.UTC_Time_Offset (Ada.Calendar.Time_Of (2026, 8, 12)));
-         Available : Boolean;
-         Accessed  : constant Ada.Calendar.Time := Hostkit.Metadata.File_Access_Time (Touched, Available);
-      begin
-         if Available then
-            AUnit.Assertions.Assert
-              (Time_Near (Accessed, Expected_Access),
-               "touch -a applies explicit access timestamp: got "
-               & Ada.Calendar.Formatting.Image (Accessed) & " expected "
-               & Ada.Calendar.Formatting.Image (Expected_Access) & " offset"
-               & Ada.Calendar.Time_Zones.UTC_Time_Offset (Ada.Calendar.Time_Of (2026, 8, 12))'Image);
-         end if;
-      end;
-
-      Context.Initialize ("touch", Three_Args ("-m", "-t202608121540.11", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (15 * 3_600 + 40 * 60 + 11))),
-         "touch -m applies explicit modification timestamp");
-
-      --  A reference time far from both now and the time Touched has, so
-      --  a touch that ignored -r could not land near it.
-      AUnit.Assertions.Assert
-        (Hostkit.Metadata.Set_File_Times (Source, 1_612_325_106, 1_646_370_367),
-         "touch -r reference time setup");
-      Context.Initialize ("touch", Three_Args ("-r", Source, Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near (Ada.Directories.Modification_Time (Touched), Ada.Directories.Modification_Time (Source)),
-         "touch -r status and timestamp");
-
-      AUnit.Assertions.Assert
-        (Hostkit.Metadata.Set_File_Times (Touched, 1_700_000_000, 1_700_000_000),
-         "touch compact -r target time setup");
-      Context.Initialize ("touch", Two_Args ("-r" & Source, Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near (Ada.Directories.Modification_Time (Touched), Ada.Directories.Modification_Time (Source)),
-         "touch compact -r status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-t", "202608121530.45", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (15 * 3_600 + 30 * 60 + 45))),
-         "touch -t status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-t", "202608121531", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (15 * 3_600 + 31 * 60))),
-         "touch -t explicit century minute timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-t", "202608121531.46", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (15 * 3_600 + 31 * 60 + 46))),
-         "touch -t explicit century seconds timestamp");
-
-      Context.Initialize ("touch", Two_Args ("-t08121530", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of
-              (Ada.Calendar.Year (Ada.Calendar.Clock), 8, 12, Duration (15 * 3_600 + 30 * 60))),
-         "touch compact -t status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "202608121631.05", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 31 * 60 + 5))),
-         "touch -d status and timestamp");
-
-      Context.Initialize ("touch", Two_Args ("-d202608121632.06", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 32 * 60 + 6))),
-         "touch compact -d status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-12T16:33:07", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 33 * 60 + 7))),
-         "touch -d ISO date-time status and timestamp");
-
-      Context.Initialize ("touch", Two_Args ("-d2026-08-12 16:34:08", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 34 * 60 + 8))),
-         "touch compact -d spaced date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-12T16:35:09Z", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 35 * 60 + 9))),
-         "touch -d UTC date-time status and timestamp");
-
-      Context.Initialize ("touch", Two_Args ("-d2026-08-12 16:36:10Z", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (16 * 3_600 + 36 * 60 + 10))),
-         "touch compact -d UTC spaced date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-12T16:35:09+02:30", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (14 * 3_600 + 5 * 60 + 9))),
-         "touch -d positive numeric offset status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-12 16:36:10-0330", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 12, Duration (20 * 3_600 + 6 * 60 + 10))),
-         "touch -d negative numeric offset status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-13", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, 0.0)),
-         "touch -d date-only status and timestamp");
-
-      Context.Initialize ("touch", Two_Args ("-d2026-08-13T17:45", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 45 * 60))),
-         "touch compact -d minute-precision status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-13T17:46Z", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 46 * 60))),
-         "touch -d UTC minute-precision status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-13T17:47+02:30", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (15 * 3_600 + 17 * 60))),
-         "touch -d positive offset minute-precision status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026/08/13 17:48:11", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 48 * 60 + 11))),
-         "touch -d slash date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-13t17:49:12Z", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 49 * 60 + 12))),
-         "touch -d lowercase-t UTC date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "2026-08-13T17:50:13.987+02:30", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (15 * 3_600 + 20 * 60 + 13))),
-         "touch -d fractional offset date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "Aug 13 2026 17:51:14", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 51 * 60 + 14))),
-         "touch -d abbreviated month-name date-time status and timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "August 13, 2026 17:52", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 52 * 60))),
-         "touch -d full month-name minute timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "Sep 14 2026", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 9, 14, 0.0)),
-         "touch -d month-name date-only timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "13 Aug 2026 17:53:16", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 8, 13, Duration (17 * 3_600 + 53 * 60 + 16))),
-         "touch -d day-first abbreviated month-name timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "14 September 2026", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Time_Near
-           (Ada.Directories.Modification_Time (Touched),
-            Ada.Calendar.Time_Of (2026, 9, 14, 0.0)),
-         "touch -d day-first full month-name date-only timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "noon", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      declare
-         Year : Ada.Calendar.Year_Number;
-         Month : Ada.Calendar.Month_Number;
-         Day : Ada.Calendar.Day_Number;
-         Seconds : Duration;
-      begin
-         Ada.Calendar.Split (Ada.Calendar.Clock, Year, Month, Day, Seconds);
-         AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success
-            and then Time_Near
-              (Ada.Directories.Modification_Time (Touched),
-               Ada.Calendar.Time_Of (Year, Month, Day, Duration (12 * 3_600))),
-            "touch -d noon timestamp");
-      end;
-
-      Context.Initialize ("touch", Three_Args ("-d", "2 hours ago", Touched));
-      declare
-         Expected : constant Ada.Calendar.Time := Ada.Calendar.Clock - Duration (2 * 3_600);
-      begin
-         Posix_Tools.Commands.Touch.Run (Context, Result);
-         AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success
-            and then Time_Near (Ada.Directories.Modification_Time (Touched), Expected),
-            "touch -d relative hours ago timestamp");
-      end;
-
-      Context.Initialize ("touch", Three_Args ("-d", "+1 day", Touched));
-      declare
-         Expected : constant Ada.Calendar.Time := Ada.Calendar.Clock + 86_400.0;
-      begin
-         Posix_Tools.Commands.Touch.Run (Context, Result);
-         AUnit.Assertions.Assert
-           (Result.Status = Posix_Tools.Exit_Status.Success
-            and then Time_Near (Ada.Directories.Modification_Time (Touched), Expected),
-            "touch -d relative plus day timestamp");
-      end;
-
-      Context.Initialize ("touch", Three_Args ("-d", "bad", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "touch rejects invalid -d timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "Nope 13 2026 17:51:14", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "touch rejects invalid month-name -d timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-d", "32 Aug 2026 17:51:14", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "touch rejects invalid day-first month-name -d timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-t", "202613121530", Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "touch rejects invalid timestamp");
-
-      Context.Initialize ("touch", Three_Args ("-r", No_Create, Touched));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "touch missing reference status");
-
-      Context.Initialize ("touch", Two_Args ("-ac", No_Create));
-      Posix_Tools.Commands.Touch.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then not Ada.Directories.Exists (No_Create),
-         "touch grouped -ac leaves missing file absent");
-   end Test_Touch;
+   procedure Test_Touch (T : in out Surface_Fixture) is separate;
 
 end Command_Tests.Surface_Smoke.Metadata;

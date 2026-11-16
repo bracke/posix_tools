@@ -1,4 +1,5 @@
 with Ada.Containers;
+with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
@@ -6,7 +7,8 @@ with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Commands.Text_Helpers.Folding;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Output_Files;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Classification;
@@ -17,9 +19,12 @@ package body Posix_Tools.Commands.Uniq is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
+   use type Ada.Streams.Stream_Element;
+   use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
 
    LF : constant Character := Character'Val (10);
+   Output_Chunk_Size : constant := 64 * 1024;
 
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
 
@@ -45,12 +50,6 @@ package body Posix_Tools.Commands.Uniq is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
       Options : out Run_Options) return Boolean;
-
-   --  The filtered output for Lines.
-   function Filter_Lines
-     (Options : Run_Options;
-      Locale  : String;
-      Lines   : String_Vectors.Vector) return String;
 
    function Comparison_Key (Options : Run_Options; Locale, Line : String) return String is
       Position : Natural := Line'First;
@@ -152,56 +151,6 @@ package body Posix_Tools.Commands.Uniq is
       return [1 .. 7 - Raw'Length => ' '] & Raw;
    end Count_Field;
 
-   function Filter_Lines
-     (Options : Run_Options;
-      Locale  : String;
-      Lines   : String_Vectors.Vector) return String
-   is
-      Output       : Unbounded_String;
-      Previous     : Natural := 0;
-      Previous_Key : Unbounded_String;
-      Count        : Natural := 0;
-
-      procedure Emit_Group;
-
-      --  POSIX uniq: -d suppresses lines that are not repeated and -u lines
-      --  that are, so with both nothing is written.
-      procedure Emit_Group is
-         Should_Emit : constant Boolean :=
-           (if Options.Duplicates and then Count = 1 then False
-            elsif Options.Unique_Only and then Count > 1 then False
-            else True);
-      begin
-         if Should_Emit then
-            if Options.Counts then
-               Append (Output, Count_Field (Count) & " ");
-            end if;
-            Append (Output, Lines (Previous) & LF);
-         end if;
-      end Emit_Group;
-   begin
-      for I in 1 .. Natural (Lines.Length) loop
-         declare
-            Key : constant String := Comparison_Key (Options, Locale, Lines (I));
-         begin
-            if Previous > 0 and then Key = To_String (Previous_Key) then
-               Count := Count + 1;
-            else
-               if Previous > 0 then
-                  Emit_Group;
-               end if;
-               Previous := I;
-               Previous_Key := To_Unbounded_String (Key);
-               Count := 1;
-            end if;
-         end;
-      end loop;
-      if Previous > 0 then
-         Emit_Group;
-      end if;
-      return To_String (Output);
-   end Filter_Lines;
-
    function Parse_Options
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result;
@@ -291,34 +240,225 @@ package body Posix_Tools.Commands.Uniq is
       end if;
 
       declare
-         Text : constant String :=
+         Locale       : constant String :=
+           Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation);
+         Input_Name   : constant String :=
            (if Options.Files.Is_Empty or else Options.Files.Element (1) = "-"
-            then Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Ok)
-            else Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Options.Files.Element (1), Ok));
-      begin
-         if not Ok then
-            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-            return;
-         end if;
+            then "-" else Options.Files.Element (1));
+         Previous     : Unbounded_String;
+         Previous_Key : Unbounded_String;
+         Count        : Natural := 0;
+         Pending      : Unbounded_String;
+         Output       : Posix_Tools.Host_Adapters.Output_Files.Output_File;
+         Output_Open  : Boolean := False;
+         Partial      : Unbounded_String;
+         Direct_Comparison : constant Boolean :=
+           not Options.Fold_Case
+           and then Options.Skip_Fields = 0
+           and then Options.Skip_Chars = 0
+           and then Posix_Tools.Commands.Text_Helpers.Collation.Is_Byte_Collation_Locale (Locale);
 
-         declare
-            Output : constant String :=
-              Filter_Lines
-                (Options,
-                 Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation),
-                 Posix_Tools.Streams.Lines.Split_LF_Records (Text));
+         procedure Emit_Group;
+         procedure Flush;
+         procedure Scan_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset);
+         procedure Write_Direct (Text : String);
+         procedure Write_Previous;
+         procedure Take_Line (Line : String);
+
+         procedure Flush is
          begin
-            if Options.Files.Length = 2 then
-               Posix_Tools.Host_Adapters.File_System.Write_File (Options.Files.Element (2), Output, False, Ok);
+            if Length (Pending) = 0 or else not Ok then
+               return;
+            elsif Output_Open then
+               Posix_Tools.Host_Adapters.Output_Files.Write
+                 (Output, To_String (Pending), Ok);
                if not Ok then
                   Posix_Tools.Commands.Helpers.Subject_Operational_Error
                     (Context, Options.Files.Element (2),
                      "posix_tools.diagnostic.file.write_failed", "cannot write file");
                end if;
             else
-               Context.Put (Output);
+               Context.Put (To_String (Pending));
+               Ok := not Context.Output_Failed;
             end if;
-         end;
+            Pending := Null_Unbounded_String;
+         end Flush;
+
+         procedure Write_Direct (Text : String) is
+         begin
+            if not Ok or else Text = "" then
+               return;
+            elsif Output_Open then
+               Posix_Tools.Host_Adapters.Output_Files.Write (Output, Text, Ok);
+               if not Ok then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Options.Files.Element (2),
+                     "posix_tools.diagnostic.file.write_failed", "cannot write file");
+               end if;
+            else
+               Context.Put (Text);
+               Ok := not Context.Output_Failed;
+            end if;
+         end Write_Direct;
+
+         procedure Write_Previous is
+            First : Positive := 1;
+         begin
+            while Ok and then First <= Length (Previous) loop
+               declare
+                  Last : constant Natural := Natural'Min
+                    (Length (Previous), First + Output_Chunk_Size - 1);
+               begin
+                  Write_Direct (Slice (Previous, First, Last));
+                  First := Last + 1;
+               end;
+            end loop;
+         end Write_Previous;
+
+         procedure Emit_Group is
+            Should_Emit : constant Boolean :=
+              (if Options.Duplicates and then Count = 1 then False
+               elsif Options.Unique_Only and then Count > 1 then False
+               else True);
+         begin
+            if Should_Emit then
+               if Length (Previous) >= Output_Chunk_Size then
+                  Flush;
+                  if Options.Counts then
+                     Write_Direct (Count_Field (Count) & " ");
+                  end if;
+                  Write_Previous;
+                  Write_Direct ("" & LF);
+               else
+                  if Options.Counts then
+                     Append (Pending, Count_Field (Count) & " ");
+                  end if;
+                  Append (Pending, Previous);
+                  Append (Pending, LF);
+                  if Length (Pending) >= 64 * 1024 then
+                     Flush;
+                  end if;
+               end if;
+            end if;
+         end Emit_Group;
+
+         procedure Take_Line (Line : String) is
+         begin
+            if Direct_Comparison then
+               if Count > 0 and then Previous = Line then
+                  Count := Count + 1;
+               else
+                  if Count > 0 then
+                     Emit_Group;
+                  end if;
+                  Previous := To_Unbounded_String (Line);
+                  Count := 1;
+               end if;
+            else
+               declare
+                  Key : constant String := Comparison_Key (Options, Locale, Line);
+               begin
+                  if Count > 0 and then Key = Previous_Key then
+                     Count := Count + 1;
+                  else
+                     if Count > 0 then
+                        Emit_Group;
+                     end if;
+                     Previous := To_Unbounded_String (Line);
+                     Previous_Key := To_Unbounded_String (Key);
+                     Count := 1;
+                  end if;
+               end;
+            end if;
+         end Take_Line;
+
+         procedure Scan_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset)
+         is
+            pragma Unreferenced (Ignored);
+            Start : Ada.Streams.Stream_Element_Offset := Buffer'First;
+         begin
+            if Last < Buffer'First then
+               return;
+            end if;
+
+            for I in Buffer'First .. Last loop
+               if Buffer (I) = Ada.Streams.Stream_Element (10) then
+                  if Length (Partial) = 0 then
+                     if Start = I then
+                        Take_Line ("");
+                     else
+                        Take_Line
+                          (Posix_Tools.Streams.Bytes.To_String
+                             (Buffer (Start .. I - 1), I - 1));
+                     end if;
+                  else
+                     if Start < I then
+                        Append
+                          (Partial,
+                           Posix_Tools.Streams.Bytes.To_String
+                             (Buffer (Start .. I - 1), I - 1));
+                     end if;
+                     Take_Line (To_String (Partial));
+                     Partial := Null_Unbounded_String;
+                  end if;
+                  Start := I + 1;
+                  exit when not Ok;
+               end if;
+            end loop;
+
+            if Ok and then Start <= Last then
+               Append
+                 (Partial,
+                  Posix_Tools.Streams.Bytes.To_String
+                    (Buffer (Start .. Last), Last));
+            end if;
+         end Scan_Chunk;
+
+         procedure Iterate is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+             (Action        => Scan_Chunk,
+              Buffer_Length =>
+                Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
+      begin
+         if Options.Files.Length = 2 then
+            Posix_Tools.Host_Adapters.Output_Files.Open
+              (Output, Options.Files.Element (2), False, Ok);
+            Output_Open := Ok;
+            if not Ok then
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, Options.Files.Element (2),
+                  "posix_tools.diagnostic.file.write_failed", "cannot write file");
+            end if;
+         end if;
+         if Ok then
+            Iterate (Context, Input_Name, Ok);
+            if Ok and then Length (Partial) > 0 then
+               Take_Line (To_String (Partial));
+            end if;
+         end if;
+         if Ok and then Count > 0 then
+            Emit_Group;
+            Flush;
+         end if;
+         if Output_Open then
+            declare
+               Closed : Boolean;
+            begin
+               Posix_Tools.Host_Adapters.Output_Files.Close (Output, Closed);
+               Ok := Ok and Closed;
+               if not Closed then
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Options.Files.Element (2),
+                     "posix_tools.diagnostic.file.write_failed", "cannot write file");
+               end if;
+            end;
+         end if;
       end;
 
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);

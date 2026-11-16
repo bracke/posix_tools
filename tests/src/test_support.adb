@@ -1,7 +1,6 @@
 with Ada.Directories;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
-with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Hostkit.Fs;
 with Posix_Tools.Command_Inventory;
@@ -10,6 +9,24 @@ with GNAT.OS_Lib;
 
 package body Test_Support is
    use type Ada.Directories.File_Kind;
+
+   Suite_Work_Directory : Work_Directory;
+
+   procedure Ensure_Work_Root (Directory : in out Work_Directory);
+
+   procedure Ensure_Work_Root (Directory : in out Work_Directory) is
+      use Ada.Strings.Unbounded;
+   begin
+      if Length (Directory.Root) = 0 then
+         Directory.Root :=
+           To_Unbounded_String
+             (Hostkit.Fs.Create_Temporary_Directory ("posix-tools-tests"));
+         if Length (Directory.Root) = 0 then
+            raise Ada.Directories.Use_Error with
+              "could not allocate the test work directory";
+         end if;
+      end if;
+   end Ensure_Work_Root;
 
    function No_Args return Posix_Tools.Arguments.Vector is
       Result : Posix_Tools.Arguments.Vector;
@@ -75,9 +92,84 @@ package body Test_Support is
    end Six_Args;
 
    function Work_Path (Name : String) return String is
+      use Ada.Strings.Unbounded;
    begin
-      return Hostkit.Fs.Join (Hostkit.Fs.Join ("generated", "test-work"), Name);
+      if Length (Suite_Work_Directory.Root) = 0 then
+         raise Program_Error with
+           "test work directory was not prepared by the driver";
+      end if;
+      return Hostkit.Fs.Join
+        (To_String (Suite_Work_Directory.Root), Name);
    end Work_Path;
+
+   function Work_Path
+     (Directory : in out Work_Directory;
+      Name      : String) return String
+   is
+      use Ada.Strings.Unbounded;
+   begin
+      Ensure_Work_Root (Directory);
+      return Hostkit.Fs.Join (To_String (Directory.Root), Name);
+   end Work_Path;
+
+   procedure Prepare_Work_Directory is
+   begin
+      Prepare_Work_Directory (Suite_Work_Directory);
+   end Prepare_Work_Directory;
+
+   procedure Prepare_Work_Directory
+     (Directory : in out Work_Directory)
+   is
+      use Ada.Strings.Unbounded;
+   begin
+      Ensure_Work_Root (Directory);
+      if not Ada.Directories.Exists (To_String (Directory.Root))
+        or else Ada.Directories.Kind (To_String (Directory.Root)) /= Ada.Directories.Directory
+      then
+         raise Ada.Directories.Use_Error with "temporary work root is unavailable";
+      end if;
+   end Prepare_Work_Directory;
+
+   procedure Remove_Work_Directory is
+   begin
+      Remove_Work_Directory (Suite_Work_Directory);
+   end Remove_Work_Directory;
+
+   procedure Remove_Work_Directory
+     (Directory : in out Work_Directory)
+   is
+      use Ada.Strings.Unbounded;
+   begin
+      if Length (Directory.Root) > 0 then
+         Delete_If_Exists (To_String (Directory.Root));
+         Directory.Root := Null_Unbounded_String;
+      end if;
+   end Remove_Work_Directory;
+
+   procedure Remove_Work_Directory_Safely is
+   begin
+      Remove_Work_Directory_Safely (Suite_Work_Directory);
+   end Remove_Work_Directory_Safely;
+
+   procedure Remove_Work_Directory_Safely
+     (Directory : in out Work_Directory) is
+   begin
+      Remove_Work_Directory (Directory);
+   exception
+      when others =>
+         --  intentional terminal exception barrier
+         --  Preserve the operational exception already being propagated.
+         null;
+   end Remove_Work_Directory_Safely;
+
+   procedure Restore_Directory_Safely (Path : String) is
+   begin
+      Ada.Directories.Set_Directory (Path);
+   exception
+      when others =>
+         --  intentional terminal exception barrier
+         null;
+   end Restore_Directory_Safely;
 
    function Contains (Text, Pattern : String) return Boolean is
    begin

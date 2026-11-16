@@ -1,13 +1,17 @@
 with Ada.Containers;
+with Ada.IO_Exceptions;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with Posix_Tools.Accounts;
 with Posix_Tools.Arguments;
 with Posix_Tools.Arguments.Parsing;
+with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Counts;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Extension_Options;
+with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Numbers;
 with Posix_Tools.Option_Parsing;
 with Posix_Tools.Paths;
@@ -19,8 +23,10 @@ with Posix_Tools.Text.Locale_Fields;
 with Posix_Tools.Version;
 with Posix_Tools.Wc_Fields;
 with Test_Support;
+with Test_Contexts;
 
 package body Basic_Tests is
+   use type Posix_Tools.Accounts.Id;
    function Args (A, B, C : String := "") return Posix_Tools.Arguments.Vector is
       Result : Posix_Tools.Arguments.Vector;
    begin
@@ -35,6 +41,109 @@ package body Basic_Tests is
       end if;
       return Result;
    end Args;
+
+   procedure Test_Account_Ids (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Parsed : Posix_Tools.Accounts.Parse_Result :=
+        Posix_Tools.Accounts.Parse ("4294967294");
+      Context  : Test_Contexts.Capturing_Context;
+      Resolved : Posix_Tools.Accounts.Id;
+      Found    : Boolean;
+   begin
+      AUnit.Assertions.Assert
+        (Parsed.Valid and then Parsed.Value = 4_294_967_294,
+         "account IDs retain the full usable 32-bit range");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Accounts.Image (Parsed.Value) = "4294967294",
+         "account ID images are unsigned and unpadded");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Accounts.Value_Or_Keep
+           (Posix_Tools.Accounts.Set_To (Parsed.Value)) = Parsed.Value,
+         "an explicit account update retains its value");
+      AUnit.Assertions.Assert
+        (Posix_Tools.Accounts.Value_Or_Keep
+           (Posix_Tools.Accounts.Keep) = Posix_Tools.Accounts.Id'Last,
+         "a keep update translates to the native ownership sentinel");
+      Parsed := Posix_Tools.Accounts.Parse ("4294967295");
+      AUnit.Assertions.Assert
+        (Parsed.Valid and then not Posix_Tools.Accounts.Can_Set (Parsed.Value),
+         "the native ownership sentinel is parseable but not settable");
+      Parsed := Posix_Tools.Accounts.Parse ("4294967296");
+      AUnit.Assertions.Assert
+        (not Parsed.Valid and then Parsed.Value = 0,
+         "account IDs reject values wider than 32 bits");
+      Parsed := Posix_Tools.Accounts.Parse ("-1");
+      AUnit.Assertions.Assert
+        (not Parsed.Valid and then Parsed.Value = 0,
+         "account IDs reject signed text");
+      Found := Posix_Tools.Commands.Helpers.Resolve_User_Id
+        (Context, "50000", Resolved);
+      AUnit.Assertions.Assert
+        (Found and then Resolved = 50001,
+         "a numeric-looking user name takes precedence over its numeric value");
+      Found := Posix_Tools.Commands.Helpers.Resolve_Group_Id
+        (Context, "60000", Resolved);
+      AUnit.Assertions.Assert
+        (Found and then Resolved = 60001,
+         "a numeric-looking group name takes precedence over its numeric value");
+   end Test_Account_Ids;
+
+   procedure Test_File_Chunk_Callback_Cleanup (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Path    : constant String :=
+        Test_Support.Work_Path ("file-chunk-callback-cleanup.txt");
+      Raised  : Boolean := False;
+
+      procedure Raise_End_Error
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean)
+      is
+         pragma Unreferenced (Buffer, Last, Stop);
+      begin
+         raise Ada.IO_Exceptions.End_Error;
+      end Raise_End_Error;
+
+      procedure Iterate is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk_From
+          (Action => Raise_End_Error);
+
+      procedure Iterate_Descriptor is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+          (Action => Raise_End_Error);
+   begin
+      Test_Support.Write_File (Path, "x");
+      begin
+         declare
+            Ok : Boolean;
+         begin
+            Iterate (Path, 0, Ok);
+         end;
+      exception
+         when Ada.IO_Exceptions.End_Error =>
+            Raised := True;
+      end;
+
+      AUnit.Assertions.Assert
+        (Raised, "positioned file chunk callback exception is propagated");
+
+      Raised := False;
+      begin
+         declare
+            Ok : Boolean;
+         begin
+            Iterate_Descriptor (Path, Ok);
+         end;
+      exception
+         when Ada.IO_Exceptions.End_Error =>
+            Raised := True;
+      end;
+
+      Test_Support.Delete_If_Exists (Path);
+
+      AUnit.Assertions.Assert
+        (Raised, "descriptor file chunk callback exception is propagated");
+   end Test_File_Chunk_Callback_Cleanup;
 
    procedure Test_Numbers (T : in out Fixture) is
       pragma Unreferenced (T);

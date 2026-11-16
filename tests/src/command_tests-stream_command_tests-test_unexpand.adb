@@ -9,6 +9,8 @@ separate (Command_Tests.Stream_Command_Tests)
       LF      : constant Character := Character'Val (10);
       HT      : constant Character := Character'Val (9);
       Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
+      Boundary_Prefix : constant String (1 .. 16 * 1024 - 1) :=
+        [others => 'a'];
 
    begin
       Context.Initialize ("unexpand", No_Args);
@@ -35,6 +37,14 @@ separate (Command_Tests.Stream_Command_Tests)
          and then Test_Contexts.Output (Context) = HT & "x" & HT & "y",
          "unexpand supports comma-separated tab stop lists");
 
+      Context.Initialize ("unexpand", Two_Args ("-a", "-t1,8"));
+      Test_Contexts.Set_Standard_Input (Context, "        x");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = " " & HT & "x",
+         "unexpand keeps a one-column tab as a space before later tab stops");
+
       Context.Initialize ("unexpand", One_Arg ("-a"));
       Test_Contexts.Set_Standard_Input (Context, Wide & "      x");
       Posix_Tools.Commands.Unexpand.Run (Context, Result);
@@ -42,6 +52,16 @@ separate (Command_Tests.Stream_Command_Tests)
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Wide & HT & "x",
          "unexpand uses display columns for wide UTF-8");
+
+      Context.Initialize ("unexpand", One_Arg ("-a"));
+      Test_Contexts.Set_Standard_Input
+        (Context, Boundary_Prefix & Wide & "       x");
+      Posix_Tools.Commands.Unexpand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context)
+           = Boundary_Prefix & Wide & HT & "x",
+         "unexpand carries UTF-8 sequences across input chunks");
 
       Delete_If_Exists (Path);
       Write_File (Path, "    x" & LF & "  y");

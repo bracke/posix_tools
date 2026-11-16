@@ -15,6 +15,10 @@ package Tooling_Support is
    --  The source archive a package or release makes, relative to Root.
    function Release_Archive_Path return String;
 
+   --  Remove Path during exception recovery without allowing a cleanup fault
+   --  to replace the exception that triggered recovery.
+   procedure Best_Effort_Delete_Tree (Path : String);
+
    --  Program run from Root with Args, Input on its standard input and
    --  its standard output captured, its standard error too with
    --  Err_To_Out. A run still going after Timeout seconds is killed:
@@ -28,7 +32,8 @@ package Tooling_Support is
       Started    : out Boolean;
       Timed_Out  : out Boolean;
       Input      : String := "";
-      Err_To_Out : Boolean := False);
+      Err_To_Out : Boolean := False;
+      Working_Directory : String := "");
 
    --  Run_Within for a check: a run that cannot start or does not finish
    --  in time fails the check, naming Label.
@@ -38,7 +43,8 @@ package Tooling_Support is
       Args       : Project_Tools.Processes.Argument_Vectors.Vector;
       Input      : String := "";
       Err_To_Out : Boolean := False;
-      Timeout    : Duration := 120.0) return Project_Tools.Processes.Captured_Process;
+      Timeout    : Duration := 120.0;
+      Working_Directory : String := "") return Project_Tools.Processes.Captured_Process;
 
    --  Text with its line feeds, carriage returns and tabs escaped, for a
    --  diagnostic that quotes a program's output.

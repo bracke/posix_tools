@@ -1,7 +1,22 @@
 with Hostkit.Host;
+with Hostkit.Metadata;
 with Hostkit.Process;
 
 package body Posix_Tools.Host_Adapters.Host is
+   procedure Clear_Group_Ids
+     (Groups : out Group_Id_List;
+      Last   : out Natural);
+
+   procedure Clear_Group_Ids
+     (Groups : out Group_Id_List;
+      Last   : out Natural) is
+   begin
+      for Index in Groups'Range loop
+         Groups (Index) := 0;
+      end loop;
+      Last := 0;
+   end Clear_Group_Ids;
+
    function Current return Host_Kind is
    begin
       case Hostkit.Host.Current is
@@ -16,14 +31,26 @@ package body Posix_Tools.Host_Adapters.Host is
       end case;
    end Current;
 
-   function Current_User_Id (User_Id : out Natural) return Boolean is
+   function Current_User_Id
+     (User_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      Host_Id : Hostkit.Metadata.Account_Id;
+      Ok      : constant Boolean :=
+        Hostkit.Process.Current_User_Account (Host_Id);
    begin
-      return Hostkit.Process.Current_User_Id (User_Id);
+      User_Id := Posix_Tools.Accounts.Id (Host_Id);
+      return Ok;
    end Current_User_Id;
 
-   function Current_Group_Id (Group_Id : out Natural) return Boolean is
+   function Current_Group_Id
+     (Group_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      Host_Id : Hostkit.Metadata.Account_Id;
+      Ok      : constant Boolean :=
+        Hostkit.Process.Current_Group_Account (Host_Id);
    begin
-      return Hostkit.Process.Current_Group_Id (Group_Id);
+      Group_Id := Posix_Tools.Accounts.Id (Host_Id);
+      return Ok;
    end Current_Group_Id;
 
    function Current_Supplementary_Group_Ids
@@ -36,24 +63,21 @@ package body Posix_Tools.Host_Adapters.Host is
       Ok          : constant Boolean :=
         Hostkit.Process.Current_Supplementary_Group_Ids (Host_Groups, Host_Last);
    begin
-      for Index in Groups'Range loop
-         Groups (Index) := 0;
-      end loop;
+      Clear_Group_Ids (Groups, Last);
 
       Last := Natural'Min (Host_Last, Groups'Length);
       if Last > 0 then
          for Offset in 0 .. Last - 1 loop
-            Groups (Groups'First + Offset) := Host_Groups (Host_Groups'First + Offset);
+            Groups (Groups'First + Offset) :=
+              Posix_Tools.Accounts.Id
+                (Host_Groups (Host_Groups'First + Offset));
          end loop;
       end if;
 
       return Ok;
    exception
       when others =>
-         for Index in Groups'Range loop
-            Groups (Index) := 0;
-         end loop;
-         Last := 0;
+         Clear_Group_Ids (Groups, Last);
          return False;
    end Current_Supplementary_Group_Ids;
 
@@ -67,24 +91,21 @@ package body Posix_Tools.Host_Adapters.Host is
       Host_Last   : Natural := 0;
       Ok          : constant Boolean := Hostkit.Process.User_Group_Ids (User_Name, Host_Groups, Host_Last);
    begin
-      for Index in Groups'Range loop
-         Groups (Index) := 0;
-      end loop;
+      Clear_Group_Ids (Groups, Last);
 
       Last := Natural'Min (Host_Last, Groups'Length);
       if Last > 0 then
          for Offset in 0 .. Last - 1 loop
-            Groups (Groups'First + Offset) := Host_Groups (Host_Groups'First + Offset);
+            Groups (Groups'First + Offset) :=
+              Posix_Tools.Accounts.Id
+                (Host_Groups (Host_Groups'First + Offset));
          end loop;
       end if;
 
       return Ok;
    exception
       when others =>
-         for Index in Groups'Range loop
-            Groups (Index) := 0;
-         end loop;
-         Last := 0;
+         Clear_Group_Ids (Groups, Last);
          return False;
    end User_Group_Ids;
 

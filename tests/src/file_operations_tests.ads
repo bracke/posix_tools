@@ -9,4 +9,5 @@ package File_Operations_Tests is
    procedure Test_Directory_Listing (T : in out Fixture);
    procedure Test_Listing_Sort (T : in out Fixture);
    procedure Test_Temporary_Storage_Long_Path (T : in out Fixture);
+   procedure Test_Temporary_Storage_Outcomes (T : in out Fixture);
 end File_Operations_Tests;

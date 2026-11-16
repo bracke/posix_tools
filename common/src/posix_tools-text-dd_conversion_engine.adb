@@ -90,6 +90,222 @@ package body Posix_Tools.Text.DD_Conversion_Engine is
 
    function Translate_Bytes (Value : String; Table : Byte_Table) return String;
 
+   procedure Emit_Final
+     (State  : in out Stream_Converter;
+      Byte   : Character;
+      Output : in out Unbounded_String);
+
+   procedure Emit_Converted
+     (State  : in out Stream_Converter;
+      Byte   : Character;
+      Output : in out Unbounded_String);
+
+   procedure Flush_Block
+     (State  : in out Stream_Converter;
+      Output : in out Unbounded_String;
+      Pad    : Boolean);
+
+   procedure Process_Raw
+     (State  : in out Stream_Converter;
+      Input  : String;
+      Output : in out Unbounded_String);
+
+   procedure Emit_Final
+     (State  : in out Stream_Converter;
+      Byte   : Character;
+      Output : in out Unbounded_String)
+   is
+      Value : Character := Byte;
+   begin
+      case State.Settings.Case_Conversion is
+         when Posix_Tools.Text.DD_Conversions.No_Case_Conversion =>
+            null;
+         when Posix_Tools.Text.DD_Conversions.Uppercase_Conversion =>
+            if Posix_Tools.Text.Byte_Classes.Is_ASCII_Lower (Value) then
+               Value := Posix_Tools.Text.Byte_Classes.To_ASCII_Upper (Value);
+            end if;
+         when Posix_Tools.Text.DD_Conversions.Lowercase_Conversion =>
+            if Posix_Tools.Text.Byte_Classes.Is_ASCII_Upper (Value) then
+               Value := Posix_Tools.Text.Byte_Classes.To_ASCII_Lower (Value);
+            end if;
+      end case;
+      if State.Settings.Character_Set_Conversion =
+        Posix_Tools.Text.DD_Conversions.To_Ebcdic_Conversion
+      then
+         Value := Character'Val (Ascii_To_Ebcdic (Character'Pos (Value)));
+      end if;
+      Append (Output, Value);
+   end Emit_Final;
+
+   procedure Emit_Converted
+     (State  : in out Stream_Converter;
+      Byte   : Character;
+      Output : in out Unbounded_String) is
+   begin
+      if not State.Settings.Swap_Adjacent_Bytes then
+         Emit_Final (State, Byte, Output);
+      elsif State.Has_Swab_Byte then
+         Emit_Final (State, Byte, Output);
+         Emit_Final (State, State.Swab_Byte, Output);
+         State.Has_Swab_Byte := False;
+      else
+         State.Swab_Byte := Byte;
+         State.Has_Swab_Byte := True;
+      end if;
+   end Emit_Converted;
+
+   procedure Flush_Block
+     (State  : in out Stream_Converter;
+      Output : in out Unbounded_String;
+      Pad    : Boolean)
+   is
+      Block_Size : constant Natural := Natural (State.Settings.Conversion_Block_Size);
+      Last       : Natural := Length (State.Block_Data);
+   begin
+      if State.Effective_Block = Posix_Tools.Text.DD_Conversions.Block_Conversion then
+         for Ch of To_String (State.Block_Data) loop
+            Emit_Converted (State, Ch, Output);
+         end loop;
+         if Pad then
+            for I in Last + 1 .. Block_Size loop
+               Emit_Converted (State, ' ', Output);
+            end loop;
+         end if;
+         if State.Record_Truncated then
+            State.Truncated_Records := State.Truncated_Records + 1;
+         end if;
+      else
+         while Last > 0 and then Element (State.Block_Data, Last) = ' ' loop
+            Last := Last - 1;
+         end loop;
+         for I in 1 .. Last loop
+            Emit_Converted (State, Element (State.Block_Data, I), Output);
+         end loop;
+         Emit_Converted (State, LF, Output);
+      end if;
+      State.Block_Data := Null_Unbounded_String;
+      State.Record_Open := False;
+      State.Record_Truncated := False;
+   end Flush_Block;
+
+   procedure Process_Raw
+     (State  : in out Stream_Converter;
+      Input  : String;
+      Output : in out Unbounded_String)
+   is
+      Block_Size : constant Natural :=
+        (if State.Effective_Block = Posix_Tools.Text.DD_Conversions.No_Block_Conversion
+         then 0 else Natural (State.Settings.Conversion_Block_Size));
+      Value : Character;
+   begin
+      for Byte of Input loop
+         if State.Settings.Sync_Conversion
+           and then State.Settings.Input_Block_Size > 0
+           and then State.Settings.Input_Block_Size <= Posix_Tools.Numbers.Count (Natural'Last)
+         then
+            State.Input_Remainder :=
+              (State.Input_Remainder + 1) mod State.Settings.Input_Block_Size;
+         end if;
+
+         Value := Byte;
+         if State.Settings.Character_Set_Conversion =
+           Posix_Tools.Text.DD_Conversions.To_Ascii_Conversion
+         then
+            Value := Character'Val (Ebcdic_To_Ascii (Character'Pos (Value)));
+         end if;
+
+         case State.Effective_Block is
+            when Posix_Tools.Text.DD_Conversions.No_Block_Conversion =>
+               Emit_Converted (State, Value, Output);
+            when Posix_Tools.Text.DD_Conversions.Block_Conversion =>
+               if Value = LF then
+                  Flush_Block (State, Output, Pad => True);
+               else
+                  State.Record_Open := True;
+                  if Length (State.Block_Data) < Block_Size then
+                     Append (State.Block_Data, Value);
+                  else
+                     State.Record_Truncated := True;
+                  end if;
+               end if;
+            when Posix_Tools.Text.DD_Conversions.Unblock_Conversion =>
+               Append (State.Block_Data, Value);
+               State.Record_Open := True;
+               if Length (State.Block_Data) = Block_Size then
+                  Flush_Block (State, Output, Pad => False);
+               end if;
+         end case;
+      end loop;
+   end Process_Raw;
+
+   procedure Initialize
+     (State    : out Stream_Converter;
+      Settings : Conversion_Settings)
+   is
+      Effective : Posix_Tools.Text.DD_Conversions.Block_Conversion_Kind :=
+        (if Settings.Block_Conversion /= Posix_Tools.Text.DD_Conversions.No_Block_Conversion
+         then Settings.Block_Conversion
+         elsif Settings.Character_Set_Conversion = Posix_Tools.Text.DD_Conversions.To_Ascii_Conversion
+         then Posix_Tools.Text.DD_Conversions.Unblock_Conversion
+         elsif Settings.Character_Set_Conversion = Posix_Tools.Text.DD_Conversions.To_Ebcdic_Conversion
+         then Posix_Tools.Text.DD_Conversions.Block_Conversion
+         else Posix_Tools.Text.DD_Conversions.No_Block_Conversion);
+   begin
+      if Settings.Conversion_Block_Size = 0
+        or else Settings.Conversion_Block_Size > Posix_Tools.Numbers.Count (Natural'Last)
+      then
+         Effective := Posix_Tools.Text.DD_Conversions.No_Block_Conversion;
+      end if;
+      State := (Settings => Settings, Effective_Block => Effective, others => <>);
+   end Initialize;
+
+   procedure Update
+     (State  : in out Stream_Converter;
+      Input  : String;
+      Output : out Unbounded_String) is
+   begin
+      Output := Null_Unbounded_String;
+      Process_Raw (State, Input, Output);
+   end Update;
+
+   procedure Finish
+     (State             : in out Stream_Converter;
+      Output            : out Unbounded_String;
+      Truncated_Records : out Posix_Tools.Numbers.Count)
+   is
+      Padding : Natural := 0;
+      Pad_Byte : Character := Character'Val (0);
+   begin
+      Output := Null_Unbounded_String;
+      if State.Settings.Sync_Conversion
+        and then State.Input_Remainder > 0
+        and then State.Settings.Input_Block_Size <= Posix_Tools.Numbers.Count (Natural'Last)
+      then
+         Padding := Natural (State.Settings.Input_Block_Size - State.Input_Remainder);
+         if State.Settings.Block_Conversion /=
+           Posix_Tools.Text.DD_Conversions.No_Block_Conversion
+         then
+            Pad_Byte := ' ';
+         end if;
+         Process_Raw (State, String'(1 .. Padding => Pad_Byte), Output);
+      end if;
+
+      if State.Effective_Block = Posix_Tools.Text.DD_Conversions.Block_Conversion
+        and then State.Record_Open
+      then
+         Flush_Block (State, Output, Pad => True);
+      elsif State.Effective_Block = Posix_Tools.Text.DD_Conversions.Unblock_Conversion
+        and then Length (State.Block_Data) > 0
+      then
+         Flush_Block (State, Output, Pad => False);
+      end if;
+      if State.Has_Swab_Byte then
+         Emit_Final (State, State.Swab_Byte, Output);
+         State.Has_Swab_Byte := False;
+      end if;
+      Truncated_Records := State.Truncated_Records;
+   end Finish;
+
    function Apply
      (Value    : String;
       Settings : Conversion_Settings) return Conversion_Result

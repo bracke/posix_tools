@@ -5,9 +5,12 @@ with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Grep.Options is
+   use type Ada.Streams.Stream_Element;
    use type Ada.Streams.Stream_Element_Offset;
 
    package Grep_Patterns renames Posix_Tools.Commands.Grep.Patterns;
+
+   Pattern_Buffer_Length : constant Positive := 64 * 1024;
 
    --  Append the patterns of the pattern file Path, standard input for "-",
    --  to Config; False, with its diagnostic written, when it cannot be read.
@@ -24,14 +27,47 @@ package body Posix_Tools.Commands.Grep.Options is
       Config  : in out Invocation;
       Path    : String) return Boolean
    is
-      Data : Ada.Strings.Unbounded.Unbounded_String;
-      Ok   : Boolean := True;
+      Current : Ada.Strings.Unbounded.Unbounded_String;
+      Ok      : Boolean := True;
 
-      --  Gather one chunk of the file.
-      procedure Gather
+      --  Consume one chunk without retaining a second copy of the pattern
+      --  file.  The pattern vector itself is the only unbounded storage.
+      procedure Consume
         (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean);
+         Last   : Ada.Streams.Stream_Element_Offset);
+
+      procedure Consume
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset)
+      is
+         First : Ada.Streams.Stream_Element_Offset := Buffer'First;
+      begin
+         if Last < Buffer'First then
+            return;
+         end if;
+
+         for I in Buffer'First .. Last loop
+            if Buffer (I) = Ada.Streams.Stream_Element (10) then
+               if First < I then
+                  Ada.Strings.Unbounded.Append
+                    (Current,
+                     Posix_Tools.Streams.Bytes.To_String
+                       (Buffer (First .. I - 1), I - 1));
+               end if;
+               Config.Pattern_Texts.Append
+                 (Ada.Strings.Unbounded.To_String (Current));
+               Current := Ada.Strings.Unbounded.Null_Unbounded_String;
+               First := I + 1;
+            end if;
+         end loop;
+
+         if First <= Last then
+            Ada.Strings.Unbounded.Append
+              (Current,
+               Posix_Tools.Streams.Bytes.To_String
+                 (Buffer (First .. Last), Last));
+         end if;
+      end Consume;
 
       procedure Gather
         (Buffer : Ada.Streams.Stream_Element_Array;
@@ -40,14 +76,17 @@ package body Posix_Tools.Commands.Grep.Options is
       is
          pragma Unreferenced (Stop);
       begin
-         Ada.Strings.Unbounded.Append (Data, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
+         Consume (Buffer, Last);
       end Gather;
 
-      procedure Read_File is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk (Action => Gather);
+      procedure Read_File is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+        (Action        => Gather,
+         Buffer_Length => Pattern_Buffer_Length);
    begin
       if Path = "-" then
          declare
-            Buffer : Ada.Streams.Stream_Element_Array (1 .. 16 * 1024);
+            Buffer : Ada.Streams.Stream_Element_Array
+              (1 .. Ada.Streams.Stream_Element_Offset (Pattern_Buffer_Length));
             Last   : Ada.Streams.Stream_Element_Offset;
          begin
             loop
@@ -56,7 +95,7 @@ package body Posix_Tools.Commands.Grep.Options is
                   exit;
                end if;
                exit when Last < Buffer'First;
-               Ada.Strings.Unbounded.Append (Data, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
+               Consume (Buffer, Last);
             end loop;
          end;
       else
@@ -73,7 +112,10 @@ package body Posix_Tools.Commands.Grep.Options is
          return False;
       end if;
 
-      Grep_Patterns.Append_Pattern_File (Config.Pattern_Texts, Ada.Strings.Unbounded.To_String (Data));
+      if Ada.Strings.Unbounded.Length (Current) > 0 then
+         Config.Pattern_Texts.Append
+           (Ada.Strings.Unbounded.To_String (Current));
+      end if;
       return True;
    end Add_File_Patterns;
 

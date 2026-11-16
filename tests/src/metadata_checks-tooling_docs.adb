@@ -63,7 +63,7 @@ package body Metadata_Checks.Tooling_Docs is
          Require_Order (Release_Check_Command, Run_Build, Run_Test_Selector_Smoke);
          Require_Order (Release_Check_Command, Run_Build, Run_Staged_Verification);
          Require_Order (Release_Check_Command, Run_Build, Run_Executable_Integration_Smoke);
-         Require_Order (Release_Check_Command, Generate_Release_Archive, Run_Metadata_Checks);
+         Require_Order (Release_Check_Command, Run_Metadata_Checks, Generate_Release_Archive);
          Forbid_Step (Release_Check_Command, Require_Clean_Source_Tree);
          Forbid_Step (Release_Check_Command, Generate_Release_Checksums);
 
@@ -72,6 +72,36 @@ package body Metadata_Checks.Tooling_Docs is
          if Release_Steps'Length = 0 or else Release_Steps (Release_Steps'First) /= Require_Clean_Source_Tree then
             Tooling_Checks.Fail ("release must check for a clean source tree first");
          end if;
+         declare
+            Clean_Count              : Natural := 0;
+            Saw_Generation           : Boolean := False;
+            Checked_After_Generation : Boolean := False;
+            Previous                 : Step := Release_Steps (Release_Steps'First);
+            Clean_Before_Archive     : Boolean := False;
+         begin
+            for Item of Release_Steps loop
+               if Item in Generate_Docs | Generate_Package_Manifest then
+                  Saw_Generation := True;
+               elsif Item = Require_Clean_Source_Tree then
+                  Clean_Count := Clean_Count + 1;
+                  if Saw_Generation then
+                     Checked_After_Generation := True;
+                  end if;
+               elsif Item = Generate_Release_Archive then
+                  Clean_Before_Archive :=
+                    Previous = Require_Clean_Source_Tree;
+               end if;
+               Previous := Item;
+            end loop;
+            if Clean_Count /= 3
+              or else not Checked_After_Generation
+              or else not Clean_Before_Archive
+            then
+               Tooling_Checks.Fail
+                 ("release must check the clean tree initially, after generation, "
+                  & "and immediately before archiving");
+            end if;
+         end;
          declare
             Without_Release_Only : Step_List (1 .. Release_Steps'Length);
             Count                : Natural := 0;
@@ -148,6 +178,10 @@ package body Metadata_Checks.Tooling_Docs is
       Tooling_Checks.Require_Text (Check, "docs/testing.md", "`package`");
       Tooling_Checks.Require_Text (Check, "docs/testing.md", "`release-check`");
       Tooling_Checks.Require_Text (Check, "docs/testing.md", "`release`");
+      Tooling_Checks.Require_Text
+        (Check,
+         "docs/testing.md",
+         "Overloaded test procedures use a uniquely named, non-overloaded wrapper");
       Tooling_Checks.Require_Text
         (Check,
          "docs/testing.md",

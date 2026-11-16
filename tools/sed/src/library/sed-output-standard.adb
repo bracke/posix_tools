@@ -1,9 +1,14 @@
 package body Sed.Output.Standard is
 
    package D renames Sed.Diagnostics;
+   package U renames Ada.Strings.Unbounded;
+
+   Buffer_Size : constant := 64 * 1024;
 
    --  Record the first failure and ignore every later one.
    procedure Note_Failure (Self : in out Writer; Result : Sed.IO.IO_Result);
+   procedure Flush_Buffer (Self : in out Writer);
+   procedure Write_Buffered (Self : in out Writer; Data : String);
 
    ------------------
    -- Note_Failure --
@@ -23,6 +28,51 @@ package body Sed.Output.Standard is
       end if;
    end Note_Failure;
 
+   ------------------
+   -- Flush_Buffer --
+   ------------------
+
+   procedure Flush_Buffer (Self : in out Writer) is
+      Result : Sed.IO.IO_Result;
+   begin
+      if Self.Broken or else Self.Sink = null or else U.Length (Self.Buffer) = 0 then
+         return;
+      end if;
+
+      Self.Sink.Write (U.To_String (Self.Buffer), Result);
+      Self.Buffer := U.Null_Unbounded_String;
+      if Sed.IO.Is_Failure (Result) then
+         Note_Failure (Self, Result);
+      end if;
+   end Flush_Buffer;
+
+   --------------------
+   -- Write_Buffered --
+   --------------------
+
+   procedure Write_Buffered (Self : in out Writer; Data : String) is
+      Result : Sed.IO.IO_Result;
+   begin
+      if Self.Broken or else Self.Sink = null or else Data'Length = 0 then
+         return;
+      end if;
+
+      if Data'Length >= Buffer_Size then
+         Flush_Buffer (Self);
+         if not Self.Broken then
+            Self.Sink.Write (Data, Result);
+            if Sed.IO.Is_Failure (Result) then
+               Note_Failure (Self, Result);
+            end if;
+         end if;
+      else
+         U.Append (Self.Buffer, Data);
+         if U.Length (Self.Buffer) >= Buffer_Size then
+            Flush_Buffer (Self);
+         end if;
+      end if;
+   end Write_Buffered;
+
    ----------------
    -- Initialize --
    ----------------
@@ -34,6 +84,7 @@ package body Sed.Output.Standard is
       Self.Sink := Sink;
       Self.Broken := False;
       Self.Pending_Separator := False;
+      Self.Buffer := U.Null_Unbounded_String;
       Self.Written := 0;
       Self.Diagnostic := D.Make (D.Standard_Output_Failed);
    end Initialize;
@@ -47,7 +98,6 @@ package body Sed.Output.Standard is
       Data : String;
       Terminator : Terminator_Policy)
    is
-      Result : Sed.IO.IO_Result;
    begin
       if Self.Broken or else Self.Sink = null then
          return;
@@ -59,10 +109,8 @@ package body Sed.Output.Standard is
       --  supplied now, so lines never run together and the stream still ends
       --  exactly as the input did.
       if Self.Pending_Separator then
-         Self.Sink.Write ([1 => ASCII.LF], Result);
-
-         if Sed.IO.Is_Failure (Result) then
-            Note_Failure (Self, Result);
+         Write_Buffered (Self, [1 => ASCII.LF]);
+         if Self.Broken then
             return;
          end if;
 
@@ -71,10 +119,8 @@ package body Sed.Output.Standard is
       end if;
 
       if Data'Length > 0 then
-         Self.Sink.Write (Data, Result);
-
-         if Sed.IO.Is_Failure (Result) then
-            Note_Failure (Self, Result);
+         Write_Buffered (Self, Data);
+         if Self.Broken then
             return;
          end if;
 
@@ -82,10 +128,8 @@ package body Sed.Output.Standard is
       end if;
 
       if Terminator = With_Terminator then
-         Self.Sink.Write ([1 => ASCII.LF], Result);
-
-         if Sed.IO.Is_Failure (Result) then
-            Note_Failure (Self, Result);
+         Write_Buffered (Self, [1 => ASCII.LF]);
+         if Self.Broken then
             return;
          end if;
 
@@ -103,6 +147,11 @@ package body Sed.Output.Standard is
       Result : Sed.IO.IO_Result;
    begin
       if Self.Broken or else Self.Sink = null then
+         return;
+      end if;
+
+      Flush_Buffer (Self);
+      if Self.Broken then
          return;
       end if;
 

@@ -1,3 +1,4 @@
+private with Ada.Strings.Unbounded;
 with Sed.Diagnostics;
 with Sed.IO;
 
@@ -41,7 +42,7 @@ package Sed.Output.Standard is
    function Failed (Self : Writer) return Boolean;
 
    --  @param Self Writer to inspect.
-   --  @return Number of bytes handed to the sink.
+   --  @return Number of bytes accepted for output by the writer.
    function Bytes_Written (Self : Writer) return Line_Count;
 
    --  The single diagnostic describing the first failure.
@@ -59,6 +60,7 @@ private
       --  Set when the last write carried no terminator, so that a following
       --  write supplies the separator it omitted.
       Pending_Separator : Boolean := False;
+      Buffer : Ada.Strings.Unbounded.Unbounded_String;
       Written : Line_Count := 0;
       Diagnostic : Sed.Diagnostics.Diagnostic :=
         Sed.Diagnostics.Make (Sed.Diagnostics.Standard_Output_Failed);

@@ -1,5 +1,7 @@
 with Ada.Strings.Unbounded;
+with Regression_Registry;
 with Registered_Tests;
+with Test_Selection;
 with Tooling_Checks;
 
 --  The tests the requirements rest on are registered, and the rows that
@@ -95,7 +97,60 @@ package body Metadata_Checks.Test_Coverage is
        +"command:xargs"];
 
    procedure Run is
+      procedure Check_Category (Name : String) is
+         Matches : constant Natural :=
+           Test_Selection.Canonical_Category_Match_Count (Name);
+      begin
+         if Matches /= 1 then
+            Tooling_Checks.Fail
+              ("registered test " & Name & " belongs to"
+               & Natural'Image (Matches) & " canonical categories");
+         end if;
+      end Check_Category;
+
+      procedure Check_Regression_Selectors is
+         procedure Check_Row
+           (Line_Number : Positive;
+            Id           : String;
+            Command      : String;
+            Summary      : String;
+            Tests        : String)
+         is
+            pragma Unreferenced
+              (Line_Number, Command, Summary);
+            Has_AUnit_Reference : Boolean := False;
+            Reference_Count     : Natural;
+            Has_Empty           : Boolean;
+
+            procedure Check_Reference (Reference : String) is
+            begin
+               if Regression_Registry.Is_AUnit_Reference (Reference) then
+                  Has_AUnit_Reference := True;
+               end if;
+            end Check_Reference;
+         begin
+            Regression_Registry.For_Each_Test_Reference
+              (Tests,
+               Check_Reference'Access,
+               Reference_Count,
+               Has_Empty);
+            if Has_AUnit_Reference
+              and then not Registered_Tests.Has_Suite
+                ("regression:" & Id)
+            then
+               Tooling_Checks.Fail
+                 ("regression selector has no registered scenario for "
+                  & Id);
+            end if;
+            pragma Assert (Reference_Count > 0 and then not Has_Empty);
+         end Check_Row;
+      begin
+         Regression_Registry.For_Each_Row (Check_Row'Access);
+      end Check_Regression_Selectors;
    begin
+      Registered_Tests.For_Each_Name (Check_Category'Access);
+      Check_Regression_Selectors;
+
       for Name of Required_Tests loop
          if not Registered_Tests.Is_Registered (To_String (Name)) then
             Tooling_Checks.Fail ("no registered test named " & To_String (Name));

@@ -1,6 +1,7 @@
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Integration_Smoke.Catalogs;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Paths;
 with Posix_Tools.Version;
@@ -8,6 +9,7 @@ with Project_Tools.Files;
 with Project_Tools.Processes;
 with Tooling_Checks;
 with Tooling_Support;
+with Test_Support;
 
 package body Integration_Smoke is
    use Tooling_Support;
@@ -140,8 +142,8 @@ package body Integration_Smoke is
       end Version_Output;
 
       Smoke_File : constant String :=
-        Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-smoke.txt");
-      Smoke_Leaf : constant String := "posix-tools-executable-smoke.txt";
+        Test_Support.Work_Path ("executable-smoke.txt");
+      Smoke_Leaf : constant String := "executable-smoke.txt";
 
       procedure Expect_File (Label, Path, Expected_Content : String) is
       begin
@@ -300,7 +302,7 @@ package body Integration_Smoke is
 
       declare
          Copy_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-copy.txt");
+           Test_Support.Work_Path ("executable-copy.txt");
       begin
          Project_Tools.Files.Delete_File_If_Present (Copy_Target);
          Expect_Output
@@ -455,7 +457,7 @@ package body Integration_Smoke is
 
       declare
          Grep_Dir : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-grep-dir");
+           Test_Support.Work_Path ("executable-grep-dir");
          Grep_Subdir : constant String := Project_Tools.Files.Join (Grep_Dir, "sub");
          Grep_File : constant String := Project_Tools.Files.Join (Grep_Subdir, "hit.txt");
       begin
@@ -486,7 +488,7 @@ package body Integration_Smoke is
 
       declare
          Link_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-link.txt");
+           Test_Support.Work_Path ("executable-link.txt");
       begin
          Project_Tools.Files.Delete_File_If_Present (Link_Target);
          Expect_Output
@@ -507,7 +509,7 @@ package body Integration_Smoke is
 
       declare
          Made_Dir : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mkdir");
+           Test_Support.Work_Path ("executable-mkdir");
       begin
          Remove_Path (Made_Dir);
          Expect_Output
@@ -532,9 +534,9 @@ package body Integration_Smoke is
 
       declare
          Mv_Source : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mv-source.txt");
+           Test_Support.Work_Path ("executable-mv-source.txt");
          Mv_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-mv-target.txt");
+           Test_Support.Work_Path ("executable-mv-target.txt");
       begin
          Project_Tools.Files.Delete_File_If_Present (Mv_Source);
          Project_Tools.Files.Delete_File_If_Present (Mv_Target);
@@ -552,7 +554,7 @@ package body Integration_Smoke is
 
       declare
          Rm_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-rm.txt");
+           Test_Support.Work_Path ("executable-rm.txt");
       begin
          Project_Tools.Files.Write_Raw_File (Rm_Target, "remove-data");
          Expect_Output
@@ -599,7 +601,7 @@ package body Integration_Smoke is
 
       declare
          Tee_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-tee.txt");
+           Test_Support.Work_Path ("executable-tee.txt");
       begin
          Project_Tools.Files.Delete_File_If_Present (Tee_Target);
          Expect_Output_With_Input
@@ -623,7 +625,7 @@ package body Integration_Smoke is
 
       declare
          Touch_Target : constant String :=
-           Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-executable-touch.txt");
+           Test_Support.Work_Path ("executable-touch.txt");
       begin
          Project_Tools.Files.Delete_File_If_Present (Touch_Target);
          Expect_Output
@@ -672,6 +674,8 @@ package body Integration_Smoke is
          "11 " & Smoke_File & LF);
 
       Project_Tools.Files.Delete_File_If_Present (Smoke_File);
+
+      Integration_Smoke.Catalogs.Run;
 
       Ada.Text_IO.Put_Line ("executable integration smoke checks passed");
    end Run;

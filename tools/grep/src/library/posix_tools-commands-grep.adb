@@ -27,6 +27,12 @@ package body Posix_Tools.Commands.Grep is
    --  from an empty -f file, is searched as. greplib takes no empty list.
    Matches_Nothing : constant String := "a^";
 
+   --  Greplib materializes a completed record several times while matching
+   --  it. Keep the command below the ordinary 8 MiB process-stack limit and
+   --  let greplib report and skip a larger record instead of raising
+   --  Storage_Error.
+   Maximum_Record_Size : constant Greplib.Byte_Count := 4 * 1024 * 1024;
+
    --  Set Options from what Config asks for.
    procedure Apply_Mode (Config : Grep_Options.Invocation; Options : in out Greplib.Options.Search_Options);
 
@@ -39,6 +45,12 @@ package body Posix_Tools.Commands.Grep is
    function Localized_Diagnostic
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Item    : Greplib.Diagnostics.Diagnostic) return String;
+
+   --  True when Pattern has no operators in Mode and can use greplib's
+   --  cheaper fixed-string matcher without changing grep semantics.
+   function Is_Literal
+     (Pattern : String;
+      Mode    : Grep_Options.Regex_Mode) return Boolean;
 
    --  The pattern list of Config as greplib declares it.
    function Pattern_List_Of
@@ -68,6 +80,7 @@ package body Posix_Tools.Commands.Grep is
 
    procedure Apply_Mode (Config : Grep_Options.Invocation; Options : in out Greplib.Options.Search_Options) is
    begin
+      Options.Maximum_Record_Size := Maximum_Record_Size;
       Options.Invert_Match := Config.Invert_Match;
       Options.Context.Before := Config.Before_Context;
       Options.Context.After := Config.After_Context;
@@ -137,6 +150,26 @@ package body Posix_Tools.Commands.Grep is
       return Text (Text'First + 1 .. Text'Last);
    end Image;
 
+   function Is_Literal
+     (Pattern : String;
+      Mode    : Grep_Options.Regex_Mode) return Boolean
+   is
+   begin
+      for Item of Pattern loop
+         case Item is
+            when '.' | '[' | '\' | '*' | '^' | '$' =>
+               return False;
+            when '+' | '?' | '|' | '(' | ')' | '{' | '}' =>
+               if Mode = Grep_Options.Extended_Regular_Expression then
+                  return False;
+               end if;
+            when others =>
+               null;
+         end case;
+      end loop;
+      return True;
+   end Is_Literal;
+
    function Localized_Diagnostic
      (Context : Posix_Tools.Commands.Contexts.Context'Class;
       Item    : Greplib.Diagnostics.Diagnostic) return String
@@ -166,7 +199,7 @@ package body Posix_Tools.Commands.Grep is
       for Source of Config.Pattern_Texts loop
          --  The empty pattern matches every line, in every syntax; greplib
          --  takes it only as a fixed string.
-         if Config.Fixed_Strings or else Source = "" then
+         if Config.Fixed_Strings or else Source = "" or else Is_Literal (Source, Config.Regex) then
             Greplib.Patterns.Append (Result, Greplib.Patterns.Fixed_String_Pattern (Source));
          elsif Config.Regex = Grep_Options.Basic_Regular_Expression then
             Greplib.Patterns.Append

@@ -12,6 +12,9 @@ project-files = ["posix_tools_explore_e2e.gpr"]
 aunit = "*"
 
 [[depends-on]]
+hostkit = "=0.2.0-dev"
+
+[[depends-on]]
 terminal_common = "*"
 
 [[depends-on]]
@@ -19,6 +22,9 @@ terminal_core = "*"
 
 [[depends-on]]
 terminal_pty = "*"
+
+[[pins]]
+hostkit = { path = "../../../../hostkit" }
 
 [[pins]]
 terminal_common = { path = "../../../../terminal/terminal_common" }

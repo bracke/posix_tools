@@ -1,14 +1,17 @@
 with Ada.Calendar;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with GNAT.OS_Lib;
 with Hostkit.Descriptors;
 with Hostkit.Fs;
+with Hostkit.Limits;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Numbers;
 with Test_Contexts;
 with Test_Support;
 with Command_Tests.Support;

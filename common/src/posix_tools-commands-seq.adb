@@ -5,6 +5,7 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
+with Posix_Tools.Text.Numeric_Images;
 with Posix_Tools.Text.Seq_Formats;
 
 package body Posix_Tools.Commands.Seq is
@@ -29,26 +30,32 @@ package body Posix_Tools.Commands.Seq is
       Equal_Width : Boolean := False;
       Format_Text : Unbounded_String;
       Has_Format  : Boolean := False;
-
-      function Numeric_Locale return String is
-        (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
+      Parsed_Format : Posix_Tools.Text.Seq_Formats.Parsed_Seq_Format;
+      Format_Prefix : Unbounded_String;
+      Format_Suffix : Unbounded_String;
+      Radix_Text : Unbounded_String;
+      Plus_Text  : Unbounded_String;
+      Minus_Text : Unbounded_String;
+      type Digit_Text_Array is array (Character range '0' .. '9') of Unbounded_String;
+      Digit_Texts : Digit_Text_Array;
+      ASCII_Numeric_Locale : Boolean := False;
 
       function Localize_Decimal_Number (Text : String) return String is
-         Locale  : constant String := Numeric_Locale;
-         Radix   : constant String := I18N.Number_Format.Decimal_Separator (Locale);
-         Plus    : constant String := I18N.Number_Format.Plus_Sign (Locale);
-         Minus   : constant String := I18N.Number_Format.Minus_Sign (Locale);
          Output  : Unbounded_String;
       begin
+         if ASCII_Numeric_Locale then
+            return Text;
+         end if;
+
          for I in Text'Range loop
             if Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)) then
-               Append (Output, I18N.Number_Format.Digit_Text (Locale, Text (I)));
+               Append (Output, Digit_Texts (Text (I)));
             elsif Text (I) = '.' then
-               Append (Output, Radix);
+               Append (Output, Radix_Text);
             elsif Text (I) = '+' then
-               Append (Output, Plus);
+               Append (Output, Plus_Text);
             elsif Text (I) = '-' then
-               Append (Output, Minus);
+               Append (Output, Minus_Text);
             else
                Append (Output, Text (I));
             end if;
@@ -65,33 +72,25 @@ package body Posix_Tools.Commands.Seq is
       end Default_Image;
 
       function Format_Image (Item : Long_Long_Integer) return String is
-         Format : constant String := To_String (Format_Text);
-         Parsed : constant Posix_Tools.Text.Seq_Formats.Parsed_Seq_Format :=
-           Posix_Tools.Text.Seq_Formats.Parse_Seq_Format (Format);
       begin
-         if not Parsed.Valid then
+         if not Parsed_Format.Valid then
             return Default_Image (Item);
          end if;
 
          declare
-            Prefix : constant String := Format (Format'First .. Parsed.Percent_Index - 1);
-            Suffix : constant String :=
-              (if Parsed.Conversion_Index < Format'Last
-               then Format (Parsed.Conversion_Index + 1 .. Format'Last)
-               else "");
             Precision : constant Natural :=
-              (if Parsed.Has_Precision then Parsed.Precision else Scale);
+              (if Parsed_Format.Has_Precision then Parsed_Format.Precision else Scale);
             Number : constant String :=
-              (if not Parsed.Has_Precision and then Parsed.Conversion in 'g' | 'G'
-               then Default_Image (Item, Parsed.Width)
+              (if not Parsed_Format.Has_Precision and then Parsed_Format.Conversion in 'g' | 'G'
+               then Default_Image (Item, Parsed_Format.Width)
                else
                  Localize_Decimal_Number
                    (Posix_Tools.Text.Seq_Formats.Pad_Zero
                       (Posix_Tools.Text.Seq_Formats.Fixed_Decimal
                          (Item, Scale, Precision),
-                       Parsed.Width)));
+                       Parsed_Format.Width)));
          begin
-            return Prefix & Number & Suffix;
+            return To_String (Format_Prefix) & Number & To_String (Format_Suffix);
          end;
       end Format_Image;
 
@@ -211,9 +210,66 @@ package body Posix_Tools.Commands.Seq is
       end if;
 
       declare
+         Locale : constant String :=
+           Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric);
+      begin
+         Radix_Text := To_Unbounded_String
+           (I18N.Number_Format.Decimal_Separator (Locale));
+         Plus_Text := To_Unbounded_String (I18N.Number_Format.Plus_Sign (Locale));
+         Minus_Text := To_Unbounded_String (I18N.Number_Format.Minus_Sign (Locale));
+         ASCII_Numeric_Locale :=
+           To_String (Radix_Text) = "."
+           and then To_String (Plus_Text) = "+"
+           and then To_String (Minus_Text) = "-";
+         for Digit in Digit_Texts'Range loop
+            Digit_Texts (Digit) := To_Unbounded_String
+              (I18N.Number_Format.Digit_Text (Locale, Digit));
+            ASCII_Numeric_Locale := ASCII_Numeric_Locale
+              and then To_String (Digit_Texts (Digit)) = "" & Digit;
+         end loop;
+      end;
+
+      if Has_Format then
+         declare
+            Format : constant String := To_String (Format_Text);
+         begin
+            Parsed_Format := Posix_Tools.Text.Seq_Formats.Parse_Seq_Format (Format);
+            if Parsed_Format.Valid then
+               Format_Prefix := To_Unbounded_String
+                 (Format (Format'First .. Parsed_Format.Percent_Index - 1));
+               if Parsed_Format.Conversion_Index < Format'Last then
+                  Format_Suffix := To_Unbounded_String
+                    (Format (Parsed_Format.Conversion_Index + 1 .. Format'Last));
+               end if;
+            end if;
+         end;
+      end if;
+
+      declare
          Current : Long_Long_Integer := First;
          First_Output : Boolean := True;
          Width : Natural := 0;
+         Separator_Text : constant String := To_String (Separator);
+         Simple_Integer_Output : constant Boolean :=
+           ASCII_Numeric_Locale
+           and then Scale = 0
+           and then not Has_Format
+           and then not Equal_Width;
+         Output : Posix_Tools.Commands.Helpers.Output_Buffer;
+
+         procedure Flush;
+         procedure Queue (Text : String);
+
+         procedure Flush is
+         begin
+            Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
+         end Flush;
+
+         procedure Queue (Text : String) is
+         begin
+            Posix_Tools.Commands.Helpers.Buffered_Put
+              (Output, Context, Text);
+         end Queue;
       begin
          if Equal_Width and then not Has_Format then
             Width := Natural'Max (Default_Image (First)'Length, Default_Image (Last)'Length);
@@ -221,10 +277,16 @@ package body Posix_Tools.Commands.Seq is
 
          while (Increment > 0 and then Current <= Last) or else (Increment < 0 and then Current >= Last) loop
             if not First_Output then
-               Context.Put (To_String (Separator));
+               Queue (Separator_Text);
                exit when Context.Output_Failed;
             end if;
-            Context.Put ((if Has_Format then Format_Image (Current) else Default_Image (Current, Width)));
+            Queue
+              ((if Simple_Integer_Output
+                then Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image
+                  (Current)
+                elsif Has_Format
+                then Format_Image (Current)
+                else Default_Image (Current, Width)));
             First_Output := False;
             exit when Context.Output_Failed;
             if Posix_Tools.Text.Decimal_Parsing.Long_Long_Addition_Overflows
@@ -236,8 +298,9 @@ package body Posix_Tools.Commands.Seq is
          end loop;
          --  An empty sequence, such as seq 2 1, writes nothing at all.
          if not First_Output and then not Context.Output_Failed then
-            Context.Put ("" & LF);
+            Queue ("" & LF);
          end if;
+         Flush;
       end;
 
       Posix_Tools.Commands.Helpers.Finish (Context, Result);

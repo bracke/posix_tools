@@ -31,10 +31,15 @@ package body Posix_Tools.Commands.Find_Evaluation is
       View    : Entry_View;
       Result  : out Path_Result)
    is
-      Name    : constant String := Posix_Tools.Paths.Basename (Path);
       Is_Link : constant Boolean := View.Is_Link;
       Kind    : constant FS.File_Kind := View.Kind;
       Exists  : constant Boolean := Is_Link or else Kind /= FS.Missing_File;
+      Cached_Status : FS.Entry_Status;
+      Status_Loaded : Boolean := False;
+
+      --  Metadata predicates share one lazy query. Name-only and action-only
+      --  expressions therefore retain the directory walk's cheap path.
+      function Status_Of return FS.Entry_Status;
 
       function Evaluate_Primary
         (Index : in out Positive;
@@ -52,6 +57,18 @@ package body Posix_Tools.Commands.Find_Evaluation is
         (Index : in out Positive;
          Valid : in out Boolean;
          Active : Boolean) return Boolean;
+
+      function Status_Of return FS.Entry_Status is
+      begin
+         if not Status_Loaded then
+            Cached_Status :=
+              (if View.Followed_Link
+               then FS.File_Status_Of (Path)
+               else FS.Entry_Status_Of (Path));
+            Status_Loaded := True;
+         end if;
+         return Cached_Status;
+      end Status_Of;
 
       function Evaluate_And
         (Index : in out Positive;
@@ -146,68 +163,99 @@ package body Posix_Tools.Commands.Find_Evaluation is
             Index := Index + 2;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.Glob_Matches
-                (State.Expression.Element (Index - 1), Name);
+                (State.Expression.Element (Index - 1),
+                 Posix_Tools.Paths.Basename (Path));
          elsif Token = "-path" then
             Index := Index + 2;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.Glob_Matches
                 (State.Expression.Element (Index - 1), Slashed (Path));
          elsif Token = "-mtime" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Mtime_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), State.Started, Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Operand.Count_Valid
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Mtime_Matches
+                   (Status_Of, Exists, Operand.Count, Operand.Relation,
+                    State.Started, Valid);
+            end;
          elsif Token = "-newer" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Newer_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Newer_Matches
+                   (Status_Of, Exists, Operand.Reference_Time,
+                    Operand.Reference_Valid, Valid);
+            end;
          elsif Token = "-perm" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Permission_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Operand.Permission_Valid
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Permission_Matches
+                   (Status_Of, Operand.Permission, Operand.Match_All);
+            end;
          elsif Token = "-size" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Size_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Operand.Count_Valid
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Size_Matches
+                   (Status_Of, Is_Link, Exists, Kind, Operand.Count, Operand.Relation,
+                    Operand.Bytes);
+            end;
          elsif Token = "-type" then
             declare
-               Parsed : constant Posix_Tools.Text.Find_Expressions.Parsed_Type_Filter :=
-                 Posix_Tools.Text.Find_Expressions.Parse_Type_Filter
-                   (State.Expression.Element (Index + 1));
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
             begin
-               Valid := Valid and then Parsed.Valid;
+               Valid := Valid and then Operand.Type_Valid;
                Index := Index + 2;
                return Active
                  and then Valid
                  and then Posix_Tools.Commands.Find_Evaluation.Predicates.Type_Matches
-                   (Path, Exists, Is_Link, Kind, Parsed.Filter);
+                   (Path, Exists, Is_Link, Kind, Operand.Type_Filter);
             end;
          elsif Token = "-user" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Ownership_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), True, Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Ownership_Matches
+                   (Status_Of, Operand.Identity,
+                    Operand.Identity_Found, True, Valid);
+            end;
          elsif Token = "-group" then
-            Index := Index + 2;
-            return Active
-              and then Posix_Tools.Commands.Find_Evaluation.Predicates.Ownership_Matches
-                (Path, Is_Link, State.Expression.Element (Index - 1), False, Valid);
+            declare
+               Operand : constant Compiled_Operand := State.Compiled.Element (Index);
+            begin
+               Index := Index + 2;
+               return Active
+                 and then Posix_Tools.Commands.Find_Evaluation.Predicates.Ownership_Matches
+                   (Status_Of, Operand.Identity,
+                    Operand.Identity_Found, False, Valid);
+            end;
          elsif Token = "-nouser" then
             Index := Index + 1;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.No_Owner_Matches
-                (Path, Is_Link, True, Valid);
+                (Status_Of, True, Valid);
          elsif Token = "-nogroup" then
             Index := Index + 1;
             return Active
               and then Posix_Tools.Commands.Find_Evaluation.Predicates.No_Owner_Matches
-                (Path, Is_Link, False, Valid);
+                (Status_Of, False, Valid);
          elsif Token = "-print" then
             if Active then
-               Context.Put_Line (Path);
+               Print_Path (State, Context, Path);
             end if;
             Index := Index + 1;
             return Active;
@@ -266,6 +314,15 @@ package body Posix_Tools.Commands.Find_Evaluation is
       return 0;
    end Exec_Terminator;
 
+   procedure Flush_Output
+     (State   : in out Evaluation_State;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class)
+   is
+   begin
+      Posix_Tools.Commands.Helpers.Flush_Output
+        (State.Output_Buffer, Context);
+   end Flush_Output;
+
    procedure Flush_Exec_Batches
      (State   : in out Evaluation_State;
       Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -288,12 +345,53 @@ package body Posix_Tools.Commands.Find_Evaluation is
 
    procedure Initialize
      (State            : out Evaluation_State;
+      Context          : Posix_Tools.Commands.Contexts.Host_Context'Class;
       Expression       : Posix_Tools.Arguments.Vector;
       Environment_Size : Natural)
    is
    begin
       State.Expression := Expression;
+      State.Compiled.Clear;
+      for I in 1 .. Natural (Expression.Length) loop
+         declare
+            Item  : Compiled_Operand;
+            Token : constant String := Expression.Element (I);
+         begin
+            if I < Natural (Expression.Length) then
+               if Token = "-mtime" or else Token = "-size" then
+                  Item.Count_Valid := Parse_Find_Count
+                    (Expression.Element (I + 1), Item.Count,
+                     Item.Relation, Item.Bytes);
+               elsif Token = "-perm" then
+                  Item.Permission_Valid := Parse_Permission_Mode
+                    (Expression.Element (I + 1), Item.Permission,
+                     Item.Match_All);
+               elsif Token = "-type" then
+                  declare
+                     Parsed : constant Posix_Tools.Text.Find_Expressions.Parsed_Type_Filter :=
+                       Posix_Tools.Text.Find_Expressions.Parse_Type_Filter
+                         (Expression.Element (I + 1));
+                  begin
+                     Item.Type_Filter := Parsed.Filter;
+                     Item.Type_Valid := Parsed.Valid;
+                  end;
+               elsif Token = "-newer" then
+                  Item.Reference_Valid := FS.Modification_Time
+                    (Expression.Element (I + 1), Item.Reference_Time);
+               elsif Token = "-user" then
+                  Item.Identity_Found := Posix_Tools.Commands.Helpers.Resolve_User_Id
+                    (Context, Expression.Element (I + 1), Item.Identity);
+               elsif Token = "-group" then
+                  Item.Identity_Found := Posix_Tools.Commands.Helpers.Resolve_Group_Id
+                    (Context, Expression.Element (I + 1), Item.Identity);
+               end if;
+            end if;
+            State.Compiled.Append (Item);
+         end;
+      end loop;
       State.Exec_Batches.Clear;
+      State.Batch_Failed := False;
+      Posix_Tools.Commands.Helpers.Clear_Output (State.Output_Buffer);
       State.Batch_Limit :=
         (if Environment_Size >= Batch_Argument_Bytes - Minimum_Batch_Argument_Bytes
          then Minimum_Batch_Argument_Bytes
@@ -302,6 +400,16 @@ package body Posix_Tools.Commands.Find_Evaluation is
       State.Xdev := (for some Token of Expression => Token = "-xdev");
       State.Started := Posix_Tools.Host_Adapters.Clock.Now;
    end Initialize;
+
+   procedure Print_Path
+     (State   : in out Evaluation_State;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Path    : String)
+   is
+   begin
+      Posix_Tools.Commands.Helpers.Buffered_Put_Line
+        (State.Output_Buffer, Context, Path);
+   end Print_Path;
 
    --  -path patterns name directories with '/', as POSIX writes them; a host
    --  whose own separator differs (Windows) is matched in that spelling.

@@ -1,3 +1,6 @@
+with Ada.Streams;
+private with Ada.Streams.Stream_IO;
+private with Ada.Finalization;
 private with Hostkit.Descriptors;
 
 --  An output file kept open across writes, for commands that write a stream
@@ -5,8 +8,10 @@ private with Hostkit.Descriptors;
 --  where every open is an event the other side sees.
 package Posix_Tools.Host_Adapters.Output_Files is
    type Output_File is limited private;
+   type Positioned_Output_File is limited private;
 
    function Is_Open (File : Output_File) return Boolean;
+   function Is_Open (File : Positioned_Output_File) return Boolean;
 
    --  Opens Path for writing, creating it when absent; truncates it unless
    --  Append_Mode, which writes every byte at the end.
@@ -21,9 +26,41 @@ package Posix_Tools.Host_Adapters.Output_Files is
    procedure Write (File : Output_File; Text : String; Ok : out Boolean)
    with Pre => Is_Open (File);
 
+   procedure Write
+     (File : Output_File;
+      Data : Ada.Streams.Stream_Element_Array;
+      Ok   : out Boolean)
+   with Pre => Is_Open (File);
+
    --  Closes File; False when the host reported the close as failing.
    procedure Close (File : in out Output_File; Ok : out Boolean)
    with Post => not Is_Open (File);
+
+   --  Opens Path once and positions the retained file at Offset. This is the
+   --  streaming form of Write_At for commands such as dd.
+   procedure Open_At
+     (File     : in out Positioned_Output_File;
+      Path     : String;
+      Offset   : Long_Long_Integer;
+      Truncate : Boolean;
+      Ok       : out Boolean)
+   with Pre => Offset >= 0,
+        Post => (if Ok then Is_Open (File));
+
+   procedure Write
+     (File : in out Positioned_Output_File;
+      Text : String;
+      Ok   : out Boolean)
+   with Pre => Is_Open (File);
+
+   procedure Write
+     (File : in out Positioned_Output_File;
+      Data : Ada.Streams.Stream_Element_Array;
+      Ok   : out Boolean)
+   with Pre => Is_Open (File);
+
+   procedure Close (File : in out Positioned_Output_File; Ok : out Boolean)
+   with Post => (if Ok then not Is_Open (File));
 
    --  Writes Text into the file Path from byte Offset on, as dd does with
    --  seek=. With Truncate the file is emptied first, or made when absent,
@@ -38,7 +75,17 @@ package Posix_Tools.Host_Adapters.Output_Files is
       Ok       : out Boolean)
    with Pre => Offset >= 0;
 private
-   type Output_File is limited record
+   type Output_File is
+     new Ada.Finalization.Limited_Controlled with record
       Descriptor : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
    end record;
+
+   overriding procedure Finalize (File : in out Output_File);
+
+   type Positioned_Output_File is
+     new Ada.Finalization.Limited_Controlled with record
+      Handle : Ada.Streams.Stream_IO.File_Type;
+   end record;
+
+   overriding procedure Finalize (File : in out Positioned_Output_File);
 end Posix_Tools.Host_Adapters.Output_Files;

@@ -7,6 +7,8 @@ separate (Command_Tests.Stream_Command_Tests)
       LF      : constant Character := Character'Val (10);
       E_Acute : constant String := Character'Val (16#C3#) & Character'Val (16#A9#);
       Line    : constant String := "h" & E_Acute & "llo" & LF;
+      Boundary_Prefix : constant String (1 .. 16 * 1024 - 1) :=
+        [others => 'a'];
 
       procedure Check (Arguments : Posix_Tools.Arguments.Vector; Locale, Input, Expected, Label : String);
 
@@ -22,6 +24,10 @@ separate (Command_Tests.Stream_Command_Tests)
       end Check;
    begin
       Check (One_Arg ("-c2-3"), "en_US.UTF-8", Line, E_Acute & "l" & LF, "cut -c selects UTF-8 characters");
+      Check (One_Arg ("-c1-"), "en_US.UTF-8", Line, Line,
+             "cut -c streams a complete character range");
+      Check (One_Arg ("-b1-"), "C", "abc", "abc" & LF,
+             "cut -b complete range terminates a partial line");
       Check (One_Arg ("-c2"), "C", Line, Character'Val (16#C3#) & LF, "cut -c selects bytes in the C locale");
       Check (One_Arg ("-b2"), "en_US.UTF-8", Line, Character'Val (16#C3#) & LF, "cut -b selects bytes");
       Check (One_Arg ("-c3"), "en_US.UTF-8", "a" & Character'Val (16#FF#) & "b" & LF, "b" & LF,
@@ -32,8 +38,26 @@ separate (Command_Tests.Stream_Command_Tests)
       Check (Two_Args ("-n", "-b1-2"), "en_US.UTF-8", Line, "h" & LF,
              "cut -n -b moves a high end back before a split character");
       Check (Two_Args ("-n", "-b2-"), "en_US.UTF-8", Line, E_Acute & "llo" & LF, "cut -n -b keeps whole characters");
+      Check (Two_Args ("-n", "-b1-"), "en_US.UTF-8", Line, Line,
+             "cut -n -b streams a complete byte range");
+      Check
+        (One_Arg ("-c16384"), "en_US.UTF-8",
+         Boundary_Prefix & E_Acute & "b" & LF, E_Acute & LF,
+         "cut -c carries UTF-8 sequences across input chunks");
+      Check
+        (Two_Args ("-n", "-b16384-16385"), "en_US.UTF-8",
+         Boundary_Prefix & E_Acute & "b" & LF, E_Acute & LF,
+         "cut -b -n carries UTF-8 sequences across input chunks");
       Check (Two_Args ("-d:", "-f1,2"), "C", ":a" & LF, ":a" & LF,
              "cut -f keeps the delimiter after an empty first field");
       Check (Two_Args ("-d" & E_Acute, "-f2"), "en_US.UTF-8", Line, "llo" & LF,
              "cut -d takes a multibyte delimiter in a UTF-8 locale");
+
+      Context.Initialize ("cut", One_Arg ("-c1-"));
+      Test_Contexts.Set_Standard_Input (Context, "abc");
+      Test_Contexts.Set_Output_Failure_After (Context, 1);
+      Posix_Tools.Commands.Cut.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "cut complete range reports output failure");
    end Test_Cut_Characters;

@@ -13,6 +13,25 @@ library project Posix_Tools_Common is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe");
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe");
+      for Switches ("posix_tools-commands-tr.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
+      for Switches ("posix_tools-commands-wc.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
+      for Switches ("posix_tools-commands-nl.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
+      for Switches ("posix_tools-commands-nl_numbering.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
+      for Switches ("posix_tools-commands-file_helpers-tailing.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
+      for Switches ("posix_tools-commands-od.adb") use
+        ("-Og", "-g", "-gnat2022", "-gnata", "-gnatwa",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe", "-O2");
    end Compiler;
 end Posix_Tools_Common;

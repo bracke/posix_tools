@@ -7,4 +7,9 @@ package Registered_Tests is
    --  Whether a registered test is named Suite, or Suite and a space and
    --  more: Suite names a whole group, so command:tr is not command:true.
    function Has_Suite (Suite : String) return Boolean;
+
+   --  Visit every canonical AUnit registration exactly once. Duplicate
+   --  registrations are rejected while the registry is loaded.
+   procedure For_Each_Name
+     (Visit : not null access procedure (Name : String));
 end Registered_Tests;

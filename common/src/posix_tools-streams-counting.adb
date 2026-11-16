@@ -85,7 +85,10 @@ is
             Increment (Self.Current_Line_Length);
       end case;
 
-      if Posix_Tools.Text.Classification.Is_Whitespace (Code_Point) then
+      if (if Code_Point <= 16#7F#
+          then Code_Point in 9 .. 13 | 32
+          else Posix_Tools.Text.Classification.Is_Whitespace (Code_Point))
+      then
          Self.In_Word := False;
       elsif not Self.In_Word then
          Increment (Self.Current.Words);
@@ -117,6 +120,14 @@ is
          return;
       end if;
 
+      --  ASCII is already a complete UTF-8 character when no multibyte
+      --  sequence is pending. This is overwhelmingly the common path and
+      --  avoids running the decoder for every byte of ordinary text.
+      if Byte <= 16#7F# and then Posix_Tools.Text.UTF_8.Is_Initial (Self.Decoder) then
+         Note_Code_Point (Self, Long_Long_Integer (Byte));
+         return;
+      end if;
+
       Posix_Tools.Text.UTF_8.Decode (Self.Decoder, Byte, Status, Code_Point, Consumed);
       if Status = Posix_Tools.Text.UTF_8.Complete then
          Note_Code_Point (Self, Code_Point);
@@ -143,28 +154,90 @@ is
       Initial_Max_Line_Length : constant Count_Value := Self.Current.Max_Line_Length;
       Initially_Invalid : constant Boolean := Self.Invalid_Text;
       Initial_Words : constant Count_Value := Self.Current.Words;
+      Processed : Natural := 0;
+
+      function Plain_ASCII (Ch : Character) return Boolean is
+        (Character'Pos (Ch) <= 16#7F#
+         and then Character'Pos (Ch) not in 8 .. 13 | 32);
+
+      procedure Add (Value : in out Count_Value; Amount : Natural) is
+      begin
+         Value := Saturating_Add (Value, Count_Value (Amount));
+      end Add;
    begin
-      for I in Input'Range loop
+      --  The byte count does not depend on decoding; add the whole chunk
+      --  once instead of performing a saturating addition for every byte.
+      Self.Current.Bytes :=
+        Saturating_Add (Self.Current.Bytes, Count_Value (Input'Length));
+
+      while Processed < Input'Length loop
          declare
+            I  : constant Integer := Input'First + Processed;
             Ch : constant Character := Input (I);
          begin
-            Increment (Self.Current.Bytes);
+            if Posix_Tools.Text.UTF_8.Is_Initial (Self.Decoder)
+              and then Plain_ASCII (Ch)
+            then
+               declare
+                  Run : Natural := 1;
+               begin
+                  while Processed + Run < Input'Length
+                    and then Plain_ASCII (Input (I + Run))
+                  loop
+                     Run := Run + 1;
+                     pragma Loop_Invariant
+                       (Processed + Run <= Input'Length);
+                     pragma Loop_Variant (Increases => Run);
+                  end loop;
 
-            if Ch = Character'Val (10) then
-               Increment (Self.Current.Lines);
+                  Add (Self.Current.Characters, Run);
+                  Add (Self.Current_Line_Length, Run);
+                  if not Self.In_Word then
+                     Increment (Self.Current.Words);
+                     Self.In_Word := True;
+                  end if;
+                  Processed := Processed + Run;
+               end;
+            elsif Posix_Tools.Text.UTF_8.Is_Initial (Self.Decoder)
+              and then Ch = ' '
+            then
+               declare
+                  Run : Natural := 1;
+               begin
+                  while Processed + Run < Input'Length
+                    and then Input (I + Run) = ' '
+                  loop
+                     Run := Run + 1;
+                     pragma Loop_Invariant
+                       (Processed + Run <= Input'Length);
+                     pragma Loop_Variant (Increases => Run);
+                  end loop;
+
+                  Add (Self.Current.Characters, Run);
+                  Add (Self.Current_Line_Length, Run);
+                  Self.In_Word := False;
+                  Processed := Processed + Run;
+               end;
+            else
+               if Ch = Character'Val (10) then
+                  Increment (Self.Current.Lines);
+               end if;
+
+               Decode_Byte (Self, Character'Pos (Ch));
+               Processed := Processed + 1;
             end if;
-
-            Decode_Byte (Self, Character'Pos (Ch));
          end;
 
          pragma Loop_Invariant
            (Self.Current.Bytes =
-              Saturating_Add (Initial_Bytes, Count_Value (I - Input'First + 1)));
+              Saturating_Add (Initial_Bytes, Count_Value (Input'Length)));
          pragma Loop_Invariant (Self.Current.Characters >= Initial_Characters);
          pragma Loop_Invariant (Self.Current.Lines >= Initial_Lines);
          pragma Loop_Invariant (Self.Current.Max_Line_Length >= Initial_Max_Line_Length);
          pragma Loop_Invariant (Self.Current.Words >= Initial_Words);
          pragma Loop_Invariant (if Initially_Invalid then Self.Invalid_Text);
+         pragma Loop_Invariant (Processed <= Input'Length);
+         pragma Loop_Variant (Increases => Processed);
       end loop;
    end Process;
 

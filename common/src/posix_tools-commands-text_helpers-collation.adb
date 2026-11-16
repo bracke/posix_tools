@@ -53,8 +53,8 @@ package body Posix_Tools.Commands.Text_Helpers.Collation is
 
    function Locale_Collation_Order (Locale, Set1 : String) return String is
       Family : constant String := Locale_Family (Locale);
-      Output : Unbounded_String;
       Ordered : String (1 .. 256);
+      Keys    : array (Ordered'Range) of Unbounded_String;
       Last    : Natural := 0;
       Spanish_After_Enye : constant String := "opqrstuvwxyzABCDEFGHIJKLMN";
 
@@ -118,28 +118,31 @@ package body Posix_Tools.Commands.Text_Helpers.Collation is
       end loop;
 
       if Family /= "da" and then Family /= "es" then
+         for I in 1 .. Last loop
+            Keys (I) := To_Unbounded_String (Key (Ordered (I)));
+         end loop;
          for I in 2 .. Last loop
             declare
-               Item : constant Character := Ordered (I);
-               J    : Natural := I;
+               Item     : constant Character := Ordered (I);
+               Item_Key : constant Unbounded_String := Keys (I);
+               J        : Natural := I;
             begin
                while J > 1
-                 and then (Key (Item) < Key (Ordered (J - 1))
-                           or else (Key (Item) = Key (Ordered (J - 1)) and then Item < Ordered (J - 1)))
+                 and then (Item_Key < Keys (J - 1)
+                           or else (Item_Key = Keys (J - 1)
+                                    and then Item < Ordered (J - 1)))
                loop
                   Ordered (J) := Ordered (J - 1);
+                  Keys (J) := Keys (J - 1);
                   J := J - 1;
                end loop;
                Ordered (J) := Item;
+               Keys (J) := Item_Key;
             end;
          end loop;
       end if;
 
-      for I in 1 .. Last loop
-         Append (Output, Ordered (I));
-      end loop;
-
-      return To_String (Output);
+      return (if Last = 0 then "" else Ordered (1 .. Last));
    end Locale_Collation_Order;
 
    function Locale_Equivalence_Class (Locale, Element : String) return String is
@@ -153,7 +156,7 @@ package body Posix_Tools.Commands.Text_Helpers.Collation is
       procedure Append_If_Equivalent (Candidate : String) is
       begin
          if Equivalent (Candidate)
-           and then Ada.Strings.Fixed.Index (To_String (Output), Candidate) = 0
+           and then Index (Output, Candidate) = 0
          then
             Append (Output, Candidate);
          end if;

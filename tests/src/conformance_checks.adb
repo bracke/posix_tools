@@ -1,13 +1,16 @@
+with Ada.Containers.Indefinite_Ordered_Sets;
 with Ada.Characters.Handling;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Hostkit.Fs;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Line_Breaks;
 with Posix_Tools.Text.Matching;
 with Project_Tools.Files;
 with Project_Tools.Text;
+with Regression_Registry;
 with Registered_Tests;
 with Test_Selection;
 with Tooling_Checks;
@@ -17,16 +20,19 @@ with Tooling_Support;
 package body Conformance_Checks is
    use Tooling_Support;
 
+   package Regression_Id_Sets is new
+     Ada.Containers.Indefinite_Ordered_Sets (String);
+
    procedure Run is
       use Ada.Strings.Unbounded;
       Check : constant Tooling_Checks.Checker :=
         Tooling_Checks.Create (Root);
       Requirements : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/requirements.csv"));
-      Regressions : constant String :=
-        Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/regressions.csv"));
       Inventory_Csv : constant String :=
         Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, "generated/command_inventory.csv"));
+      Requirement_Regression_Ids : Regression_Id_Sets.Set;
+      Known_Regression_Ids       : Regression_Id_Sets.Set;
 
       type Requirement_Row is record
          Id : Unbounded_String;
@@ -106,42 +112,6 @@ package body Conformance_Checks is
          return Has_Hyphen;
       end Is_Requirement_Id;
 
-      function Is_Regression_Id (Text : String) return Boolean is
-         Prefix : constant String := "REG-";
-         Last_Hyphen : Natural := 0;
-      begin
-         if Text'Length < Prefix'Length + 6
-           or else not Posix_Tools.Text.Matching.Starts_With (Text, Prefix)
-         then
-            return False;
-         end if;
-
-         for I in Text'First + Prefix'Length .. Text'Last loop
-            if Text (I) = '-' then
-               Last_Hyphen := I;
-            elsif not
-              (Posix_Tools.Text.Byte_Classes.Is_ASCII_Upper (Text (I))
-               or else Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)))
-            then
-               return False;
-            end if;
-         end loop;
-
-         if Last_Hyphen = 0
-           or else Text'Last - Last_Hyphen /= 4
-         then
-            return False;
-         end if;
-
-         for I in Last_Hyphen + 1 .. Text'Last loop
-            if not Posix_Tools.Text.Byte_Classes.Is_ASCII_Digit (Text (I)) then
-               return False;
-            end if;
-         end loop;
-
-         return True;
-      end Is_Regression_Id;
-
       function Trimmed (Text : String) return String is
       begin
          return Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both);
@@ -178,6 +148,55 @@ package body Conformance_Checks is
            and then not Project_Tools.Text.Contains (Reference, "\")
            and then not Project_Tools.Text.Contains (Reference, "*");
       end Is_Bare_File_Name;
+
+      function Is_Repository_Relative_Path (Path : String) return Boolean is
+         Segment_First : Positive := Path'First;
+
+         function Invalid_Segment (First : Positive; Last : Natural) return Boolean is
+           (Last < First
+            or else Path (First .. Last) = "."
+            or else Path (First .. Last) = "..");
+      begin
+         if Path = ""
+           or else Path (Path'First) in '/' | '\'
+           or else
+             (Path'Length >= 2 and then Path (Path'First + 1) = ':')
+         then
+            return False;
+         end if;
+
+         for Index in Path'Range loop
+            if Path (Index) in '/' | '\' then
+               if Invalid_Segment (Segment_First, Index - 1) then
+                  return False;
+               end if;
+               Segment_First := Index + 1;
+            end if;
+         end loop;
+         return not Invalid_Segment (Segment_First, Path'Last);
+      end Is_Repository_Relative_Path;
+
+      function Resolves_Within_Root (Path : String) return Boolean is
+         Resolved_Root : constant String := Hostkit.Fs.Real_Path (Root);
+         Resolved_Path : constant String := Hostkit.Fs.Real_Path (Path);
+         Boundary      : Natural;
+      begin
+         if Resolved_Root = "" or else Resolved_Path = "" then
+            return False;
+         elsif Resolved_Path = Resolved_Root then
+            return True;
+         elsif Resolved_Path'Length <= Resolved_Root'Length
+           or else Resolved_Path
+             (Resolved_Path'First
+              .. Resolved_Path'First + Resolved_Root'Length - 1) /=
+               Resolved_Root
+         then
+            return False;
+         end if;
+
+         Boundary := Resolved_Path'First + Resolved_Root'Length;
+         return Resolved_Path (Boundary) in '/' | '\';
+      end Resolves_Within_Root;
 
       function Referenced_Source_Exists (Reference : String) return Boolean is
          Stem : constant String := Unit_File_Stem (Reference);
@@ -218,11 +237,28 @@ package body Conformance_Checks is
             return (for all I in 1 .. Posix_Tools.Command_Inventory.Command_Count =>
                       Project_Tools.Files.File_Exists
                         (Project_Tools.Files.Join (Root, Posix_Tools.Command_Inventory.Documentation_Path (I))));
+         elsif not Is_Repository_Relative_Path (Reference) then
+            return False;
          else
-            return Project_Tools.Files.File_Exists (Project_Tools.Files.Join (Root, Reference))
-              or else Project_Tools.Files.Directory_Exists (Project_Tools.Files.Join (Root, Reference))
-              or else (Is_Bare_File_Name (Reference)
-                       and then Project_Tools.Files.Find_File (Root, Reference) /= "");
+            declare
+               Direct : constant String :=
+                 Project_Tools.Files.Join (Root, Reference);
+            begin
+               if Project_Tools.Files.File_Exists (Direct)
+                 or else Project_Tools.Files.Directory_Exists (Direct)
+               then
+                  return Resolves_Within_Root (Direct);
+               elsif Is_Bare_File_Name (Reference) then
+                  declare
+                     Found : constant String :=
+                       Project_Tools.Files.Find_File (Root, Reference);
+                  begin
+                     return Found /= "" and then Resolves_Within_Root (Found);
+                  end;
+               else
+                  return False;
+               end if;
+            end;
          end if;
       end Referenced_Path_Exists;
 
@@ -239,15 +275,49 @@ package body Conformance_Checks is
       end Implementation_Reference_Exists;
 
       function Has_Regression_Id (Name : String) return Boolean is
+        (Known_Regression_Ids.Contains (Name));
+
+      procedure Load_Regression_Ids is
+         procedure Remember
+           (Line_Number : Positive;
+            Id          : String;
+            Command     : String;
+            Summary     : String;
+            Tests       : String)
+         is
+            pragma Unreferenced
+              (Line_Number, Command, Summary, Tests);
+         begin
+            Known_Regression_Ids.Include (Id);
+         end Remember;
       begin
-         return Project_Tools.Files.File_Contains
-           (Project_Tools.Files.Join (Root, "generated/regressions.csv"), Name & ",");
-      end Has_Regression_Id;
+         Regression_Registry.For_Each_Row (Remember'Access);
+      end Load_Regression_Ids;
 
       function Requirement_References_Regression (Name : String) return Boolean is
+        (Requirement_Regression_Ids.Contains (Name));
+
+      procedure Remember_Requirement_Regressions (References : String) is
+         Prefix    : constant String := "regression ";
+         Count     : Natural;
+         Has_Empty : Boolean;
+
+         procedure Remember (Reference : String) is
+         begin
+            if Reference'Length > Prefix'Length
+              and then Reference
+                (Reference'First .. Reference'First + Prefix'Length - 1) =
+                  Prefix
+            then
+               Requirement_Regression_Ids.Include
+                 (Reference
+                    (Reference'First + Prefix'Length .. Reference'Last));
+            end if;
+         end Remember;
       begin
-         return Project_Tools.Text.Contains (Requirements, "regression " & Name);
-      end Requirement_References_Regression;
+         Regression_Registry.For_Each_Test_Reference
+           (References, Remember'Access, Count, Has_Empty);
+      end Remember_Requirement_Regressions;
 
       --  "posix_tools_tests" and a subcommand the driver runs, or a test
       --  selector it accepts, judged by the tables the driver itself uses.
@@ -305,87 +375,82 @@ package body Conformance_Checks is
 
       procedure Check_Implementation_References (Id_Text : String; Text : String) is
          Start : Positive := Text'First;
+         Count : Natural := 0;
+
+         procedure Check_Reference (Reference : String) is
+            Item : constant String := Trimmed (Reference);
+         begin
+            if Item = "" then
+               Tooling_Checks.Fail
+                 (Id_Text & " contains an empty implementation reference");
+            elsif not Implementation_Reference_Exists (Item) then
+               Tooling_Checks.Fail
+                 (Id_Text & " references missing implementation " & Item);
+            end if;
+            Count := Count + 1;
+         end Check_Reference;
       begin
-         if Text = "" then
+         if Trimmed (Text) = "" then
             Tooling_Checks.Fail
               (Id_Text & " has no implementation references");
          end if;
 
          for I in Text'Range loop
             if Text (I) = ';' then
-               if Start <= I - 1
-                 and then not Implementation_Reference_Exists (Text (Start .. I - 1))
-               then
-                  Tooling_Checks.Fail
-                    (Id_Text & " references missing implementation " & Trimmed (Text (Start .. I - 1)));
-               end if;
-
+               Check_Reference
+                 ((if Start < I then Text (Start .. I - 1) else ""));
                Start := I + 1;
             end if;
          end loop;
 
-         if Start <= Text'Last
-           and then not Implementation_Reference_Exists (Text (Start .. Text'Last))
-         then
+         Check_Reference
+           ((if Start <= Text'Last then Text (Start .. Text'Last) else ""));
+         if Count = 0 then
             Tooling_Checks.Fail
-              (Id_Text & " references missing implementation " & Trimmed (Text (Start .. Text'Last)));
+              (Id_Text & " has no implementation references");
          end if;
       end Check_Implementation_References;
 
       procedure Check_Test_References (Id_Text : String; Text : String) is
-         Start : Positive := Text'First;
+         Reference_Count : Natural;
+         Has_Empty       : Boolean;
+
+         procedure Check_Reference (Reference : String) is
+         begin
+            if not Test_Reference_Exists (Reference) then
+               Tooling_Checks.Fail
+                 (Id_Text
+                  & " references missing test or validation artifact "
+                  & Reference);
+            end if;
+         end Check_Reference;
       begin
-         if Text = "" then
+         if Trimmed (Text) = "" then
             Tooling_Checks.Fail
               (Id_Text & " has no test references");
          end if;
-
-         for I in Text'Range loop
-            if Text (I) = ';' then
-               if Start <= I - 1
-                 and then not Test_Reference_Exists (Text (Start .. I - 1))
-               then
-                  Tooling_Checks.Fail
-                    (Id_Text & " references missing test or validation artifact "
-                     & Trimmed (Text (Start .. I - 1)));
-               end if;
-
-               Start := I + 1;
-            end if;
-         end loop;
-
-         if Start <= Text'Last
-           and then not Test_Reference_Exists (Text (Start .. Text'Last))
-         then
+         Regression_Registry.For_Each_Test_Reference
+           (Text,
+            Check_Reference'Access,
+            Reference_Count,
+            Has_Empty);
+         if Reference_Count = 0 then
             Tooling_Checks.Fail
-              (Id_Text & " references missing test or validation artifact "
-               & Trimmed (Text (Start .. Text'Last)));
+              (Id_Text & " has no test references");
+         elsif Has_Empty then
+            Tooling_Checks.Fail
+              (Id_Text & " contains an empty test reference");
          end if;
       end Check_Test_References;
 
-      procedure Check_Regression_Row (Line : String; Number : Positive) is
-         Id_Text : constant String := Field (Line, 1);
-         Test_Text : constant String := Field (Line, 4);
+      procedure Check_Regression_Row
+        (Number      : Positive;
+         Id_Text     : String;
+         Test_Text   : String)
+      is
+         pragma Unreferenced (Number);
       begin
-         if Field_Count (Line) /= 4 then
-            Tooling_Checks.Fail
-              ("regression row has wrong field count at line" & Positive'Image (Number));
-         elsif Id_Text = "" then
-            Tooling_Checks.Fail
-              ("regression row has empty identifier at line" & Positive'Image (Number));
-         elsif not Is_Regression_Id (Id_Text) then
-            Tooling_Checks.Fail
-              (Id_Text & " has invalid regression identifier syntax");
-         elsif Field (Line, 2) = "" then
-            Tooling_Checks.Fail
-              (Id_Text & " has empty command field");
-         elsif Field (Line, 3) = "" then
-            Tooling_Checks.Fail
-              (Id_Text & " has empty summary field");
-         elsif Test_Text = "" then
-            Tooling_Checks.Fail
-              (Id_Text & " has no linked regression test");
-         elsif not Requirement_References_Regression (Id_Text) then
+         if not Requirement_References_Regression (Id_Text) then
             Tooling_Checks.Fail
               (Id_Text & " is not referenced by any requirement row");
          else
@@ -612,13 +677,13 @@ package body Conformance_Checks is
          elsif not Is_Requirement_Id (Id_Text) then
             Tooling_Checks.Fail
               (Id_Text & " has invalid requirement identifier syntax");
-         elsif To_String (Row.Command) = "" then
+         elsif Trimmed (To_String (Row.Command)) = "" then
             Tooling_Checks.Fail
               (Id_Text & " has empty command field");
-         elsif To_String (Row.Implementation) = "" then
+         elsif Trimmed (To_String (Row.Implementation)) = "" then
             Tooling_Checks.Fail
               (Id_Text & " has empty implementation field");
-         elsif To_String (Row.Test) = "" then
+         elsif Trimmed (To_String (Row.Test)) = "" then
             Tooling_Checks.Fail
               (Id_Text & " has no linked test or validation artifact");
          elsif not Is_Allowed_Status (Status_Text) then
@@ -640,6 +705,7 @@ package body Conformance_Checks is
          else
             Check_Implementation_References (Id_Text, Implementation_Text);
             Check_Test_References (Id_Text, Test_Text);
+            Remember_Requirement_Regressions (Test_Text);
          end if;
 
          if Status_Text = "Known deviation"
@@ -731,70 +797,26 @@ package body Conformance_Checks is
       end Check_Requirement_Rows;
 
       procedure Check_Regression_Rows is
-         Start : Positive := Regressions'First;
-         Line_Number : Positive := 1;
-         Max_Regression_Rows : constant Positive := 256;
-         type Seen_Id_Array is array (Positive range <>) of Unbounded_String;
-         Seen_Ids : Seen_Id_Array (1 .. Max_Regression_Rows);
          Seen_Count : Natural := 0;
 
-         procedure Remember_Id (Line : String; Number : Positive) is
-            Id_Text : constant String := Field (Line, 1);
+         procedure Check_Row
+           (Line_Number : Positive;
+            Id           : String;
+            Command      : String;
+            Summary      : String;
+            Tests        : String)
+         is
+            pragma Unreferenced (Command, Summary);
          begin
-            for I in 1 .. Seen_Count loop
-               if To_String (Seen_Ids (I)) = Id_Text then
-                  Tooling_Checks.Fail
-                    ("duplicate regression identifier " & Id_Text
-                     & " at line" & Positive'Image (Number));
-               end if;
-            end loop;
-
-            if Seen_Count = Max_Regression_Rows then
-               Tooling_Checks.Fail ("regression registry exceeds tooling row capacity");
-            end if;
-
+            Check_Regression_Row
+              (Line_Number,
+               Id,
+               Tests);
             Seen_Count := Seen_Count + 1;
-            Seen_Ids (Seen_Count) := To_Unbounded_String (Id_Text);
-         end Remember_Id;
+         end Check_Row;
       begin
-         if Regressions = "" then
-            Tooling_Checks.Fail ("regression registry is empty");
-         end if;
-
-         for I in Regressions'Range loop
-            if Regressions (I) = Character'Val (10) then
-               if I > Start then
-                  declare
-                     Line : constant String :=
-                       Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
-                         (Regressions (Start .. I - 1));
-                  begin
-                     if Line_Number = 1 then
-                        if Line /= "id,command,summary,test" then
-                           Tooling_Checks.Fail ("regression registry header is invalid");
-                        end if;
-                     else
-                        Check_Regression_Row (Line, Line_Number);
-                        Remember_Id (Line, Line_Number);
-                     end if;
-                  end;
-               end if;
-
-               Line_Number := Line_Number + 1;
-               Start := I + 1;
-            end if;
-         end loop;
-
-         if Start <= Regressions'Last then
-            declare
-               Line : constant String :=
-                 Posix_Tools.Text.Line_Breaks.Without_Trailing_CR
-                   (Regressions (Start .. Regressions'Last));
-            begin
-               Check_Regression_Row (Line, Line_Number);
-               Remember_Id (Line, Line_Number);
-            end;
-         end if;
+         Regression_Registry.For_Each_Row (Check_Row'Access);
+         pragma Assert (Seen_Count > 0);
       end Check_Regression_Rows;
 
       procedure Check_Inventory_Rows is
@@ -850,6 +872,14 @@ package body Conformance_Checks is
          end if;
       end Check_Inventory_Rows;
    begin
+      if not Referenced_Path_Exists ("alire.toml")
+        or else Referenced_Path_Exists ("../project_tools/alire.toml")
+        or else Referenced_Path_Exists ("common/../alire.toml")
+      then
+         Tooling_Checks.Fail
+           ("conformance repository-path confinement self-test failed");
+      end if;
+      Load_Regression_Ids;
       Check_Requirement_Rows;
       Check_Regression_Rows;
       Check_Inventory_Rows;

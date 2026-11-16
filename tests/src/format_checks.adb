@@ -87,7 +87,6 @@ package body Format_Checks is
              [To_Unbounded_String ("alire"),
               To_Unbounded_String ("bin"),
               To_Unbounded_String ("config"),
-              To_Unbounded_String ("test-work"),
               To_Unbounded_String ("lib"),
               To_Unbounded_String ("obj")]);
    begin

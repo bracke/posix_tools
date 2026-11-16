@@ -1,10 +1,6 @@
-with Explore.Paths;
-with Posix_Tools.Host_Adapters.File_System;
-
 package body Explore.Directory_Readers is
-   package FS renames Posix_Tools.Host_Adapters.File_System;
-
    use type Listing.Read_Outcome;
+   use type Listing.Entry_Kind;
 
    --  How soon each pane is read.
    Rank : constant array (Slot) of Positive :=
@@ -31,10 +27,12 @@ package body Explore.Directory_Readers is
          exit when Stopped.all;
 
          declare
-            Path : constant String := Explore.Paths.Child_Of (Root, Name);
+            Item : constant Listing.Listed_Entry := Listing.Look_Up (Root, Name);
          begin
-            if FS.Exists (Path) or else FS.Is_Link (Path) then
-               Entries.Append (Listing.Look_Up (Root, Name));
+            --  Look_Up already determines both presence and link state. Do
+            --  not probe the path first and then repeat its metadata lookup.
+            if Item.Is_Link or else Item.Kind /= Listing.Missing_Entry then
+               Entries.Append (Item);
             end if;
          end;
       end loop;
@@ -78,6 +76,7 @@ package body Explore.Directory_Readers is
                end if;
             exception
                when others =>
+                  --  intentional terminal exception barrier
                   Read := Listing.Read_Failed;
                   Outcome.Entries.Clear;
             end;

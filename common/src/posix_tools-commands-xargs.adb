@@ -1,15 +1,19 @@
 with Ada.Containers;
+with Ada.Streams;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.Xargs_Fields;
 with Posix_Tools.Text.Xargs_Parsing;
 
 package body Posix_Tools.Commands.Xargs is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   use type Ada.Streams.Stream_Element_Offset;
    use Ada.Strings.Unbounded;
    use type Ada.Containers.Count_Type;
 
@@ -59,13 +63,16 @@ package body Posix_Tools.Commands.Xargs is
       Arguments : Posix_Tools.Arguments.Vector;
    begin
       if Options.Replacement_Mode then
-         for I in 2 .. Natural (Options.Fixed_Args.Length) loop
-            Arguments.Append
-              (Replace_All
-                 (Options.Fixed_Args.Element (I),
-                  To_String (Options.Replacement_String),
-                  (if First_Input <= Last_Input then Input_Args.Element (First_Input) else "")));
-         end loop;
+         declare
+            Pattern : constant String := To_String (Options.Replacement_String);
+            Value   : constant String :=
+              (if First_Input <= Last_Input then Input_Args.Element (First_Input) else "");
+         begin
+            for I in 2 .. Natural (Options.Fixed_Args.Length) loop
+               Arguments.Append
+                 (Replace_All (Options.Fixed_Args.Element (I), Pattern, Value));
+            end loop;
+         end;
       else
          for I in 2 .. Natural (Options.Fixed_Args.Length) loop
             Arguments.Append (Options.Fixed_Args.Element (I));
@@ -175,23 +182,32 @@ package body Posix_Tools.Commands.Xargs is
 
    function Replace_All (Template, Pattern, Value : String) return String is
       Replaced : Unbounded_String;
-      I        : Positive := Template'First;
+      First    : Positive := Template'First;
+      Match    : Natural;
    begin
       if Pattern = "" then
          return Template;
       end if;
 
-      while I <= Template'Last loop
-         if I + Pattern'Length - 1 <= Template'Last
-           and then Template (I .. I + Pattern'Length - 1) = Pattern
-         then
-            Append (Replaced, Value);
-            I := I + Pattern'Length;
-         else
-            Append (Replaced, Template (I));
-            I := I + 1;
+      Match := Ada.Strings.Fixed.Index (Template, Pattern);
+      if Match = 0 then
+         return Template;
+      end if;
+
+      while Match /= 0 loop
+         if First < Match then
+            Append (Replaced, Template (First .. Match - 1));
          end if;
+         Append (Replaced, Value);
+         First := Match + Pattern'Length;
+         Match :=
+           (if First <= Template'Last
+            then Ada.Strings.Fixed.Index (Template (First .. Template'Last), Pattern)
+            else 0);
       end loop;
+      if First <= Template'Last then
+         Append (Replaced, Template (First .. Template'Last));
+      end if;
 
       return To_String (Replaced);
    end Replace_All;
@@ -203,6 +219,10 @@ package body Posix_Tools.Commands.Xargs is
       Options    : Run_Options;
       Input_Args : Posix_Tools.Arguments.Vector;
       Any_Failed : Boolean := False;
+      Stopped    : Boolean := False;
+      Saw_Input  : Boolean := False;
+      Current_Size : Natural := 0;
+      Parser     : Posix_Tools.Text.Xargs_Parsing.Parser;
 
       --  Runs one invocation. POSIX xargs: an invocation exiting 1 through
       --  125 does not stop xargs, which exits 1-125 at the end (123 here);
@@ -211,6 +231,9 @@ package body Posix_Tools.Commands.Xargs is
       function Execute_Batch (First_Input, Last_Input : Natural) return Batch_Outcome;
 
       procedure Stop (Status : Posix_Tools.Exit_Status.Code; Key, Default : String);
+
+      procedure Accept_Item (Item : String);
+      procedure Flush_Batch;
 
       function Execute_Batch (First_Input, Last_Input : Natural) return Batch_Outcome is
          Utility   : constant String := Utility_Name (Options);
@@ -280,6 +303,66 @@ package body Posix_Tools.Commands.Xargs is
          Posix_Tools.Commands.Helpers.Subject_Operational_Error (Context, Utility_Name (Options), Key, Default);
          Result.Status := Status;
       end Stop;
+
+      procedure Flush_Batch is
+      begin
+         if Input_Args.Is_Empty or else Stopped then
+            return;
+         end if;
+         Stopped := Execute_Batch (1, Natural (Input_Args.Length)) = Batch_Stopped;
+         Input_Args.Clear;
+         Current_Size :=
+           Composed_Command_Size (Options, Compose (Options, Input_Args, 1, 0));
+      end Flush_Batch;
+
+      procedure Accept_Item (Item : String) is
+         Limit : constant Natural :=
+           (if Options.Batch_Size = 0 then Natural'Last else Options.Batch_Size);
+         Candidate : Natural;
+      begin
+         Saw_Input := True;
+         if Options.Replacement_Mode then
+            Input_Args.Clear;
+            Input_Args.Append (Item);
+            Current_Size :=
+              Composed_Command_Size (Options, Compose (Options, Input_Args, 1, 1));
+            Flush_Batch;
+            return;
+         end if;
+
+         Candidate := Posix_Tools.Text.Xargs_Fields.Size_With_Item
+           (Current_Size, Item'Length);
+         if not Input_Args.Is_Empty
+           and then (Natural (Input_Args.Length) >= Limit
+                     or else Candidate > Options.Command_Size_Limit)
+         then
+            if Options.Exit_If_Size_Exceeded and then Candidate > Options.Command_Size_Limit then
+               Stop (Posix_Tools.Exit_Status.Operational_Failure,
+                     "posix_tools.diagnostic.resource.argument_list_too_large",
+                     "argument list too long");
+               Stopped := True;
+               return;
+            end if;
+            Flush_Batch;
+            Candidate := Posix_Tools.Text.Xargs_Fields.Size_With_Item
+              (Current_Size, Item'Length);
+         end if;
+         if Stopped then
+            return;
+         elsif Candidate > Options.Command_Size_Limit then
+            Stop (Posix_Tools.Exit_Status.Operational_Failure,
+                  "posix_tools.diagnostic.resource.argument_list_too_large",
+                  "argument list too long");
+            Stopped := True;
+            return;
+         end if;
+
+         Input_Args.Append (Item);
+         Current_Size := Candidate;
+         if Natural (Input_Args.Length) >= Limit then
+            Flush_Batch;
+         end if;
+      end Accept_Item;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -287,89 +370,101 @@ package body Posix_Tools.Commands.Xargs is
          return;
       end if;
 
-      --  Posix_Tools.Text.Xargs_Parsing owns Text.Byte_Classes.Is_Xargs_Blank
-      --  based tokenization; this command maps parser statuses to diagnostics.
+      Current_Size := Composed_Command_Size
+        (Options, Compose (Options, Input_Args, 1, 0));
+      Posix_Tools.Text.Xargs_Parsing.Initialize
+        (Parser, Options.Null_Delimited, Options.Replacement_Mode,
+         Options.Has_Eof_Marker, To_String (Options.Eof_Marker));
+
       declare
-         Input_Ok     : Boolean;
-         Input        : constant String :=
-           Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Input_Ok);
-         Parsed_Input : constant Posix_Tools.Text.Xargs_Parsing.Parse_Result :=
-           Posix_Tools.Text.Xargs_Parsing.Parse_Input
-             (Input,
-              Options.Null_Delimited,
-              Options.Replacement_Mode,
-              Options.Has_Eof_Marker,
-              To_String (Options.Eof_Marker));
+         Input_Ok : Boolean;
+
+         procedure Parse_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset);
+
+         function Stop_Reading return Boolean is
+           (Stopped or else Posix_Tools.Text.Xargs_Parsing.Is_Stopped (Parser));
+
+         procedure Parse_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset)
+         is
+            pragma Unreferenced (Ignored);
+            Parsed : Posix_Tools.Text.Xargs_Parsing.Parse_Result;
+         begin
+            if Last < Buffer'First then
+               return;
+            end if;
+            Posix_Tools.Text.Xargs_Parsing.Feed
+              (Parser, Posix_Tools.Streams.Bytes.To_String (Buffer, Last), Parsed);
+            for Item of Parsed.Items loop
+               Accept_Item (Item);
+               exit when Stopped;
+            end loop;
+         end Parse_Chunk;
+
+         procedure Read_Bounded_Input is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+             (Action => Parse_Chunk);
+         procedure Read_Bulk_Input is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+             (Action        => Parse_Chunk,
+              Buffer_Length =>
+                Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
       begin
+         if Options.Has_Eof_Marker then
+            Read_Bounded_Input
+              (Context, "-", Input_Ok, Stop_Reading'Access);
+         else
+            Read_Bulk_Input
+              (Context, "-", Input_Ok, Stop_Reading'Access);
+         end if;
          if not Input_Ok then
             Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
             return;
          end if;
-
-         case Parsed_Input.Status is
-            when Posix_Tools.Text.Xargs_Parsing.Valid =>
-               Input_Args := Parsed_Input.Items;
-            when Posix_Tools.Text.Xargs_Parsing.Unmatched_Single_Quote =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unmatched_Single_Quote);
-               return;
-            when Posix_Tools.Text.Xargs_Parsing.Unmatched_Double_Quote =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unmatched_Double_Quote);
-               return;
-            when Posix_Tools.Text.Xargs_Parsing.Unfinished_Escape =>
-               Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Unfinished_Escape);
-               return;
-         end case;
       end;
 
-      if Options.Batch_Size = 0 and then Input_Args.Length > 0 then
-         Options.Batch_Size := Natural (Input_Args.Length);
+      if not Stopped then
+         declare
+            Parsed : Posix_Tools.Text.Xargs_Parsing.Parse_Result;
+         begin
+            Posix_Tools.Text.Xargs_Parsing.Finish (Parser, Parsed);
+            case Parsed.Status is
+               when Posix_Tools.Text.Xargs_Parsing.Valid =>
+                  for Item of Parsed.Items loop
+                     Accept_Item (Item);
+                     exit when Stopped;
+                  end loop;
+               when Posix_Tools.Text.Xargs_Parsing.Unmatched_Single_Quote =>
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, Unmatched_Single_Quote);
+                  return;
+               when Posix_Tools.Text.Xargs_Parsing.Unmatched_Double_Quote =>
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, Unmatched_Double_Quote);
+                  return;
+               when Posix_Tools.Text.Xargs_Parsing.Unfinished_Escape =>
+                  Posix_Tools.Commands.Helpers.Usage_Error
+                    (Context, Result, Unfinished_Escape);
+                  return;
+            end case;
+         end;
       end if;
 
-      if Input_Args.Length = 0 then
-         if not Options.No_Run_If_Empty and then Execute_Batch (1, 0) = Batch_Stopped then
-            return;
-         end if;
-      else
-         declare
-            Count      : constant Natural := Natural (Input_Args.Length);
-            --  The size of an invocation with no input arguments.
-            Fixed_Size : constant Natural :=
-              Composed_Command_Size (Options, Compose (Options, Input_Args, 1, 0));
-            First      : Natural := 1;
-            Last       : Natural;
-            Size       : Natural;
-         begin
-            while First <= Count loop
-               --  As many arguments, up to the batch size, as fit the size
-               --  limit, each added to the size of those before it.
-               Last := First;
-               Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Fixed_Size, Input_Args.Element (First)'Length);
-               while not Options.Replacement_Mode
-                 and then Last < Natural'Min (First + Options.Batch_Size - 1, Count)
-                 and then Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last + 1)'Length)
-                   <= Options.Command_Size_Limit
-               loop
-                  Last := Last + 1;
-                  Size := Posix_Tools.Text.Xargs_Fields.Size_With_Item (Size, Input_Args.Element (Last)'Length);
-               end loop;
-               if Options.Exit_If_Size_Exceeded
-                 and then (Last < Natural'Min (First + Options.Batch_Size - 1, Count)
-                           or else Composed_Command_Size (Options, Compose (Options, Input_Args, First, Last))
-                             > Options.Command_Size_Limit)
-               then
-                  Posix_Tools.Commands.Helpers.Operational_Error
-                    (Context,
-                     "posix_tools.diagnostic.resource.argument_list_too_large",
-                     "argument list too long");
-                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-                  return;
-               end if;
-               if Execute_Batch (First, Last) = Batch_Stopped then
-                  return;
-               end if;
-               First := Last + 1;
-            end loop;
-         end;
+      if Stopped then
+         return;
+      end if;
+      Flush_Batch;
+      if Stopped then
+         return;
+      elsif not Saw_Input and then not Options.No_Run_If_Empty
+        and then Execute_Batch (1, 0) = Batch_Stopped
+      then
+         return;
       end if;
 
       Result.Status :=

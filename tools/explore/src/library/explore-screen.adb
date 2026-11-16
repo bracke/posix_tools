@@ -15,9 +15,14 @@ package body Explore.Screen is
    Replacement : constant Wide_Wide_Character := Wide_Wide_Character'Val (16#FFFD#);
 
    --  Call Action with each character of the UTF-8 Text as it is shown and
-   --  the cells it takes, until Action sets Stop.
+   --  the cells it takes, and the last source byte consumed, until Action
+   --  sets Stop.
    generic
-      with procedure Action (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
+      with procedure Action
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean);
    procedure For_Each_Shown (Text : String);
 
    function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
@@ -103,6 +108,12 @@ package body Explore.Screen is
                                   Explore.Images.Diacritic (Want.Image_Column)]));
                         elsif Want.Continuation then
                            Unbounded.Append (Output, ' ');
+                        elsif Wide_Wide_Character'Pos (Want.Code) <= 16#7F# then
+                           --  Terminal frames are overwhelmingly ASCII.
+                           --  Append those cells without allocating a
+                           --  one-character UTF-8 string for each one.
+                           Unbounded.Append
+                             (Output, Character'Val (Wide_Wide_Character'Pos (Want.Code)));
                         else
                            Unbounded.Append
                              (Output, Ada.Strings.UTF_Encoding.Wide_Wide_Strings.Encode ([1 => Want.Code]));
@@ -153,24 +164,24 @@ package body Explore.Screen is
       Code    : Long_Long_Integer;
       Stop    : Boolean := False;
    begin
-      for C of Text loop
-         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (C), Status, Code);
+      for I in Text'Range loop
+         Posix_Tools.Text.UTF_8.Decode (Decoder, Character'Pos (Text (I)), Status, Code);
 
          case Status is
             when Posix_Tools.Text.UTF_8.Complete =>
                if Is_Control (Code) then
-                  Action ('?', 1, Stop);
+                  Action ('?', 1, I, Stop);
                else
                   declare
                      Cells : constant Natural := Posix_Tools.Commands.Text_Helpers.Display.Display_Width (Code);
                   begin
                      if Cells > 0 then
-                        Action (Wide_Wide_Character'Val (Code), Cells, Stop);
+                        Action (Wide_Wide_Character'Val (Code), Cells, I, Stop);
                      end if;
                   end;
                end if;
             when Posix_Tools.Text.UTF_8.Invalid =>
-               Action (Replacement, 1, Stop);
+               Action (Replacement, 1, I, Stop);
             when Posix_Tools.Text.UTF_8.Need_More =>
                null;
          end case;
@@ -193,9 +204,19 @@ package body Explore.Screen is
          else Natural'Min (Width, Self.Width - Column + 1));
       At_Column : Positive := Column;
 
-      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
+      procedure Place
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean);
 
-      procedure Place (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean) is
+      procedure Place
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean)
+      is
+         pragma Unreferenced (Last_Byte);
       begin
          if At_Column - Column + Cells > Limit then
             Stop := True;
@@ -299,6 +320,44 @@ package body Explore.Screen is
       return ESC & "[" & Unbounded.To_String (Codes) & "m";
    end SGR;
 
+   function Tail_Of (Text : String; Width : Natural) return String is
+      Ellipsis  : constant String := Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#);
+      Remaining : Natural := Width_Of (Text);
+      First     : Natural := 0;
+
+      procedure Drop
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean);
+
+      procedure Drop
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean)
+      is
+         pragma Unreferenced (Code);
+      begin
+         Remaining := Remaining - Natural'Min (Remaining, Cells);
+         if Remaining < Width and then Last_Byte < Text'Last then
+            First := Last_Byte + 1;
+            Stop := True;
+         end if;
+      end Drop;
+
+      procedure Each is new For_Each_Shown (Drop);
+   begin
+      if Remaining <= Width then
+         return Text;
+      elsif Width = 0 then
+         return "";
+      end if;
+
+      Each (Text);
+      return (if First = 0 then Ellipsis else Ellipsis & Text (First .. Text'Last));
+   end Tail_Of;
+
    procedure Unsplit (Self : in out Grid; Row, First, Last : Positive) is
       Before : constant Positive := Index (Self, Row, First);
    begin
@@ -315,10 +374,19 @@ package body Explore.Screen is
    function Width_Of (Text : String) return Natural is
       Total : Natural := 0;
 
-      procedure Count (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean);
+      procedure Count
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean);
 
-      procedure Count (Code : Wide_Wide_Character; Cells : Natural; Stop : in out Boolean) is
-         pragma Unreferenced (Code, Stop);
+      procedure Count
+        (Code      : Wide_Wide_Character;
+         Cells     : Natural;
+         Last_Byte : Positive;
+         Stop      : in out Boolean)
+      is
+         pragma Unreferenced (Code, Last_Byte, Stop);
       begin
          Total := Total + Cells;
       end Count;

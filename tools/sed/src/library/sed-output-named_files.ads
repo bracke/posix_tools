@@ -1,5 +1,7 @@
+private with Ada.Containers.Indefinite_Hashed_Maps;
 private with Ada.Containers.Indefinite_Vectors;
 private with Ada.Finalization;
+private with Ada.Strings.Hash;
 with Sed.Diagnostics;
 with Sed.IO;
 
@@ -88,9 +90,16 @@ private
    package Destination_Vectors is new Ada.Containers.Indefinite_Vectors
      (Index_Type => Positive, Element_Type => Destination);
 
+   package Destination_Indexes is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
+      Element_Type    => Positive,
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
+
    type Registry is limited new Ada.Finalization.Limited_Controlled with record
       Files : access Sed.IO.Filesystem_Interface'Class := null;
       Items : Destination_Vectors.Vector := Destination_Vectors.Empty_Vector;
+      Indexes : Destination_Indexes.Map := Destination_Indexes.Empty_Map;
       Diagnostics : Sed.Diagnostics.Diagnostic_List :=
         Sed.Diagnostics.Empty_List;
       Closed : Boolean := False;

@@ -10,6 +10,11 @@ package Test_Selection is
    function Is_Suite (Name : String) return Boolean;
    function Is_Category (Name : String) return Boolean;
 
+   --  Number of categories whose canonical prefixes select Test_Name.
+   --  Regression aliases are tags and are deliberately not counted as
+   --  additional canonical categories.
+   function Canonical_Category_Match_Count (Test_Name : String) return Natural;
+
    --  Run, or list, the tests the arguments after `test` select, the last
    --  selector winning; Invalid_Usage, said why on standard error, for
    --  arguments that are not selectors.

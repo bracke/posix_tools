@@ -1,6 +1,7 @@
-with Ada.Characters.Handling;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
+with Metadata_Checks.Catalog_Defaults;
+with Metadata_Checks.Silent_Handlers;
 with Posix_Tools.Command_Inventory;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Text.Matching;
@@ -141,7 +142,6 @@ package body Metadata_Checks.Manifests is
                  To_Unbounded_String ("alire"),
                  To_Unbounded_String ("bin"),
                  To_Unbounded_String ("config"),
-                 To_Unbounded_String ("test-work"),
                  To_Unbounded_String ("lib"),
                  To_Unbounded_String ("obj")]);
       begin
@@ -157,91 +157,6 @@ package body Metadata_Checks.Manifests is
          end loop;
       end Check_Ada_Only_Tooling;
 
-      --  Every "en." message of the catalog at Catalog_Path has its English
-      --  text, the same, in the defaults table at Defaults_Path, which the
-      --  command shows when it cannot read the catalog: never a message key.
-      procedure Require_Catalog_Defaults (Catalog_Path, Defaults_Path : String) is
-         use Ada.Strings.Unbounded;
-         LF       : constant Character := ASCII.LF;
-         Quote    : constant Character := Character'Val (39);
-         Catalog  : constant String :=
-           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Catalog_Path));
-         Raw      : constant String :=
-           Project_Tools.Files.Read_Raw_File (Project_Tools.Files.Join (Root, Defaults_Path));
-         Split    : constant String := """ &" & LF & "           """;
-         Defaults : Unbounded_String;
-         From     : Positive := Raw'First;
-         Start    : Positive := Catalog'First;
-
-         --  Check the catalog line Line.
-         procedure Check_Line (Line : String);
-
-         --  Text as an Ada string literal's contents.
-         function Quoted (Text : String) return String;
-
-         procedure Check_Line (Line : String) is
-            Separator : constant Natural := Ada.Strings.Fixed.Index (Line, " = ");
-         begin
-            if Line'Length > 3 and then Line (Line'First .. Line'First + 2) = "en." and then Separator > 0 then
-               declare
-                  Key   : constant String := Line (Line'First + 3 .. Separator - 1);
-                  Text  : constant String := Line (Separator + 3 .. Line'Last);
-                  Plain : Unbounded_String;
-                  I     : Natural := Text'First;
-               begin
-                  while I <= Text'Last loop
-                     Append (Plain, Text (I));
-                     if Text (I) = Quote and then I < Text'Last and then Text (I + 1) = Quote then
-                        I := I + 1;
-                     end if;
-                     I := I + 1;
-                  end loop;
-                  if not Posix_Tools.Text.Matching.Contains
-                    (To_String (Defaults),
-                     "Key = """ & Key & """ then" & LF & "         return" & LF & "           """
-                     & Quoted (To_String (Plain)) & """;")
-                  then
-                     Tooling_Checks.Fail
-                       ("message " & Key & " of " & Catalog_Path & " has no matching English default in "
-                        & Defaults_Path);
-                  end if;
-               end;
-            end if;
-         end Check_Line;
-
-         function Quoted (Text : String) return String is
-            Result : Unbounded_String;
-         begin
-            for Ch of Text loop
-               Append (Result, Ch);
-               if Ch = '"' then
-                  Append (Result, Ch);
-               end if;
-            end loop;
-            return To_String (Result);
-         end Quoted;
-      begin
-         loop
-            declare
-               At_Split : constant Natural := Ada.Strings.Fixed.Index (Raw (From .. Raw'Last), Split);
-            begin
-               if At_Split = 0 then
-                  Append (Defaults, Raw (From .. Raw'Last));
-                  exit;
-               end if;
-               Append (Defaults, Raw (From .. At_Split - 1));
-               From := At_Split + Split'Length;
-            end;
-         end loop;
-
-         for I in Catalog'Range loop
-            if Catalog (I) = LF then
-               Check_Line (Catalog (Start .. I - 1));
-               Start := I + 1;
-            end if;
-         end loop;
-      end Require_Catalog_Defaults;
-
       procedure Check_No_Silent_Broad_Handlers is
          use Ada.Strings.Unbounded;
          Source_Roots : constant Project_Tools.Files.Name_List :=
@@ -249,303 +164,17 @@ package body Metadata_Checks.Manifests is
             To_Unbounded_String ("src"),
             To_Unbounded_String ("tests/src"),
             To_Unbounded_String ("tools")];
+         Generated_Directories : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("alire"),
+            To_Unbounded_String ("bin"),
+            To_Unbounded_String ("config"),
+            To_Unbounded_String ("obj")];
 
-         function Line_Start
-           (Content     : String;
-            Line_Number : Positive) return Natural
-         is
-            Current : Positive := 1;
-         begin
-            if Line_Number = 1 then
-               return Content'First;
-            end if;
-
-            for Index in Content'Range loop
-               if Content (Index) = Character'Val (10) then
-                  Current := Current + 1;
-                  if Current = Line_Number then
-                     return Index + 1;
-                  end if;
-               end if;
-            end loop;
-            return 0;
-         end Line_Start;
-
-         type Silent_Handler_Info is record
-            Is_Silent   : Boolean := False;
-            Intentional : Boolean := False;
-         end record;
-
-         Barrier_Marker : constant String :=
-           "intentional terminal exception barrier";
-
-         function Inspect_Silent_Handler
-           (Content     : String;
-            Line_Number : Positive) return Silent_Handler_Info
-         is
-            Cursor : Natural := Line_Start (Content, Line_Number);
-            Result : Silent_Handler_Info;
-
-            procedure Skip_Trivia is
-            begin
-               loop
-                  while Cursor <= Content'Last
-                    and then Content (Cursor) in ' ' | Character'Val (9)
-                      | Character'Val (10) | Character'Val (13)
-                  loop
-                     Cursor := Cursor + 1;
-                  end loop;
-
-                  exit when Cursor >= Content'Last
-                    or else Content (Cursor .. Cursor + 1) /= "--";
-
-                  declare
-                     First : constant Natural := Cursor;
-                  begin
-                     while Cursor <= Content'Last
-                       and then Content (Cursor) /= Character'Val (10)
-                     loop
-                        Cursor := Cursor + 1;
-                     end loop;
-                     if Ada.Strings.Fixed.Index
-                       (Ada.Characters.Handling.To_Lower
-                          (Content (First .. Cursor - 1)),
-                        Barrier_Marker) > 0
-                     then
-                        Result.Intentional := True;
-                     end if;
-                  end;
-               end loop;
-            end Skip_Trivia;
-
-            function At_Keyword (Keyword : String) return Boolean is
-               After : constant Natural := Cursor + Keyword'Length;
-            begin
-               return Cursor <= Content'Last
-                 and then Keyword'Length <= Content'Last - Cursor + 1
-                 and then Ada.Characters.Handling.To_Lower
-                   (Content (Cursor .. After - 1)) = Keyword
-                 and then
-                   (After > Content'Last
-                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
-                      (Content (After)));
-            end At_Keyword;
-
-            procedure Skip_Pragma is
-               In_Pragma_String : Boolean := False;
-            begin
-               while Cursor <= Content'Last loop
-                  if Content (Cursor) = '"' then
-                     if In_Pragma_String
-                       and then Cursor < Content'Last
-                       and then Content (Cursor + 1) = '"'
-                     then
-                        Cursor := Cursor + 2;
-                     else
-                        In_Pragma_String := not In_Pragma_String;
-                        Cursor := Cursor + 1;
-                     end if;
-                  elsif not In_Pragma_String and then Content (Cursor) = ';' then
-                     Cursor := Cursor + 1;
-                     return;
-                  else
-                     Cursor := Cursor + 1;
-                  end if;
-               end loop;
-            end Skip_Pragma;
-
-            procedure Skip_Label is
-            begin
-               Cursor := Cursor + 2;
-               while Cursor < Content'Last
-                 and then Content (Cursor .. Cursor + 1) /= ">>"
-               loop
-                  Cursor := Cursor + 1;
-               end loop;
-               if Cursor < Content'Last then
-                  Cursor := Cursor + 2;
-               end if;
-            end Skip_Label;
-
-            In_String    : Boolean := False;
-            Begin_Depth  : Natural := 0;
-         begin
-            if Cursor = 0 then
-               return Result;
-            end if;
-
-            --  Find the handler arrow as Ada code, ignoring arrows in
-            --  comments and string literals on a continued choice line.
-            while Cursor < Content'Last loop
-               if not In_String
-                 and then Content (Cursor .. Cursor + 1) = "--"
-               then
-                  while Cursor <= Content'Last
-                    and then Content (Cursor) /= Character'Val (10)
-                  loop
-                     Cursor := Cursor + 1;
-                  end loop;
-               elsif Content (Cursor) = '"' then
-                  if In_String
-                    and then Cursor < Content'Last
-                    and then Content (Cursor + 1) = '"'
-                  then
-                     Cursor := Cursor + 2;
-                  else
-                     In_String := not In_String;
-                     Cursor := Cursor + 1;
-                  end if;
-               elsif not In_String
-                 and then Content (Cursor .. Cursor + 1) = "=>"
-               then
-                  exit;
-               else
-                  Cursor := Cursor + 1;
-               end if;
-            end loop;
-            if Cursor >= Content'Last then
-               return Result;
-            end if;
-            Cursor := Cursor + 2;
-            Skip_Trivia;
-
-            --  Ignore structural wrappers around the handler's first
-            --  effective statement. Labels and declarative pragmas must not
-            --  turn a swallowed exception into an apparent action.
-            loop
-               if At_Keyword ("begin") then
-                  Begin_Depth := Begin_Depth + 1;
-                  Cursor := Cursor + 5;
-                  Skip_Trivia;
-               elsif Cursor < Content'Last
-                 and then Content (Cursor .. Cursor + 1) = "<<"
-               then
-                  Skip_Label;
-                  Skip_Trivia;
-               elsif At_Keyword ("pragma") then
-                  Skip_Pragma;
-                  Skip_Trivia;
-               else
-                  exit;
-               end if;
-            end loop;
-
-            declare
-               Keyword_Length : Natural := 0;
-            begin
-               if Cursor + 3 <= Content'Last
-                 and then Ada.Characters.Handling.To_Lower
-                   (Content (Cursor .. Cursor + 3)) = "null"
-                 and then
-                   (Cursor + 4 > Content'Last
-                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
-                      (Content (Cursor + 4)))
-               then
-                  Keyword_Length := 4;
-               elsif Cursor + 5 <= Content'Last
-                 and then Ada.Characters.Handling.To_Lower
-                   (Content (Cursor .. Cursor + 5)) = "return"
-                 and then
-                   (Cursor + 6 > Content'Last
-                    or else not Project_Tools.Ada_Source.Is_Identifier_Character
-                      (Content (Cursor + 6)))
-               then
-                  Keyword_Length := 6;
-               else
-                  return Result;
-               end if;
-               Cursor := Cursor + Keyword_Length;
-            end;
-            Skip_Trivia;
-            if Cursor > Content'Last or else Content (Cursor) /= ';' then
-               return Result;
-            end if;
-            Cursor := Cursor + 1;
-            Skip_Trivia;
-
-            while Begin_Depth > 0 loop
-               if not At_Keyword ("end") then
-                  return Result;
-               end if;
-               Cursor := Cursor + 3;
-               Skip_Trivia;
-               if Cursor > Content'Last or else Content (Cursor) /= ';' then
-                  return Result;
-               end if;
-               Cursor := Cursor + 1;
-               Begin_Depth := Begin_Depth - 1;
-               Skip_Trivia;
-            end loop;
-
-            --  A null before another handler statement is not a silent
-            --  handler. At EOF, "when", or the handled sequence's "end",
-            --  the swallowed exception has no remaining action.
-            Result.Is_Silent :=
-              Cursor > Content'Last
-              or else At_Keyword ("when")
-              or else At_Keyword ("end");
-            return Result;
-         end Inspect_Silent_Handler;
       begin
-         declare
-            LF : constant Character := Character'Val (10);
-            Split_Null : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others -- misleading =>" & LF
-                 & "  => null" & LF & "  ;",
-                 1);
-            Marked_Null : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others =>" & LF
-                 & "  --  intentional terminal exception barrier" & LF
-                 & "  null;",
-                 1);
-            Returning : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler ("when others => return;", 1);
-            Wrapped : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others => begin" & LF
-                 & "  null;" & LF
-                 & "end;" & LF
-                 & "end;",
-                 1);
-            Labeled : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others =>" & LF
-                 & "  <<Ignored>>" & LF
-                 & "  null;" & LF
-                 & "end;",
-                 1);
-            Pragmatic : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others =>" & LF
-                 & "  pragma Warnings (Off);" & LF
-                 & "  null;" & LF
-                 & "end;",
-                 1);
-            Followed_By_Action : constant Silent_Handler_Info :=
-              Inspect_Silent_Handler
-                ("when others => null; Recover;" & LF & "end;", 1);
-         begin
-            if not Split_Null.Is_Silent
-              or else Split_Null.Intentional
-              or else not Marked_Null.Is_Silent
-              or else not Marked_Null.Intentional
-              or else not Returning.Is_Silent
-              or else Returning.Intentional
-              or else not Wrapped.Is_Silent
-              or else not Labeled.Is_Silent
-              or else not Pragmatic.Is_Silent
-              or else Followed_By_Action.Is_Silent
-            then
-               Tooling_Checks.Fail
-                 ("silent broad exception handler parser self-test failed");
-            end if;
-         end;
-
          for Source_Root of Source_Roots loop
             for Path of Project_Tools.Files.List_Tree
-              (Project_Tools.Files.Join (Root, To_String (Source_Root)))
+              (Project_Tools.Files.Join (Root, To_String (Source_Root)),
+               Skip_Entries => Generated_Directories)
             loop
                declare
                   File_Path : constant String := To_String (Path);
@@ -560,13 +189,15 @@ package body Metadata_Checks.Manifests is
                      Source_Line : String)
                   is
                      pragma Unreferenced (Source_Line);
-                     Info : constant Silent_Handler_Info :=
-                       Inspect_Silent_Handler (Content, Line_Number);
+                     Info : constant Metadata_Checks.Silent_Handlers.Handler_Info :=
+                       Metadata_Checks.Silent_Handlers.Inspect
+                         (Content, Line_Number);
                   begin
-                     if Info.Is_Silent and then not Info.Intentional
+                     if (Info.Is_Silent or else Info.Is_Indeterminate)
+                       and then not Info.Intentional
                      then
                         Tooling_Checks.Fail
-                          ("silent broad exception handler is prohibited in "
+                          ("silent or unclassified broad exception handler is prohibited in "
                            & File_Path & ":" & Positive'Image (Line_Number));
                      end if;
                   end Check_Handler;
@@ -591,6 +222,11 @@ package body Metadata_Checks.Manifests is
            [To_Unbounded_String ("common/src"),
             To_Unbounded_String ("src"),
             To_Unbounded_String ("tools")];
+         Generated_Directories : constant Project_Tools.Files.Name_List :=
+           [To_Unbounded_String ("alire"),
+            To_Unbounded_String ("bin"),
+            To_Unbounded_String ("config"),
+            To_Unbounded_String ("obj")];
 
          procedure Check_File (File_Path : String);
 
@@ -657,7 +293,10 @@ package body Metadata_Checks.Manifests is
          end Message_Argument;
       begin
          for Source_Root of Source_Roots loop
-            for Path of Project_Tools.Files.List_Tree (Project_Tools.Files.Join (Root, To_String (Source_Root))) loop
+            for Path of Project_Tools.Files.List_Tree
+              (Project_Tools.Files.Join (Root, To_String (Source_Root)),
+               Skip_Entries => Generated_Directories)
+            loop
                declare
                   File_Path : constant String := To_String (Path);
                begin
@@ -810,6 +449,8 @@ package body Metadata_Checks.Manifests is
       Tooling_Checks.Require_Text (Check, "posix_tools.gpr", "for Exec_Dir use ""bin""");
       Tooling_Checks.Require_File (Check, "common/alire.toml");
       Tooling_Checks.Require_File (Check, "common/posix_tools_common.gpr");
+      Tooling_Checks.Require_Text
+        (Check, "common/alire.toml", "gnat_native = ""=15.2.1""");
       Tooling_Checks.Require_Text (Check, "common/alire.toml", "i18n = ""*""");
       Tooling_Checks.Require_Text
         (Check, "common/alire.toml", "i18n = { path = ""../../i18n"" }");
@@ -818,6 +459,10 @@ package body Metadata_Checks.Manifests is
         (Check, "common/posix_tools_common.gpr", "for Object_Dir use ""obj/common""");
       Tooling_Checks.Require_Text
         (Check, "common/posix_tools_common.gpr", "for Library_Dir use ""lib""");
+      Tooling_Checks.Require_Text
+        (Check, "tests/src/build_checks.adb", "gnat_native=15.2.1");
+      Tooling_Checks.Require_Text
+        (Check, "tests/src/build_checks.adb", "gprbuild=26.0.1");
       Tooling_Checks.Require_File (Check, "common/messages/posix_tools.catalog");
       Tooling_Checks.Require_File (Check, "common/src/posix_tools-localization.ads");
       Tooling_Checks.Require_File (Check, "common/src/posix_tools-presentation.ads");
@@ -865,9 +510,9 @@ package body Metadata_Checks.Manifests is
       Tooling_Checks.Require_File (Check, ".github/workflows/ci.yml");
       Check_Ada_Only_Tooling;
       Check_No_Silent_Broad_Handlers;
-      Require_Catalog_Defaults
+      Metadata_Checks.Catalog_Defaults.Require_Matching_Defaults
         ("tools/sed/share/sed/messages/catalog.txt", "tools/sed/src/library/sed-localization-defaults.adb");
-      Require_Catalog_Defaults
+      Metadata_Checks.Catalog_Defaults.Require_Matching_Defaults
         ("tools/awk/resources/messages/catalog.txt", "tools/awk/src/library/awk_cli-localization-defaults.adb");
       Check_No_Literal_Usage_Messages;
       Require_Usage_Messages_Catalogued;

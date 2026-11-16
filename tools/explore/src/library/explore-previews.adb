@@ -2,6 +2,7 @@ with Ada.Task_Attributes;
 with Explore.Archives;
 with Explore.Files;
 with Explore.Paths;
+with Posix_Tools.Accounts;
 with Posix_Tools.Arguments;
 with Posix_Tools.File_Operations;
 with Posix_Tools.File_Operations.Removing;
@@ -17,6 +18,7 @@ package body Explore.Previews is
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    use type FS.File_Kind;
+   use type Posix_Tools.Accounts.Id;
    package Unbounded renames Ada.Strings.Unbounded;
 
    Tab_Width : constant := 4;
@@ -251,7 +253,7 @@ package body Explore.Previews is
    end Is_Video;
 
    function Made_Private (Path : String) return Boolean is
-      Me, Owner, Group : Natural;
+      Me, Owner, Group : Posix_Tools.Accounts.Id;
       Known_Owner      : Boolean;
       Known_Mode       : Boolean;
    begin
@@ -316,6 +318,7 @@ package body Explore.Previews is
       end if;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Made := False;
          Result.Image := Unbounded.Null_Unbounded_String;
    end Make_Thumbnail;
@@ -426,6 +429,7 @@ package body Explore.Previews is
       end if;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Made := False;
    end Run_Previewer;
 
@@ -665,6 +669,7 @@ package body Explore.Previews is
                  Build (Unbounded.To_String (Work.Path), Unbounded.To_String (Thumbnails), Work.Rules, Work.Thumbnails);
             exception
                when others =>
+                  --  intentional terminal exception barrier
                   Result := (Kind => Unreadable_Preview, Path => Work.Path, others => <>);
             end;
 

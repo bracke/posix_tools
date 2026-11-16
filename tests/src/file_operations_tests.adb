@@ -1,16 +1,22 @@
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Streams;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with GNAT.OS_Lib;
 with Hostkit.Fs;
+with Hostkit.Metadata;
+with Posix_Tools.Accounts;
 with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Temporary_Storage;
+with Posix_Tools.Host_Adapters.Temporary_Storage.Testing;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Natural_Order;
 with Project_Tools.Files;
+with Test_Support;
+with Tooling_Support;
 
 package body File_Operations_Tests is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -18,12 +24,19 @@ package body File_Operations_Tests is
    package Unbounded renames Ada.Strings.Unbounded;
 
    use type Ada.Containers.Count_Type;
+   use type FS.Entry_Kind;
    use type FS.File_Kind;
    use type Listing.Entry_Kind;
    use type Listing.Read_Outcome;
+   use type Posix_Tools.Accounts.Id;
+   use type Posix_Tools.Host_Adapters.Temporary_Storage.Append_Outcome;
+   use type Posix_Tools.Host_Adapters.Temporary_Storage.Create_Outcome;
+   use type Posix_Tools.Host_Adapters.Temporary_Storage.Finish_Outcome;
+   use type Posix_Tools.Host_Adapters.Temporary_Storage.Prepare_Outcome;
+   use type Posix_Tools.Host_Adapters.Temporary_Storage.Read_Outcome;
 
    function Fixture_Directory return String is
-     (Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-listing-fixture"));
+     (Test_Support.Work_Path ("listing-fixture"));
 
    --  A directory with a file of each size, a subdirectory, a hidden file,
    --  and links to each and to nothing.
@@ -110,6 +123,20 @@ package body File_Operations_Tests is
    begin
       Make_Fixture;
 
+      AUnit.Assertions.Assert
+        (FS.Entry_Kind_Of (Project_Tools.Files.Join (Fixture_Directory, "file9.log")) = FS.Entry_Regular,
+         "entry kind: regular file");
+      AUnit.Assertions.Assert
+        (FS.Entry_Kind_Of (Project_Tools.Files.Join (Fixture_Directory, "dir")) = FS.Entry_Directory,
+         "entry kind: directory");
+      AUnit.Assertions.Assert
+        (FS.Entry_Kind_Of (Project_Tools.Files.Join (Fixture_Directory, "to-file")) = FS.Entry_Link
+         and then FS.Entry_Kind_Of (Project_Tools.Files.Join (Fixture_Directory, "to-nothing")) = FS.Entry_Link,
+         "entry kind: resolving and broken links");
+      AUnit.Assertions.Assert
+        (FS.Entry_Kind_Of (Project_Tools.Files.Join (Fixture_Directory, "missing")) = FS.Entry_Missing,
+         "entry kind: missing");
+
       Listing.Read_Directory (Fixture_Directory, (Include_Hidden => False, With_Status => True), Entries, Outcome);
       AUnit.Assertions.Assert (Outcome = Listing.Read_Complete, "read completes");
       AUnit.Assertions.Assert
@@ -132,6 +159,61 @@ package body File_Operations_Tests is
       AUnit.Assertions.Assert
         (Find ("file9.log").Status.Available and then Find ("file9.log").Status.Mode mod 8#1000# /= 0,
          "status carries the permission bits");
+      declare
+         Path                : constant String :=
+           Project_Tools.Files.Join (Fixture_Directory, "file9.log");
+         Status              : constant FS.Entry_Status := Find ("file9.log").Status;
+         Native              : constant Hostkit.Metadata.Entry_Status :=
+           Hostkit.Metadata.Entry_Status_Of (Path);
+      begin
+         AUnit.Assertions.Assert
+           (Status.Available
+            and then Native.Available
+            and then Status.Size = Long_Long_Integer (Native.Size)
+            and then Status.Modified_Seconds = Native.Modified_Seconds
+            and then Status.Mode = Native.Mode
+            and then Status.User = Posix_Tools.Accounts.Id (Native.User_Id)
+            and then Status.Group = Posix_Tools.Accounts.Id (Native.Group_Id),
+            "entry status preserves Hostkit's coherent portable metadata");
+      end;
+      declare
+         Path   : constant String :=
+           Project_Tools.Files.Join (Fixture_Directory, "to-file");
+         Status : constant FS.Entry_Status := Find ("to-file").Status;
+         Native : constant Hostkit.Metadata.Entry_Status :=
+           Hostkit.Metadata.Entry_Status_Of (Path);
+      begin
+         AUnit.Assertions.Assert
+           (Status.Available
+            and then Native.Available
+            and then Status.Mode / 8#10000# mod 16 = 10
+            and then Status.Size = Long_Long_Integer (Native.Size)
+            and then Status.Modified_Seconds = Native.Modified_Seconds
+            and then Status.Mode = Native.Mode
+            and then Status.User = Posix_Tools.Accounts.Id (Native.User_Id)
+            and then Status.Group = Posix_Tools.Accounts.Id (Native.Group_Id),
+            "link status is one coherent no-follow observation");
+
+         declare
+            Followed : constant FS.Entry_Status := FS.File_Status_Of (Path);
+            Native_Followed : constant Hostkit.Metadata.Entry_Status :=
+              Hostkit.Metadata.File_Status_Of (Path);
+         begin
+            AUnit.Assertions.Assert
+              (Followed.Available
+               and then Native_Followed.Available
+               and then Followed.Mode / 8#10000# mod 16 = 8
+               and then Followed.Size = Long_Long_Integer (Native_Followed.Size)
+               and then Followed.Modified_Seconds =
+                 Native_Followed.Modified_Seconds
+               and then Followed.Mode = Native_Followed.Mode
+               and then Followed.User =
+                 Posix_Tools.Accounts.Id (Native_Followed.User_Id)
+               and then Followed.Group =
+                 Posix_Tools.Accounts.Id (Native_Followed.Group_Id),
+               "followed status is one coherent Hostkit observation");
+         end;
+      end;
 
       Listing.Read_Directory (Fixture_Directory, (Include_Hidden => True, With_Status => False), Entries, Outcome);
       AUnit.Assertions.Assert
@@ -164,7 +246,7 @@ package body File_Operations_Tests is
       Remove_Fixture;
    exception
       when others =>
-         Remove_Fixture;
+         Tooling_Support.Best_Effort_Delete_Tree (Fixture_Directory);
          raise;
    end Test_Directory_Listing;
 
@@ -222,7 +304,7 @@ package body File_Operations_Tests is
       Remove_Fixture;
    exception
       when others =>
-         Remove_Fixture;
+         Tooling_Support.Best_Effort_Delete_Tree (Fixture_Directory);
          raise;
    end Test_Listing_Sort;
 
@@ -330,6 +412,21 @@ package body File_Operations_Tests is
          end if;
       end Restore;
 
+      procedure Cleanup_Safely is
+         Ignored : Hostkit.Fs.Delete_Tree_Outcome;
+         pragma Unreferenced (Ignored);
+      begin
+         Restore;
+         if Base /= "" and then Ada.Directories.Exists (Base) then
+            Ignored := Hostkit.Fs.Delete_Tree_No_Follow (Base);
+         end if;
+      exception
+         when others =>
+            --  Intentional terminal exception barrier
+            --  Preserve the exception raised by the storage test.
+            null;
+      end Cleanup_Safely;
+
       procedure Remove_Base is
          Outcome : Hostkit.Fs.Delete_Tree_Outcome;
       begin
@@ -357,7 +454,8 @@ package body File_Operations_Tests is
          Store : Posix_Tools.Host_Adapters.Temporary_Storage.Store;
       begin
          AUnit.Assertions.Assert
-           (Posix_Tools.Host_Adapters.Temporary_Storage.Create (Store, 1_024),
+           (Posix_Tools.Host_Adapters.Temporary_Storage.Create (Store, 1_024) =
+              Posix_Tools.Host_Adapters.Temporary_Storage.Create_Complete,
             "temporary spill storage accepts paths longer than fixed legacy buffers");
       end;
 
@@ -368,18 +466,199 @@ package body File_Operations_Tests is
       Remove_Base;
    exception
       when others =>
-         Restore;
-         if Base /= "" and then Ada.Directories.Exists (Base) then
-            declare
-               Ignored : constant Hostkit.Fs.Delete_Tree_Outcome :=
-                 Hostkit.Fs.Delete_Tree_No_Follow (Base);
-               pragma Unreferenced (Ignored);
-            begin
-               null;
-            end;
-         end if;
+         Cleanup_Safely;
          raise;
    end Test_Temporary_Storage_Long_Path;
+
+   procedure Test_Temporary_Storage_Outcomes (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Storage renames Posix_Tools.Host_Adapters.Temporary_Storage;
+      Store : Storage.Store;
+      Buffer : constant Ada.Streams.Stream_Element_Array (1 .. 3) := [1, 2, 3];
+      Read_Buffer : Ada.Streams.Stream_Element_Array (1 .. 3);
+      Last : Ada.Streams.Stream_Element_Offset;
+   begin
+      if GNAT.OS_Lib.Directory_Separator = '/' then
+         declare
+            Name       : constant String := "TMPDIR";
+            Invalid    : constant String :=
+              Test_Support.Work_Path ("temporary-storage-invalid-base");
+            Was_Set    : constant Boolean :=
+              Ada.Environment_Variables.Exists (Name);
+            Previous   : constant String :=
+              (if Was_Set then Ada.Environment_Variables.Value (Name) else "");
+            Restored   : Boolean := False;
+
+            procedure Restore;
+
+            procedure Restore is
+            begin
+               if not Restored then
+                  if Was_Set then
+                     Ada.Environment_Variables.Set (Name, Previous);
+                  else
+                     Ada.Environment_Variables.Clear (Name);
+                  end if;
+                  Restored := True;
+               end if;
+            end Restore;
+         begin
+            Test_Support.Delete_If_Exists (Invalid);
+            Project_Tools.Files.Write_Raw_File (Invalid, "not a directory");
+            Ada.Environment_Variables.Set (Name, Invalid);
+            AUnit.Assertions.Assert
+              (Storage.Create (Store, 3) = Storage.Create_Directory_Failed,
+               "temporary-directory creation failure has a distinct outcome");
+            Restore;
+            Test_Support.Delete_If_Exists (Invalid);
+         exception
+            when others =>
+               Restore;
+               Test_Support.Delete_If_Exists (Invalid);
+               raise;
+         end;
+      end if;
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "unprepared read fixture created");
+      AUnit.Assertions.Assert
+        (Storage.Read_Next (Store, Read_Buffer, Last) =
+           Storage.Read_Not_Prepared,
+         "an unprepared sequential read has a distinct outcome");
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store), "unprepared read fixture cleaned");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 2) = Storage.Create_Complete,
+         "capacity fixture created");
+      AUnit.Assertions.Assert
+        (Storage.Append (Store, Buffer, Buffer'Last) =
+           Storage.Append_Capacity_Exceeded,
+         "capacity exhaustion has a distinct outcome");
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store), "capacity fixture cleaned");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "write failure fixture created");
+      Storage.Testing.Close_Backing_File (Store);
+      AUnit.Assertions.Assert
+        (Storage.Append (Store, Buffer, Buffer'Last) =
+           Storage.Append_Write_Failed,
+         "host write failure has a distinct outcome");
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store), "write failure fixture cleaned");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "open failure fixture created");
+      AUnit.Assertions.Assert
+        (Storage.Append (Store, Buffer, Buffer'Last) =
+           Storage.Append_Complete,
+         "open failure fixture populated");
+      Storage.Testing.Remove_Backing_File (Store);
+      AUnit.Assertions.Assert
+        (Storage.Prepare_For_Read (Store) = Storage.Prepare_Open_Failed,
+         "read-open failure has a distinct outcome");
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store), "open failure fixture cleaned");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "read failure fixture created");
+      AUnit.Assertions.Assert
+        (Storage.Append (Store, Buffer, Buffer'Last) =
+           Storage.Append_Complete,
+         "read failure fixture populated");
+      AUnit.Assertions.Assert
+        (Storage.Finish_Writing (Store) = Storage.Finish_Complete,
+         "read failure fixture finished");
+      AUnit.Assertions.Assert
+        (Storage.Prepare_For_Read (Store) = Storage.Prepare_Complete,
+         "read failure fixture prepared");
+      Storage.Testing.Close_Backing_File (Store);
+      AUnit.Assertions.Assert
+        (Storage.Read_Next (Store, Read_Buffer, Last) =
+           Storage.Read_Transfer_Failed,
+         "a host read failure has a distinct outcome");
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store), "read failure fixture cleaned");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "cleanup retry fixture created");
+      Storage.Testing.Force_Cleanup_Failure (Store);
+      AUnit.Assertions.Assert
+        (not Storage.Try_Cleanup (Store),
+         "a failed cleanup remains observable");
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Cleanup_Failed,
+         "create reports the retained cleanup failure");
+      Storage.Testing.Repair_Cleanup_Failure (Store);
+      AUnit.Assertions.Assert
+        (Storage.Try_Cleanup (Store),
+         "retained cleanup state can be repaired and retried");
+
+      AUnit.Assertions.Assert
+        (Storage.Create (Store, 3) = Storage.Create_Complete,
+         "deferred cleanup fixture created");
+      declare
+         Failed_Path : constant String :=
+           Storage.Testing.Backing_Path (Store);
+         Failed_Directory : constant String :=
+           Storage.Testing.Backing_Directory (Store);
+      begin
+         Storage.Testing.Force_Cleanup_Failure (Store);
+         AUnit.Assertions.Assert
+           (not Storage.Cleanup_Or_Defer (Store),
+            "failed cleanup is transferred to deferred ownership");
+         AUnit.Assertions.Assert
+           (Storage.Testing.Backing_Path (Store) = "",
+            "deferred store releases its cleanup path");
+
+         Ada.Directories.Delete_Directory (Failed_Path);
+         AUnit.Assertions.Assert
+           (Storage.Create (Store, 3) = Storage.Create_Complete,
+            "a later create retries deferred cleanup");
+         AUnit.Assertions.Assert
+           (not Ada.Directories.Exists (Failed_Directory),
+            "deferred cleanup removes the recovered directory");
+         AUnit.Assertions.Assert
+           (Storage.Try_Cleanup (Store),
+            "post-retry temporary store cleaned");
+      end;
+
+      declare
+         Failed_Path      : Unbounded.Unbounded_String;
+         Failed_Directory : Unbounded.Unbounded_String;
+      begin
+         declare
+            Finalized_Store : Storage.Store;
+         begin
+            AUnit.Assertions.Assert
+              (Storage.Create (Finalized_Store, 3) = Storage.Create_Complete,
+               "finalizer cleanup fixture created");
+            Failed_Path := Unbounded.To_Unbounded_String
+              (Storage.Testing.Backing_Path (Finalized_Store));
+            Failed_Directory := Unbounded.To_Unbounded_String
+              (Storage.Testing.Backing_Directory (Finalized_Store));
+            Storage.Testing.Force_Cleanup_Failure (Finalized_Store);
+         end;
+
+         Ada.Directories.Delete_Directory (Unbounded.To_String (Failed_Path));
+         AUnit.Assertions.Assert
+           (Storage.Create (Store, 3) = Storage.Create_Complete,
+            "a later create retries cleanup deferred by finalization");
+         AUnit.Assertions.Assert
+           (not Ada.Directories.Exists
+              (Unbounded.To_String (Failed_Directory)),
+            "finalization preserves failed cleanup for a later retry");
+         AUnit.Assertions.Assert
+           (Storage.Try_Cleanup (Store),
+            "post-finalizer-retry temporary store cleaned");
+      end;
+   end Test_Temporary_Storage_Outcomes;
 
    procedure Write (Path : String; Size : Natural) is
       Ok : Boolean;

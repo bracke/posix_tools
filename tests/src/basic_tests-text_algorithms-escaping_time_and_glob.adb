@@ -20,7 +20,7 @@ package body Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob is
    use type Posix_Tools.Text.OD_Formats.Address_Base;
    use type Posix_Tools.Text.OD_Formats.Dump_Format_Kind;
 
-   procedure Run (T : in out Fixture) is
+   procedure Run_OD_And_Numeric_Formats (T : in out Fixture) is
       pragma Unreferenced (T);
    begin
       declare
@@ -234,6 +234,11 @@ package body Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob is
             and then Parsed_None.Value = 0,
             "octal prefix parsing checks");
       end;
+   end Run_OD_And_Numeric_Formats;
+
+   procedure Run_Time_And_Touch (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
       declare
          Parsed_HM  : constant Posix_Tools.Text.Time_Fields.Parsed_Time :=
            Posix_Tools.Text.Time_Fields.Parse_HM_Or_HMS ("23:59");
@@ -309,6 +314,11 @@ package body Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob is
             and then not Unchanged.Valid,
             "touch ISO date-time normalization");
       end;
+   end Run_Time_And_Touch;
+
+   procedure Run (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
       AUnit.Assertions.Assert
         (not Posix_Tools.Text.Escaping.Needs_Escaping ('A'),
          "escaping leaves printable text");

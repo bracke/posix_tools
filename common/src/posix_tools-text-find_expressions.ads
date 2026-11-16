@@ -1,6 +1,10 @@
+with Posix_Tools.Accounts;
+
 package Posix_Tools.Text.Find_Expressions
   with SPARK_Mode => On
 is
+   use type Posix_Tools.Accounts.Id;
+
    type Count_Relation is (Exact_Count, Greater_Than_Count, Less_Than_Count);
    type Find_Type_Filter is
      (Any_Type,
@@ -73,9 +77,9 @@ is
    function Ownership_Matches
      (Available : Boolean;
       Select_User : Boolean;
-      Actual_User : Natural;
-      Actual_Group : Natural;
-      Expected : Natural) return Boolean
+      Actual_User : Posix_Tools.Accounts.Id;
+      Actual_Group : Posix_Tools.Accounts.Id;
+      Expected : Posix_Tools.Accounts.Id) return Boolean
      with Post =>
        Ownership_Matches'Result =
          (Available

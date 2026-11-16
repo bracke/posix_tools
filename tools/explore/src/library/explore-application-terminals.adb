@@ -73,6 +73,49 @@ package body Explore.Application.Terminals is
       Give_Back_Signals (Saved);
    end Hand_Back;
 
+   procedure Hand_Back_Safely
+     (State   : Session;
+      Entered : Boolean;
+      Saved   : Session_Dispositions)
+   is
+      procedure Leave;
+      procedure Restore_Dispositions;
+      procedure Restore_Mode;
+      procedure Try (Action : not null access procedure);
+
+      procedure Leave is
+         Written : constant Boolean := Leave_Screen (State);
+         pragma Unreferenced (Written);
+      begin
+         null;
+      end Leave;
+
+      procedure Restore_Dispositions is
+      begin
+         Give_Back_Signals (Saved);
+      end Restore_Dispositions;
+
+      procedure Restore_Mode is
+      begin
+         Terminal_IO.Restore (State.Terminal.Saved_Mode);
+      end Restore_Mode;
+
+      procedure Try (Action : not null access procedure) is
+      begin
+         Action.all;
+      exception
+         when others =>
+            --  intentional terminal exception barrier
+            null;
+      end Try;
+   begin
+      if Entered then
+         Try (Leave'Access);
+      end if;
+      Try (Restore_Mode'Access);
+      Try (Restore_Dispositions'Access);
+   end Hand_Back_Safely;
+
    function Identify (State : in out Session) return Boolean is
       Item       : Explore.Input.Event;
       Found      : Boolean;

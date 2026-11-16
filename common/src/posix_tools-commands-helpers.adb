@@ -1,6 +1,5 @@
 with Ada.Streams;
 with Ada.Strings.Fixed;
-with Ada.Strings.Unbounded;
 
 with Posix_Tools.Arguments;
 with Posix_Tools.Arguments.Parsing;
@@ -8,21 +7,90 @@ with Posix_Tools.Exit_Status;
 with Posix_Tools.Extension_Options;
 with Posix_Tools.Help;
 with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Path_Separators;
 with Posix_Tools.Localization;
 with Posix_Tools.Numbers;
 with Posix_Tools.Presentation;
-with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Escaping;
 with Posix_Tools.Text.File_Operands;
 with Posix_Tools.Text.Matching;
-with Posix_Tools.Text.Numeric_Images;
 
 package body Posix_Tools.Commands.Helpers is
+   use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Numbers.Count;
    use type Posix_Tools.Numbers.Parse_Status;
 
    LF : constant Character := Character'Val (10);
+   Output_Buffer_Limit : constant := 64 * 1024;
+
+   procedure Clear_Output (State : in out Output_Buffer) is
+   begin
+      State.Pending := Null_Unbounded_String;
+   end Clear_Output;
+
+   procedure Flush_Output
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class)
+   is
+   begin
+      if Length (State.Pending) > 0 then
+         if not Context.Output_Failed then
+            Context.Put (To_String (State.Pending));
+         end if;
+         State.Pending := Null_Unbounded_String;
+      end if;
+   end Flush_Output;
+
+   procedure Buffered_Put
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
+      Text    : String)
+   is
+   begin
+      if Text = "" or else Context.Output_Failed then
+         return;
+      elsif Text'Length >= Output_Buffer_Limit then
+         Flush_Output (State, Context);
+         if not Context.Output_Failed then
+            Context.Put (Text);
+         end if;
+      else
+         if Length (State.Pending) > Output_Buffer_Limit - Text'Length then
+            Flush_Output (State, Context);
+         end if;
+         if not Context.Output_Failed then
+            Append (State.Pending, Text);
+         end if;
+      end if;
+   end Buffered_Put;
+
+   procedure Buffered_Put_Line
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
+      Text    : String)
+   is
+   begin
+      if Context.Output_Failed then
+         return;
+      elsif Text'Length >= Output_Buffer_Limit - 1 then
+         Flush_Output (State, Context);
+         if not Context.Output_Failed then
+            Context.Put (Text);
+            if not Context.Output_Failed then
+               Context.Put ("" & LF);
+            end if;
+         end if;
+      else
+         if Length (State.Pending) > Output_Buffer_Limit - Text'Length - 1 then
+            Flush_Output (State, Context);
+         end if;
+         if not Context.Output_Failed then
+            Append (State.Pending, Text);
+            Append (State.Pending, LF);
+         end if;
+      end if;
+   end Buffered_Put_Line;
 
    procedure Report_Internal_Error
      (Context      : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
@@ -45,8 +113,9 @@ package body Posix_Tools.Commands.Helpers is
       end if;
    exception
       when others =>
-         --  Intentional terminal exception barrier: callers establish the
-         --  failure status before attempting the best-effort diagnostic.
+         --  Intentional terminal exception barrier
+         --  Callers establish the failure status before attempting the
+         --  best-effort diagnostic.
          return;
    end Report_Internal_Error;
 
@@ -197,45 +266,63 @@ package body Posix_Tools.Commands.Helpers is
       end loop;
    end Read_Affirmative_Response;
 
-   function Resolve_Group_Id (Text : String; Value : out Natural) return Boolean is
+   function Resolve_Group_Id
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
+      Text    : String;
+      Value   : out Posix_Tools.Accounts.Id) return Boolean
+   is
       Found  : Boolean;
-      Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
-        Posix_Tools.Text.Decimal_Parsing.Natural_Value (Text);
+      Parsed : constant Posix_Tools.Accounts.Parse_Result :=
+        Posix_Tools.Accounts.Parse (Text);
    begin
-      if Parsed.Valid then
-         Value := Parsed.Value;
+      --  POSIX gives an existing account name precedence over the numeric
+      --  interpretation when a string can be read both ways.
+      Found := Context.Group_Id_For_Name (Text, Value);
+      if Found then
          return True;
       end if;
 
-      Value := Posix_Tools.Host_Adapters.File_System.Group_Id_For_Name (Text, Found);
-      return Found;
+      Value := Parsed.Value;
+      return Parsed.Valid;
    end Resolve_Group_Id;
 
-   function Resolve_User_Id (Text : String; Value : out Natural) return Boolean is
+   function Resolve_User_Id
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
+      Text    : String;
+      Value   : out Posix_Tools.Accounts.Id) return Boolean
+   is
       Found  : Boolean;
-      Parsed : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
-        Posix_Tools.Text.Decimal_Parsing.Natural_Value (Text);
+      Parsed : constant Posix_Tools.Accounts.Parse_Result :=
+        Posix_Tools.Accounts.Parse (Text);
    begin
-      if Parsed.Valid then
-         Value := Parsed.Value;
+      --  POSIX gives an existing account name precedence over the numeric
+      --  interpretation when a string can be read both ways.
+      Found := Context.User_Id_For_Name (Text, Value);
+      if Found then
          return True;
       end if;
 
-      Value := Posix_Tools.Host_Adapters.File_System.User_Id_For_Name (Text, Found);
-      return Found;
+      Value := Parsed.Value;
+      return Parsed.Valid;
    end Resolve_User_Id;
 
-   function Id_Text (Id : Natural; Name : String; Prefer_Name : Boolean) return String is
+   function Id_Text
+     (Id : Posix_Tools.Accounts.Id;
+      Name : String;
+      Prefer_Name : Boolean) return String
+   is
    begin
       if Prefer_Name and then Name /= "" then
          return Name;
       else
-         return Posix_Tools.Text.Numeric_Images.Integer_Image (Id);
+         return Posix_Tools.Accounts.Image (Id);
       end if;
    end Id_Text;
 
-   function Decorated_Id_Text (Id : Natural; Name : String) return String is
-      Text : constant String := Posix_Tools.Text.Numeric_Images.Integer_Image (Id);
+   function Decorated_Id_Text
+     (Id : Posix_Tools.Accounts.Id; Name : String) return String
+   is
+      Text : constant String := Posix_Tools.Accounts.Image (Id);
    begin
       if Name = "" then
          return Text;
@@ -246,7 +333,7 @@ package body Posix_Tools.Commands.Helpers is
 
    function Group_Id_Text
      (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id          : Natural;
+      Id          : Posix_Tools.Accounts.Id;
       Prefer_Name : Boolean := True) return String
    is
    begin
@@ -255,7 +342,7 @@ package body Posix_Tools.Commands.Helpers is
 
    function User_Id_Text
      (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id          : Natural;
+      Id          : Posix_Tools.Accounts.Id;
       Prefer_Name : Boolean := True) return String
    is
    begin
@@ -264,7 +351,7 @@ package body Posix_Tools.Commands.Helpers is
 
    function Decorated_Group_Id_Text
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id      : Natural) return String
+      Id      : Posix_Tools.Accounts.Id) return String
    is
    begin
       return Decorated_Id_Text (Id, Context.Group_Name_For_Id (Id));
@@ -272,7 +359,7 @@ package body Posix_Tools.Commands.Helpers is
 
    function Decorated_User_Id_Text
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id      : Natural) return String
+      Id      : Posix_Tools.Accounts.Id) return String
    is
    begin
       return Decorated_Id_Text (Id, Context.User_Name_For_Id (Id));
@@ -281,7 +368,7 @@ package body Posix_Tools.Commands.Helpers is
    function Current_User_Name
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class) return String
    is
-      User_Id : Natural;
+      User_Id : Posix_Tools.Accounts.Id;
    begin
       if Context.Current_User_Id (User_Id) then
          return Context.User_Name_For_Id (User_Id);
@@ -296,24 +383,86 @@ package body Posix_Tools.Commands.Helpers is
    is
       package FS renames Posix_Tools.Host_Adapters.File_System;
 
-      use type Posix_Tools.Host_Adapters.File_System.File_Kind;
+      use type Posix_Tools.Host_Adapters.File_System.Entry_Kind;
 
       procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean);
 
       procedure Visit (Name : String; Full_Name : String; Stop : in out Boolean) is
-         pragma Unreferenced (Name, Stop);
+         pragma Unreferenced (Full_Name, Stop);
       begin
-         Action (Full_Name);
+         Action (FS.Child_Path (Path, Name));
       end Visit;
 
       procedure Each is new FS.For_Each_Directory_Entry (Visit);
    begin
-      if FS.Kind (Path) = FS.Directory then
+      --  Recursive metadata edits are physical: a link is an entry to skip,
+      --  never a directory through which the command may escape its operand.
+      if FS.Entry_Kind_Of (Path) = FS.Entry_Directory then
          Each (Path, Listed);
       else
          Listed := True;
       end if;
    end For_Each_Directory_Child;
+
+   function Relative_Beneath (Root, Path : String) return String is
+      Root_Last   : Natural := Root'Last;
+      Root_Length : Natural;
+      Separator   : Natural;
+      Host_Separator : constant Character :=
+        Posix_Tools.Host_Adapters.Path_Separators.Directory_Separator;
+
+      function Is_Separator (Item : Character) return Boolean is
+        (Item = Host_Separator
+         or else (Host_Separator = '\' and then Item = '/'));
+   begin
+      if Path = Root then
+         return "";
+      elsif Root = "" then
+         return "..";
+      end if;
+
+      --  Directory enumeration preserves the operand's spelling, except
+      --  that Child_Path does not repeat a trailing separator. Compare with
+      --  that separator removed, while retaining a POSIX or drive root.
+      while Root_Last > Root'First
+        and then Is_Separator (Root (Root_Last))
+        and then not
+          (Root_Last = Root'First + 2
+           and then Root (Root'First + 1) = ':')
+      loop
+         Root_Last := Root_Last - 1;
+      end loop;
+      Root_Length := Root_Last - Root'First + 1;
+
+      if Path'Length = Root_Length
+        and then Path = Root (Root'First .. Root_Last)
+      then
+         return "";
+      elsif Path'Length <= Root_Length
+        or else Path (Path'First .. Path'First + Root_Length - 1) /=
+          Root (Root'First .. Root_Last)
+      then
+         return "..";
+      end if;
+
+      Separator := Path'First + Root_Length;
+      if not Is_Separator (Root (Root_Last))
+        and then not Is_Separator (Path (Separator))
+      then
+         return "..";
+      end if;
+
+      --  Root may retain a root separator, and Path may retain any number of
+      --  trailing separators from the operand before its child name.  Consume
+      --  that whole boundary: returning one of them would turn the relative
+      --  spelling into an absolute path on the host.
+      while Separator <= Path'Last
+        and then Is_Separator (Path (Separator))
+      loop
+         Separator := Separator + 1;
+      end loop;
+      return Path (Separator .. Path'Last);
+   end Relative_Beneath;
 
    procedure Operational_Error
      (Context     : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;

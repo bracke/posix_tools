@@ -2,6 +2,11 @@ with Posix_Tools.Paths;
 with Posix_Tools.Text.Glob;
 
 package body Explore.Paths is
+   function Lowered (Value : Character) return Character is
+     (if Value in 'A' .. 'Z'
+      then Character'Val (Character'Pos (Value) + 32)
+      else Value);
+
    function Below (Path, Directory : String) return String is
       Prefix : constant String :=
         (if Directory'Length > 0 and then Directory (Directory'Last) = '/' then Directory else Directory & "/");
@@ -19,7 +24,72 @@ package body Explore.Paths is
       else Directory & "/" & Name);
 
    function Folded (Text : String) return String is
-     ([for C of Text => (if C in 'A' .. 'Z' then Character'Val (Character'Pos (C) + 32) else C)]);
+     ([for C of Text => Lowered (C)]);
+
+   function Contains_Folded
+     (Text            : String;
+      Folded_Pattern : String) return Boolean
+   is
+   begin
+      if Folded_Pattern = "" then
+         return True;
+      elsif Folded_Pattern'Length > Text'Length then
+         return False;
+      end if;
+
+      for Start_Offset in 0 .. Text'Length - Folded_Pattern'Length loop
+         declare
+            Matches : Boolean := True;
+         begin
+            for Offset in 0 .. Folded_Pattern'Length - 1 loop
+               if Lowered (Text (Text'First + Start_Offset + Offset)) /=
+                 Folded_Pattern (Folded_Pattern'First + Offset)
+               then
+                  Matches := False;
+                  exit;
+               end if;
+            end loop;
+            if Matches then
+               return True;
+            end if;
+         end;
+      end loop;
+
+      return False;
+   end Contains_Folded;
+
+   function Contains_Folded
+     (Text            : Ada.Strings.Unbounded.Unbounded_String;
+      Folded_Pattern : String) return Boolean
+   is
+      Text_Length : constant Natural := Ada.Strings.Unbounded.Length (Text);
+   begin
+      if Folded_Pattern = "" then
+         return True;
+      elsif Folded_Pattern'Length > Text_Length then
+         return False;
+      end if;
+
+      for Start in 1 .. Text_Length - Folded_Pattern'Length + 1 loop
+         declare
+            Matches : Boolean := True;
+         begin
+            for Offset in 0 .. Folded_Pattern'Length - 1 loop
+               if Lowered (Ada.Strings.Unbounded.Element (Text, Start + Offset)) /=
+                 Folded_Pattern (Folded_Pattern'First + Offset)
+               then
+                  Matches := False;
+                  exit;
+               end if;
+            end loop;
+            if Matches then
+               return True;
+            end if;
+         end;
+      end loop;
+
+      return False;
+   end Contains_Folded;
 
    function Glob_Matches (Pattern, Name : String) return Boolean is
      (Posix_Tools.Text.Glob.Matches (Folded (Pattern), Folded (Name)));

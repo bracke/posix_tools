@@ -44,7 +44,9 @@ The V1 owner/group separator is colon.
 `chown root:staff file`
 
 ## Conformance Status
-Conforming with extensions tracked by `CHOWN-POSIX-001`.
+Partially conforming, tracked by `CHOWN-POSIX-001`.
 
 ## Known Limitations
-Symbolic-link traversal details follow the hostkit file-system adapter.
+Recursive traversal is physical: symbolic links are skipped rather than
+followed. POSIX `-h`, `-H`, `-L`, and `-P` link-policy options are not yet
+implemented.

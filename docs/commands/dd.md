@@ -39,7 +39,7 @@ size is 512 bytes. `skip=` and `iseek=` skip input blocks before copying. For st
 selected number of output blocks; for `of=`, `seek=` positions the output file before writing so large offsets do not
 require retaining the skipped prefix in memory. `cbs=` sets the conversion block size required by `conv=block` and
 `conv=unblock`, `conv=ascii`, `conv=ebcdic`, and `conv=ibm`. Numeric values with `b`, `k`, `K`, `M`, `G`, and `w`
-suffixes and `x` multiplication are multiplied before use. `conv=sync` pads the final selected input block to the current input block size before other conversions:
+suffixes and `x` multiplication are multiplied before use. Input block sizes larger than the Ada runtime can index are rejected. `conv=sync` pads every short input record to the current input block size before other conversions:
 with NUL bytes normally, and with spaces when `conv=block` or `conv=unblock` is active. `conv=block` converts
 LF-terminated input lines into fixed-size `cbs=` records padded with spaces or
 truncated to the conversion block size. `conv=unblock` converts fixed-size `cbs=` records to LF-terminated lines after
@@ -48,8 +48,10 @@ and `conv=ibm` handle input as `block` and then map ASCII bytes to EBCDIC bytes 
 single-byte table. `conv=swab` swaps adjacent bytes in the selected
 output data and leaves an odd final byte unchanged. `conv=ucase` and `conv=lcase` convert ASCII letters after byte
 swapping; with comma-separated case conversion names, the later case conversion wins. `conv=noerror` diagnoses a read
-failure and retains the readable prefix collected before that failure in the deterministic command context. When
-combined with `conv=sync`, that partial failed block is padded to the input block size before conversion.
+failure. On seekable input it advances past the failed input record and continues; with `conv=sync`, that skipped record
+is represented by one input-sized record of padding before conversion. On nonseekable input it retries once so a
+transient error can recover. A repeated error, or a failure to advance seekable input, is an operational failure rather
+than success with incomplete output.
 `conv=notrunc` preserves existing output-file bytes outside the written region and honors `seek=` as the write offset.
 Record accounting reports full and partial selected input blocks and full and partial converted output blocks using the
 selected input and output block sizes. `conv=block`, `conv=ebcdic`, and `conv=ibm` also report truncated conversion

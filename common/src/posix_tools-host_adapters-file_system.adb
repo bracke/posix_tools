@@ -1,21 +1,110 @@
 with Ada.Directories;
-with Hostkit.Descriptors;
+with Ada.IO_Exceptions;
+with Ada.Streams.Stream_IO;
 with Hostkit.Directory_Listing;
 with Hostkit.Fs;
-with Hostkit.Metadata;
 with Posix_Tools.Unix_Time;
 
 package body Posix_Tools.Host_Adapters.File_System is
    use type Ada.Streams.Stream_Element_Offset;
 
    Buffer_Size : constant := 16 * 1024;
+   Bulk_Buffer_Size : constant := 64 * 1024;
    subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
+   subtype Bulk_Byte_Buffer is
+     Ada.Streams.Stream_Element_Array (1 .. Bulk_Buffer_Size);
+
+   generic
+      with procedure Callback
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : in out Boolean);
+   procedure Invoke_Chunk_Callback
+     (Buffer          : Ada.Streams.Stream_Element_Array;
+      Last            : Ada.Streams.Stream_Element_Offset;
+      Stop            : in out Boolean;
+      Callback_Active : not null access Boolean);
+
+   procedure Invoke_Chunk_Callback
+     (Buffer          : Ada.Streams.Stream_Element_Array;
+      Last            : Ada.Streams.Stream_Element_Offset;
+      Stop            : in out Boolean;
+      Callback_Active : not null access Boolean)
+   is
+   begin
+      Callback_Active.all := True;
+      Callback (Buffer, Last, Stop);
+      Callback_Active.all := False;
+   end Invoke_Chunk_Callback;
+
+   generic
+      with procedure Callback
+        (Name      : String;
+         Full_Name : String;
+         Stop      : in out Boolean);
+   procedure Invoke_Directory_Callback
+     (Name            : String;
+      Full_Name       : String;
+      Stop            : in out Boolean;
+      Callback_Active : not null access Boolean);
+
+   procedure Invoke_Directory_Callback
+     (Name            : String;
+      Full_Name       : String;
+      Stop            : in out Boolean;
+      Callback_Active : not null access Boolean)
+   is
+   begin
+      Callback_Active.all := True;
+      Callback (Name, Full_Name, Stop);
+      Callback_Active.all := False;
+   end Invoke_Directory_Callback;
 
    --  Whole seconds since 1970-01-01 UTC.
    function Epoch_Seconds (Time : File_Time) return Long_Long_Integer;
 
    --  Whether following Path, a link, reaches a file that exists.
-   function Resolves (Path : String) return Boolean;
+   function Path_Identity
+     (Path     : String;
+      Identity : out Hostkit.Metadata.Entry_Identity) return Follow_Open_Status;
+
+   function Path_Identity
+     (Path     : String;
+      Identity : out Hostkit.Metadata.Entry_Identity) return Follow_Open_Status
+   is
+   begin
+      Identity := (others => <>);
+      if not Ada.Directories.Exists (Path) then
+         return Follow_Missing;
+      end if;
+
+      declare
+         Resolved : constant String := Hostkit.Fs.Real_Path (Path);
+      begin
+         if Resolved = "" then
+            --  Real_Path cannot distinguish a resolution failure from a
+            --  pathname that disappeared while it was being resolved.
+            return
+              (if Ada.Directories.Exists (Path) then
+                  Follow_Error
+               else
+                  Follow_Missing);
+         elsif not Ada.Directories.Exists (Resolved) then
+            return Follow_Missing;
+         end if;
+
+         Identity := Hostkit.Metadata.Entry_Identity_Of (Resolved);
+         return Follow_Ready;
+      end;
+   exception
+      when Ada.IO_Exceptions.Name_Error =>
+         Identity := (others => <>);
+         return Follow_Missing;
+      when others =>
+         --  intentional terminal exception barrier
+         Identity := (others => <>);
+         return Follow_Error;
+   end Path_Identity;
 
    function Access_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
       Available : Boolean := False;
@@ -24,6 +113,7 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Available;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Ada.Calendar.Time_Of (1901, 1, 1);
          return False;
    end Access_Time;
@@ -31,10 +121,10 @@ package body Posix_Tools.Host_Adapters.File_System is
    function Allocated_Size (Path : String; Available : out Boolean) return Long_Long_Integer is
    begin
       --  Hostkit's public metadata surface does not yet expose per-file allocated
-      --  block counts. Keep the capability explicit so command code can distinguish
-      --  real allocated usage from the portable byte-size fallback.
+      --  block counts. Keep the capability explicit while returning the portable
+      --  byte-size fallback from this same query.
       Available := False;
-      return Long_Long_Integer (Ada.Directories.Size (Path));
+      return Long_Long_Integer (Hostkit.Fs.Size_Of (Path));
    end Allocated_Size;
 
    function Can_Open_For_Read (Path : String) return Boolean is
@@ -86,99 +176,10 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end Copy_File_Times;
 
-   procedure Copy_Regular_File_With_Progress (Source : String; Target : String; Status : out Copy_File_Status) is
-      use Hostkit.Descriptors;
-
-      Copied  : Long_Long_Integer := 0;
-      Stop    : Boolean := False;
-
-      Input   : Descriptor := Invalid;
-      Output  : Descriptor := Invalid;
-      Buffer  : Byte_Buffer;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      First   : Ada.Streams.Stream_Element_Offset;
-      Written : Ada.Streams.Stream_Element_Offset;
-      Outcome : Transfer_Outcome;
-
-      --  Close both, the copy having ended as Ending: a target whose close
-      --  fails may not hold what was written to it, and a copy that would
-      --  otherwise have ended well ends as a failed write instead.
-      procedure Finish (Ending : Copy_File_Status);
-
-      procedure Finish (Ending : Copy_File_Status) is
-         Closed : Boolean;
-      begin
-         Close (Input);
-         Closed := Close (Output);
-         Status := (if Ending = Copy_Ok and then not Closed then Target_Write_Failed else Ending);
-      end Finish;
-   begin
-      --  The source is only read: its times are what reading leaves them,
-      --  and a copy that keeps them takes them before it starts.
-      if not Open_File (Source, Open_Read, Input) then
-         Status := Source_Open_Failed;
-         return;
-      end if;
-
-      if not Open_File (Target, Open_Write_Truncate, Output) then
-         Close (Input);
-         Status := Target_Open_Failed;
-         return;
-      end if;
-
-      loop
-         Outcome := Read (Input, Buffer, Last);
-         case Outcome is
-            when Transfer_Ok =>
-               if Last >= Buffer'First then
-                  First := Buffer'First;
-                  while First <= Last loop
-                     Outcome := Write (Output, Buffer (First .. Last), Written);
-                     case Outcome is
-                        when Transfer_Ok =>
-                           if Written < First then
-                              Finish (Target_Write_Failed);
-                              return;
-                           end if;
-
-                           First := Written + 1;
-
-                        when Transfer_Interrupted =>
-                           null;
-
-                        when others =>
-                           Finish (Target_Write_Failed);
-                           return;
-                     end case;
-                  end loop;
-
-                  Copied := Copied + Long_Long_Integer (Last - Buffer'First + 1);
-                  Progress (Copied, Stop);
-
-                  if Stop then
-                     Finish (Copy_Stopped);
-                     return;
-                  end if;
-               end if;
-
-            when Transfer_Interrupted =>
-               null;
-
-            when Transfer_End_Of_File =>
-               Finish (Copy_Ok);
-               return;
-
-            when others =>
-               Finish (Source_Read_Failed);
-               return;
-         end case;
-      end loop;
-   exception
-      when others =>
-         Close (Input);
-         Close (Output);
-         Status := Source_Read_Failed;
-   end Copy_Regular_File_With_Progress;
+   procedure Copy_Regular_File_With_Progress
+     (Source : String;
+      Target : String;
+      Status : out Copy_File_Status) is separate;
 
    function Create_Device
      (Path   : String;
@@ -252,6 +253,7 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Available;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Ada.Calendar.Time_Of (1901, 1, 1);
          return False;
    end Creation_Time;
@@ -293,34 +295,122 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Hostkit.Metadata.Device_Id (Path, Available);
    end Device_Id;
 
+   function Entry_Identity_Of (Path : String) return Entry_Identity is
+      Native : constant Hostkit.Metadata.Entry_Identity :=
+        Hostkit.Metadata.Entry_Identity_Of (Path);
+   begin
+      return
+        (Available       => Native.Available,
+         Volume          => Native.Volume,
+         File_Number     => Native.File_Number,
+         Generation_High => Native.Generation_High,
+         Generation_Low  => Native.Generation_Low);
+   exception
+      when others =>
+         return (others => <>);
+   end Entry_Identity_Of;
+
+   function Entry_Kind_Of (Path : String) return Entry_Kind is
+      Status    : constant Entry_Status := Entry_Status_Of (Path);
+      Type_Code : constant Natural :=
+        (if Status.Available then (Status.Mode / 8#10000#) mod 16 else 0);
+
+      function Portable_Kind return Entry_Kind;
+
+      function Portable_Kind return Entry_Kind is
+      begin
+         if Hostkit.Fs.Entry_Is_Absent (Path) then
+            return Entry_Missing;
+         elsif Hostkit.Fs.Is_Link (Path) then
+            return Entry_Link;
+         end if;
+
+         case Ada.Directories.Kind (Path) is
+            when Ada.Directories.Directory =>
+               return Entry_Directory;
+            when Ada.Directories.Ordinary_File =>
+               return Entry_Regular;
+            when Ada.Directories.Special_File =>
+               return Entry_Special;
+         end case;
+      exception
+         when Ada.Directories.Name_Error =>
+            return Entry_Missing;
+         when others =>
+            return Entry_Error;
+      end Portable_Kind;
+   begin
+      case Type_Code is
+         when 10 =>
+            return Entry_Link;
+         when 4 =>
+            return Entry_Directory;
+         when 8 =>
+            return Entry_Regular;
+         when 0 =>
+            --  Hosts without mode type bits retain the portable probes.  The
+            --  absence query is deliberately separate: Exists-style Boolean
+            --  probes cannot distinguish ENOENT from access refusal.
+            return Portable_Kind;
+         when others =>
+            return Entry_Special;
+      end case;
+   exception
+      when Ada.Directories.Name_Error =>
+         return Entry_Missing;
+      when others =>
+         return Entry_Error;
+   end Entry_Kind_Of;
+
    function Entry_Status_Of (Path : String) return Entry_Status is
       use type Hostkit.Metadata.Identity_Field;
 
-      Revision : constant Hostkit.Metadata.Entry_Revision := Hostkit.Metadata.Entry_Revision_Of (Path);
+      Native  : constant Hostkit.Metadata.Entry_Status :=
+        Hostkit.Metadata.Entry_Status_Of (Path);
       Largest  : constant Hostkit.Metadata.Identity_Field := Hostkit.Metadata.Identity_Field (Long_Long_Integer'Last);
-      Id_Limit : constant Hostkit.Metadata.Identity_Field := Hostkit.Metadata.Identity_Field (Natural'Last);
 
       function Clamped (Value : Hostkit.Metadata.Identity_Field) return Long_Long_Integer is
         (Long_Long_Integer (Hostkit.Metadata.Identity_Field'Min (Value, Largest)));
-
-      function Clamped_Id (Value : Hostkit.Metadata.Identity_Field) return Natural is
-        (Natural (Hostkit.Metadata.Identity_Field'Min (Value, Id_Limit)));
    begin
-      if not Revision.Available then
+      if not Native.Available then
          return (others => <>);
       end if;
-
       return
         (Available        => True,
-         Size             => Clamped (Revision.Size),
-         Modified_Seconds => Clamped (Revision.Modified_Seconds),
-         Mode             => Clamped_Id (Revision.Mode),
-         User             => Clamped_Id (Revision.User_Id),
-         Group            => Clamped_Id (Revision.Group_Id));
+         Size             => Clamped (Native.Size),
+         Modified_Seconds => Native.Modified_Seconds,
+         Mode             => Native.Mode,
+         User             => Posix_Tools.Accounts.Id (Native.User_Id),
+         Group            => Posix_Tools.Accounts.Id (Native.Group_Id));
    exception
       when others =>
          return (others => <>);
    end Entry_Status_Of;
+
+   function File_Status_Of (Path : String) return Entry_Status is
+      use type Hostkit.Metadata.Identity_Field;
+
+      Native  : constant Hostkit.Metadata.Entry_Status :=
+        Hostkit.Metadata.File_Status_Of (Path);
+      Largest : constant Hostkit.Metadata.Identity_Field :=
+        Hostkit.Metadata.Identity_Field (Long_Long_Integer'Last);
+   begin
+      if not Native.Available then
+         return (others => <>);
+      end if;
+      return
+        (Available        => True,
+         Size             =>
+           Long_Long_Integer
+             (Hostkit.Metadata.Identity_Field'Min (Native.Size, Largest)),
+         Modified_Seconds => Native.Modified_Seconds,
+         Mode             => Native.Mode,
+         User             => Posix_Tools.Accounts.Id (Native.User_Id),
+         Group            => Posix_Tools.Accounts.Id (Native.Group_Id));
+   exception
+      when others =>
+         return (others => <>);
+   end File_Status_Of;
 
    function Epoch_Seconds (Time : File_Time) return Long_Long_Integer is
       Year   : GNAT.OS_Lib.Year_Type;
@@ -374,6 +464,7 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Available;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Current_File_Time;
          return False;
    end File_Access_Time_From_File;
@@ -387,12 +478,17 @@ package body Posix_Tools.Host_Adapters.File_System is
 
    procedure File_Ownership
      (Path      : String;
-      User      : out Natural;
-      Group     : out Natural;
+      User      : out Posix_Tools.Accounts.Id;
+      Group     : out Posix_Tools.Accounts.Id;
       Available : out Boolean)
    is
+      Host_User  : Hostkit.Metadata.Account_Id;
+      Host_Group : Hostkit.Metadata.Account_Id;
    begin
-      Hostkit.Metadata.File_Ownership (Path, User, Group, Available);
+      Hostkit.Metadata.File_Ownership
+        (Path, Host_User, Host_Group, Available);
+      User := Posix_Tools.Accounts.Id (Host_User);
+      Group := Posix_Tools.Accounts.Id (Host_Group);
    end File_Ownership;
 
    function File_Permission_Bits (Path : String; Available : out Boolean) return Natural is
@@ -424,6 +520,7 @@ package body Posix_Tools.Host_Adapters.File_System is
       return True;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Current_File_Time;
          return False;
    end File_Time_From_File;
@@ -452,153 +549,28 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Candidate /= GNAT.OS_Lib.Invalid_Time;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Current_File_Time;
          return False;
    end File_Time_Of;
 
-   procedure For_Each_Directory_Entry (Path : String; Ok : out Boolean) is
-      Search      : Ada.Directories.Search_Type;
-      Search_Open : Boolean := False;
-      Dir_Entry   : Ada.Directories.Directory_Entry_Type;
-      Stop        : Boolean := False;
-
-      procedure Close_Search (Cleanup_Ok : in out Boolean);
-
-      procedure Close_Search (Cleanup_Ok : in out Boolean) is
-      begin
-         if Search_Open then
-            Ada.Directories.End_Search (Search);
-            Search_Open := False;
-         end if;
-      exception
-         when others =>
-            Cleanup_Ok := False;
-            Search_Open := False;
-      end Close_Search;
-   begin
-      Ok := True;
-      Ada.Directories.Start_Search (Search, Path, "*");
-      Search_Open := True;
-      while not Stop and then Ada.Directories.More_Entries (Search) loop
-         Ada.Directories.Get_Next_Entry (Search, Dir_Entry);
-         declare
-            Name : constant String := Ada.Directories.Simple_Name (Dir_Entry);
-         begin
-            if Name /= "." and then Name /= ".." then
-               Action (Name, Ada.Directories.Full_Name (Dir_Entry), Stop);
-            end if;
-         exception
-            when others =>
-               Ok := False;
-         end;
-      end loop;
-      Close_Search (Ok);
-   exception
-      when others =>
-         declare
-            Cleanup_Ok : Boolean := False;
-         begin
-            Close_Search (Cleanup_Ok);
-         end;
-         Ok := False;
-   end For_Each_Directory_Entry;
+   procedure For_Each_Directory_Entry (Path : String; Ok : out Boolean) is separate;
 
    procedure For_Each_File_Chunk
      (Path   : String;
       Ok     : out Boolean)
-   is
-      use Hostkit.Descriptors;
-      File   : Descriptor := Invalid;
-      Buffer : Byte_Buffer;
-      Last   : Ada.Streams.Stream_Element_Offset;
-      Stop   : Boolean := False;
-      Outcome : Transfer_Outcome;
-   begin
-      Ok := Open_File (Path, Open_Read, File);
-      if not Ok then
-         return;
-      end if;
-
-      while not Stop loop
-         Outcome := Read (File, Buffer, Last);
-         case Outcome is
-            when Transfer_Ok =>
-               if Last >= Buffer'First then
-                  Action (Buffer, Last, Stop);
-               end if;
-
-            when Transfer_Interrupted =>
-               null;
-
-            when Transfer_End_Of_File =>
-               exit;
-
-            when others =>
-               Ok := False;
-               exit;
-         end case;
-      end loop;
-
-      Close (File);
-   exception
-      when others =>
-         Close (File);
-         Ok := False;
-   end For_Each_File_Chunk;
+   is separate;
 
    procedure For_Each_File_Chunk_From
      (Path   : String;
       Offset : Long_Long_Integer;
       Ok     : out Boolean)
-   is
-      use Hostkit.Descriptors;
-      File      : Descriptor := Invalid;
-      Buffer    : Byte_Buffer;
-      Last      : Ada.Streams.Stream_Element_Offset;
-      Stop      : Boolean := False;
-      Outcome   : Transfer_Outcome;
-      Remaining : Long_Long_Integer := Offset;
-      First     : Ada.Streams.Stream_Element_Offset;
-   begin
-      Ok := Open_File (Path, Open_Read, File);
-      if not Ok then
-         return;
-      end if;
+   is separate;
 
-      while not Stop loop
-         Outcome := Read (File, Buffer, Last);
-         case Outcome is
-            when Transfer_Ok =>
-               if Last >= Buffer'First then
-                  if Remaining >= Long_Long_Integer (Last - Buffer'First + 1) then
-                     Remaining := Remaining - Long_Long_Integer (Last - Buffer'First + 1);
-                  elsif Remaining > 0 then
-                     First := Buffer'First + Ada.Streams.Stream_Element_Offset (Remaining);
-                     Action (Buffer (First .. Last), Last, Stop);
-                     Remaining := 0;
-                  else
-                     Action (Buffer, Last, Stop);
-                  end if;
-               end if;
-
-            when Transfer_Interrupted =>
-               null;
-
-            when Transfer_End_Of_File =>
-               exit;
-
-            when others =>
-               Ok := False;
-               exit;
-         end case;
-      end loop;
-
-      Close (File);
-   exception
-      when others =>
-         Close (File);
-         Ok := False;
-   end For_Each_File_Chunk_From;
+   procedure For_Each_Follow_Chunk
+     (File : in out Follow_File;
+      Ok   : out Boolean)
+   is separate;
 
    procedure For_Each_Listed_Entry (Path : String; Ok : out Boolean) is
       Entries : Hostkit.Directory_Listing.Entry_Vectors.Vector;
@@ -608,6 +580,7 @@ package body Posix_Tools.Host_Adapters.File_System is
          Ok := Hostkit.Directory_Listing.List (Path, Entries);
       exception
          when others =>
+            --  intentional terminal exception barrier
             Ok := False;
       end;
 
@@ -634,14 +607,19 @@ package body Posix_Tools.Host_Adapters.File_System is
       return Ada.Directories.Full_Name (Path);
    end Full_Name;
 
-   function Group_Id_For_Name (Name : String; Found : out Boolean) return Natural is
+   function Group_Id_For_Name
+     (Name : String; Found : out Boolean) return Posix_Tools.Accounts.Id
+   is
+      Host_Id : Hostkit.Metadata.Account_Id;
    begin
-      return Hostkit.Metadata.Group_Id_For_Name (Name, Found);
+      Host_Id := Hostkit.Metadata.Group_Id_For_Name (Name, Found);
+      return Posix_Tools.Accounts.Id (Host_Id);
    end Group_Id_For_Name;
 
-   function Group_Name_For_Id (Id : Natural) return String is
+   function Group_Name_For_Id (Id : Posix_Tools.Accounts.Id) return String is
    begin
-      return Hostkit.Metadata.Group_Name_For_Id (Id);
+      return Hostkit.Metadata.Group_Name_For_Id
+        (Hostkit.Metadata.Account_Id (Id));
    end Group_Name_For_Id;
 
    function Is_Link (Path : String) return Boolean is
@@ -651,35 +629,72 @@ package body Posix_Tools.Host_Adapters.File_System is
 
    function Kind (Path : String) return File_Kind is
    begin
-      --  Windows answers Exists for the link itself, so a link to nothing
-      --  would read as a file. Resolving it says what stat(2) would: there,
-      --  Real_Path names a missing target rather than giving up as realpath(3)
-      --  does, so the resolved path must also exist.
-      if not Ada.Directories.Exists (Path)
-        or else (Hostkit.Fs.Is_Link (Path) and then not Resolves (Path))
-      then
-         return Missing_File;
-      end if;
-
-      case Ada.Directories.Kind (Path) is
-         when Ada.Directories.Directory =>
+      case Entry_Kind_Of (Path) is
+         when Entry_Missing =>
+            return Missing_File;
+         when Entry_Error =>
+            return Uninspectable_File;
+         when Entry_Directory =>
             return Directory;
-         when Ada.Directories.Ordinary_File =>
+         when Entry_Regular =>
             return Ordinary_File;
-         when Ada.Directories.Special_File =>
+         when Entry_Special =>
             return Special_File;
+         when Entry_Link =>
+            --  Use the resolved spelling where the host can provide it.  In
+            --  particular, Windows otherwise describes a broken link as the
+            --  link entry.  When resolution itself cannot produce a spelling,
+            --  Ada.Directories.Kind retains the important distinction between
+            --  a missing target (Name_Error) and an inaccessible one
+            --  (Use_Error).
+            declare
+               Target : constant String := Hostkit.Fs.Real_Path (Path);
+            begin
+               if Target /= "" then
+                  case Entry_Kind_Of (Target) is
+                     when Entry_Missing =>
+                        return Missing_File;
+                     when Entry_Error =>
+                        return Uninspectable_File;
+                     when Entry_Directory =>
+                        return Directory;
+                     when Entry_Regular =>
+                        return Ordinary_File;
+                     when Entry_Special =>
+                        return Special_File;
+                     when Entry_Link =>
+                        --  A native real-path result is not itself a link.
+                        return Uninspectable_File;
+                  end case;
+               end if;
+
+               case Ada.Directories.Kind (Path) is
+                  when Ada.Directories.Directory =>
+                     return Directory;
+                  when Ada.Directories.Ordinary_File =>
+                     return Ordinary_File;
+                  when Ada.Directories.Special_File =>
+                     return Special_File;
+               end case;
+            end;
       end case;
    exception
-      when others =>
+      when Ada.Directories.Name_Error =>
          return Missing_File;
+      when others =>
+         --  Kind is a query used pervasively by command dispatch.  Preserve
+         --  inspection failure in its result instead of turning user input
+         --  into the command runner's internal-failure status.
+         return Uninspectable_File;
    end Kind;
 
    function Modification_Time (Path : String; Time : out Ada.Calendar.Time) return Boolean is
    begin
-      Time := Ada.Directories.Modification_Time (Path);
+      Time := Hostkit.Fs.Modification_Time_Of (Path);
       return True;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Time := Ada.Calendar.Time_Of (Year => 1901, Month => 1, Day => 1);
          return False;
    end Modification_Time;
@@ -763,12 +778,6 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end Rename;
 
-   function Resolves (Path : String) return Boolean is
-      Target : constant String := Hostkit.Fs.Real_Path (Path);
-   begin
-      return Target /= "" and then Ada.Directories.Exists (Target);
-   end Resolves;
-
    function Same_File (Left : String; Right : String) return Boolean is
    begin
       return Hostkit.Metadata.Same_File (Left, Right);
@@ -785,20 +794,122 @@ package body Posix_Tools.Host_Adapters.File_System is
          return False;
    end Set_File_Times;
 
-   function Set_Ownership (Path : String; User : Natural; Group : Natural) return Boolean is
+   function Set_Ownership
+     (Path  : String;
+      User  : Posix_Tools.Accounts.Update;
+      Group : Posix_Tools.Accounts.Update) return Boolean
+   is
    begin
-      return Hostkit.Metadata.Set_Ownership (Path, User, Group);
+      return Hostkit.Metadata.Set_Ownership
+        (Path,
+         Hostkit.Metadata.Account_Id
+           (Posix_Tools.Accounts.Value_Or_Keep (User)),
+         Hostkit.Metadata.Account_Id
+           (Posix_Tools.Accounts.Value_Or_Keep (Group)));
    end Set_Ownership;
+
+   function Set_Ownership_No_Follow
+     (Path  : String;
+      User  : Posix_Tools.Accounts.Update;
+      Group : Posix_Tools.Accounts.Update;
+      Beneath_Root  : String := "";
+      Relative_Path : String := "") return Boolean
+   is
+      use type Posix_Tools.Accounts.Id;
+      User_Id : constant Posix_Tools.Accounts.Id :=
+        Posix_Tools.Accounts.Value_Or_Keep (User);
+      Group_Id : constant Posix_Tools.Accounts.Id :=
+        Posix_Tools.Accounts.Value_Or_Keep (Group);
+      Updated : constant Hostkit.Metadata.Metadata_Update_Result :=
+        Hostkit.Metadata.Update_Entry_Metadata
+          (Path           => Path,
+           Expected       => (others => <>),
+           Check_Expected => False,
+           Kind           => Hostkit.Metadata.Update_Ownership,
+           Value          => Hostkit.Metadata.Identity_Field (User_Id),
+           Group          => Hostkit.Metadata.Identity_Field (Group_Id),
+           Max_Previous   => Hostkit.Metadata.Identity_Field'Last,
+           Owner_Name     =>
+             (if User_Id = Posix_Tools.Accounts.Id'Last
+              then ""
+              else User_Name_For_Id (User_Id)),
+           Group_Name     =>
+             (if Group_Id = Posix_Tools.Accounts.Id'Last
+              then ""
+              else Group_Name_For_Id (Group_Id)),
+           Beneath_Root   => Beneath_Root,
+           Relative_Path  => Relative_Path);
+   begin
+      return Updated.Success;
+   end Set_Ownership_No_Follow;
 
    function Set_Permissions (Path : String; Mode : Natural) return Boolean is
    begin
       return Hostkit.Metadata.Set_Permissions (Path, Mode);
    end Set_Permissions;
 
+   function Set_Permissions_No_Follow
+     (Path          : String;
+      Mode          : Natural;
+      Beneath_Root  : String := "";
+      Relative_Path : String := "") return Boolean
+   is
+      Updated : constant Hostkit.Metadata.Metadata_Update_Result :=
+        Hostkit.Metadata.Update_Entry_Metadata
+          (Path           => Path,
+           Expected       => (others => <>),
+           Check_Expected => False,
+           Kind           => Hostkit.Metadata.Update_Permissions,
+           Value          => Hostkit.Metadata.Identity_Field (Mode),
+           Group          => 0,
+           Max_Previous   => Hostkit.Metadata.Identity_Field'Last,
+           Beneath_Root   => Beneath_Root,
+           Relative_Path  => Relative_Path);
+   begin
+      return Updated.Success;
+   end Set_Permissions_No_Follow;
+
    function Size (Path : String) return Long_Long_Integer is
    begin
-      return Long_Long_Integer (Ada.Directories.Size (Path));
+      return Long_Long_Integer (Hostkit.Fs.Size_Of (Path));
    end Size;
+
+   procedure Close_Follow_File (File : in out Follow_File) is
+      procedure Mark_Closed is
+      begin
+         File.Identity := (others => <>);
+         File.Cursor := 0;
+         File.Handle_Kind := Follow_Closed;
+         File.Sequential_Non_Blocking := False;
+         File.History_Length := 0;
+         File.History_Next := Follow_History_Index'First;
+      end Mark_Closed;
+   begin
+      Hostkit.Descriptors.Close (File.Handle);
+      Mark_Closed;
+   exception
+      when others =>
+         --  intentional terminal exception barrier
+         Mark_Closed;
+   end Close_Follow_File;
+
+   function Follow_File_Is_Open (File : Follow_File) return Boolean is
+     (case File.Handle_Kind is
+         when Follow_Closed     => False,
+         when Follow_Seekable | Follow_Sequential =>
+           Hostkit.Descriptors.Is_Valid (File.Handle));
+
+   procedure Open_Follow_File
+     (Path             : String;
+      File             : in out Follow_File;
+      Status           : out Follow_Open_Status;
+      Require_Identity : Boolean := False) is separate;
+
+   procedure Refresh_Follow_File
+     (Path     : String;
+      File     : in out Follow_File;
+      Reopened : out Boolean;
+      Status   : out Follow_Open_Status) is separate;
 
    function Special_File_Info_Of (Path : String) return Special_File_Info is
       Source : constant Hostkit.Fs.Special_File_Info := Hostkit.Fs.Special_File_Info_Of (Path);
@@ -833,79 +944,29 @@ package body Posix_Tools.Host_Adapters.File_System is
       return True;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Last := 0;
          return False;
    end Try_Physical_Current_Directory;
 
-   function User_Id_For_Name (Name : String; Found : out Boolean) return Natural is
+   function User_Id_For_Name
+     (Name : String; Found : out Boolean) return Posix_Tools.Accounts.Id
+   is
+      Host_Id : Hostkit.Metadata.Account_Id;
    begin
-      return Hostkit.Metadata.User_Id_For_Name (Name, Found);
+      Host_Id := Hostkit.Metadata.User_Id_For_Name (Name, Found);
+      return Posix_Tools.Accounts.Id (Host_Id);
    end User_Id_For_Name;
 
-   function User_Name_For_Id (Id : Natural) return String is
+   function User_Name_For_Id (Id : Posix_Tools.Accounts.Id) return String is
    begin
-      return Hostkit.Metadata.User_Name_For_Id (Id);
+      return Hostkit.Metadata.User_Name_For_Id
+        (Hostkit.Metadata.Account_Id (Id));
    end User_Name_For_Id;
 
    procedure Write_File
      (Path        : String;
       Text        : String;
       Append_Mode : Boolean;
-      Ok          : out Boolean)
-   is
-      use Hostkit.Descriptors;
-
-      Output  : Descriptor := Invalid;
-      Buffer  : Ada.Streams.Stream_Element_Array
-        (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
-      Target  : Ada.Streams.Stream_Element_Offset := Buffer'First;
-      First   : Ada.Streams.Stream_Element_Offset;
-      Written : Ada.Streams.Stream_Element_Offset;
-      Outcome : Transfer_Outcome;
-   begin
-      Ok :=
-        Open_File
-          (Path,
-           (if Append_Mode and then Exists (Path) then Open_Write_Append else Open_Write_Truncate),
-           Output);
-      if not Ok then
-         return;
-      end if;
-
-      if Text'Length > 0 then
-         for Ch of Text loop
-            Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Ch));
-            Target := Target + 1;
-         end loop;
-
-         First := Buffer'First;
-         while First <= Buffer'Last loop
-            Outcome := Write (Output, Buffer (First .. Buffer'Last), Written);
-            case Outcome is
-               when Transfer_Ok =>
-                  if Written < First then
-                     Close (Output);
-                     Ok := False;
-                     return;
-                  end if;
-
-                  First := Written + 1;
-
-               when Transfer_Interrupted =>
-                  null;
-
-               when others =>
-                  Close (Output);
-                  Ok := False;
-                  return;
-            end case;
-         end loop;
-      end if;
-
-      Ok := Close (Output);
-   exception
-      when others =>
-         Close (Output);
-         Ok := False;
-   end Write_File;
+      Ok          : out Boolean) is separate;
 end Posix_Tools.Host_Adapters.File_System;

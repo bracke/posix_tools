@@ -1,5 +1,6 @@
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
+with Posix_Tools.Accounts;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Paths;
 
@@ -7,8 +8,10 @@ package body Posix_Tools.File_Operations.Copying is
 
    use Ada.Strings.Unbounded;
    use type Posix_Tools.Host_Adapters.File_System.Copy_File_Status;
+   use type Posix_Tools.Host_Adapters.File_System.Entry_Kind;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
    use type Posix_Tools.Host_Adapters.File_System.Special_File_Kind;
+   use type Posix_Tools.Accounts.Id;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
@@ -24,6 +27,7 @@ package body Posix_Tools.File_Operations.Copying is
    is limited record
       Source                   : String (1 .. Source_Length);
       Target                   : String (1 .. Target_Length);
+      Source_Listing           : FS.Listed_Kind := FS.Listed_Unknown;
       Options                  : Copy_Options;
       Behaviour                : Copy_Behaviour;
       Outcome                  : Operation_Outcome := Done;
@@ -41,6 +45,7 @@ package body Posix_Tools.File_Operations.Copying is
       Options   : Copy_Options;
       Behaviour : Copy_Behaviour;
       Follow    : Boolean;
+      Listed_As : FS.Listed_Kind;
       Watcher   : in out Observer'Class;
       Ancestors : in out Path_Vectors.Vector;
       Outcome   : out Operation_Outcome);
@@ -85,11 +90,11 @@ package body Posix_Tools.File_Operations.Copying is
       function Apply_Source_Ownership return Boolean;
 
       function Apply_Source_Ownership return Boolean is
-         Source_User      : Natural;
-         Source_Group     : Natural;
+         Source_User      : Posix_Tools.Accounts.Id;
+         Source_Group     : Posix_Tools.Accounts.Id;
          Source_Available : Boolean;
-         Target_User      : Natural;
-         Target_Group     : Natural;
+         Target_User      : Posix_Tools.Accounts.Id;
+         Target_Group     : Posix_Tools.Accounts.Id;
          Target_Available : Boolean;
       begin
          if not FS.Ownership_Supported then
@@ -103,7 +108,10 @@ package body Posix_Tools.File_Operations.Copying is
          elsif Source_User = Target_User and then Source_Group = Target_Group then
             return True;
          else
-            return FS.Set_Ownership (Job.Target, Source_User, Source_Group);
+            return FS.Set_Ownership
+              (Job.Target,
+               Posix_Tools.Accounts.Set_To (Source_User),
+               Posix_Tools.Accounts.Set_To (Source_Group));
          end if;
       end Apply_Source_Ownership;
    begin
@@ -154,7 +162,6 @@ package body Posix_Tools.File_Operations.Copying is
       procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean);
 
       procedure Copy_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
-         pragma Unreferenced (Kind);
          Child : Operation_Outcome;
       begin
          Copy_Entry
@@ -163,6 +170,7 @@ package body Posix_Tools.File_Operations.Copying is
             Job.Options,
             Job.Behaviour,
             not Job.Options.Preserve_Links,
+            Kind,
             Job.Watcher.all,
             Job.Ancestors.all,
             Child);
@@ -226,28 +234,20 @@ package body Posix_Tools.File_Operations.Copying is
       Options   : Copy_Options;
       Behaviour : Copy_Behaviour;
       Follow    : Boolean;
+      Listed_As : FS.Listed_Kind;
       Watcher   : in out Observer'Class;
       Ancestors : in out Path_Vectors.Vector;
       Outcome   : out Operation_Outcome)
    is
       Job : Copy_Job (Watcher'Access, Ancestors'Access, Source'Length, Target'Length);
-   begin
-      if Watcher.Cancelled then
-         Outcome := Cancelled;
-         return;
-      end if;
 
-      Job.Source := Source;
-      Job.Target := Target;
-      Job.Options := Options;
-      Job.Behaviour := Behaviour;
+      procedure Copy_Kind (Kind : FS.File_Kind);
 
-      --  Before the copy reads the source, and so moves its access time.
-      Capture_Source_Times (Job);
-      if not Follow and then FS.Is_Link (Source) then
-         Copy_Link (Job);
-      else
-         case FS.Kind (Source) is
+      procedure Copy_Kind (Kind : FS.File_Kind) is
+      begin
+         --  Before the copy reads the source, and so moves its access time.
+         Capture_Source_Times (Job);
+         case Kind is
             when FS.Directory =>
                Copy_Directory (Job);
             when FS.Special_File =>
@@ -256,9 +256,56 @@ package body Posix_Tools.File_Operations.Copying is
                else
                   Copy_Regular (Job);
                end if;
-            when FS.Missing_File | FS.Ordinary_File =>
+            when FS.Missing_File | FS.Uninspectable_File | FS.Ordinary_File =>
                Copy_Regular (Job);
          end case;
+      end Copy_Kind;
+   begin
+      if Watcher.Cancelled then
+         Outcome := Cancelled;
+         return;
+      end if;
+
+      Job.Source := Source;
+      Job.Target := Target;
+      Job.Source_Listing := Listed_As;
+      Job.Options := Options;
+      Job.Behaviour := Behaviour;
+
+      if not Follow then
+         case Listed_As is
+            when FS.Listed_Link =>
+               Copy_Link (Job);
+            when FS.Listed_Regular =>
+               Copy_Kind (FS.Ordinary_File);
+            when FS.Listed_Directory =>
+               Copy_Kind (FS.Directory);
+            when FS.Listed_Other =>
+               Copy_Kind (FS.Special_File);
+            when FS.Listed_Unknown =>
+               case FS.Entry_Kind_Of (Source) is
+                  when FS.Entry_Link =>
+                     --  A preserved link needs no source times or permissions.
+                     Copy_Link (Job);
+                  when FS.Entry_Missing =>
+                     Copy_Kind (FS.Missing_File);
+                  when FS.Entry_Error =>
+                     Fail (Job, Job.Source, Cannot_Read);
+                  when FS.Entry_Directory =>
+                     Copy_Kind (FS.Directory);
+                  when FS.Entry_Regular =>
+                     Copy_Kind (FS.Ordinary_File);
+                  when FS.Entry_Special =>
+                     Copy_Kind (FS.Special_File);
+               end case;
+         end case;
+      else
+         Copy_Kind
+           (case Listed_As is
+              when FS.Listed_Regular   => FS.Ordinary_File,
+              when FS.Listed_Directory => FS.Directory,
+              when FS.Listed_Other     => FS.Special_File,
+              when FS.Listed_Link | FS.Listed_Unknown => FS.Kind (Source));
       end if;
 
       Outcome := Job.Outcome;
@@ -266,8 +313,17 @@ package body Posix_Tools.File_Operations.Copying is
 
    procedure Copy_Link (Job : in out Copy_Job) is
       Target_Text : Unbounded_String;
+      Target_Kind : FS.Entry_Kind := FS.Entry_Kind_Of (Job.Target);
+
+      function Replaceable (Kind : FS.Entry_Kind) return Boolean is
+        (Kind in FS.Entry_Link | FS.Entry_Regular);
    begin
-      if (FS.Is_Link (Job.Target) or else FS.Kind (Job.Target) = FS.Ordinary_File)
+      if Target_Kind = FS.Entry_Error then
+         Fail (Job, Job.Target, Cannot_Read);
+         return;
+      end if;
+
+      if Replaceable (Target_Kind)
         and then Job.Watcher.Resolve_Conflict (Job.Source, Job.Target) = Skip
       then
          Job.Outcome := Skipped;
@@ -279,9 +335,8 @@ package body Posix_Tools.File_Operations.Copying is
          return;
       end if;
 
-      if (FS.Is_Link (Job.Target) or else FS.Kind (Job.Target) = FS.Ordinary_File)
-        and then not Delete_Target (Job)
-      then
+      Target_Kind := FS.Entry_Kind_Of (Job.Target);
+      if Replaceable (Target_Kind) and then not Delete_Target (Job) then
          Fail (Job, Job.Target, Cannot_Remove);
          return;
       end if;
@@ -309,13 +364,25 @@ package body Posix_Tools.File_Operations.Copying is
          Options,
          Behaviour,
          not Options.Preserve_Links or else Behaviour.Follow_Source_Link,
+         FS.Listed_Unknown,
          Watcher,
          Ancestors,
          Outcome);
    end Copy_Path;
 
    procedure Copy_Regular (Job : in out Copy_Job) is
-      Present     : constant Boolean := FS.Exists (Job.Target) or else FS.Is_Link (Job.Target);
+      Source_Kind : constant FS.Entry_Kind :=
+        (case Job.Source_Listing is
+           when FS.Listed_Regular   => FS.Entry_Regular,
+           when FS.Listed_Directory => FS.Entry_Directory,
+           when FS.Listed_Link      => FS.Entry_Link,
+           when FS.Listed_Other     => FS.Entry_Special,
+           when FS.Listed_Unknown   => FS.Entry_Kind_Of (Job.Source));
+      Target_Kind : constant FS.Entry_Kind := FS.Entry_Kind_Of (Job.Target);
+      Present     : constant Boolean := Target_Kind /= FS.Entry_Missing;
+      Target_Resolves : constant Boolean :=
+        Target_Kind not in FS.Entry_Missing | FS.Entry_Link
+        or else (Target_Kind = FS.Entry_Link and then FS.Exists (Job.Target));
       Copy_Status : FS.Copy_File_Status;
 
       procedure Report (Copied : Long_Long_Integer; Stop : in out Boolean);
@@ -328,13 +395,19 @@ package body Posix_Tools.File_Operations.Copying is
 
       procedure Copy is new FS.Copy_Regular_File_With_Progress (Report);
    begin
-      if not FS.Exists (Job.Source) and then not FS.Is_Link (Job.Source) then
+      if Source_Kind = FS.Entry_Error then
+         Fail (Job, Job.Source, Cannot_Read);
+         return;
+      elsif Target_Kind = FS.Entry_Error then
+         Fail (Job, Job.Target, Cannot_Read);
+         return;
+      elsif Source_Kind = FS.Entry_Missing then
          Fail (Job, Job.Source, No_Such_File);
          return;
-      elsif FS.Exists (Job.Target) and then FS.Same_File (Job.Source, Job.Target) then
+      elsif Target_Resolves and then FS.Same_File (Job.Source, Job.Target) then
          Fail (Job, Job.Target, Same_File);
          return;
-      elsif Present and then not FS.Is_Link (Job.Target) and then FS.Kind (Job.Target) = FS.Directory then
+      elsif Target_Kind = FS.Entry_Directory then
          Fail (Job, Job.Target, Is_A_Directory);
          return;
       end if;
@@ -384,16 +457,29 @@ package body Posix_Tools.File_Operations.Copying is
    procedure Copy_Special (Job : in out Copy_Job) is
       Info    : constant FS.Special_File_Info := FS.Special_File_Info_Of (Job.Source);
       Created : Boolean := False;
+      Target_Kind : FS.Entry_Kind := FS.Entry_Kind_Of (Job.Target);
+      Target_Is_Directory : constant Boolean :=
+        Target_Kind = FS.Entry_Directory
+        or else (Target_Kind = FS.Entry_Link and then FS.Kind (Job.Target) = FS.Directory);
    begin
-      if FS.Kind (Job.Target) = FS.Directory then
+      if Target_Kind = FS.Entry_Error then
+         Fail (Job, Job.Target, Cannot_Read);
+         return;
+      elsif Target_Is_Directory then
          Fail (Job, Job.Target, Is_A_Directory);
          return;
-      elsif (FS.Exists (Job.Target) or else FS.Is_Link (Job.Target))
+      elsif Target_Kind /= FS.Entry_Missing
         and then Job.Watcher.Resolve_Conflict (Job.Source, Job.Target) = Skip
       then
          Job.Outcome := Skipped;
          return;
-      elsif (FS.Is_Link (Job.Target) or else FS.Exists (Job.Target)) and then not Delete_Target (Job) then
+      end if;
+
+      Target_Kind := FS.Entry_Kind_Of (Job.Target);
+      if Target_Kind = FS.Entry_Error then
+         Fail (Job, Job.Target, Cannot_Read);
+         return;
+      elsif Target_Kind /= FS.Entry_Missing and then not Delete_Target (Job) then
          Fail (Job, Job.Target, Cannot_Remove);
          return;
       end if;

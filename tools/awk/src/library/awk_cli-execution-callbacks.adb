@@ -3,6 +3,8 @@ with System.Address_To_Access_Conversions;
 package body Awk_CLI.Execution.Callbacks is
    use type Awk_CLI.Platform.Read_Status;
 
+   Output_Buffer_Size : constant := 64 * 1024;
+
    --  awklib's streaming callbacks carry one opaque address. The objects
    --  referenced here are aliased locals in Execute_Core and remain alive until
    --  the synchronous awklib run returns. Do not store these addresses outside
@@ -78,6 +80,28 @@ package body Awk_CLI.Execution.Callbacks is
       End_Of_Input  : out Boolean) is separate;
 
    procedure Write_Output (User_Data : System.Address; Text : String) is separate;
+
+   procedure Flush_Output (State : in out Stream_State) is
+   begin
+      if State.Has_Failure
+        or else State.Live_Output = null
+        or else U.Length (State.Live_Output_Buffer) = 0
+      then
+         return;
+      end if;
+
+      if not State.Live_Output.all
+        (State.Live_User_Data, U.To_String (State.Live_Output_Buffer))
+      then
+         Set_Failure
+           (State,
+            Awk_CLI.Diagnostics.Make
+              ("awk.standard_output.write_failed",
+               Awk_CLI.Diagnostics.Error,
+               Awk_CLI.Diagnostics.Output));
+      end if;
+      State.Live_Output_Buffer := U.Null_Unbounded_String;
+   end Flush_Output;
 
    procedure Write_Redirection
      (User_Data : System.Address;

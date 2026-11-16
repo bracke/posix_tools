@@ -30,8 +30,10 @@ Unsupported ownership metadata is reported as an operational failure.
 .SH EXAMPLES
 chgrp staff file
 .SH CONFORMANCE STATUS
-Conforming with extensions tracked by CHGRP-POSIX-001.
+Partially conforming, tracked by CHGRP-POSIX-001.
 .SH KNOWN LIMITATIONS
-Symbolic-link traversal details follow the hostkit file-system adapter.
+Recursive traversal is physical: symbolic links are skipped rather than
+followed. POSIX -h, -H, -L, and -P link-policy options are not yet
+implemented.
 .SH SEE ALSO
 docs/commands/chgrp.md

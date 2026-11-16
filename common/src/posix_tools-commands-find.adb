@@ -1,4 +1,5 @@
 with Ada.Containers;
+with Ada.Containers.Vectors;
 with Ada.IO_Exceptions;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Find_Evaluation;
@@ -11,9 +12,14 @@ with Posix_Tools.Text.Find_Expressions;
 package body Posix_Tools.Commands.Find is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use type Ada.Containers.Count_Type;
+   use type Posix_Tools.Host_Adapters.File_System.Entry_Kind;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   use type FS.Entry_Identity;
+
+   package Entry_Identity_Vectors is new Ada.Containers.Vectors
+     (Positive, FS.Entry_Identity, FS."=");
 
    --  Which symbolic links the walk follows (XCU find, -H and -L): none, the
    --  ones named as path operands, or every one it meets.
@@ -48,7 +54,8 @@ package body Posix_Tools.Commands.Find is
 
       --  The resolved names of the directories being walked, outermost first,
       --  kept where links are followed so a link back to one is a loop.
-      Ancestors   : Posix_Tools.Arguments.Vector;
+      Ancestors          : Posix_Tools.Arguments.Vector;
+      Ancestor_Identities : Entry_Identity_Vectors.Vector;
 
       function Forms_Loop (Path : String) return Boolean;
       function Parse_Follow_Options (Text : String) return Boolean;
@@ -56,20 +63,35 @@ package body Posix_Tools.Commands.Find is
         (Path                  : String;
          Is_Operand            : Boolean;
          Root_Device           : Long_Long_Integer;
-         Root_Device_Available : Boolean);
+         Root_Device_Available : Boolean;
+         Listed_As             : FS.Listed_Kind := FS.Listed_Unknown);
       procedure Visit_Operand (Path : String);
 
       --  Is Path, a directory reached by following links, one of the
       --  directories it is inside (XCU find: loops shall be detected)?
       function Forms_Loop (Path : String) return Boolean is
          Resolved : constant String := FS.Real_Path (Path);
+         Current_Identity : constant FS.Entry_Identity :=
+           FS.Entry_Identity_Of
+             ((if Resolved = "" then Path else Resolved));
       begin
-         for Ancestor of Ancestors loop
-            if (Resolved /= "" and then Resolved = Ancestor)
-              or else FS.Same_File (Path, Ancestor)
-            then
-               return True;
-            end if;
+         for I in 1 .. Natural (Ancestors.Length) loop
+            declare
+               Ancestor          : constant String := Ancestors.Element (I);
+               Ancestor_Identity : constant FS.Entry_Identity :=
+                 Ancestor_Identities.Element (I);
+            begin
+               if (Resolved /= "" and then Resolved = Ancestor)
+                 or else (Current_Identity.Available
+                          and then Ancestor_Identity.Available
+                          and then Current_Identity = Ancestor_Identity)
+                 or else ((not Current_Identity.Available
+                           or else not Ancestor_Identity.Available)
+                          and then FS.Same_File (Path, Ancestor))
+               then
+                  return True;
+               end if;
+            end;
          end loop;
          return False;
       end Forms_Loop;
@@ -99,26 +121,40 @@ package body Posix_Tools.Commands.Find is
         (Path                  : String;
          Is_Operand            : Boolean;
          Root_Device           : Long_Long_Integer;
-         Root_Device_Available : Boolean)
+         Root_Device_Available : Boolean;
+         Listed_As             : FS.Listed_Kind := FS.Listed_Unknown)
       is
          Follow  : constant Boolean :=
            Mode = Logical or else (Mode = Command_Line and then Is_Operand);
-         Is_Link : constant Boolean := FS.Is_Link (Path);
+         --  Directory enumeration already obtained the child's own kind.
+         --  Preserve that information instead of issuing another metadata
+         --  query for every visited pathname. Operands and filesystems that
+         --  do not expose a directory-entry type retain the full lookup.
+         Entry_Type : constant FS.Entry_Kind :=
+           (case Listed_As is
+              when FS.Listed_Regular   => FS.Entry_Regular,
+              when FS.Listed_Directory => FS.Entry_Directory,
+              when FS.Listed_Link      => FS.Entry_Link,
+              when FS.Listed_Other     => FS.Entry_Special,
+              when FS.Listed_Unknown   => FS.Entry_Kind_Of (Path));
+         Is_Link    : constant Boolean := Entry_Type = FS.Entry_Link;
          --  Kind follows a link; a link whose target is missing is Missing_File.
-         Resolved_Kind : constant FS.File_Kind := FS.Kind (Path);
+         Resolved_Kind : constant FS.File_Kind :=
+           (case Entry_Type is
+              when FS.Entry_Missing   => FS.Missing_File,
+              when FS.Entry_Error     => FS.Missing_File,
+              when FS.Entry_Directory => FS.Directory,
+              when FS.Entry_Regular   => FS.Ordinary_File,
+              when FS.Entry_Special   => FS.Special_File,
+              when FS.Entry_Link      =>
+                (if Follow then FS.Kind (Path) else FS.Missing_File));
          --  A link is examined as itself unless it is followed to a file that
          --  exists (XCU find: a followed link to nothing is the link).
          View : constant Posix_Tools.Commands.Find_Evaluation.Entry_View :=
            (if Is_Link and then not (Follow and then Resolved_Kind /= FS.Missing_File)
-            then (Is_Link => True, Kind => FS.Missing_File)
-            else (Is_Link => False, Kind => Resolved_Kind));
-         Current_Device_Available : Boolean := False;
-         Current_Device : constant Long_Long_Integer := FS.Device_Id (Path, Current_Device_Available);
-         Crosses_Device : constant Boolean :=
-           Posix_Tools.Commands.Find_Evaluation.Has_Xdev (Evaluation)
-           and then Root_Device_Available
-           and then Current_Device_Available
-           and then Current_Device /= Root_Device;
+            then (Is_Link => True, Followed_Link => False, Kind => FS.Missing_File)
+            else (Is_Link => False, Followed_Link => Is_Link, Kind => Resolved_Kind));
+         Crosses_Device : Boolean := False;
          Path_Result : Posix_Tools.Commands.Find_Evaluation.Path_Result;
 
          procedure Evaluate_And_Maybe_Print;
@@ -131,7 +167,8 @@ package body Posix_Tools.Commands.Find is
             if not Path_Result.Valid then
                Ok := False;
             elsif not Has_Print and then Path_Result.Matches then
-               Context.Put_Line (Path);
+               Posix_Tools.Commands.Find_Evaluation.Print_Path
+                 (Evaluation, Context, Path);
             end if;
          end Evaluate_And_Maybe_Print;
 
@@ -144,25 +181,58 @@ package body Posix_Tools.Commands.Find is
             --  Every entry, a link to nothing included, as the directory
             --  lists it.
             procedure Visit_Child (Name : String; Kind : FS.Listed_Kind; Stop : in out Boolean) is
-               pragma Unreferenced (Kind, Stop);
             begin
                --  The search's own join is the host's, '\' on Windows; POSIX
                --  forms a child's pathname with '/'.
-               Visit (FS.Child_Path (Path, Name), False, Root_Device, Root_Device_Available);
+               Visit
+                 (FS.Child_Path (Path, Name), False,
+                  Root_Device, Root_Device_Available, Kind);
+               Stop := Context.Output_Failed;
             end Visit_Child;
 
             procedure For_Each_Child is new FS.For_Each_Listed_Entry (Visit_Child);
          begin
             if Tracked then
-               Ancestors.Append (FS.Real_Path (Path));
+               declare
+                  Resolved      : constant String := FS.Real_Path (Path);
+                  Identity_Path : constant String :=
+                    (if Resolved = "" then Path else Resolved);
+               begin
+                  Ancestors.Append (Resolved);
+                  Ancestor_Identities.Append
+                    (FS.Entry_Identity_Of (Identity_Path));
+               end;
             end if;
             For_Each_Child (Path, Iteration_Ok);
             if Tracked then
                Ancestors.Delete_Last;
+               Ancestor_Identities.Delete_Last;
             end if;
             Ok := Ok and Iteration_Ok;
          end Walk_Children;
       begin
+         if Entry_Type = FS.Entry_Error then
+            Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path,
+               "posix_tools.diagnostic.file.read_failed", "cannot read file");
+            return;
+         end if;
+
+         --  Device lookup is an extra metadata query on every visited path.
+         --  It is needed only when -xdev can use its result.
+         if Posix_Tools.Commands.Find_Evaluation.Has_Xdev (Evaluation)
+           and then Root_Device_Available
+         then
+            declare
+               Current_Available : Boolean := False;
+               Current_Device    : constant Long_Long_Integer :=
+                 FS.Device_Id (Path, Current_Available);
+            begin
+               Crosses_Device := Current_Available and then Current_Device /= Root_Device;
+            end;
+         end if;
+
          --  A pathname that names nothing, not even a link, cannot be
          --  examined; XCU find diagnoses it and goes on with the rest.
          if not Is_Link and then Resolved_Kind = FS.Missing_File then
@@ -202,9 +272,13 @@ package body Posix_Tools.Commands.Find is
 
       procedure Visit_Operand (Path : String) is
          Available : Boolean := False;
-         Device    : constant Long_Long_Integer := FS.Device_Id (Path, Available);
+         Device    : Long_Long_Integer := 0;
       begin
          Ancestors.Clear;
+         Ancestor_Identities.Clear;
+         if Posix_Tools.Commands.Find_Evaluation.Has_Xdev (Evaluation) then
+            Device := FS.Device_Id (Path, Available);
+         end if;
          Visit (Path, True, Device, Available);
       end Visit_Operand;
    begin
@@ -261,7 +335,7 @@ package body Posix_Tools.Commands.Find is
       end if;
 
       Posix_Tools.Commands.Find_Evaluation.Initialize
-        (Evaluation, Expression, Environment_Size (Context));
+        (Evaluation, Context, Expression, Environment_Size (Context));
 
       if Paths.Length = 0 then
          Visit_Operand (".");
@@ -273,6 +347,8 @@ package body Posix_Tools.Commands.Find is
 
       Posix_Tools.Commands.Find_Evaluation.Flush_Exec_Batches
         (Evaluation, Context, Ok);
+      Posix_Tools.Commands.Find_Evaluation.Flush_Output
+        (Evaluation, Context);
 
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;

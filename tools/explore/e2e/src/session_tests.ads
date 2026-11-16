@@ -8,11 +8,15 @@ package Session_Tests is
    procedure Test_Start_And_Quit (T : in out Fixture);
    procedure Test_Browse_And_Preview (T : in out Fixture);
    procedure Test_Copy (T : in out Fixture);
+   procedure Test_Concurrent_Sessions (T : in out Fixture);
+   procedure Test_Exit_Status_Normalization (T : in out Fixture);
    procedure Test_Resize (T : in out Fixture);
    procedure Test_Clipboard (T : in out Fixture);
    procedure Test_Image (T : in out Fixture);
    procedure Test_Shell_Command (T : in out Fixture);
    procedure Test_Interrupt (T : in out Fixture);
+   procedure Test_Launch_Failure_Poisons (T : in out Fixture);
+   procedure Test_Subprocess_Timeout (T : in out Fixture);
    procedure Test_Conflicts (T : in out Fixture);
    procedure Test_Rename (T : in out Fixture);
    procedure Test_Quit_While_Previewing (T : in out Fixture);

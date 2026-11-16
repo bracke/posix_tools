@@ -57,6 +57,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Actions is
          if not Batch.Paths.Is_Empty
            and then Batch.Size + Argument_Size (Path) > State.Batch_Limit
          then
+            Flush_Output (State, Context);
             Ok := Run_Batch (Context, Batch);
             Batch.Size := Batch.Size - Paths_Size (Batch.Paths);
             Batch.Paths.Clear;
@@ -123,6 +124,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Actions is
          Arguments.Append (Replaced_Path (State.Expression.Element (J), Path));
       end loop;
 
+      Flush_Output (State, Context);
       if Context.Execute_Utility (State.Expression.Element (Start), Arguments, Exit_Code) then
          return Exit_Code = 0;
       else
@@ -154,6 +156,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Actions is
          return False;
       end if;
 
+      Flush_Output (State, Context);
       Context.Put_Error_Line
         (Posix_Tools.Localization.Text_1
            (Context.Effective_Locale,
@@ -187,6 +190,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Actions is
       if State.Batch_Failed then
          Ok := False;
       end if;
+      Flush_Output (State, Context);
       for Batch of State.Exec_Batches loop
          if not Batch.Paths.Is_Empty and then not Run_Batch (Context, Batch) then
             Ok := False;

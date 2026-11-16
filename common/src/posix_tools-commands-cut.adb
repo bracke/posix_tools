@@ -1,10 +1,12 @@
 with Ada.Containers.Vectors;
+with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Text_Helpers.Tr_Sets;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Text_Helpers.Collation;
-with Posix_Tools.Streams.Lines;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Cut_Fields;
 with Posix_Tools.Text.UTF_8;
@@ -12,10 +14,12 @@ with Posix_Tools.Text.UTF_8;
 package body Posix_Tools.Commands.Cut is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
+   use type Ada.Containers.Count_Type;
+   use type Ada.Streams.Stream_Element;
+   use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Text.Cut_Fields.Range_Item;
    use type Posix_Tools.Text.UTF_8.Decode_Status;
 
-   package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
    package Range_Vectors is new Ada.Containers.Vectors
      (Positive, Posix_Tools.Text.Cut_Fields.Range_Item);
 
@@ -24,15 +28,7 @@ package body Posix_Tools.Commands.Cut is
    function Character_Width (Text : String; Index : Positive) return Positive;
 
    function Parse_List (Text : String; Ranges : in out Range_Vectors.Vector) return Boolean;
-   function Selected (Ranges : Range_Vectors.Vector; Position : Positive) return Boolean;
-
-   --  -b with -n: the selected bytes after POSIX moves each range's low end
-   --  back to the start of its character and its high end back before a
-   --  character it would split; a range left empty is dropped.
-   function Whole_Character_Bytes (Ranges : Range_Vectors.Vector; Line : String) return String;
-
-   --  -c: the selected characters.
-   function Selected_Characters (Ranges : Range_Vectors.Vector; Line : String) return String;
+   procedure Normalize (Ranges : in out Range_Vectors.Vector);
 
    function Character_Width (Text : String; Index : Positive) return Positive is
       Decoder    : Posix_Tools.Text.UTF_8.Decoder;
@@ -88,256 +84,53 @@ package body Posix_Tools.Commands.Cut is
             end if;
          end;
       end loop;
+      Normalize (Ranges);
       return True;
    end Parse_List;
 
+   procedure Normalize (Ranges : in out Range_Vectors.Vector) is
+      Merged : Range_Vectors.Vector;
+
+      function Before
+        (Left, Right : Posix_Tools.Text.Cut_Fields.Range_Item) return Boolean is
+        (Left.First < Right.First
+         or else (Left.First = Right.First
+           and then Right.Last /= 0
+           and then (Left.Last = 0 or else Left.Last < Right.Last)));
+
+      package Sorting is new Range_Vectors.Generic_Sorting (Before);
+   begin
+      Sorting.Sort (Ranges);
+
+      for Item of Ranges loop
+         if Merged.Is_Empty then
+            Merged.Append (Item);
+         else
+            declare
+               Previous : Posix_Tools.Text.Cut_Fields.Range_Item := Merged.Last_Element;
+               Touches  : constant Boolean :=
+                 Previous.Last = 0
+                 or else Item.First <= Previous.Last
+                 or else (Previous.Last < Natural'Last
+                   and then Item.First = Previous.Last + 1);
+            begin
+               if Touches then
+                  if Previous.Last /= 0 then
+                     Previous.Last :=
+                       (if Item.Last = 0 then 0 else Natural'Max (Previous.Last, Item.Last));
+                     Merged.Replace_Element (Merged.Last_Index, Previous);
+                  end if;
+               else
+                  Merged.Append (Item);
+               end if;
+            end;
+         end if;
+      end loop;
+      Ranges.Move (Merged);
+   end Normalize;
+
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result)
-   is
-      Mode       : Character := Character'Val (0);
-      Ranges     : Range_Vectors.Vector;
-      Delimiter  : Unbounded_String := To_Unbounded_String (Character'Val (9) & "");
-      Has_Delimiter : Boolean := False;
-      Suppress   : Boolean := False;
-      No_Split   : Boolean := False;
-      First_File : Positive;
-      Valid      : Boolean;
-      All_Ok     : Boolean := True;
-      Characters : constant Boolean :=
-        Posix_Tools.Commands.Text_Helpers.Collation.Is_Multibyte_Locale
-          (Context.Category_Locale (Posix_Tools.Commands.Contexts.Character_Classification));
+      Result  : out Posix_Tools.Commands.Results.Result) is separate;
 
-      procedure Cut_File (Name : String; Ok : out Boolean);
-      procedure Emit_Line (Line : String);
-      procedure Handle
-        (Name   : Character;
-         Value  : String;
-         Result : in out Posix_Tools.Commands.Results.Result;
-         Valid  : out Boolean);
-
-      procedure Cut_File (Name : String; Ok : out Boolean) is
-         Data  : Unbounded_String;
-         Lines : String_Vectors.Vector;
-      begin
-         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
-         if not Ok then
-            return;
-         end if;
-         Lines := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Data));
-         for Line of Lines loop
-            Emit_Line (Line);
-            if Context.Output_Failed then
-               Ok := False;
-               return;
-            end if;
-         end loop;
-      end Cut_File;
-
-      procedure Emit_Line (Line : String) is
-         Separator : constant String := To_String (Delimiter);
-         Output    : Unbounded_String;
-         Field     : Positive := 1;
-         Start     : Positive := Line'First;
-         Index     : Positive := Line'First;
-         Seen_Delimiter : Boolean := False;
-         --  A field has been written, so the next one selected follows a
-         --  delimiter, even when the one written was empty.
-         Wrote_Field : Boolean := False;
-
-         procedure Field_Ends (Last : Natural);
-
-         procedure Field_Ends (Last : Natural) is
-         begin
-            if Selected (Ranges, Field) then
-               if Wrote_Field then
-                  Append (Output, Separator);
-               end if;
-               Append (Output, Line (Start .. Last));
-               Wrote_Field := True;
-            end if;
-         end Field_Ends;
-      begin
-         if Mode = 'c' and then Characters then
-            Context.Put_Line (Selected_Characters (Ranges, Line));
-         elsif Mode = 'b' and then No_Split and then Characters then
-            Context.Put_Line (Whole_Character_Bytes (Ranges, Line));
-         elsif Mode = 'b' or else Mode = 'c' then
-            for I in Line'Range loop
-               if Selected (Ranges, I - Line'First + 1) then
-                  Append (Output, Line (I));
-               end if;
-            end loop;
-            Context.Put_Line (To_String (Output));
-         else
-            while Index + Separator'Length - 1 <= Line'Last loop
-               if Line (Index .. Index + Separator'Length - 1) = Separator then
-                  Seen_Delimiter := True;
-                  Field_Ends (Index - 1);
-                  Field := Field + 1;
-                  Index := Index + Separator'Length;
-                  Start := Index;
-               else
-                  Index := Index + 1;
-               end if;
-            end loop;
-            Field_Ends (Line'Last);
-            if Seen_Delimiter or else not Suppress then
-               Context.Put_Line ((if Seen_Delimiter then To_String (Output) else Line));
-            end if;
-         end if;
-      end Emit_Line;
-
-      procedure Handle
-        (Name   : Character;
-         Value  : String;
-         Result : in out Posix_Tools.Commands.Results.Result;
-         Valid  : out Boolean)
-      is
-      begin
-         Valid := False;
-         case Name is
-            when 's' =>
-               Suppress := True;
-            when 'n' =>
-               No_Split := True;
-            when 'd' =>
-               --  One character: in a UTF-8 locale it may take several bytes.
-               if Value'Length = 0
-                 or else (if Characters then Character_Width (Value, Value'First) /= Value'Length
-                          else Value'Length /= 1)
-               then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
-                  return;
-               end if;
-               Delimiter := To_Unbounded_String (Value);
-               Has_Delimiter := True;
-            when others =>
-               --  -b, -c or -f, with its list.
-               if Mode /= Character'Val (0) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Multiple_List_Options);
-                  return;
-               elsif Value = "" then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Option_Argument, "-" & Name);
-                  return;
-               elsif not Parse_List (Value, Ranges) then
-                  Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, Value);
-                  return;
-               end if;
-               Mode := Name;
-         end case;
-         Valid := True;
-      end Handle;
-
-      procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
-   begin
-      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
-         return;
-      end if;
-
-      Parse (Context, Result, "bcdfns", "bcdf", First_File, Valid);
-      if not Valid then
-         return;
-      end if;
-
-      if Mode = Character'Val (0) then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
-         return;
-      end if;
-      if No_Split and then Mode /= 'b' then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Operand, "-n");
-         return;
-      end if;
-      if (Has_Delimiter or else Suppress) and then Mode /= 'f' then
-         Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Invalid_Field_Option);
-         return;
-      end if;
-      if Context.Argument_Count < First_File then
-         Cut_File ("-", All_Ok);
-      else
-         for I in First_File .. Context.Argument_Count loop
-            declare
-               Ok : Boolean;
-            begin
-               Cut_File (Context.Argument (I), Ok);
-               All_Ok := All_Ok and Ok;
-            end;
-         end loop;
-      end if;
-      Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
-   end Run;
-
-   function Selected (Ranges : Range_Vectors.Vector; Position : Positive) return Boolean is
-   begin
-      for Item of Ranges loop
-         if Posix_Tools.Text.Cut_Fields.Contains_Position (Item, Position) then
-            return True;
-         end if;
-      end loop;
-      return False;
-   end Selected;
-
-   function Selected_Characters (Ranges : Range_Vectors.Vector; Line : String) return String is
-      Output   : Unbounded_String;
-      Index    : Positive := Line'First;
-      Position : Positive := 1;
-   begin
-      while Index <= Line'Last loop
-         declare
-            Width : constant Positive := Character_Width (Line, Index);
-         begin
-            if Selected (Ranges, Position) then
-               Append (Output, Line (Index .. Index + Width - 1));
-            end if;
-            Index := Index + Width;
-            Position := Position + 1;
-         end;
-      end loop;
-      return To_String (Output);
-   end Selected_Characters;
-
-   function Whole_Character_Bytes (Ranges : Range_Vectors.Vector; Line : String) return String is
-      Length : constant Natural := Line'Length;
-      --  Offsets are one-based byte positions within Line.
-      Starts : array (1 .. Length) of Positive;
-      Ends   : array (1 .. Length) of Positive;
-      Keep   : array (1 .. Length) of Boolean := [others => False];
-      Output : Unbounded_String;
-      Offset : Positive := 1;
-   begin
-      while Offset <= Length loop
-         declare
-            Width : constant Positive := Character_Width (Line, Line'First + Offset - 1);
-         begin
-            for I in Offset .. Offset + Width - 1 loop
-               Starts (I) := Offset;
-               Ends (I) := Offset + Width - 1;
-            end loop;
-            Offset := Offset + Width;
-         end;
-      end loop;
-
-      for Item of Ranges loop
-         if Item.First <= Length then
-            declare
-               Low  : constant Positive := Starts (Item.First);
-               High : Natural := (if Item.Last = 0 then Length else Natural'Min (Item.Last, Length));
-            begin
-               if Ends (High) /= High then
-                  High := Starts (High) - 1;
-               end if;
-               for I in Low .. High loop
-                  Keep (I) := True;
-               end loop;
-            end;
-         end if;
-      end loop;
-
-      for I in Keep'Range loop
-         if Keep (I) then
-            Append (Output, Line (Line'First + I - 1));
-         end if;
-      end loop;
-      return To_String (Output);
-   end Whole_Character_Bytes;
 end Posix_Tools.Commands.Cut;

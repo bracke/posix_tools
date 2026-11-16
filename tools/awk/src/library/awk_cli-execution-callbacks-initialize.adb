@@ -18,6 +18,7 @@ begin
    State.Live_Redirection := Live_Redirection;
    State.Live_Command := Live_Command;
    State.Live_User_Data := Live_User_Data;
+   State.Live_Output_Buffer := U.Null_Unbounded_String;
    State.Has_Failure := False;
    State.Failure_Value :=
      Awk_CLI.Diagnostics.Make

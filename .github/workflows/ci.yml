@@ -37,110 +37,127 @@ jobs:
         shell: bash
 
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: posix_tools
 
       - name: Check out hostkit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/hostkit
+          ref: c7237277c4703c593c0d2de4f8d8be866ed69e9a
           path: hostkit
 
       - name: Check out messages
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/messages
+          ref: 6d092f9590c6b0cb0d7704ce20c33b3ac76b8d14
           path: messages
 
       - name: Check out i18n
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/i18n
+          ref: 21d4d191f1d90a16248b71dfc54b4384502cf658
           path: i18n
 
       - name: Check out awklib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/awklib
+          ref: 648bd7466e3b36112027c2116326b146224b2e21
           path: awklib
 
       - name: Check out greplib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/greplib
+          ref: d11f89cf5121698a07a852ab4474e17af236b6c6
           path: greplib
 
       - name: Check out sedlib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/sedlib
+          ref: 2c62828278b31cd160df15fd1878a773d37eee95
           path: sedlib
 
       - name: Check out regexp
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/regexp
+          ref: f660333a314f3c610bb255478ac86656e2fd0c4c
           path: regexp
 
       - name: Check out httpclient
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/httpclient
+          ref: 4a6847ee9ba01888d945bb77274cbf5bb536cd13
           path: httpclient
 
       - name: Check out zlib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/zlib
+          ref: e2a66961dc1ebb9d90433160a43f78f52f8db9e1
           path: zlib
 
       - name: Check out tarlib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/tarlib
+          ref: 1a6f22ae04e89a2e634d00f283527d337e3d3b1b
           path: tarlib
 
       - name: Check out tomllib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/tomllib
+          ref: e79115f9a823e14435e8bee077cec7fa68f5c1be
           path: tomllib
 
       - name: Check out cryptolib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/cryptolib
+          ref: 2e5c415f65fd49c2a496c97813740fa9b83e02fa
           path: cryptolib
 
       - name: Check out ssllib
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/ssllib
+          ref: b1637fa14a30ab60b7ef6800533a88aed5a549bf
           path: ssllib
 
       - name: Check out truststores
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/truststores
+          ref: 90ce36a625ce8687685e0bf98ce279ee0f39c697
           path: truststores
 
       - name: Check out terminal
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/terminal
+          ref: f6acaba0794f31c93423844eacf89847be989e37
           path: terminal
 
       - name: Check out terminal_styles
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/terminal_styles
+          ref: da097e330169ea5d3030efd0207f313ae6262a65
           path: terminal_styles
 
       - name: Check out project_tools
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/project_tools
+          ref: 4f5357c7c7e8e175054e6f2cb72c302409f371c8
           path: project_tools
 
       # Only the checkouts above need committed line endings. Alire's index,
@@ -152,10 +169,15 @@ jobs:
         shell: bash
 
       - name: Set up Alire
-        uses: alire-project/setup-alire@v6
+        uses: alire-project/setup-alire@1ff7d9224297858cc9ecce29b08bc6109f93e49a # v6
 
       - name: Show Alire version
         run: alr --version
+        shell: bash
+
+      - name: Select pinned Ada toolchain
+        run: alr toolchain --select --local gnat_native=15.2.1 gprbuild=26.0.1
+        working-directory: posix_tools/tests
         shell: bash
 
       - name: Build Ada test/tooling crate

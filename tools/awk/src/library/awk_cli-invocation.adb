@@ -32,6 +32,15 @@ package body Awk_CLI.Invocation is
          Classified : aliased constant Awk_CLI.Operands.Operand_Vectors.Vector :=
            Awk_CLI.Operands.Classify (Source_Result.Source.Operands);
          Input_State : aliased Awk_CLI.Inputs.Live.Live_Input_State;
+
+         procedure Close_Safely is
+         begin
+            Awk_CLI.Inputs.Live.Close (Input_State);
+         exception
+            when others =>
+               --  intentional terminal exception barrier
+               null;
+         end Close_Safely;
       begin
          Awk_CLI.Inputs.Live.Initialize (Input_State, Context, Classified);
 
@@ -60,7 +69,8 @@ package body Awk_CLI.Invocation is
             end if;
          exception
             when others =>
-               Awk_CLI.Inputs.Live.Close (Input_State);
+               --  Keep the execution failure as the propagated exception.
+               Close_Safely;
                raise;
          end;
       end;

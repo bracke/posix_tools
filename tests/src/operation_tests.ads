@@ -8,6 +8,7 @@ package Operation_Tests is
    procedure Test_Copy_Tree (T : in out Fixture);
    procedure Test_Copy_Conflicts (T : in out Fixture);
    procedure Test_Copy_Cancel (T : in out Fixture);
+   procedure Test_Copy_Progress_Exception (T : in out Fixture);
    procedure Test_Remove_Tree (T : in out Fixture);
    procedure Test_Move (T : in out Fixture);
    procedure Test_Mv_Into_Directory (T : in out Fixture);

@@ -8,7 +8,10 @@ licenses = "MIT"
 project-files = ["posix_tools_common.gpr"]
 
 [[depends-on]]
-hostkit = "*"
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+hostkit = "=0.2.0-dev"
 
 [[depends-on]]
 cryptolib = "*"

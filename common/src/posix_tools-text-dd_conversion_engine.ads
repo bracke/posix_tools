@@ -25,4 +25,34 @@ package Posix_Tools.Text.DD_Conversion_Engine is
    function Apply
      (Value    : String;
       Settings : Conversion_Settings) return Conversion_Result;
+
+   type Stream_Converter is private;
+
+   procedure Initialize
+     (State    : out Stream_Converter;
+      Settings : Conversion_Settings);
+
+   procedure Update
+     (State  : in out Stream_Converter;
+      Input  : String;
+      Output : out Ada.Strings.Unbounded.Unbounded_String);
+
+   procedure Finish
+     (State             : in out Stream_Converter;
+      Output            : out Ada.Strings.Unbounded.Unbounded_String;
+      Truncated_Records : out Posix_Tools.Numbers.Count);
+
+private
+   type Stream_Converter is record
+      Settings          : Conversion_Settings;
+      Effective_Block   : Posix_Tools.Text.DD_Conversions.Block_Conversion_Kind :=
+        Posix_Tools.Text.DD_Conversions.No_Block_Conversion;
+      Block_Data        : Ada.Strings.Unbounded.Unbounded_String;
+      Input_Remainder   : Posix_Tools.Numbers.Count := 0;
+      Record_Open       : Boolean := False;
+      Record_Truncated  : Boolean := False;
+      Has_Swab_Byte     : Boolean := False;
+      Swab_Byte         : Character := Character'Val (0);
+      Truncated_Records : Posix_Tools.Numbers.Count := 0;
+   end record;
 end Posix_Tools.Text.DD_Conversion_Engine;

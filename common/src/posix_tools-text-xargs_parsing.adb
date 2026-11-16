@@ -1,155 +1,140 @@
-with Ada.Strings.Unbounded;
 with Posix_Tools.Text.Byte_Classes;
 
 package body Posix_Tools.Text.Xargs_Parsing is
    use Ada.Strings.Unbounded;
 
-   LF : constant Character := Character'Val (10);
+   LF  : constant Character := Character'Val (10);
+   NUL : constant Character := Character'Val (0);
 
-   function Parse_Blank_Delimited
-     (Data           : String;
-      Has_Eof_Marker : Boolean;
-      Eof_Marker     : String) return Parse_Result
+   procedure Complete_Item
+     (State : in out Parser;
+      Items : in out Posix_Tools.Arguments.Vector;
+      Keep_Empty : Boolean := False);
+
+   procedure Complete_Item
+     (State : in out Parser;
+      Items : in out Posix_Tools.Arguments.Vector;
+      Keep_Empty : Boolean := False)
    is
-      Result : Parse_Result;
-      I      : Positive := Data'First;
-      Stop   : Boolean := False;
+      Text : constant String := To_String (State.Current);
    begin
-      if Data = "" then
-         return Result;
+      if not State.Item_Started and then not Keep_Empty then
+         return;
+      end if;
+      if State.Has_Eof_Marker and then Text = To_String (State.Eof_Marker) then
+         State.Stopped := True;
+      else
+         Items.Append (Text);
+      end if;
+      State.Current := Null_Unbounded_String;
+      State.Item_Started := False;
+   end Complete_Item;
+
+   procedure Initialize
+     (State            : out Parser;
+      Null_Delimited   : Boolean;
+      Replacement_Mode : Boolean;
+      Has_Eof_Marker   : Boolean;
+      Eof_Marker       : String) is
+   begin
+      State :=
+        (Mode =>
+           (if Null_Delimited then Null_Mode
+            elsif Replacement_Mode then Line_Mode
+            else Blank_Mode),
+         Eof_Marker => To_Unbounded_String (Eof_Marker),
+         Has_Eof_Marker => Has_Eof_Marker,
+         others => <>);
+   end Initialize;
+
+   procedure Feed (State : in out Parser; Data : String; Result : out Parse_Result) is
+   begin
+      Result := (others => <>);
+      if State.Stopped then
+         return;
       end if;
 
-      while I <= Data'Last and then not Stop loop
-         while I <= Data'Last
-           and then Posix_Tools.Text.Byte_Classes.Is_Xargs_Blank (Data (I))
-         loop
-            I := I + 1;
-         end loop;
-         exit when I > Data'Last;
-
-         declare
-            Item : Unbounded_String;
-         begin
-            while I <= Data'Last
-              and then not Posix_Tools.Text.Byte_Classes.Is_Xargs_Blank (Data (I))
-            loop
-               if Data (I) = Character'Val (39) then
-                  I := I + 1;
-                  while I <= Data'Last and then Data (I) /= Character'Val (39) loop
-                     Append (Item, Data (I));
-                     I := I + 1;
-                  end loop;
-                  if I > Data'Last then
-                     Result.Status := Unmatched_Single_Quote;
-                     return Result;
-                  end if;
-                  I := I + 1;
-               elsif Data (I) = Character'Val (34) then
-                  I := I + 1;
-                  while I <= Data'Last and then Data (I) /= Character'Val (34) loop
-                     if Data (I) = '\' and then I < Data'Last then
-                        I := I + 1;
-                     end if;
-                     Append (Item, Data (I));
-                     I := I + 1;
-                  end loop;
-                  if I > Data'Last then
-                     Result.Status := Unmatched_Double_Quote;
-                     return Result;
-                  end if;
-                  I := I + 1;
-               elsif Data (I) = '\' then
-                  if I = Data'Last then
-                     Result.Status := Unfinished_Escape;
-                     return Result;
-                  end if;
-                  I := I + 1;
-                  Append (Item, Data (I));
-                  I := I + 1;
+      for Ch of Data loop
+         exit when State.Stopped;
+         case State.Mode is
+            when Null_Mode =>
+               if Ch = NUL then
+                  Complete_Item (State, Result.Items, Keep_Empty => True);
                else
-                  Append (Item, Data (I));
-                  I := I + 1;
+                  Append (State.Current, Ch);
+                  State.Item_Started := True;
                end if;
-            end loop;
 
-            if Has_Eof_Marker and then To_String (Item) = Eof_Marker then
-               Stop := True;
-            else
-               Result.Items.Append (To_String (Item));
-            end if;
-         end;
+            when Line_Mode =>
+               if Ch = LF then
+                  Complete_Item (State, Result.Items);
+               else
+                  Append (State.Current, Ch);
+                  State.Item_Started := True;
+               end if;
+
+            when Blank_Mode =>
+               case State.Quote is
+                  when Unquoted =>
+                     if Posix_Tools.Text.Byte_Classes.Is_Xargs_Blank (Ch) then
+                        Complete_Item (State, Result.Items);
+                     elsif Ch = Character'Val (39) then
+                        State.Quote := Single_Quoted;
+                        State.Item_Started := True;
+                     elsif Ch = Character'Val (34) then
+                        State.Quote := Double_Quoted;
+                        State.Item_Started := True;
+                     elsif Ch = '\' then
+                        State.Quote := Escaped;
+                        State.Item_Started := True;
+                     else
+                        Append (State.Current, Ch);
+                        State.Item_Started := True;
+                     end if;
+                  when Single_Quoted =>
+                     if Ch = Character'Val (39) then
+                        State.Quote := Unquoted;
+                     else
+                        Append (State.Current, Ch);
+                     end if;
+                  when Double_Quoted =>
+                     if Ch = Character'Val (34) then
+                        State.Quote := Unquoted;
+                     elsif Ch = '\' then
+                        State.Quote := Double_Escaped;
+                     else
+                        Append (State.Current, Ch);
+                     end if;
+                  when Escaped =>
+                     Append (State.Current, Ch);
+                     State.Quote := Unquoted;
+                  when Double_Escaped =>
+                     Append (State.Current, Ch);
+                     State.Quote := Double_Quoted;
+               end case;
+         end case;
       end loop;
+   end Feed;
 
-      return Result;
-   end Parse_Blank_Delimited;
-
-   function Parse_Line_Delimited
-     (Data           : String;
-      Has_Eof_Marker : Boolean;
-      Eof_Marker     : String) return Parse_Result
-   is
-      Result : Parse_Result;
-      I      : Positive := Data'First;
+   procedure Finish (State : in out Parser; Result : out Parse_Result) is
    begin
-      if Data = "" then
-         return Result;
+      Result := (others => <>);
+      if State.Stopped then
+         return;
       end if;
+      case State.Quote is
+         when Single_Quoted =>
+            Result.Status := Unmatched_Single_Quote;
+         when Double_Quoted | Double_Escaped =>
+            Result.Status := Unmatched_Double_Quote;
+         when Escaped =>
+            Result.Status := Unfinished_Escape;
+         when Unquoted =>
+            Complete_Item (State, Result.Items);
+      end case;
+   end Finish;
 
-      while I <= Data'Last loop
-         declare
-            Start : constant Positive := I;
-         begin
-            while I <= Data'Last and then Data (I) /= LF loop
-               I := I + 1;
-            end loop;
-
-            if I > Start then
-               declare
-                  Item : constant String := Data (Start .. I - 1);
-               begin
-                  exit when Has_Eof_Marker and then Item = Eof_Marker;
-                  Result.Items.Append (Item);
-               end;
-            end if;
-
-            I := I + 1;
-         end;
-      end loop;
-
-      return Result;
-   end Parse_Line_Delimited;
-
-   function Parse_Null_Delimited
-     (Data           : String;
-      Has_Eof_Marker : Boolean;
-      Eof_Marker     : String) return Parse_Result
-   is
-      Result : Parse_Result;
-      I      : Positive := Data'First;
-   begin
-      if Data = "" then
-         return Result;
-      end if;
-
-      while I <= Data'Last loop
-         declare
-            Start : constant Positive := I;
-         begin
-            while I <= Data'Last and then Data (I) /= Character'Val (0) loop
-               I := I + 1;
-            end loop;
-            declare
-               Item : constant String := Data (Start .. I - 1);
-            begin
-               exit when Has_Eof_Marker and then Item = Eof_Marker;
-               Result.Items.Append (Item);
-            end;
-            I := I + 1;
-         end;
-      end loop;
-
-      return Result;
-   end Parse_Null_Delimited;
+   function Is_Stopped (State : Parser) return Boolean is (State.Stopped);
 
    function Parse_Input
      (Data             : String;
@@ -158,13 +143,16 @@ package body Posix_Tools.Text.Xargs_Parsing is
       Has_Eof_Marker   : Boolean;
       Eof_Marker       : String) return Parse_Result
    is
+      State : Parser;
+      Fed   : Parse_Result;
+      Final : Parse_Result;
    begin
-      if Null_Delimited then
-         return Parse_Null_Delimited (Data, Has_Eof_Marker, Eof_Marker);
-      elsif Replacement_Mode then
-         return Parse_Line_Delimited (Data, Has_Eof_Marker, Eof_Marker);
-      else
-         return Parse_Blank_Delimited (Data, Has_Eof_Marker, Eof_Marker);
-      end if;
+      Initialize
+        (State, Null_Delimited, Replacement_Mode, Has_Eof_Marker, Eof_Marker);
+      Feed (State, Data, Fed);
+      Finish (State, Final);
+      Fed.Status := Final.Status;
+      Fed.Items.Append (Final.Items);
+      return Fed;
    end Parse_Input;
 end Posix_Tools.Text.Xargs_Parsing;

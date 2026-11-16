@@ -469,6 +469,17 @@ package body Model_Tests is
         (Explore.Paths.Folded ("ReadMe" & Character'Val (16#C3#) & Character'Val (16#84#))
          = "readme" & Character'Val (16#C3#) & Character'Val (16#84#),
          "ASCII folded, UTF-8 bytes left alone");
+      AUnit.Assertions.Assert
+        (Explore.Paths.Contains_Folded ("A-ReadMe.MD", "readme")
+         and then not Explore.Paths.Contains_Folded ("notes.txt", "readme")
+         and then Explore.Paths.Contains_Folded ("anything", ""),
+         "folded containment compares ASCII case without changing the text");
+      AUnit.Assertions.Assert
+        (Explore.Paths.Contains_Folded
+           (Unbounded.To_Unbounded_String ("A-ReadMe.MD"), "readme")
+         and then not Explore.Paths.Contains_Folded
+           (Unbounded.To_Unbounded_String ("notes.txt"), "readme"),
+         "folded containment reads an unbounded name directly");
    end Test_Paths;
 
    procedure Test_Prompt_Paths (T : in out Fixture) is

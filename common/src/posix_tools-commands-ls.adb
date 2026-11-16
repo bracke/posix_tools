@@ -1,8 +1,6 @@
 with Ada.Containers.Indefinite_Vectors;
-with Ada.Strings.Unbounded;
 
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.File_Operations.Listing;
 with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Ls is
@@ -14,12 +12,15 @@ package body Posix_Tools.Commands.Ls is
    package String_Vector_Sorting is new String_Vectors.Generic_Sorting;
 
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
+   use type Posix_Tools.Host_Adapters.File_System.Entry_Kind;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       type Hidden_Mode is (Hide_Hidden, Almost_All, All_Entries);
+      type Path_Knowledge is
+        (Unknown_Path, Missing_Path, Existing_Nondirectory, Existing_Directory);
 
       Hidden            : Hidden_Mode := Hide_Hidden;
       Directory_As_File : Boolean := False;
@@ -27,39 +28,64 @@ package body Posix_Tools.Commands.Ls is
       Valid             : Boolean;
       Ok                : Boolean := True;
       Emitted           : Boolean := False;
+      Output            : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       procedure Emit_Line (Text : String);
 
-      procedure List_Path (Path : String; With_Header : Boolean);
+      procedure List_Path
+        (Path        : String;
+         With_Header : Boolean;
+         Known       : Path_Knowledge := Unknown_Path);
 
       procedure Emit_Line (Text : String) is
       begin
-         Context.Put_Line (Text);
+         Posix_Tools.Commands.Helpers.Buffered_Put_Line (Output, Context, Text);
          Emitted := True;
       end Emit_Line;
 
-      procedure List_Path (Path : String; With_Header : Boolean) is
-         package Listing renames Posix_Tools.File_Operations.Listing;
+      procedure List_Path
+        (Path        : String;
+         With_Header : Boolean;
+         Known       : Path_Knowledge := Unknown_Path)
+      is
+         Names        : String_Vectors.Vector;
+         Iteration_Ok : Boolean;
+         Kind         : constant FS.File_Kind :=
+           (if Known = Existing_Directory then FS.Directory
+            elsif Known = Existing_Nondirectory then FS.Ordinary_File
+            elsif Known = Missing_Path then FS.Missing_File
+            else FS.Kind (Path));
 
-         use type Listing.Read_Outcome;
+         procedure Add_Name
+           (Name : String;
+            Kind : FS.Listed_Kind;
+            Stop : in out Boolean);
 
-         Names   : String_Vectors.Vector;
-         Entries : Listing.Entry_Vectors.Vector;
-         Outcome : Listing.Read_Outcome;
+         procedure Add_Name
+           (Name : String;
+            Kind : FS.Listed_Kind;
+            Stop : in out Boolean)
+         is
+            pragma Unreferenced (Kind, Stop);
+            Is_Hidden : constant Boolean :=
+              Name'Length > 0 and then Name (Name'First) = '.';
+         begin
+            if Hidden /= Hide_Hidden or else not Is_Hidden then
+               Names.Append (Name);
+            end if;
+         end Add_Name;
+
+         procedure Read_Names is new FS.For_Each_Listed_Entry (Add_Name);
       begin
-         if FS.Kind (Path) = FS.Directory and then not Directory_As_File then
+         if Kind = FS.Directory and then not Directory_As_File then
             if With_Header then
                if Emitted then
-                  Context.Put_Line ("");
+                  Emit_Line ("");
                end if;
                Emit_Line (Path & ":");
             end if;
-            Listing.Read_Directory
-              (Path,
-               (Include_Hidden => Hidden /= Hide_Hidden, With_Status => False),
-               Entries,
-               Outcome);
-            if Outcome /= Listing.Read_Complete then
+            Read_Names (Path, Iteration_Ok);
+            if not Iteration_Ok then
                Ok := False;
                Posix_Tools.Commands.Helpers.Subject_Operational_Error
                  (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
@@ -71,14 +97,16 @@ package body Posix_Tools.Commands.Ls is
                Names.Append (".");
                Names.Append ("..");
             end if;
-            for Item of Entries loop
-               Names.Append (Ada.Strings.Unbounded.To_String (Item.Name));
-            end loop;
             String_Vector_Sorting.Sort (Names);
             for Name of Names loop
                Emit_Line (Name);
+               exit when Context.Output_Failed;
             end loop;
-         elsif FS.Exists (Path) or else FS.Is_Link (Path) then
+         elsif Known = Existing_Nondirectory
+           or else
+             (Known = Unknown_Path
+              and then (Kind /= FS.Missing_File or else FS.Is_Link (Path)))
+         then
             --  A link is listed as itself, the one to nothing too.
             Emit_Line (Path);
          else
@@ -138,10 +166,27 @@ package body Posix_Tools.Commands.Ls is
             for I in First .. Context.Argument_Count loop
                declare
                   Path : constant String := Context.Argument (I);
+                  Entry_Type : constant FS.Entry_Kind := FS.Entry_Kind_Of (Path);
+                  Kind       : constant FS.File_Kind :=
+                    (case Entry_Type is
+                       when FS.Entry_Missing   => FS.Missing_File,
+                       when FS.Entry_Error     => FS.Missing_File,
+                       when FS.Entry_Directory => FS.Directory,
+                       when FS.Entry_Regular   => FS.Ordinary_File,
+                       when FS.Entry_Special   => FS.Special_File,
+                       when FS.Entry_Link      =>
+                         (if Directory_As_File
+                          then FS.Ordinary_File
+                          else FS.Kind (Path)));
                begin
-                  if not FS.Exists (Path) and then not FS.Is_Link (Path) then
-                     List_Path (Path, False);
-                  elsif FS.Kind (Path) = FS.Directory and then not Directory_As_File then
+                  if Entry_Type = FS.Entry_Error then
+                     Ok := False;
+                     Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                       (Context, Path,
+                        "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                  elsif Kind = FS.Missing_File and then Entry_Type /= FS.Entry_Link then
+                     List_Path (Path, False, Missing_Path);
+                  elsif Kind = FS.Directory and then not Directory_As_File then
                      Directories.Append (Path);
                   else
                      Files.Append (Path);
@@ -153,15 +198,16 @@ package body Posix_Tools.Commands.Ls is
             String_Vector_Sorting.Sort (Directories);
 
             for Path of Files loop
-               List_Path (Path, False);
+               List_Path (Path, False, Existing_Nondirectory);
             end loop;
 
             for Path of Directories loop
-               List_Path (Path, With_Header => Headers);
+               List_Path (Path, With_Header => Headers, Known => Existing_Directory);
             end loop;
          end;
       end if;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Ls;

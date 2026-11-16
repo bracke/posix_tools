@@ -56,4 +56,5 @@ permission bits return operational failure for the affected path.
 Conforming with extensions tracked by `CHMOD-POSIX-001`.
 
 ## Known Limitations
-Host-specific permission-bit availability is determined by hostkit.
+Host-specific permission-bit availability is determined by hostkit. Recursive
+traversal is physical: symbolic links are skipped rather than followed.

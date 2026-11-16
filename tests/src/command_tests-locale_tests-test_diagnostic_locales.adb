@@ -75,8 +75,10 @@ separate (Command_Tests.Locale_Tests)
         (Test_Contexts.Error_Output (Context) = "pwd: kan ikke bestemme aktuel mappe" & LF,
          "Danish pwd failure diagnostic");
 
-      Context.Initialize ("tail", Two_Args ("-c", "2147483648"));
+      Context.Initialize ("tail", Two_Args ("-c", "3"));
       Test_Contexts.Set_Locale (Context, "da");
+      Test_Contexts.Set_Standard_Input (Context, "abcd");
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 1, 2);
       Posix_Tools.Commands.Tail.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,

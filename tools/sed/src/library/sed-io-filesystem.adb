@@ -1,4 +1,3 @@
-with Ada.Directories;
 with Ada.IO_Exceptions;
 with Ada.Streams;
 with Ada.Unchecked_Deallocation;
@@ -6,8 +5,6 @@ with Ada.Unchecked_Deallocation;
 package body Sed.IO.Filesystem is
 
    use Ada.Streams;
-   use type Ada.Directories.File_Kind;
-
    package Stream_IO renames Ada.Streams.Stream_IO;
 
    --  Transfer size for bulk reads. Large enough that whole-file reads do not
@@ -18,12 +15,9 @@ package body Sed.IO.Filesystem is
    procedure Free is new Ada.Unchecked_Deallocation
      (Ada.Streams.Stream_IO.File_Type, Stream_File_Access);
 
-   --  Classify a path before opening it, so that the common failures produce
-   --  precise statuses instead of a single opaque one.
-   function Classify (Path : String) return IO_Status;
-
-   --  Convert a raw byte block to the String view used throughout the program.
-   function To_String (Data : Stream_Element_Array) return String;
+   --  Release a file that has not yet been transferred into Slots.  Open and
+   --  Create may leave a handle open before a later allocation fails.
+   procedure Release_Unclaimed (File : in out Stream_File_Access);
 
    --  Convert a String view back to raw bytes for writing.
    function To_Elements (Data : String) return Stream_Element_Array;
@@ -34,50 +28,29 @@ package body Sed.IO.Filesystem is
       File : Stream_File_Access;
       Handle : out File_Handle);
 
-   --------------
-   -- Classify --
-   --------------
+   -----------------------
+   -- Release_Unclaimed --
+   -----------------------
 
-   function Classify (Path : String) return IO_Status is
+   procedure Release_Unclaimed (File : in out Stream_File_Access) is
    begin
-      if Path'Length = 0 then
-         return Not_Found;
+      if File = null then
+         return;
       end if;
 
-      if not Ada.Directories.Exists (Path) then
-         return Not_Found;
-      end if;
-
-      if Ada.Directories.Kind (Path) = Ada.Directories.Directory then
-         return Is_A_Directory;
-      end if;
-
-      --  Ordinary files and special files such as FIFOs and devices are both
-      --  legitimate sed operands.
-      return IO_Success;
-
-   exception
-      when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
-         --  A path the host refuses to describe is reported as missing rather
-         --  than as an internal fault.
-         return Not_Found;
-   end Classify;
-
-   ---------------
-   -- To_String --
-   ---------------
-
-   function To_String (Data : Stream_Element_Array) return String is
-      Result : String (1 .. Data'Length);
-      Target : Positive := 1;
-   begin
-      for Item of Data loop
-         Result (Target) := Character'Val (Item);
-         Target := Target + 1;
-      end loop;
-
-      return Result;
-   end To_String;
+      begin
+         if Stream_IO.Is_Open (File.all) then
+            Stream_IO.Close (File.all);
+         end if;
+      exception
+         when others =>
+            --  intentional terminal exception barrier
+            --  Setup already failed,
+            --  so there is no useful secondary close error to report.
+            null;
+      end;
+      Free (File);
+   end Release_Unclaimed;
 
    -----------------
    -- To_Elements --
@@ -106,14 +79,20 @@ package body Sed.IO.Filesystem is
    begin
       for Index in 1 .. Natural (Self.Slots.Length) loop
          if Self.Slots (Index) = null then
+            Handle := To_Handle (Index);
             Self.Slots (Index) := File;
-            Handle := File_Handle (Index);
             return;
          end if;
       end loop;
 
-      Self.Slots.Append (File);
-      Handle := File_Handle (Self.Slots.Length);
+      declare
+         Index : constant Positive :=
+           Positive (Natural (Self.Slots.Length) + 1);
+         New_Handle : constant File_Handle := To_Handle (Index);
+      begin
+         Self.Slots.Append (File);
+         Handle := New_Handle;
+      end;
    end Claim_Slot;
 
    ----------------
@@ -126,13 +105,12 @@ package body Sed.IO.Filesystem is
       Handle : out File_Handle;
       Result : out IO_Result)
    is
-      Status : constant IO_Status := Classify (Path);
-      File : Stream_File_Access;
+      File : Stream_File_Access := null;
    begin
       Handle := Invalid_Handle;
 
-      if Status /= IO_Success then
-         Result := Failure (Status);
+      if Path'Length = 0 then
+         Result := Failure (Not_Found);
          return;
       end if;
 
@@ -142,23 +120,47 @@ package body Sed.IO.Filesystem is
          Stream_IO.Open (File.all, Stream_IO.In_File, Path);
       exception
          when Ada.IO_Exceptions.Name_Error =>
-            Free (File);
+            Release_Unclaimed (File);
             Result := Failure (Not_Found);
             return;
 
-         when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Status_Error =>
-            Free (File);
+         when Ada.IO_Exceptions.Use_Error =>
+            Release_Unclaimed (File);
+            --  Use_Error does not preserve a portable cause.  Report the
+            --  actual open failure generically instead of restatting a path
+            --  that may already name a different object.
+            Result := Failure (IO_Failure);
+            return;
+
+         when Ada.IO_Exceptions.Status_Error =>
+            Release_Unclaimed (File);
             Result := Failure (Permission_Denied);
             return;
 
          when Ada.IO_Exceptions.Device_Error =>
-            Free (File);
+            Release_Unclaimed (File);
             Result := Failure (IO_Failure);
             return;
       end;
 
       Claim_Slot (Self, File, Handle);
+      File := null;
       Result := Success_Result;
+   exception
+      when Ada.IO_Exceptions.Name_Error =>
+         Release_Unclaimed (File);
+         Handle := Invalid_Handle;
+         Result := Failure (Not_Found);
+      when Ada.IO_Exceptions.Use_Error =>
+         Release_Unclaimed (File);
+         Handle := Invalid_Handle;
+         Result := Failure (Permission_Denied);
+      when others =>
+         --  intentional terminal exception barrier
+         --  This is the host boundary.
+         Release_Unclaimed (File);
+         Handle := Invalid_Handle;
+         Result := Failure (IO_Failure);
    end Open_Input;
 
    ----------
@@ -198,12 +200,11 @@ package body Sed.IO.Filesystem is
             return;
          end if;
 
-         declare
-            Bytes : constant String := To_String (Block (Block'First .. Final));
-         begin
-            Into (Into'First .. Into'First + Bytes'Length - 1) := Bytes;
-            Last := Into'First + Bytes'Length - 1;
-         end;
+         for I in Block'First .. Final loop
+            Into (Into'First + Natural (I - Block'First)) :=
+              Character'Val (Block (I));
+         end loop;
+         Last := Into'First + Natural (Final - Block'First);
 
          Result := Success_Result;
 
@@ -242,8 +243,9 @@ package body Sed.IO.Filesystem is
                end if;
             exception
                when others =>
-                  --  Intentional terminal exception barrier: releasing an
-                  --  input handle has no recoverable error channel.
+                  --  intentional terminal exception barrier
+                  --  Releasing an input handle has no recoverable error
+                  --  channel.
                   --  Releasing a read handle cannot lose data, so a close
                   --  fault here has no observable effect to report.
                   null;
@@ -310,19 +312,12 @@ package body Sed.IO.Filesystem is
       Handle : out File_Handle;
       Result : out IO_Result)
    is
-      File : Stream_File_Access;
+      File : Stream_File_Access := null;
    begin
       Handle := Invalid_Handle;
 
       if Path'Length = 0 then
          Result := Failure (Not_Found);
-         return;
-      end if;
-
-      if Ada.Directories.Exists (Path)
-        and then Ada.Directories.Kind (Path) = Ada.Directories.Directory
-      then
-         Result := Failure (Is_A_Directory);
          return;
       end if;
 
@@ -332,27 +327,43 @@ package body Sed.IO.Filesystem is
          Stream_IO.Create (File.all, Stream_IO.Out_File, Path);
       exception
          when Ada.IO_Exceptions.Name_Error =>
-            Free (File);
+            Release_Unclaimed (File);
             Result := Failure (Not_Found);
             return;
 
-         when Ada.IO_Exceptions.Use_Error | Ada.IO_Exceptions.Status_Error =>
-            Free (File);
+         when Ada.IO_Exceptions.Use_Error =>
+            Release_Unclaimed (File);
+            --  The failed create is authoritative.  Reclassifying Path here
+            --  would race with replacement and could describe another entry.
+            Result := Failure (IO_Failure);
+            return;
+
+         when Ada.IO_Exceptions.Status_Error =>
+            Release_Unclaimed (File);
             Result := Failure (Permission_Denied);
             return;
 
          when Ada.IO_Exceptions.Device_Error =>
-            Free (File);
+            Release_Unclaimed (File);
             Result := Failure (IO_Failure);
             return;
       end;
 
       Claim_Slot (Self, File, Handle);
+      File := null;
       Result := Success_Result;
 
    exception
       when Ada.IO_Exceptions.Name_Error | Ada.IO_Exceptions.Use_Error =>
+         Release_Unclaimed (File);
+         Handle := Invalid_Handle;
          Result := Failure (Permission_Denied);
+      when others =>
+         --  intentional terminal exception barrier
+         --  This is the host boundary.
+         Release_Unclaimed (File);
+         Handle := Invalid_Handle;
+         Result := Failure (IO_Failure);
    end Create_Output;
 
    -----------
@@ -428,6 +439,7 @@ package body Sed.IO.Filesystem is
                Result := Failure (IO_Failure);
 
             when others =>
+               --  intentional terminal exception barrier
                Result := Failure (IO_Failure);
          end;
 
@@ -471,8 +483,9 @@ package body Sed.IO.Filesystem is
                   end if;
                exception
                   when others =>
-                     --  Intentional terminal exception barrier: finalization
-                     --  has no error channel and must release the slot.
+                     --  intentional terminal exception barrier
+                     --  Finalization has no error channel and must release
+                     --  the slot.
                      null;
                end;
 

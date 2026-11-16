@@ -191,6 +191,27 @@ package body Posix_Tools.Host_Adapters.Executables is
       use Ada.Strings.Unbounded;
       Args    : Hostkit.String_Vectors.Vector;
       Temp    : Unbounded_String;
+
+      procedure Delete_Temp;
+      procedure Delete_Temp_Safely;
+
+      procedure Delete_Temp is
+      begin
+         if To_String (Temp) /= ""
+           and then Ada.Directories.Exists (To_String (Temp))
+         then
+            Ada.Directories.Delete_Tree (To_String (Temp));
+         end if;
+      end Delete_Temp;
+
+      procedure Delete_Temp_Safely is
+      begin
+         Delete_Temp;
+      exception
+         when others =>
+            --  intentional terminal exception barrier
+            null;
+      end Delete_Temp_Safely;
    begin
       if Path = "" then
          return "missing";
@@ -226,9 +247,7 @@ package body Posix_Tools.Host_Adapters.Executables is
            & "version=";
          Expected_Output : constant String := Version_Prefix & Expected_Version & LF;
       begin
-         if Ada.Directories.Exists (To_String (Temp)) then
-            Ada.Directories.Delete_Tree (To_String (Temp));
-         end if;
+         Delete_Temp;
 
          if not Outcome.Started or else Outcome.Timed_Out then
             return "unverifiable";
@@ -248,9 +267,7 @@ package body Posix_Tools.Host_Adapters.Executables is
       end;
    exception
       when others =>
-         if To_String (Temp) /= "" and then Ada.Directories.Exists (To_String (Temp)) then
-            Ada.Directories.Delete_Tree (To_String (Temp));
-         end if;
+         Delete_Temp_Safely;
          return "unverifiable";
    end Verify_Identity_At_Path;
 end Posix_Tools.Host_Adapters.Executables;

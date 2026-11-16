@@ -79,6 +79,12 @@ package body Screen_Tests is
       AUnit.Assertions.Assert (Used = 0, "rows beyond the grid are not written");
 
       AUnit.Assertions.Assert (Screen.Width_Of ("caf" & Character'Val (16#C3#) & Character'Val (16#A9#)) = 4, "é");
+      AUnit.Assertions.Assert
+        (Screen.Tail_Of ("abcdefgh", 5)
+           = Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#) & "efgh",
+         "a long tail is found in display cells");
+      AUnit.Assertions.Assert (Screen.Tail_Of ("abc", 3) = "abc", "text that fits is unchanged");
+      AUnit.Assertions.Assert (Screen.Tail_Of ("abc", 0) = "", "no cells, no text");
    end Test_Put_And_Clip;
 
    procedure Test_Render_Writes_Only_Changes (T : in out Fixture) is
@@ -110,6 +116,13 @@ package body Screen_Tests is
            (Output = ESC & "[1;2H" & ESC & "[0ma" & ESC & "[0m", "one cell changed, one cell written: " & Output);
       end;
 
+      Screen.Put
+        (Wanted, 2, 1, Character'Val (16#C3#) & Character'Val (16#A9#), Screen.Plain, 1, Used);
+      AUnit.Assertions.Assert
+        (Ada.Strings.Fixed.Index
+           (Screen.Diff_Output (Shown, Wanted), Character'Val (16#C3#) & Character'Val (16#A9#)) > 0,
+         "a non-ASCII cell remains UTF-8 encoded");
+
       AUnit.Assertions.Assert
         (Ada.Strings.Fixed.Index (Screen.Diff_Output (Shown, Wanted, Full => True), "third") > 0,
          "a full render writes everything again");
@@ -129,6 +142,10 @@ package body Screen_Tests is
         (Screen.Cell_At (Grid, 1, 2).Continuation and then not Screen.Cell_At (Grid, 1, 3).Continuation,
          "a wide character takes its cell and the next");
       AUnit.Assertions.Assert (Screen.Width_Of (Wide & Wide) = 4, "width of wide characters");
+      AUnit.Assertions.Assert
+        (Screen.Tail_Of (Wide & "abcd", 4)
+           = Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#) & "bcd",
+         "tail truncation keeps a UTF-8 character whole");
 
       --  Overwriting either half of a wide character blanks the other.
       Screen.Resize (Grid, 1, 6);

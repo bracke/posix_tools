@@ -1,14 +1,15 @@
-with Ada.Strings.Unbounded;
+with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Od_Rendering;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.OD_Formats;
 
 package body Posix_Tools.Commands.Od is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
-   use Ada.Strings.Unbounded;
+   use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Text.OD_Formats.Address_Base;
 
    --  What od's options ask for.
@@ -152,8 +153,72 @@ package body Posix_Tools.Commands.Od is
       Options : Settings;
       First   : Positive;
       Valid   : Boolean;
-      Data    : Unbounded_String;
       Ok      : Boolean := True;
+      State   : Posix_Tools.Commands.Od_Rendering.Renderer;
+      Seen    : Natural := 0;
+      Emitted : Natural := 0;
+
+      function Done return Boolean is
+        (Seen >= Options.Skip
+         and then Options.Has_Limit
+         and then Emitted >= Options.Limit);
+
+      procedure Consume
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset);
+
+      procedure Consume
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset)
+      is
+         Length     : constant Natural :=
+           (if Last < Buffer'First then 0
+            else Natural (Last - Buffer'First + 1));
+         Before     : constant Natural := Seen;
+         Drop       : constant Natural :=
+           (if Before >= Options.Skip then 0
+            else Natural'Min (Length, Options.Skip - Before));
+         Available  : constant Natural := Length - Drop;
+         Take       : constant Natural :=
+           (if not Options.Has_Limit then Available
+            else Natural'Min (Available, Options.Limit - Emitted));
+      begin
+         Seen := Seen + Length;
+         if Take > 0 then
+            declare
+               First_Byte : constant Ada.Streams.Stream_Element_Offset :=
+                 Buffer'First + Ada.Streams.Stream_Element_Offset (Drop);
+               Last_Byte  : constant Ada.Streams.Stream_Element_Offset :=
+                 First_Byte + Ada.Streams.Stream_Element_Offset (Take) - 1;
+            begin
+               Posix_Tools.Commands.Od_Rendering.Feed
+                 (State, Context,
+                  Posix_Tools.Streams.Bytes.To_String
+                    (Buffer (First_Byte .. Last_Byte), Last_Byte));
+            end;
+            Emitted := Emitted + Take;
+         end if;
+      end Consume;
+
+      procedure Read_Bounded_Input is new
+        Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+          (Action => Consume);
+      procedure Read_Bulk_Input is new
+        Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+          (Action        => Consume,
+           Buffer_Length =>
+             Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
+
+      procedure Read_Input (Name : String; Read_Ok : out Boolean) is
+      begin
+         if Options.Has_Limit then
+            Read_Bounded_Input (Context, Name, Read_Ok, Done'Access);
+         else
+            Read_Bulk_Input (Context, Name, Read_Ok, Done'Access);
+         end if;
+      end Read_Input;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -163,49 +228,31 @@ package body Posix_Tools.Commands.Od is
       if not Valid then
          return;
       end if;
+      Posix_Tools.Commands.Od_Rendering.Initialize
+        (State, Options.Skip, Options.Address, Options.Formats, Options.Verbose);
       if Context.Argument_Count < First then
-         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, "-", Data, Ok);
+         Read_Input ("-", Ok);
       else
          for I in First .. Context.Argument_Count loop
-            declare
-               Chunk : Unbounded_String;
-            begin
-               Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Context.Argument (I), Chunk, Ok);
-               exit when not Ok;
-               Append (Data, To_String (Chunk));
-            end;
+            Read_Input (Context.Argument (I), Ok);
+            exit when not Ok or else Done;
          end loop;
       end if;
       if not Ok then
+         Posix_Tools.Commands.Od_Rendering.Flush_Output (State, Context);
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
          return;
       end if;
 
-      declare
-         Source : constant String := To_String (Data);
-         Actual_Skip : constant Natural := Natural'Min (Options.Skip, Source'Length);
-         Available : constant Natural := Source'Length - Actual_Skip;
-         Selected_Length : constant Natural :=
-           (if Options.Has_Limit then Natural'Min (Options.Limit, Available) else Available);
-         Text   : constant String :=
-           (if Selected_Length = 0 then ""
-            else Source (Source'First + Actual_Skip .. Source'First + Actual_Skip + Selected_Length - 1));
-      begin
-         if Options.Skip > Source'Length then
-            Posix_Tools.Commands.Helpers.Operational_Error
-              (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
-            Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-            return;
-         end if;
+      if Options.Skip > Seen then
+         Posix_Tools.Commands.Od_Rendering.Flush_Output (State, Context);
+         Posix_Tools.Commands.Helpers.Operational_Error
+           (Context, "posix_tools.diagnostic.resource.count_too_large", "count too large");
+         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+         return;
+      end if;
 
-         Posix_Tools.Commands.Od_Rendering.Render
-           (Context     => Context,
-            Text        => Text,
-            Actual_Skip => Actual_Skip,
-            Address     => Options.Address,
-            Formats     => Options.Formats,
-            Verbose     => Options.Verbose);
-      end;
+      Posix_Tools.Commands.Od_Rendering.Finish (State, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 

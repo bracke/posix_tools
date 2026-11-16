@@ -500,25 +500,8 @@ package body Explore.Render is
    end Listed_Heights;
 
    function Tail_Of (Text : String; Width : Natural) return String is
-      Ellipsis : constant String := Character'Val (16#E2#) & Character'Val (16#80#) & Character'Val (16#A6#);
    begin
-      if Screen.Width_Of (Text) <= Width then
-         return Text;
-      elsif Width = 0 then
-         return "";
-      end if;
-
-      --  The longest end that leaves a cell for the ellipsis, starting at
-      --  the first byte of a character.
-      for First in Text'Range loop
-         if Character'Pos (Text (First)) not in 16#80# .. 16#BF#
-           and then Screen.Width_Of (Text (First .. Text'Last)) < Width
-         then
-            return Ellipsis & Text (First .. Text'Last);
-         end if;
-      end loop;
-
-      return Ellipsis;
+      return Screen.Tail_Of (Text, Width);
    end Tail_Of;
 
    procedure Write

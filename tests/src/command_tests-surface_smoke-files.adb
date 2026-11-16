@@ -13,6 +13,7 @@ with Posix_Tools.Commands.Cat;
 with Posix_Tools.Commands.Chgrp;
 with Posix_Tools.Commands.Chmod;
 with Posix_Tools.Commands.Chown;
+with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Cp;
 with Posix_Tools.Commands.Link;
 with Posix_Tools.Commands.Ln;
@@ -28,6 +29,8 @@ with Posix_Tools.Commands.Stat;
 with Posix_Tools.Commands.Tee;
 with Posix_Tools.Commands.Touch;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Path_Separators;
 with Test_Contexts;
 with Test_Support;
 
@@ -51,58 +54,14 @@ package body Command_Tests.Surface_Smoke.Files is
       return Ada.Strings.Fixed.Translate (Left, Slashes) = Ada.Strings.Fixed.Translate (Right, Slashes);
    end Same_Path;
 
-   procedure Test_Chmod (T : in out Surface_Fixture) is
+   procedure Test_Chmod (T : in out Surface_Fixture) is separate;
+
+   procedure Test_Chown (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Write_File (Chmod_Target, "mode-data");
-      Context.Initialize ("chmod", Two_Args ("600", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod status");
-      Assert_Mode_When_Available (Chmod_Target, 8#600#, "chmod applies octal mode");
-
-      Context.Initialize ("chmod", Two_Args ("u=rw,go=", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic assignment status");
-      Assert_Mode_When_Available (Chmod_Target, 8#600#, "chmod applies symbolic assignment mode");
-
-      Context.Initialize ("chmod", Two_Args ("g+r,o+r", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic add status");
-      Assert_Mode_When_Available (Chmod_Target, 8#644#, "chmod applies symbolic add mode");
-
-      Context.Initialize ("chmod", Two_Args ("-w", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic hyphen-start status");
-      Assert_Mode_When_Available (Chmod_Target, 8#444#, "chmod treats -w as a symbolic mode");
-
-      Context.Initialize ("chmod", Two_Args ("u+x,g=u,o=g", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chmod symbolic copy status");
-      --  A host whose programs carry a suffix (Windows) reports execute only
-      --  for files it would run, and this one is a .txt.
-      Assert_Mode_When_Available
-        (Chmod_Target,
-         (if Hostkit.Fs.Executable_Suffix = "" then 8#555# else 8#444#),
-         "chmod applies symbolic copy mode");
-
-      --  POSIX's grammar lets an op stand without perms: "u+" adds nothing.
-      Context.Initialize ("chmod", Two_Args ("u+", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success, "chmod accepts an op without perms");
-
-      Context.Initialize ("chmod", Two_Args ("u+q", Chmod_Target));
-      Posix_Tools.Commands.Chmod.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage, "chmod rejects an unknown perm");
-   end Test_Chmod;
-
-   procedure Test_Chown_Chgrp (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
+      Context       : Test_Contexts.Capturing_Context;
+      Result        : Posix_Tools.Commands.Results.Result;
+      Physical_Root : constant String := Work_Path ("command-chown-physical-root");
+      Dangling_Link : constant String := Physical_Root & "/dangling";
    begin
       Write_File (Chmod_Target, "mode-data");
       declare
@@ -115,12 +74,114 @@ package body Command_Tests.Surface_Smoke.Files is
             Context.Initialize ("chown", Two_Args (Trim_Natural (User), Chmod_Target));
             Posix_Tools.Commands.Chown.Run (Context, Result);
             AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chown current user status");
+
+            Remove_Any (Dangling_Link);
+            Remove_Any (Physical_Root);
+            Ada.Directories.Create_Directory (Physical_Root);
+            Create_Symbolic_Link_If_Supported
+              (Physical_Root & "/missing", Dangling_Link);
+            if Hostkit.Fs.Is_Link (Dangling_Link) then
+               Context.Initialize
+                 ("chown",
+                  Three_Args ("-R", Trim_Natural (User), Physical_Root));
+               Posix_Tools.Commands.Chown.Run (Context, Result);
+               AUnit.Assertions.Assert
+                 (Result.Status = Posix_Tools.Exit_Status.Success,
+                  "recursive chown skips a dangling symbolic link");
+            else
+               Test_Support.Skip_Without_Links
+                 ("recursive chown physical traversal");
+            end if;
+            Remove_Any (Dangling_Link);
+            Remove_Any (Physical_Root);
+         end if;
+      end;
+
+      Context.Initialize
+        ("chown", Two_Args ("4294967294", Chmod_Target & ".missing"));
+      Posix_Tools.Commands.Chown.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "chown accepts a full-width numeric user ID before reporting a missing file");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context),
+                   "cannot change ownership"),
+         "chown reports an ownership-specific failure");
+
+      Context.Initialize
+        ("chown", Two_Args ("4294967295", Chmod_Target));
+      Posix_Tools.Commands.Chown.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "chown rejects the reserved keep-user sentinel as an operand");
+
+      Context.Initialize
+        ("chown", Two_Args (":4294967295", Chmod_Target));
+      Posix_Tools.Commands.Chown.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "chown rejects the reserved keep-group sentinel as an operand");
+   end Test_Chown;
+
+   procedure Test_Chgrp (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context       : Test_Contexts.Capturing_Context;
+      Result        : Posix_Tools.Commands.Results.Result;
+      Physical_Root : constant String := Work_Path ("command-chgrp-physical-root");
+      Dangling_Link : constant String := Physical_Root & "/dangling";
+   begin
+      Write_File (Chmod_Target, "mode-data");
+      declare
+         User      : Natural;
+         Group     : Natural;
+         Available : Boolean;
+      begin
+         Hostkit.Metadata.File_Ownership (Chmod_Target, User, Group, Available);
+         if Available then
             Context.Initialize ("chgrp", Two_Args (Trim_Natural (Group), Chmod_Target));
             Posix_Tools.Commands.Chgrp.Run (Context, Result);
             AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "chgrp current group status");
+
+            Remove_Any (Dangling_Link);
+            Remove_Any (Physical_Root);
+            Ada.Directories.Create_Directory (Physical_Root);
+            Create_Symbolic_Link_If_Supported
+              (Physical_Root & "/missing", Dangling_Link);
+            if Hostkit.Fs.Is_Link (Dangling_Link) then
+               Context.Initialize
+                 ("chgrp",
+                  Three_Args ("-R", Trim_Natural (Group), Physical_Root));
+               Posix_Tools.Commands.Chgrp.Run (Context, Result);
+               AUnit.Assertions.Assert
+                 (Result.Status = Posix_Tools.Exit_Status.Success,
+                  "recursive chgrp skips a dangling symbolic link");
+            else
+               Test_Support.Skip_Without_Links
+                 ("recursive chgrp physical traversal");
+            end if;
+            Remove_Any (Dangling_Link);
+            Remove_Any (Physical_Root);
          end if;
       end;
-   end Test_Chown_Chgrp;
+
+      Context.Initialize
+        ("chgrp", Two_Args ("4294967294", Chmod_Target & ".missing"));
+      Posix_Tools.Commands.Chgrp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "chgrp accepts a full-width numeric group ID before reporting a missing file");
+      AUnit.Assertions.Assert
+        (Contains (Test_Contexts.Error_Output (Context),
+                   "cannot change ownership"),
+         "chgrp reports an ownership-specific failure");
+
+      Context.Initialize
+        ("chgrp", Two_Args ("4294967295", Chmod_Target));
+      Posix_Tools.Commands.Chgrp.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+         "chgrp rejects the reserved keep-group sentinel as an operand");
+   end Test_Chgrp;
 
    procedure Test_Cp (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
@@ -149,7 +210,7 @@ package body Command_Tests.Surface_Smoke.Files is
          Ada.Directories.Set_Directory (Original_Directory);
       exception
          when others =>
-            Ada.Directories.Set_Directory (Original_Directory);
+            Test_Support.Restore_Directory_Safely (Original_Directory);
             raise;
       end;
       AUnit.Assertions.Assert
@@ -797,7 +858,7 @@ package body Command_Tests.Surface_Smoke.Files is
          Ada.Directories.Set_Directory (Original_Directory);
       exception
          when others =>
-            Ada.Directories.Set_Directory (Original_Directory);
+            Test_Support.Restore_Directory_Safely (Original_Directory);
             raise;
       end;
       AUnit.Assertions.Assert
@@ -903,7 +964,7 @@ package body Command_Tests.Surface_Smoke.Files is
          Ada.Directories.Set_Directory (Original_Directory);
       exception
          when others =>
-            Ada.Directories.Set_Directory (Original_Directory);
+            Test_Support.Restore_Directory_Safely (Original_Directory);
             raise;
       end;
    end Test_Option_Operands;
@@ -1043,84 +1104,8 @@ package body Command_Tests.Surface_Smoke.Files is
          "rm verbose output failure status");
    end Test_Rm_Verbose;
 
-   procedure Test_Rmdir (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Ada.Directories.Create_Path (Empty & "/a/b");
-      Context.Initialize ("rmdir", Two_Args ("-p", Empty & "/a/b"));
-      Posix_Tools.Commands.Rmdir.Run (Context, Result);
-      AUnit.Assertions.Assert (not Ada.Directories.Exists (Empty), "rmdir removed parent path");
+   procedure Test_Rmdir (T : in out Surface_Fixture) is separate;
 
-      Ada.Directories.Create_Path (Remove_Dir & "/a/b");
-      Context.Initialize ("rmdir", Three_Args ("-p", "--", Remove_Dir & "/a/b"));
-      Posix_Tools.Commands.Rmdir.Run (Context, Result);
-      AUnit.Assertions.Assert (not Ada.Directories.Exists (Remove_Dir), "rmdir accepts -- after -p");
-
-      Ada.Directories.Create_Path (Parent_Block & "/a/b");
-      Write_File (Parent_Block & "/keep.txt", "keep");
-      Context.Initialize ("rmdir", Two_Args ("-p", Parent_Block & "/a/b"));
-      Posix_Tools.Commands.Rmdir.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Ada.Directories.Exists (Parent_Block)
-         and then not Ada.Directories.Exists (Parent_Block & "/a"),
-         "rmdir -p reports blocked parent after removing empty components");
-      AUnit.Assertions.Assert
-        (Ada.Strings.Fixed.Index (Test_Contexts.Error_Output (Context), Parent_Block) > 0,
-         "rmdir -p diagnostic names blocked parent");
-
-      Context.Initialize ("rmdir", One_Arg ("-z"));
-      Posix_Tools.Commands.Rmdir.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
-         "rmdir rejects unknown option");
-   end Test_Rmdir;
-
-   procedure Test_Stat (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Write_File (Source, "copy-data");
-      Context.Initialize ("stat", One_Arg (Source));
-      Posix_Tools.Commands.Stat.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Contains (Test_Contexts.Output (Context), "File: " & Source & EOL)
-         and then Contains (Test_Contexts.Output (Context), "Size: 9" & EOL)
-         and then Contains (Test_Contexts.Output (Context), "Type: regular file" & EOL)
-         and then Contains (Test_Contexts.Output (Context), "Mode: "),
-         "stat reports regular file metadata");
-
-      Context.Initialize ("stat", Three_Args ("-c", "%n %s %F", Source));
-      Posix_Tools.Commands.Stat.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = Source & " 9 regular file" & EOL,
-         "stat supports custom format fields");
-
-      Context.Initialize ("stat", Three_Args ("-c", "%x|%X|%y|%Y|%w|%W", Source));
-      Posix_Tools.Commands.Stat.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then not Contains (Test_Contexts.Output (Context), "%x")
-         and then not Contains (Test_Contexts.Output (Context), "%X")
-         and then not Contains (Test_Contexts.Output (Context), "%y")
-         and then not Contains (Test_Contexts.Output (Context), "%Y")
-         and then not Contains (Test_Contexts.Output (Context), "%w")
-         and then not Contains (Test_Contexts.Output (Context), "%W"),
-         "stat supports timestamp format fields");
-
-      AUnit.Assertions.Assert
-        (Hostkit.Metadata.Set_File_Times (Source, 1_577_934_245, 1_577_934_245), "stat fixture times");
-      Context.Initialize ("stat", Three_Args ("-c", "%Y", Source));
-      Posix_Tools.Commands.Stat.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "1577934245" & EOL,
-         "stat counts epoch seconds from the epoch in UTC");
-   end Test_Stat;
+   procedure Test_Stat (T : in out Surface_Fixture) is separate;
 
 end Command_Tests.Surface_Smoke.Files;

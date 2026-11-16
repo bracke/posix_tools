@@ -573,6 +573,6 @@ package body Command_Tests.Scripting is
 
    function Tree_Root return String is
    begin
-      return Ada.Directories.Full_Name ("generated/test-work") & "/scripting-find";
+      return Test_Support.Work_Path ("scripting-find");
    end Tree_Root;
 end Command_Tests.Scripting;

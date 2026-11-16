@@ -1,18 +1,12 @@
 with Ada.Streams;
-with Ada.Strings.Unbounded;
 with CryptoLib.Hashes;
 
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Checksum_Lines;
 
 package body Posix_Tools.Commands.Sha256sum is
-   use Ada.Strings.Unbounded;
-
-   package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
-
    use type Ada.Streams.Stream_Element_Offset;
 
    function Digest_Image (Digest : CryptoLib.Hashes.SHA256_Digest) return String;
@@ -43,6 +37,7 @@ package body Posix_Tools.Commands.Sha256sum is
       All_Ok    : Boolean := True;
       First     : Positive := 1;
       Check_Mode : Boolean := False;
+      Output    : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       procedure Check_File (Name : String);
 
@@ -51,15 +46,15 @@ package body Posix_Tools.Commands.Sha256sum is
       function SHA_256_Of (Name : String; Ok : out Boolean) return String;
 
       procedure Check_File (Name : String) is
-         Data  : Unbounded_String;
          Ok    : Boolean;
-         Lines : String_Vectors.Vector;
 
          procedure Check_Line (Line : String);
+         procedure Take_Line
+           (Ignored    : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Line       : String;
+            Terminated : Boolean);
 
          procedure Check_Line (Line : String) is
-            Expected  : Unbounded_String;
-            File      : Unbounded_String;
             Actual_Ok : Boolean;
             Parsed    : constant Posix_Tools.Text.Checksum_Lines.SHA256_Check_Line :=
               Posix_Tools.Text.Checksum_Lines.SHA256_Check_Line_Info (Line);
@@ -69,43 +64,55 @@ package body Posix_Tools.Commands.Sha256sum is
             end if;
 
             if not Parsed.Valid then
-               Context.Put_Line (Line & ": improperly formatted SHA256 checksum line");
+               Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                 (Output, Context,
+                  Line & ": improperly formatted SHA256 checksum line");
                All_Ok := False;
                return;
             end if;
 
-            Expected :=
-              To_Unbounded_String
-                (Posix_Tools.Text.Checksum_Lines.Lower_Hex
-                   (Line (Line'First .. Line'First + 63)));
-            File := To_Unbounded_String (Line (Parsed.Name_First .. Line'Last));
-
             declare
-               Actual : constant String := SHA_256_Of (To_String (File), Actual_Ok);
+               Expected : constant String :=
+                 Posix_Tools.Text.Checksum_Lines.Lower_Hex
+                   (Line (Line'First .. Line'First + 63));
+               File   : constant String := Line (Parsed.Name_First .. Line'Last);
+               Actual : constant String := SHA_256_Of (File, Actual_Ok);
             begin
                if not Actual_Ok then
-                  Context.Put_Line (To_String (File) & ": FAILED open or read");
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Output, Context, File & ": FAILED open or read");
                   All_Ok := False;
-               elsif Actual = To_String (Expected) then
-                  Context.Put_Line (To_String (File) & ": OK");
+               elsif Actual = Expected then
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Output, Context, File & ": OK");
                else
-                  Context.Put_Line (To_String (File) & ": FAILED");
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Output, Context, File & ": FAILED");
                   All_Ok := False;
                end if;
             end;
          end Check_Line;
+
+         procedure Take_Line
+           (Ignored    : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Line       : String;
+            Terminated : Boolean)
+         is
+            pragma Unreferenced (Ignored, Terminated);
+         begin
+            Check_Line (Line);
+         end Take_Line;
+
+         procedure Iterate is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Line
+             (Action        => Take_Line,
+              Buffer_Length =>
+                Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
       begin
-         Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, Name, Data, Ok);
+         Iterate (Context, Name, Ok);
          if not Ok then
             All_Ok := False;
-            return;
          end if;
-
-         Lines := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Data));
-         for I in 1 .. Natural (Lines.Length) loop
-            Check_Line (Lines.Element (I));
-            exit when Context.Output_Failed;
-         end loop;
       end Check_File;
 
       procedure Emit (Name : String) is
@@ -113,7 +120,9 @@ package body Posix_Tools.Commands.Sha256sum is
          Digest : constant String := SHA_256_Of (Name, Ok);
       begin
          if Ok then
-            Context.Put_Line (Digest & (if Name = "-" then "" else "  " & Name));
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context,
+               Digest & (if Name = "-" then "" else "  " & Name));
          else
             All_Ok := False;
          end if;
@@ -140,7 +149,9 @@ package body Posix_Tools.Commands.Sha256sum is
          end Hash_Chunk;
 
          procedure Hash_Input is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
-           (Action => Hash_Chunk);
+           (Action        => Hash_Chunk,
+            Buffer_Length =>
+              Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
       begin
          CryptoLib.Hashes.Initialize_SHA256 (Hash_Context);
          Hash_Input (Context, Name, Ok);
@@ -176,6 +187,7 @@ package body Posix_Tools.Commands.Sha256sum is
                exit when Context.Output_Failed;
             end loop;
          end if;
+         Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
          Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
          return;
       end if;
@@ -188,6 +200,7 @@ package body Posix_Tools.Commands.Sha256sum is
          end loop;
       end if;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Sha256sum;

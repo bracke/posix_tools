@@ -1,4 +1,5 @@
 with Ada.Strings.Unbounded;
+with Posix_Tools.Accounts;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
@@ -6,6 +7,7 @@ with Posix_Tools.Host_Adapters.Host;
 
 package body Posix_Tools.Commands.Id is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+   use type Posix_Tools.Accounts.Id;
    use Ada.Strings.Unbounded;
 
    package Host renames Posix_Tools.Host_Adapters.Host;
@@ -18,17 +20,17 @@ package body Posix_Tools.Commands.Id is
       Show_Group      : Boolean := False;
       Show_All_Groups : Boolean := False;
       Show_Name       : Boolean := False;
-      User_Id         : Natural := 0;
-      Group_Id        : Natural := 0;
+      User_Id         : Posix_Tools.Accounts.Id := 0;
+      Group_Id        : Posix_Tools.Accounts.Id := 0;
       Groups          : Host.Group_Id_List (1 .. 256);
       Group_Last      : Natural := 0;
       First           : Positive;
       Valid           : Boolean;
 
-      procedure Append_Group (Id : Natural);
+      procedure Append_Group (Id : Posix_Tools.Accounts.Id);
       function Group_List (Named : Boolean; Decorated : Boolean) return String;
 
-      procedure Append_Group (Id : Natural) is
+      procedure Append_Group (Id : Posix_Tools.Accounts.Id) is
       begin
          for Index in 1 .. Group_Last loop
             if Groups (Index) = Id then

@@ -6,9 +6,6 @@ package body Input_Streams is
    is
    begin
       Close (Stream);
-      if not Ada.Directories.Exists (Path) then
-         return Open_Failed;
-      end if;
       SIO.Open (Stream.File, SIO.In_File, Path);
       Stream.Opened := True;
       Stream.Is_Stdin := False;
@@ -18,9 +15,7 @@ package body Input_Streams is
       when Ada.IO_Exceptions.Name_Error
          | Ada.IO_Exceptions.Use_Error
          | Ada.IO_Exceptions.Device_Error
-         | Ada.IO_Exceptions.Status_Error
-         | Ada.Directories.Name_Error
-         | Ada.Directories.Use_Error =>
+         | Ada.IO_Exceptions.Status_Error =>
          Close (Stream);
          return Open_Failed;
    end Open_File;

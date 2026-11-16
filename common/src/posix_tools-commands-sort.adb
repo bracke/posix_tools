@@ -1,10 +1,17 @@
+with Ada.Containers.Vectors;
+with Ada.Streams;
 with Ada.Strings.Unbounded;
+with Ada.Unchecked_Deallocation;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
+with Posix_Tools.Commands.Spill_Diagnostics;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Sort_Keys;
+with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Output_Files;
+with Posix_Tools.Host_Adapters.Temporary_Storage;
+with Posix_Tools.Numbers;
 with Posix_Tools.Streams.Lines;
 with Posix_Tools.Text.Sort_Modifiers;
 
@@ -13,6 +20,7 @@ package body Posix_Tools.Commands.Sort is
    use Ada.Strings.Unbounded;
 
    LF : constant Character := Character'Val (10);
+   Output_Chunk_Size : constant := 64 * 1024;
 
    package String_Vectors renames Posix_Tools.Streams.Lines.Segment_Vectors;
    package Sort_Keys renames Posix_Tools.Commands.Sort_Keys;
@@ -37,14 +45,6 @@ package body Posix_Tools.Commands.Sort is
    function Parse_Sort_Key
      (Text : String;
       Key  : out Sort_Keys.Sort_Key_Definition) return Boolean;
-
-   --  Concatenates every input operand, or standard input without operands,
-   --  ending each that lacks one with a newline.
-   procedure Read_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Options : Run_Options;
-      Text    : out Unbounded_String;
-      Ok      : out Boolean);
 
    procedure Write_Output
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -115,6 +115,9 @@ package body Posix_Tools.Commands.Sort is
         To_Unbounded_String (Context.Category_Locale (Posix_Tools.Commands.Contexts.Collation));
       Options.Sorting.Numeric_Locale :=
         To_Unbounded_String (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
+      Options.Sorting.ASCII_Numeric_Format :=
+        Posix_Tools.Commands.Text_Helpers.Collation.Is_Byte_Collation_Locale
+          (To_String (Options.Sorting.Numeric_Locale));
       Result.Status := Posix_Tools.Exit_Status.Success;
 
       Parse (Context, Result, "bcCdfikmnorstu", "kot", First, Valid);
@@ -162,80 +165,9 @@ package body Posix_Tools.Commands.Sort is
       return True;
    end Parse_Sort_Key;
 
-   procedure Read_Input
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Options : Run_Options;
-      Text    : out Unbounded_String;
-      Ok      : out Boolean) is
-   begin
-      Text := Null_Unbounded_String;
-      Ok := True;
-      if Options.Files.Is_Empty then
-         Text := To_Unbounded_String (Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Ok));
-         return;
-      end if;
-
-      for Name of Options.Files loop
-         declare
-            Data : constant String := Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Name, Ok);
-         begin
-            exit when not Ok;
-            Append (Text, Data);
-            if Data'Length > 0 and then Data (Data'Last) /= LF then
-               Append (Text, LF);
-            end if;
-         end;
-      end loop;
-   end Read_Input;
-
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Result  : out Posix_Tools.Commands.Results.Result)
-   is
-      Options : Run_Options;
-      Text    : Unbounded_String;
-      Ok      : Boolean;
-   begin
-      if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
-         return;
-      elsif not Parse_Options (Context, Result, Options) then
-         return;
-      end if;
-
-      Read_Input (Context, Options, Text, Ok);
-      if not Ok then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-         return;
-      end if;
-
-      declare
-         Lines : String_Vectors.Vector := Posix_Tools.Streams.Lines.Split_LF_Records (To_String (Text));
-      begin
-         Text := Null_Unbounded_String;
-         if Options.Check /= Sort_Input then
-            declare
-               Disorder : constant Natural := Sort_Keys.First_Disorder (Lines, Options.Sorting);
-            begin
-               if Disorder = 0 then
-                  Result.Status := Posix_Tools.Exit_Status.Success;
-               else
-                  if Options.Check = Diagnose_Disorder then
-                     Posix_Tools.Commands.Helpers.Operational_Error
-                       (Context, "posix_tools.diagnostic.sort.disorder", "line",
-                        Lines.Element (Disorder), "disorder: '{line}'");
-                  end if;
-                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-               end if;
-            end;
-            return;
-         end if;
-
-         Sort_Keys.Sort_Lines (Lines, Options.Sorting);
-         Write_Output (Context, Options, Lines, Ok);
-      end;
-
-      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
-   end Run;
+      Result  : out Posix_Tools.Commands.Results.Result) is separate;
 
    procedure Write_Output
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -244,19 +176,64 @@ package body Posix_Tools.Commands.Sort is
       Ok      : out Boolean)
    is
       Output : Unbounded_String;
-   begin
-      for Line of Lines loop
-         Append (Output, Line);
-         Append (Output, LF);
-      end loop;
+      File   : Posix_Tools.Host_Adapters.Output_Files.Output_File;
+      To_File : constant Boolean := Length (Options.Output_Path) > 0;
 
-      Ok := True;
-      if Length (Options.Output_Path) = 0 then
-         Context.Put (To_String (Output));
-      else
-         Posix_Tools.Host_Adapters.File_System.Write_File
-           (To_String (Options.Output_Path), To_String (Output), False, Ok);
+      procedure Flush;
+      procedure Write_Direct (Text : String);
+
+      procedure Write_Direct (Text : String) is
+      begin
          if not Ok then
+            return;
+         elsif To_File then
+            Posix_Tools.Host_Adapters.Output_Files.Write (File, Text, Ok);
+         else
+            Context.Put (Text);
+            Ok := not Context.Output_Failed;
+         end if;
+      end Write_Direct;
+
+      procedure Flush is
+      begin
+         if Length (Output) = 0 or else not Ok then
+            return;
+         else
+            Write_Direct (To_String (Output));
+         end if;
+         Output := Null_Unbounded_String;
+      end Flush;
+   begin
+      Ok := True;
+      if To_File then
+         Posix_Tools.Host_Adapters.Output_Files.Open
+           (File, To_String (Options.Output_Path), False, Ok);
+      end if;
+      for Line of Lines loop
+         if Line'Length >= 64 * 1024 then
+            Flush;
+            Write_Direct (Line);
+            Write_Direct ([1 => LF]);
+         else
+            Append (Output, Line);
+            Append (Output, LF);
+            if Length (Output) >= 64 * 1024 then
+               Flush;
+            end if;
+         end if;
+         exit when not Ok;
+      end loop;
+      Flush;
+      if To_File and then Posix_Tools.Host_Adapters.Output_Files.Is_Open (File) then
+         declare
+            Closed : Boolean;
+         begin
+            Posix_Tools.Host_Adapters.Output_Files.Close (File, Closed);
+            Ok := Ok and Closed;
+         end;
+      end if;
+      if not Ok then
+         if To_File then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, To_String (Options.Output_Path),
                "posix_tools.diagnostic.file.write_failed", "cannot write file");

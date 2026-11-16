@@ -8,6 +8,7 @@ separate (Command_Tests.Stream_Command_Tests)
       FIFO       : constant String := Work_Path ("tee-once.fifo");
       Data       : constant String (1 .. 40_000) := [others => 'x'];
       Read_Total : Natural := 0 with Atomic;
+      Closed_After_Exception : Boolean := False;
       Removed    : Boolean;
 
       --  Reads the FIFO to end of file. A writer that closed and reopened it
@@ -60,10 +61,38 @@ separate (Command_Tests.Stream_Command_Tests)
             Hostkit.Descriptors.Close (Unblock);
          end if;
       end;
-      GNAT.OS_Lib.Delete_File (FIFO, Removed);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = Data,
          "tee copies standard input");
       AUnit.Assertions.Assert
         (Read_Total = Data'Length, "tee writes all input through one open of a FIFO");
+
+      Read_Total := 0;
+      declare
+         Reader   : Reader_Task;
+         Deadline : constant Ada.Calendar.Time := Ada.Calendar.Clock + 5.0;
+      begin
+         Context.Initialize ("tee", One_Arg (FIFO));
+         Test_Contexts.Set_Standard_Input (Context, "exceptional");
+         Test_Contexts.Set_Output_Exception (Context);
+         begin
+            Posix_Tools.Commands.Tee.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (False, "tee propagates an injected output exception");
+         exception
+            when Constraint_Error =>
+               null;
+         end;
+         while not Reader'Terminated and then Ada.Calendar.Clock < Deadline loop
+            delay 0.01;
+         end loop;
+         Closed_After_Exception := Reader'Terminated;
+         if not Reader'Terminated then
+            abort Reader;
+         end if;
+      end;
+      GNAT.OS_Lib.Delete_File (FIFO, Removed);
+      AUnit.Assertions.Assert
+        (Closed_After_Exception,
+         "tee closes every output file while propagating an exception");
    end Test_Tee_Opens_Each_File_Once;

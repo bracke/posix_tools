@@ -1,10 +1,12 @@
 with Ada.Calendar;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
+with Posix_Tools.Accounts;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Numbers;
+private with Ada.Containers.Vectors;
 
 package Test_Contexts is
    type Capturing_Context is new Posix_Tools.Commands.Contexts.Context with private;
@@ -15,6 +17,10 @@ package Test_Contexts is
       Arguments    : Posix_Tools.Arguments.Vector);
 
    overriding procedure Put (Self : in out Capturing_Context; Text : String);
+   overriding procedure Put_Bytes
+     (Self   : in out Capturing_Context;
+      Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset);
    overriding procedure Put_Error (Self : in out Capturing_Context; Text : String);
    overriding procedure Put_Line (Self : in out Capturing_Context; Text : String);
    overriding procedure Put_Error_Line (Self : in out Capturing_Context; Text : String);
@@ -48,8 +54,12 @@ package Test_Contexts is
    overriding function Current_Machine_Name (Self : Capturing_Context) return String;
    overriding function Current_Login_Name (Self : Capturing_Context) return String;
    overriding function Set_Node_Name (Self : in out Capturing_Context; Name : String) return Boolean;
-   overriding function Current_User_Id (Self : Capturing_Context; User_Id : out Natural) return Boolean;
-   overriding function Current_Group_Id (Self : Capturing_Context; Group_Id : out Natural) return Boolean;
+   overriding function Current_User_Id
+     (Self : Capturing_Context;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean;
+   overriding function Current_Group_Id
+     (Self : Capturing_Context;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean;
    overriding function Current_Supplementary_Group_Ids
      (Self   : Capturing_Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
@@ -63,12 +73,25 @@ package Test_Contexts is
       User_Name : String;
       Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last      : out Natural) return Boolean;
-   overriding function User_Name_For_Id (Self : Capturing_Context; User_Id : Natural) return String;
-   overriding function Group_Name_For_Id (Self : Capturing_Context; Group_Id : Natural) return String;
+   overriding function User_Name_For_Id
+     (Self : Capturing_Context;
+      User_Id : Posix_Tools.Accounts.Id) return String;
+   overriding function Group_Name_For_Id
+     (Self : Capturing_Context;
+      Group_Id : Posix_Tools.Accounts.Id) return String;
+   overriding function User_Id_For_Name
+     (Self : Capturing_Context;
+      Name : String;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean;
+   overriding function Group_Id_For_Name
+     (Self : Capturing_Context;
+      Name : String;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean;
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural;
    overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context);
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Tail_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
+   overriding function Sort_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count;
    overriding function Set_System_Date_Time
      (Self : in out Capturing_Context;
       Time : Ada.Calendar.Time) return Boolean;
@@ -110,7 +133,13 @@ package Test_Contexts is
    procedure Set_Logical_Pwd_Matches_Current_Directory (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Physical_Current_Directory (Self : in out Capturing_Context; Value : String);
    procedure Set_Standard_Input (Self : in out Capturing_Context; Value : String);
+   procedure Set_Standard_Input_Read_Limit
+     (Self : in out Capturing_Context;
+      Byte_Count : Natural);
    procedure Set_Standard_Input_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
+   procedure Set_Standard_Input_Failure_Once_After
+     (Self : in out Capturing_Context;
+      Byte_Count : Natural);
    procedure Set_Standard_Input_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Output_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
    procedure Set_Standard_Error_Is_Terminal (Self : in out Capturing_Context; Value : Boolean);
@@ -124,7 +153,13 @@ package Test_Contexts is
    function Redirected_Error_Enabled (Self : Capturing_Context) return Boolean;
    function Nice_Adjustment (Self : Capturing_Context) return Integer;
    procedure Set_Output_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural);
+   procedure Set_Output_Exception (Self : in out Capturing_Context);
    procedure Set_Tail_Follow_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String);
+   procedure Add_Tail_Follow_Append
      (Self       : in out Capturing_Context;
       Path       : String;
       After_Wait : Natural;
@@ -134,11 +169,28 @@ package Test_Contexts is
       Path       : String;
       After_Wait : Natural;
       Text       : String);
+   procedure Set_Tail_Follow_Rewrite
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String);
+   procedure Set_Tail_Follow_Rename_And_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String);
+   procedure Set_Tail_Follow_Delete
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural);
    procedure Set_Tail_Follow_Poll_Limit (Self : in out Capturing_Context; Value : Natural);
    procedure Set_Tail_Resource_Limits
      (Self             : in out Capturing_Context;
       Memory_Threshold : Posix_Tools.Numbers.Count;
       Max_Spill_Bytes  : Posix_Tools.Numbers.Count);
+   procedure Set_Sort_Memory_Threshold
+     (Self  : in out Capturing_Context;
+      Value : Posix_Tools.Numbers.Count);
    procedure Set_Date_Set_Allowed (Self : in out Capturing_Context; Value : Boolean);
    function Date_Set_Called (Self : Capturing_Context) return Boolean;
 
@@ -146,6 +198,25 @@ package Test_Contexts is
    function Error_Output (Self : Capturing_Context) return String;
 
 private
+   type Tail_Follow_Action is
+     (Append_To_Tail_File,
+      Replace_Tail_File,
+      Rewrite_Tail_File,
+      Rename_And_Append_Tail_File,
+      Delete_Tail_File);
+
+   type Tail_Follow_Event is record
+      Path       : Ada.Strings.Unbounded.Unbounded_String;
+      Text       : Ada.Strings.Unbounded.Unbounded_String;
+      After_Wait : Natural := 0;
+      Action     : Tail_Follow_Action := Append_To_Tail_File;
+      Done       : Boolean := False;
+   end record;
+
+   package Tail_Follow_Event_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Tail_Follow_Event);
+
    type Capturing_Context is new Posix_Tools.Commands.Contexts.Context with record
       Out_Text : Ada.Strings.Unbounded.Unbounded_String;
       Err_Text : Ada.Strings.Unbounded.Unbounded_String;
@@ -155,8 +226,10 @@ private
       Physical_Text : Ada.Strings.Unbounded.Unbounded_String;
       Input_Text : Ada.Strings.Unbounded.Unbounded_String;
       Input_Position : Natural := 1;
+      Input_Read_Limit : Natural := Natural'Last;
       Input_Failure_Enabled : Boolean := False;
       Input_Failure_Limit : Natural := 0;
+      Input_Failures_Remaining : Natural := 0;
       Input_Is_Terminal : Boolean := False;
       Input_Terminal_Name : Ada.Strings.Unbounded.Unbounded_String;
       Output_Is_Terminal : Boolean := False;
@@ -173,15 +246,13 @@ private
       Logical_Pwd_Matches : Boolean := True;
       Output_Failure_Enabled : Boolean := False;
       Output_Failure_Limit : Natural := 0;
+      Output_Exception_Enabled : Boolean := False;
       Tail_Follow_Limit : Natural := 0;
       Tail_Follow_Waits : Natural := 0;
-      Tail_Append_Path : Ada.Strings.Unbounded.Unbounded_String;
-      Tail_Append_Text : Ada.Strings.Unbounded.Unbounded_String;
-      Tail_Append_After : Natural := 0;
-      Tail_Append_Done : Boolean := True;
-      Tail_Append_Replaces : Boolean := False;
+      Tail_Follow_Events : Tail_Follow_Event_Vectors.Vector;
       Tail_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Tail_Spill_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
+      Sort_Memory_Bytes : Posix_Tools.Numbers.Count := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Date_Set_Allowed : Boolean := False;
       Date_Set_Done : Boolean := False;
    end record;

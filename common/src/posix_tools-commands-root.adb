@@ -90,6 +90,7 @@ package body Posix_Tools.Commands.Root is
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      Output : Posix_Tools.Commands.Helpers.Output_Buffer;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -109,9 +110,11 @@ package body Posix_Tools.Commands.Root is
             return;
          end if;
          for I in 1 .. Posix_Tools.Command_Inventory.Command_Count loop
-            Context.Put_Line (Posix_Tools.Command_Inventory.Executable (I));
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context, Posix_Tools.Command_Inventory.Executable (I));
             exit when Context.Output_Failed;
          end loop;
+         Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
          Result.Status := Root_Status (Context);
       elsif Context.Argument (1) = "paths" then
          if Reject_Extra_Operands (Context, Result, 1) then
@@ -122,12 +125,14 @@ package body Posix_Tools.Commands.Root is
                Executable : constant String := Posix_Tools.Command_Inventory.Executable (I);
                Located    : constant String := Posix_Tools.Host_Adapters.Executables.Locate (Executable);
             begin
-               Context.Put_Line
-                 (Executable & ": "
-                  & (if Located = "" then Status_Label (Context, "missing") else Located));
+               Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                 (Output, Context,
+                  Executable & ": "
+                    & (if Located = "" then Status_Label (Context, "missing") else Located));
                exit when Context.Output_Failed;
             end;
          end loop;
+         Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
          Result.Status := Root_Status (Context);
       elsif Context.Argument (1) = "verify" then
          if Reject_Extra_Operands (Context, Result, 1) then
@@ -144,10 +149,13 @@ package body Posix_Tools.Commands.Root is
                   Status     : constant String := Posix_Tools.Host_Adapters.Executables.Verify_Identity (Executable);
                begin
                   All_Verified := All_Verified and then Status = "ok";
-                  Context.Put_Line (Executable & ": " & Status_Label (Context, Status));
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Output, Context,
+                     Executable & ": " & Status_Label (Context, Status));
                   exit when Context.Output_Failed;
                end;
             end loop;
+            Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
             Result.Status :=
               (if All_Verified then Root_Status (Context) else Posix_Tools.Exit_Status.Operational_Failure);
          end;

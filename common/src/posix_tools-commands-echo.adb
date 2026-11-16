@@ -1,11 +1,11 @@
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Echo is
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
+      Output : Posix_Tools.Commands.Helpers.Output_Buffer;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension
         (Context, Result, Conventional => False)
@@ -15,15 +15,17 @@ package body Posix_Tools.Commands.Echo is
 
       for I in 1 .. Context.Argument_Count loop
          if I > 1 then
-            Context.Put (" ");
+            Posix_Tools.Commands.Helpers.Buffered_Put
+              (Output, Context, " ");
          end if;
 
-         Context.Put (Context.Argument (I));
+         Posix_Tools.Commands.Helpers.Buffered_Put
+           (Output, Context, Context.Argument (I));
       end loop;
 
-      Context.Put ("" & Character'Val (10));
-      Result.Status :=
-        (if Context.Output_Failed then Posix_Tools.Exit_Status.Operational_Failure
-         else Posix_Tools.Exit_Status.Success);
+      Posix_Tools.Commands.Helpers.Buffered_Put
+        (Output, Context, "" & Character'Val (10));
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Echo;

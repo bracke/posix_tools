@@ -77,6 +77,7 @@ package body Posix_Tools.Host_Adapters.Processes is
       return Run_With_Redirected_Output (Utility, Arguments, "", False, False, Exit_Status);
    exception
       when others =>
+         --  intentional terminal exception barrier
          Exit_Status := 125;
          return False;
    end Run;
@@ -136,6 +137,7 @@ package body Posix_Tools.Host_Adapters.Processes is
       return False;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Exit_Status := 125;
          return False;
    end Run_With_Nice_Adjustment;
@@ -174,6 +176,7 @@ package body Posix_Tools.Host_Adapters.Processes is
       return Outcome.Started;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Timed_Out := False;
          Exit_Status := 125;
          return False;

@@ -32,4 +32,16 @@ separate (Command_Tests.Head_Tests)
         (Test_Contexts.Output (Context) = "a" & LF & "b" & LF,
          "head repeated -n uses last count");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "head repeated -n status");
+
+      declare
+         Long_Line : constant String (1 .. 3 * 16 * 1024 + 7) := [others => 'x'];
+      begin
+         Write_File (Path, Long_Line & LF & "after" & LF);
+         Context.Initialize ("head", Two_Args ("-n1", Path));
+         Posix_Tools.Commands.Head.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = Long_Line & LF,
+            "head streams a line across multiple input chunks");
+      end;
    end Test_Head_Counts;

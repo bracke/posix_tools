@@ -9,6 +9,7 @@ separate (Command_Tests.Stream_Command_Tests)
       Large_Path   : constant String := Hostkit.Fs.Join (Work_Root, "du-large.bin");
       Dir_Path     : constant String := Hostkit.Fs.Join (Work_Root, "du-dir");
       Child_Path   : constant String := Hostkit.Fs.Join (Dir_Path, "child.bin");
+      Loop_Path    : constant String := Hostkit.Fs.Join (Dir_Path, "self");
       Missing_Path : constant String := Hostkit.Fs.Join (Work_Root, "du-missing.bin");
       LF           : constant Character := Character'Val (10);
       HT           : constant Character := Character'Val (9);
@@ -58,6 +59,18 @@ separate (Command_Tests.Stream_Command_Tests)
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Occurrences (Test_Contexts.Output (Context), HT & Dir_Path & LF) = 2,
          "du resets cycle tracking for each top-level operand");
+
+      if Hostkit.Fs.Create_Link (".", Loop_Path) then
+         Context.Initialize ("du", One_Arg (Dir_Path));
+         Posix_Tools.Commands.Du.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Occurrences (Test_Contexts.Output (Context), HT & Dir_Path & LF) = 1,
+            "du detects a symbolic-link directory cycle by file identity");
+         AUnit.Assertions.Assert
+           (Hostkit.Fs.Delete_Link (Loop_Path),
+            "du cycle fixture removes its symbolic link without following it");
+      end if;
 
       Context.Initialize ("du", One_Arg (Missing_Path));
       Posix_Tools.Commands.Du.Run (Context, Result);

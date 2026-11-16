@@ -1,41 +1,46 @@
 with Ada.Streams;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
-with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Tail_Follow is
    use type Ada.Streams.Stream_Element_Offset;
-
-   procedure Copy_File_From_Offset
+   procedure Copy_Follow_File
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
-      Offset    : Long_Long_Integer;
+      File      : in out Posix_Tools.Host_Adapters.File_System.Follow_File;
+      Header    : Boolean;
+      Produced  : out Boolean;
       Ok        : out Boolean)
    is
+      Started : Boolean := False;
+
       procedure Copy_Chunk
-        (Buffer : Ada.Streams.Stream_Element_Array;
-         Last   : Ada.Streams.Stream_Element_Offset;
-         Stop   : in out Boolean)
+        (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+         Buffer  : Ada.Streams.Stream_Element_Array;
+         Last    : Ada.Streams.Stream_Element_Offset)
       is
       begin
          if Last >= Buffer'First then
-            Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
-            Stop := Context.Output_Failed;
+            if Header and then not Started then
+               Context.Put_Line ("");
+               if not Context.Output_Failed then
+                  Context.Put_Line ("==> " & File_Name & " <==");
+               end if;
+            end if;
+            Started := True;
+            if not Context.Output_Failed then
+               Context.Put_Bytes (Buffer, Last);
+            end if;
          end if;
       end Copy_Chunk;
 
-      procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk_From
+      procedure Iterate is new
+        Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Follow_Chunk
         (Action => Copy_Chunk);
    begin
-      Iterate (File_Name, Offset, Ok);
-      if Ok then
-         Ok := not Context.Output_Failed;
-      else
-         Posix_Tools.Commands.Helpers.Subject_Operational_Error
-           (Context, File_Name, "posix_tools.diagnostic.file.read_failed", "cannot read file");
-      end if;
-   end Copy_File_From_Offset;
+      Iterate (Context, File_Name, File, Ok);
+      Produced := Started;
+   end Copy_Follow_File;
 
    procedure Follow_File_Operands
      (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -43,114 +48,98 @@ package body Posix_Tools.Commands.Tail_Follow is
       Last_File   : Natural;
       Sources     : Natural;
       Follow      : Follow_Mode;
+      Files       : in out Follow_File_Array;
+      Eligible    : in out Follow_Eligibility_Array;
       All_Ok      : in out Boolean)
    is
-      type Offset_Array is array (Positive range <>) of Long_Long_Integer;
-      Offsets : Offset_Array (First_File .. Last_File);
       Polls   : Natural := 0;
       Limit   : constant Natural := Context.Tail_Follow_Poll_Limit;
       Ok      : Boolean;
-      Use_Watch : constant Boolean :=
-        Sources = 1 and then First_File = Last_File and then Context.Argument (First_File) /= "-";
+      Produced : Boolean;
+      Last_Emitting_Operand : Natural := 0;
+      Reported_Error : array (First_File .. Last_File) of Boolean :=
+        (others => False);
 
-      procedure Emit_Header (File_Index : Positive) is
+      function Any_Eligible return Boolean is
       begin
-         if Sources > 1 then
-            Context.Put_Line ("");
-            if not Context.Output_Failed then
-               Context.Put_Line ("==> " & Context.Argument (File_Index) & " <==");
-            end if;
-         end if;
-      end Emit_Header;
+         return (for some Item of Eligible => Item);
+      end Any_Eligible;
    begin
-      if Use_Watch then
-         Context.Tail_Follow_Watch_Path (Context.Argument (First_File));
-      end if;
-
-      for I in First_File .. Last_File loop
-         if Context.Argument (I) = "-" then
-            Offsets (I) := 0;
-         else
-            Offsets (I) := Posix_Tools.Host_Adapters.File_System.Size (Context.Argument (I));
-            if Offsets (I) < 0 then
-               Offsets (I) := 0;
-            end if;
-         end if;
-      end loop;
-
       loop
-         exit when Limit /= 0 and then Polls >= Limit;
+         exit when not Any_Eligible
+           or else (Limit /= 0 and then Polls >= Limit);
          Context.Tail_Follow_Wait;
          Polls := Polls + 1;
 
-         if Use_Watch
-           and then Context.Tail_Follow_Watch_Active
-           and then not Context.Tail_Follow_Watch_Changed
-         then
-            goto Continue_Follow;
-         end if;
-
          for I in First_File .. Last_File loop
             exit when Context.Output_Failed;
-            if Context.Argument (I) = "-" then
+            if not Eligible (I) then
+               goto Continue_Operand;
+            elsif Context.Argument (I) = "-" then
                Posix_Tools.Commands.File_Helpers.Streaming.Copy_Standard_Input (Context, Ok);
                All_Ok := All_Ok and Ok;
+               if not Ok then
+                  Eligible (I) := False;
+               end if;
             else
-               declare
-                  Current_Size : constant Long_Long_Integer :=
-                    Posix_Tools.Host_Adapters.File_System.Size (Context.Argument (I));
-               begin
-                  if Current_Size < 0 then
-                     if Follow = Follow_Descriptor then
-                        All_Ok := False;
-                        Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                          (Context,
-                           Context.Argument (I),
-                           "posix_tools.diagnostic.file.read_failed",
-                           "cannot read file");
-                        return;
-                     end if;
-                  elsif Current_Size < Offsets (I) then
-                     if Follow = Follow_Name then
-                        if Sources > 1 then
-                           Emit_Header (I);
-                        end if;
-                        Copy_File_From_Offset (Context, Context.Argument (I), 0, Ok);
-                        All_Ok := All_Ok and Ok;
-                        Offsets (I) := Current_Size;
-                     else
-                        Offsets (I) := Current_Size;
-                     end if;
-                  elsif Current_Size > Offsets (I) then
-                     if Sources > 1 then
-                        Emit_Header (I);
-                     end if;
-                     Copy_File_From_Offset (Context, Context.Argument (I), Offsets (I), Ok);
-                     All_Ok := All_Ok and Ok;
-                     Offsets (I) := Current_Size;
-                  end if;
-               end;
+               if Follow = Follow_Name then
+                  declare
+                     Reopened : Boolean;
+                     Status   : Posix_Tools.Host_Adapters.File_System.Follow_Open_Status;
+                  begin
+                     Posix_Tools.Host_Adapters.File_System.Refresh_Follow_File
+                       (Context.Argument (I), Files (I), Reopened, Status);
+                     case Status is
+                        when Posix_Tools.Host_Adapters.File_System.Follow_Missing =>
+                           goto Continue_Operand;
+                        when Posix_Tools.Host_Adapters.File_System.Follow_Error =>
+                           All_Ok := False;
+                           if not Reported_Error (I) then
+                              Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                                (Context,
+                                 Context.Argument (I),
+                                 "posix_tools.diagnostic.file.read_failed",
+                                 "cannot read file");
+                              Reported_Error (I) := True;
+                           end if;
+                           goto Continue_Operand;
+                        when Posix_Tools.Host_Adapters.File_System.Follow_Ready =>
+                           Reported_Error (I) := False;
+                     end case;
+                  end;
+               elsif not Posix_Tools.Host_Adapters.File_System.Follow_File_Is_Open
+                 (Files (I))
+               then
+                  goto Continue_Operand;
+               end if;
+
+               Copy_Follow_File
+                 (Context,
+                  Context.Argument (I),
+                  Files (I),
+                  Header => Sources > 1 and then Last_Emitting_Operand /= I,
+                  Produced => Produced,
+                  Ok     => Ok);
+               if Produced and then not Context.Output_Failed then
+                  Last_Emitting_Operand := I;
+               end if;
+               All_Ok := All_Ok and Ok;
+               if not Ok then
+                  Posix_Tools.Host_Adapters.File_System.Close_Follow_File
+                    (Files (I));
+                  Eligible (I) := Follow = Follow_Name;
+               end if;
             end if;
+            <<Continue_Operand>>
+            null;
          end loop;
 
          exit when Context.Output_Failed;
-         <<Continue_Follow>>
-         null;
       end loop;
-
-      if Use_Watch then
-         Context.Tail_Follow_Release_Watch;
-      end if;
 
       if Context.Output_Failed then
          All_Ok := False;
       end if;
-   exception
-      when others =>
-         if Use_Watch then
-            Context.Tail_Follow_Release_Watch;
-         end if;
-         raise;
    end Follow_File_Operands;
 
    procedure Follow_Standard_Input

@@ -52,6 +52,7 @@ package body Posix_Tools.Commands.Printf_Execution is
       Stop_Output    : Boolean := False;
       Format_Ok      : Boolean := True;
       Arguments_Ok   : Boolean := True;
+      Output         : Posix_Tools.Commands.Helpers.Output_Buffer;
       --  The character locale is UTF-8, so %c and quoted characters take a
       --  whole UTF-8 character.
       UTF_8          : Boolean := False;
@@ -79,6 +80,10 @@ package body Posix_Tools.Commands.Printf_Execution is
    function Is_One_Of (C : Character; Set : String) return Boolean is
      (for some Item of Set => Item = C);
    function Numeric_Locale (Context : Context_Class) return String;
+   procedure Put
+     (Context : in out Context_Class;
+      State   : in out Run_State;
+      Text    : String);
    --  The specification at Format (Start), a '%'; no argument is read.
    function Parse_Conversion (Format : String; Start : Positive) return Conversion_Spec
      with Pre => Start in Format'Range and then Format (Start) = '%';
@@ -91,6 +96,7 @@ package body Posix_Tools.Commands.Printf_Execution is
    function Star_Value (Context : in out Context_Class; State : in out Run_State) return Long_Long_Integer;
    procedure Write_Escape
      (Context : in out Context_Class;
+      State   : in out Run_State;
       Format  : String;
       Index   : in out Positive)
      with Pre => Index in Format'Range and then Format (Index) = '\';
@@ -138,8 +144,9 @@ package body Posix_Tools.Commands.Printf_Execution is
 
       case Field.Conversion is
          when 's' =>
-            Context.Put
-              (Formats.Field_Image
+            Put
+              (Context, State,
+               Formats.Field_Image
                  (Fetch_Argument (Context, State),
                   Field.Width,
                   Field.Left_Justify,
@@ -149,8 +156,9 @@ package body Posix_Tools.Commands.Printf_Execution is
             declare
                Raw : constant String := Fetch_Argument (Context, State);
             begin
-               Context.Put
-                 (Formats.Field_Image
+               Put
+                 (Context, State,
+                  Formats.Field_Image
                     (Posix_Tools.Text.Printf_Escapes.Decode_Backslash_Text (Raw),
                      Field.Width,
                      Field.Left_Justify,
@@ -159,16 +167,17 @@ package body Posix_Tools.Commands.Printf_Execution is
                State.Stop_Output := Posix_Tools.Text.Printf_Escapes.Stop_Decoding (Raw);
             end;
          when 'c' =>
-            Context.Put
-              (Formats.Field_Image
+            Put
+              (Context, State,
+               Formats.Field_Image
                  (Arguments.First_Character (Fetch_Argument (Context, State), State.UTF_8),
                   Field.Width,
                   Field.Left_Justify));
          when others =>
             if Is_One_Of (Field.Conversion, Integer_Conversions) then
-               Context.Put (Integer_Field (Context, State, Field));
+               Put (Context, State, Integer_Field (Context, State, Field));
             else
-               Context.Put (Float_Field (Context, State, Field));
+               Put (Context, State, Float_Field (Context, State, Field));
             end if;
       end case;
    end Emit_Conversion;
@@ -194,6 +203,7 @@ package body Posix_Tools.Commands.Printf_Execution is
            or else State.Next_Argument > Context.Argument_Count;
       end loop;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (State.Output, Context);
       Format_Ok := State.Format_Ok;
       Arguments_Ok := State.Arguments_Ok;
    end Execute;
@@ -301,6 +311,15 @@ package body Posix_Tools.Commands.Printf_Execution is
 
    function Numeric_Locale (Context : Context_Class) return String is
      (Context.Category_Locale (Posix_Tools.Commands.Contexts.Numeric));
+
+   procedure Put
+     (Context : in out Context_Class;
+      State   : in out Run_State;
+      Text    : String) is
+   begin
+      Posix_Tools.Commands.Helpers.Buffered_Put
+        (State.Output, Context, Text);
+   end Put;
 
    function Parse_Conversion (Format : String; Start : Positive) return Conversion_Spec is
       Spec : Conversion_Spec;
@@ -420,13 +439,14 @@ package body Posix_Tools.Commands.Printf_Execution is
    --  named ones, and \ddd, one to three octal digits, as that byte.
    procedure Write_Escape
      (Context : in out Context_Class;
+      State   : in out Run_State;
       Format  : String;
       Index   : in out Positive)
    is
       Named : Character;
    begin
       if Index = Format'Last then
-         Context.Put ("\");
+         Put (Context, State, "\");
          Index := Index + 1;
          return;
       end if;
@@ -445,18 +465,18 @@ package body Posix_Tools.Commands.Printf_Execution is
                Parsed : constant Posix_Tools.Text.Octal_Parsing.Parsed_Octal_Prefix :=
                  Posix_Tools.Text.Octal_Parsing.Prefix_Value (Format (Index + 1 .. Format'Last), 3);
             begin
-               Context.Put ("" & Character'Val (Parsed.Value mod 256));
+               Put (Context, State, "" & Character'Val (Parsed.Value mod 256));
                Index := Index + 1 + Parsed.Count;
                return;
             end;
          when others =>
             --  Not an escape: the backslash is written as itself.
-            Context.Put ("\");
+            Put (Context, State, "\");
             Index := Index + 1;
             return;
       end case;
 
-      Context.Put ("" & Named);
+      Put (Context, State, "" & Named);
       Index := Index + 2;
    end Write_Escape;
 
@@ -475,7 +495,7 @@ package body Posix_Tools.Commands.Printf_Execution is
             begin
                case Spec.Kind is
                   when Percent_Sign | Not_A_Conversion =>
-                     Context.Put ("%");
+                     Put (Context, State, "%");
                   when Conversion =>
                      Emit_Conversion (Context, State, Spec);
                      exit when not State.Format_Ok;
@@ -486,10 +506,16 @@ package body Posix_Tools.Commands.Printf_Execution is
                I := Spec.Next;
             end;
          elsif Format (I) = '\' then
-            Write_Escape (Context, Format, I);
+            Write_Escape (Context, State, Format, I);
          else
-            Context.Put ("" & Format (I));
-            I := I + 1;
+            declare
+               First : constant Positive := I;
+            begin
+               while I <= Format'Last and then Format (I) not in '%' | '\' loop
+                  I := I + 1;
+               end loop;
+               Put (Context, State, Format (First .. I - 1));
+            end;
          end if;
       end loop;
    end Write_Format;

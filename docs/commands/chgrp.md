@@ -45,7 +45,9 @@ Unsupported ownership metadata is reported as an operational failure.
 `chgrp staff file`
 
 ## Conformance Status
-Conforming with extensions tracked by `CHGRP-POSIX-001`.
+Partially conforming, tracked by `CHGRP-POSIX-001`.
 
 ## Known Limitations
-Symbolic-link traversal details follow the hostkit file-system adapter.
+Recursive traversal is physical: symbolic links are skipped rather than
+followed. POSIX `-h`, `-H`, `-L`, and `-P` link-policy options are not yet
+implemented.

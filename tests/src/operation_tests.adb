@@ -64,7 +64,7 @@ package body Operation_Tests is
    procedure Remove (Root : String);
 
    function Root_For (Name : String) return String is
-     (Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-operation-" & Name));
+     (Test_Support.Work_Path ("operation-" & Name));
 
    procedure Write (Name, Text : String);
 
@@ -190,6 +190,38 @@ package body Operation_Tests is
       Remove (Root);
    end Test_Copy_Cancel;
 
+   procedure Test_Copy_Progress_Exception (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root   : constant String := Root_For ("progress-exception");
+      Status : FS.Copy_File_Status;
+      Raised : Boolean := False;
+
+      procedure Fail (Copied : Long_Long_Integer; Stop : in out Boolean);
+
+      procedure Fail (Copied : Long_Long_Integer; Stop : in out Boolean) is
+         pragma Unreferenced (Copied, Stop);
+      begin
+         raise Constraint_Error with "observer failure";
+      end Fail;
+
+      procedure Copy is new FS.Copy_Regular_File_With_Progress (Fail);
+   begin
+      Remove (Root);
+      Ada.Directories.Create_Path (Root);
+      Write (Path (Root, "source"), "data");
+
+      begin
+         Copy (Path (Root, "source"), Path (Root, "target"), Status);
+      exception
+         when Constraint_Error =>
+            Raised := True;
+      end;
+
+      AUnit.Assertions.Assert
+        (Raised, "copy progress callback exceptions propagate to the caller");
+      Remove (Root);
+   end Test_Copy_Progress_Exception;
+
    procedure Test_Copy_Conflicts (T : in out Fixture) is
       pragma Unreferenced (T);
       Root    : constant String := Root_For ("conflicts");
@@ -226,6 +258,20 @@ package body Operation_Tests is
       Watcher : Recorder;
       Outcome : Ops.Operation_Outcome;
       Known   : Boolean;
+
+      procedure Restore_Permissions_Safely;
+
+      procedure Restore_Permissions_Safely is
+         Restored : Boolean;
+         pragma Unreferenced (Restored);
+      begin
+         Restored := FS.Set_Permissions (Path (Root, "src/sub"), 8#755#);
+      exception
+         when others =>
+            --  Intentional terminal exception barrier
+            --  Preserve the exception raised by the operation under test.
+            null;
+      end Restore_Permissions_Safely;
    begin
       Make_Tree (Root);
 
@@ -274,13 +320,7 @@ package body Operation_Tests is
       Remove (Root);
    exception
       when others =>
-         declare
-            Restored : constant Boolean :=
-              FS.Set_Permissions (Path (Root, "src/sub"), 8#755#);
-            pragma Unreferenced (Restored);
-         begin
-            null;
-         end;
+         Restore_Permissions_Safely;
          raise;
    end Test_Copy_Kept_And_Stopped;
 

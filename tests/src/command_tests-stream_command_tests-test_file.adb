@@ -82,6 +82,17 @@ separate (Command_Tests.Stream_Command_Tests)
          and then Test_Contexts.Output (Context) = "-: PDF document" & LF,
          "file classifies standard input operand");
 
+      Context.Initialize ("file", One_Arg ("-"));
+      Test_Contexts.Set_Standard_Input
+        (Context,
+         Character'Val (0) & String'(1 .. 32 * 1024 => 'x'));
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 16 * 1024);
+      Posix_Tools.Commands.File.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "-: data" & LF,
+         "file stops after a conclusive binary prefix");
+
       Context.Initialize ("file", Three_Args ("-m", Magic_Path, Magic_Data_Path));
       Posix_Tools.Commands.File.Run (Context, Result);
       AUnit.Assertions.Assert

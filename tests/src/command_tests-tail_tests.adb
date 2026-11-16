@@ -1,9 +1,17 @@
 with Ada.Directories;
+with Ada.Streams;
+with Ada.Strings.Fixed;
 with AUnit.Assertions;
+with GNAT.OS_Lib;
+with Hostkit.Descriptors;
+with Hostkit.Fs;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Results;
+with Posix_Tools.Commands.Spill_Diagnostics;
 with Posix_Tools.Commands.Tail;
 with Posix_Tools.Exit_Status;
+with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Temporary_Storage;
 with Test_Contexts;
 with Test_Support;
 
@@ -76,7 +84,156 @@ package body Command_Tests.Tail_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "tail max spill failure status");
+
+      Context.Initialize
+        ("tail", Three_Args ("-c", "9223372036854775807", Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 3, 64);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "abcdef",
+         "tail maximum byte count spill output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) = "",
+         "tail maximum byte count spill diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail maximum byte count spill status");
    end Test_Tail_Byte_Mode_Edges;
+
+   procedure Test_Tail_Storage_Diagnostics (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package Storage renames Posix_Tools.Host_Adapters.Temporary_Storage;
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Long_Input : constant String (1 .. 20_001) := [others => 'x'];
+      Path : constant String :=
+        Fixture_Path ("reg-tail-follow-spill-failure.txt");
+      LF : constant Character := Character'Val (10);
+   begin
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Create_Cleanup_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot remove" & LF,
+         "spill cleanup diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Create_Directory_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot create directory" & LF,
+         "spill directory diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Create_Open_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot open file" & LF,
+         "spill open diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Create_Unexpected_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot create temporary storage" & LF,
+         "unexpected spill creation diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Append_Capacity_Exceeded);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: count too large" & LF,
+         "spill capacity diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Append_Write_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot write file" & LF,
+         "spill write diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Prepare_Close_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot write file" & LF,
+         "spill close diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Finish_Close_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot write file" & LF,
+         "spill finish diagnostic");
+
+      Context.Initialize ("tail", One_Arg ("diagnostic"));
+      Posix_Tools.Commands.Spill_Diagnostics.Report
+        (Context, Storage.Prepare_Open_Failed);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: cannot read file" & LF,
+         "spill reopen diagnostic");
+
+      Context.Initialize ("tail", Two_Args ("-c", "6"));
+      Test_Contexts.Set_Standard_Input (Context, Long_Input);
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 20_000);
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 3, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: count too large" & LF,
+         "byte spill failure stops before a later input failure");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "byte spill cancellation status");
+
+      Context.Initialize ("tail", Two_Args ("-n", "2"));
+      Test_Contexts.Set_Standard_Input (Context, Long_Input);
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 20_000);
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: count too large" & LF,
+         "line spill failure stops before a later input failure");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "line spill cancellation status");
+
+      Write_File (Path, Long_Input);
+      Context.Initialize ("tail", Four_Args ("-f", "-c", "6", Path));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 3, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "",
+         "byte spill failure disables follow output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: count too large" & LF,
+         "byte follow spill diagnostic");
+
+      Context.Initialize ("tail", Four_Args ("-f", "-n", "2", Path));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 4);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "",
+         "line spill failure disables follow output");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: count too large" & LF,
+         "line follow spill diagnostic");
+      Test_Support.Delete_If_Exists (Path);
+   end Test_Tail_Storage_Diagnostics;
 
    procedure Test_Tail_Compact_Counts (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -112,7 +269,8 @@ package body Command_Tests.Tail_Tests is
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("reg-tail-follow-option.txt");
-      Reopen  : constant String := Fixture_Path ("reg-tail-follow-reopen.txt");
+      Renamed : constant String := Fixture_Path ("reg-tail-follow-renamed.txt");
+      Removed : constant String := Fixture_Path ("reg-tail-follow-removed.txt");
       LF      : constant Character := Character'Val (10);
    begin
       Write_File (Path, "a" & LF & "b" & LF);
@@ -138,16 +296,18 @@ package body Command_Tests.Tail_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success,
          "tail -f after count live status");
 
-      Write_File (Reopen, "older" & LF);
-      Context.Initialize ("tail", Four_Args ("-F", "-n", "1", Reopen));
+      Write_File (Renamed, "before" & LF);
+      Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Renamed));
       Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
-      Test_Contexts.Set_Tail_Follow_Replace (Context, Reopen, 1, "n" & LF);
+      Test_Contexts.Set_Tail_Follow_Rename_And_Append
+        (Context, Renamed, 1, "after" & LF);
       Posix_Tools.Commands.Tail.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "older" & LF & "n" & LF, "tail -F reopen output");
-      AUnit.Assertions.Assert (Test_Contexts.Error_Output (Context) = "", "tail -F reopen diagnostic");
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "before" & LF & "after" & LF,
+         "tail -f follows the retained descriptor after rename");
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Success,
-         "tail -F reopen status");
+         "tail -f renamed descriptor status");
 
       Write_File (Path, "a" & LF & "b" & LF);
       Context.Initialize ("tail", Four_Args ("--follow", "-n", "1", Path));
@@ -160,9 +320,333 @@ package body Command_Tests.Tail_Tests is
         (Result.Status = Posix_Tools.Exit_Status.Success,
          "tail --follow live status");
 
+      Write_File (Removed, "gone" & LF);
+      Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Removed));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Delete (Context, Removed, 1);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail -f retains a removed descriptor through the polling window");
       Ada.Directories.Delete_File (Path);
-      Ada.Directories.Delete_File (Reopen);
+      Test_Support.Delete_If_Exists (Renamed);
+      Test_Support.Delete_If_Exists (Renamed & ".tail-follow-old");
    end Test_Tail_Follow_Live;
+
+   procedure Test_Tail_Follow_Recovery (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      Reopen  : constant String := Fixture_Path ("reg-tail-follow-reopen.txt");
+      Equal_Replacement : constant String :=
+        Fixture_Path ("reg-tail-follow-equal-replacement.txt");
+      Rewritten : constant String := Fixture_Path ("reg-tail-follow-rewritten.txt");
+      Missing : constant String := Fixture_Path ("reg-tail-follow-missing.txt");
+      Mixed : constant String := Fixture_Path ("reg-tail-follow-mixed.txt");
+      Header_First : constant String :=
+        Fixture_Path ("reg-tail-follow-header-first.txt");
+      Header_Second : constant String :=
+        Fixture_Path ("reg-tail-follow-header-second.txt");
+      Follow_Options : constant array (Positive range 1 .. 2) of String (1 .. 2) :=
+        ["-f", "-F"];
+      LF : constant Character := Character'Val (10);
+   begin
+      Write_File (Reopen, "older" & LF);
+      Context.Initialize ("tail", Four_Args ("-F", "-n", "1", Reopen));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Replace (Context, Reopen, 1, "n" & LF);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "older" & LF & "n" & LF,
+         "tail -F reopen output");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail -F reopen status");
+
+      Write_File (Equal_Replacement, "old" & LF);
+      Context.Initialize
+        ("tail", Four_Args ("-F", "-n", "1", Equal_Replacement));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Replace
+        (Context, Equal_Replacement, 1, "new" & LF);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "old" & LF & "new" & LF,
+         "tail -F detects an equal-size replacement by identity");
+
+      for Option of Follow_Options loop
+         Write_File (Rewritten, "old" & LF);
+         Context.Initialize
+           ("tail", Four_Args (Option, "-n", "0", Rewritten));
+         Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 4);
+         Test_Contexts.Set_Tail_Follow_Rewrite
+           (Context, Rewritten, 1, "new-long" & LF);
+         Posix_Tools.Commands.Tail.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = "new-long" & LF,
+            "tail " & Option & " detects in-place rewrite without replay");
+      end loop;
+
+      for Option of Follow_Options loop
+         Write_File (Rewritten, "old-long" & LF);
+         Context.Initialize
+           ("tail", Four_Args (Option, "-n", "0", Rewritten));
+         Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 4);
+         Test_Contexts.Set_Tail_Follow_Rewrite
+           (Context, Rewritten, 1, "");
+         Test_Contexts.Add_Tail_Follow_Append
+           (Context, Rewritten, 2, "new" & LF);
+         Posix_Tools.Commands.Tail.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = "new" & LF,
+            "tail " & Option & " resets after a short copy-truncation");
+      end loop;
+
+      Test_Support.Delete_If_Exists (Missing);
+      Context.Initialize
+        ("tail", Four_Args ("-F", "-n", "0", Missing));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: '" & Missing & "': cannot read file" & LF,
+         "tail -F reports a persistently missing pathname once");
+
+      Context.Initialize
+        ("tail", Four_Args ("-F", "-n", "0", Missing));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Rewrite
+        (Context, Missing, 1, "appeared" & LF);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "appeared" & LF,
+         "tail -F retries a pathname missing at startup");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail -F retains the initial missing-path failure status");
+
+      Write_File (Mixed, "old" & LF);
+      Test_Support.Delete_If_Exists (Missing);
+      Context.Initialize
+        ("tail", Five_Args ("-f", "-n", "0", Mixed, Missing));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+      Test_Contexts.Set_Tail_Follow_Append
+        (Context, Mixed, 1, "continued" & LF);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Ada.Strings.Fixed.Index
+           (Test_Contexts.Output (Context), "continued" & LF) /= 0,
+         "tail -f continues a valid operand when another operand is missing");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail -f mixed valid and missing status");
+
+      Write_File (Header_First, "old-first" & LF);
+      Write_File (Header_Second, "old-second" & LF);
+      Context.Initialize
+        ("tail",
+         Five_Args ("-f", "-n", "0", Header_First, Header_Second));
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 3);
+      Test_Contexts.Set_Tail_Follow_Append
+        (Context, Header_First, 1, "one" & LF);
+      Test_Contexts.Add_Tail_Follow_Append
+        (Context, Header_First, 2, "two" & LF);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "==> " & Header_First & " <==" & LF
+           & LF & "==> " & Header_Second & " <==" & LF
+           & LF & "==> " & Header_First & " <==" & LF
+           & "one" & LF & "two" & LF,
+         "tail -f keeps the emitting source between polling cycles");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail -f persistent header state status");
+
+      Test_Support.Delete_If_Exists (Reopen);
+      Test_Support.Delete_If_Exists (Reopen & ".tail-follow-old");
+      Test_Support.Delete_If_Exists (Equal_Replacement);
+      Test_Support.Delete_If_Exists
+        (Equal_Replacement & ".tail-follow-old");
+      Test_Support.Delete_If_Exists (Rewritten);
+      Test_Support.Delete_If_Exists (Missing);
+      Test_Support.Delete_If_Exists (Mixed);
+      Test_Support.Delete_If_Exists (Header_First);
+      Test_Support.Delete_If_Exists (Header_Second);
+   end Test_Tail_Follow_Recovery;
+
+   procedure Test_Tail_Follow_Sequential_Inputs (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+      FIFO_Path : constant String := Fixture_Path ("reg-tail-follow.fifo");
+      FIFO_Data : constant String := "initial" & Character'Val (10);
+      Later_Data : constant String := "later" & Character'Val (10);
+      Follow_Options : constant array (Positive range 1 .. 2) of
+        String (1 .. 2) := ["-f", "-F"];
+      Wrote_FIFO : Boolean := False with Atomic;
+      Writer_Timed_Out : Boolean := False with Atomic;
+      Removed : Boolean;
+
+      task type FIFO_Writer is
+         entry Ready;
+         entry Release;
+      end FIFO_Writer;
+
+      task body FIFO_Writer is
+         use type Ada.Streams.Stream_Element_Offset;
+         use type Hostkit.Descriptors.Transfer_Outcome;
+         Output : Hostkit.Descriptors.Descriptor := Hostkit.Descriptors.Invalid;
+         Buffer : Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset (FIFO_Data'Length));
+         Last : Ada.Streams.Stream_Element_Offset;
+      begin
+         for I in FIFO_Data'Range loop
+            Buffer
+              (Ada.Streams.Stream_Element_Offset
+                 (I - FIFO_Data'First + 1)) :=
+              Ada.Streams.Stream_Element (Character'Pos (FIFO_Data (I)));
+         end loop;
+         if Hostkit.Descriptors.Open_File
+           (FIFO_Path, Hostkit.Descriptors.Open_Write_Append, Output)
+         then
+            Wrote_FIFO :=
+              Hostkit.Descriptors.Write (Output, Buffer, Last)
+                = Hostkit.Descriptors.Transfer_Ok
+              and then Last = Buffer'Last;
+            accept Ready;
+            select
+               accept Release;
+            or
+               delay 0.5;
+               Writer_Timed_Out := True;
+            end select;
+            Hostkit.Descriptors.Close (Output);
+         end if;
+      end FIFO_Writer;
+   begin
+      Context.Initialize ("tail", Two_Args ("-f", "-"));
+      Test_Contexts.Set_Standard_Input_Failure_After (Context, 0);
+      Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 3);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Error_Output (Context) =
+           "tail: 'standard input': cannot read file" & Character'Val (10),
+         "tail -f retires failed standard input after one diagnostic");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
+         "tail -f failed standard input status");
+
+      for Option of Follow_Options loop
+         GNAT.OS_Lib.Delete_File (FIFO_Path, Removed);
+         if Hostkit.Fs.Create_FIFO (FIFO_Path, 8#400#) then
+            Context.Initialize
+              ("tail", Four_Args (Option, "-n", "0", FIFO_Path));
+            Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 1);
+            Posix_Tools.Commands.Tail.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Test_Contexts.Output (Context) = "",
+               "tail " & Option & " polls an idle FIFO without waiting");
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "tail " & Option & " read-only idle FIFO status");
+
+            AUnit.Assertions.Assert
+              (Posix_Tools.Host_Adapters.File_System.Set_Permissions
+                 (FIFO_Path, 8#600#),
+               "tail FIFO fixture restores write permission");
+
+            Wrote_FIFO := False;
+            Writer_Timed_Out := False;
+            declare
+               Writer  : FIFO_Writer;
+               Unblock : Hostkit.Descriptors.Descriptor :=
+                 Hostkit.Descriptors.Invalid;
+            begin
+               --  Pair with the writer first and wait until its initial
+               --  bytes are in the FIFO.  Otherwise a very fast follow poll
+               --  can observe EOF twice before the writer task is scheduled.
+               if Hostkit.Descriptors.Open_File
+                 (FIFO_Path,
+                  Hostkit.Descriptors.Open_Read_Write,
+                  Unblock)
+               then
+                  select
+                     Writer.Ready;
+                  or
+                     delay 0.5;
+                     Writer_Timed_Out := True;
+                  end select;
+                  Hostkit.Descriptors.Close (Unblock);
+               end if;
+
+               Context.Initialize
+                 ("tail", Four_Args (Option, "-n", "0", FIFO_Path));
+               Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 2);
+               Test_Contexts.Set_Tail_Follow_Append
+                 (Context, FIFO_Path, 1, Later_Data);
+               Posix_Tools.Commands.Tail.Run (Context, Result);
+
+               if not Writer'Terminated then
+                  select
+                     Writer.Release;
+                  or
+                     delay 0.1;
+                  end select;
+               end if;
+            end;
+            AUnit.Assertions.Assert
+              (Wrote_FIFO, "tail FIFO fixture writes its initial bytes");
+            AUnit.Assertions.Assert
+              (not Writer_Timed_Out,
+               "tail " & Option & " never blocks on an idle FIFO writer");
+            AUnit.Assertions.Assert
+              (Ada.Strings.Fixed.Index
+                 (Test_Contexts.Output (Context), Later_Data) /= 0,
+               "tail " & Option & " emits FIFO data written while following");
+            AUnit.Assertions.Assert
+              (Test_Contexts.Error_Output (Context) = "",
+               "tail " & Option & " FIFO diagnostic");
+            AUnit.Assertions.Assert
+              (Result.Status = Posix_Tools.Exit_Status.Success,
+               "tail " & Option & " FIFO status");
+            GNAT.OS_Lib.Delete_File (FIFO_Path, Removed);
+         else
+            Test_Support.Skip_Without_FIFOs
+              ("tail follows a sequential FIFO");
+         end if;
+      end loop;
+   end Test_Tail_Follow_Sequential_Inputs;
+
+   procedure Test_Tail_Follow_Zero_Lines (T : in out Fixture) is
+      pragma Unreferenced (T);
+      LF   : constant Character := Character'Val (10);
+      Path : constant String :=
+        Fixture_Path ("reg-tail-follow-zero-lines.txt");
+
+      procedure Check (Option : String) is
+         Context : Test_Contexts.Capturing_Context;
+         Result  : Posix_Tools.Commands.Results.Result;
+      begin
+         Test_Support.Write_File (Path, "old" & LF);
+         Context.Initialize
+           ("tail", Four_Args (Option, "-n", "0", Path));
+         Test_Contexts.Set_Tail_Follow_Poll_Limit (Context, 4);
+         Test_Contexts.Set_Tail_Follow_Append
+           (Context, Path, 1, "new" & LF);
+         Posix_Tools.Commands.Tail.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = "new" & LF,
+            "tail -n 0 " & Option & " starts at the initial EOF");
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "tail -n 0 " & Option & " status");
+         Test_Support.Delete_If_Exists (Path);
+      end Check;
+   begin
+      Check ("-f");
+      Check ("-F");
+   end Test_Tail_Follow_Zero_Lines;
 
    procedure Test_Tail_Plus_Origin (T : in out Fixture) is
       pragma Unreferenced (T);
@@ -258,6 +742,7 @@ package body Command_Tests.Tail_Tests is
       Result  : Posix_Tools.Commands.Results.Result;
       Path    : constant String := Fixture_Path ("reg-tail-line-mode.txt");
       LF      : constant Character := Character'Val (10);
+      Long_Line : constant String (1 .. 70_000) := [others => 'x'];
    begin
       Write_File (Path, "a" & LF & "b" & LF & "c");
 
@@ -309,6 +794,29 @@ package body Command_Tests.Tail_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "tail line max spill failure status");
+
+      Write_File (Path, "a" & LF & "b" & LF & "c" & LF);
+      Context.Initialize
+        ("tail", Three_Args ("-n", "9223372036854775807", Path));
+      Test_Contexts.Set_Tail_Resource_Limits (Context, 2, 64);
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "a" & LF & "b" & LF & "c" & LF,
+         "tail maximum line count spill output");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail maximum line count spill status");
+
+      Write_File (Path, Long_Line & LF & "wanted" & LF);
+      Context.Initialize ("tail", Three_Args ("-n", "1", Path));
+      Posix_Tools.Commands.Tail.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "wanted" & LF,
+         "tail seeks across a long-line suffix window");
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "tail long-line suffix status");
    end Test_Tail_Line_Mode_Edges;
 
    procedure Test_Tail_Multiple_File_Headers (T : in out Fixture) is
@@ -389,6 +897,8 @@ package body Command_Tests.Tail_Tests is
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
       LF      : constant Character := Character'Val (10);
+      Path    : constant String :=
+        Fixture_Path ("reg-tail-follow-output-exception.txt");
    begin
       Context.Initialize ("tail", Three_Args ("-n", "2", "-"));
       Test_Contexts.Set_Standard_Input (Context, "a" & LF & "b" & LF & "c" & LF);
@@ -399,6 +909,19 @@ package body Command_Tests.Tail_Tests is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "tail output failure status");
+
+      Write_File (Path, "old" & LF);
+      Context.Initialize ("tail", Four_Args ("-f", "-n", "1", Path));
+      Test_Contexts.Set_Output_Exception (Context);
+      begin
+         Posix_Tools.Commands.Tail.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (False, "tail follow propagates an injected output exception");
+      exception
+         when Constraint_Error =>
+            null;
+      end;
+      Test_Support.Delete_If_Exists (Path);
    end Test_Tail_Output_Failure;
 
    procedure Test_Tail_Byte_Suffix_Property (T : in out Fixture) is
@@ -486,7 +1009,7 @@ package body Command_Tests.Tail_Tests is
       Initial_Seed : constant Word_32 := 16#5441_4953#;
       Seed    : Word_32 := Initial_Seed;
       Counts  : constant Count_Array := [0, 1, 2, 9, 64, 512];
-      Lengths : constant Length_Array := [0, 1, 8, 65, 300, 900];
+      Lengths : constant Length_Array := [0, 1, 8, 65, 300, 900, 16_500];
 
       function Decimal_Image (Value : Natural) return String is
          Raw : constant String := Natural'Image (Value);

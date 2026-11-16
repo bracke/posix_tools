@@ -27,6 +27,14 @@ separate (Command_Tests.Stream_Command_Tests)
          and then Test_Contexts.Output (Context) = "5" & LF & "3" & LF & "1" & LF,
          "seq supports negative increments");
 
+      Context.Initialize ("seq", Two_Args ("-3", "1"));
+      Posix_Tools.Commands.Seq.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) =
+           "-3" & LF & "-2" & LF & "-1" & LF & "0" & LF & "1" & LF,
+         "seq supports negative ranges");
+
       Context.Initialize ("seq", Three_Args ("0.1", "0.1", "0.3"));
       Posix_Tools.Commands.Seq.Run (Context, Result);
       AUnit.Assertions.Assert

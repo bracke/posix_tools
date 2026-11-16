@@ -1,8 +1,10 @@
+with Ada.IO_Exceptions;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
+with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Text.File_Descriptions;
@@ -25,79 +27,114 @@ package body Posix_Tools.Commands.File is
       Mime_Mode  : Boolean := False;
       Magic_Path : Unbounded_String;
       Has_Magic  : Boolean := False;
+      Magic_Text : Unbounded_String;
+      Magic_Need : Natural := 0;
+      Output     : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       function Description (Path : String) return String;
 
-      function Content_Description (Data : String) return String is
-         Magic_Ok   : Boolean := False;
-         Magic_Text : constant String :=
-           (if Has_Magic
-            then Posix_Tools.Commands.File_Helpers.Streaming.Read_File
-              (Context, To_String (Magic_Path), Magic_Ok)
-            else "");
-      begin
-         return Posix_Tools.Text.File_Descriptions.Content_Description
-           (Data       => Data,
-            Mime_Mode  => Mime_Mode,
-            Magic_Text => Magic_Text,
-            Has_Magic  => Has_Magic and then Magic_Ok);
-      end Content_Description;
-
       function Description (Path : String) return String is
-         Data    : Unbounded_String;
          Read_Ok : Boolean := True;
 
-         procedure Collect
-           (Buffer : Ada.Streams.Stream_Element_Array;
-            Last   : Ada.Streams.Stream_Element_Offset;
-            Stop   : in out Boolean);
+         function Streamed return String;
 
-         procedure Collect
-           (Buffer : Ada.Streams.Stream_Element_Array;
-            Last   : Ada.Streams.Stream_Element_Offset;
-            Stop   : in out Boolean)
-         is
-            pragma Unreferenced (Stop);
+         function Streamed return String is
+            State : Posix_Tools.Text.File_Descriptions.Classifier;
+            Magic_Data : Unbounded_String;
+
+            function Classification_Complete return Boolean is
+              (Posix_Tools.Text.File_Descriptions.Classification_Complete (State)
+               and then Length (Magic_Data) >= Magic_Need);
+
+            procedure Classify
+              (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+               Buffer  : Ada.Streams.Stream_Element_Array;
+               Last    : Ada.Streams.Stream_Element_Offset);
+
+            procedure Classify
+              (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+               Buffer  : Ada.Streams.Stream_Element_Array;
+               Last    : Ada.Streams.Stream_Element_Offset)
+            is
+               pragma Unreferenced (Ignored);
+            begin
+               if Last >= Buffer'First then
+                  declare
+                     Text : constant String := Posix_Tools.Streams.Bytes.To_String (Buffer, Last);
+                     Remaining : constant Natural :=
+                       (if Length (Magic_Data) >= Magic_Need then 0
+                        else Magic_Need - Length (Magic_Data));
+                  begin
+                     Posix_Tools.Text.File_Descriptions.Update (State, Text);
+                     if Remaining > 0 and then Text'Length > 0 then
+                        Append
+                          (Magic_Data,
+                           Text (Text'First .. Text'First
+                             + Natural'Min (Remaining, Text'Length) - 1));
+                     end if;
+                  end;
+               end if;
+            end Classify;
+
+            procedure Iterate is new
+              Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+                (Action => Classify);
          begin
-            Append (Data, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
-         end Collect;
-
-         procedure Read_File_Data is new FS.For_Each_File_Chunk (Collect);
+            Iterate (Context, Path, Read_Ok, Classification_Complete'Access);
+            if Read_Ok then
+               if Has_Magic then
+                  declare
+                     Found : Boolean;
+                     Text  : constant String :=
+                       Posix_Tools.Text.File_Descriptions.Magic_Description
+                         (To_String (Magic_Data), Mime_Mode,
+                          To_String (Magic_Text), Found);
+                  begin
+                     if Found then
+                        return Text;
+                     end if;
+                  end;
+               end if;
+               return Posix_Tools.Text.File_Descriptions.Description (State, Mime_Mode);
+            else
+               All_Ok := False;
+               return "";
+            end if;
+         end Streamed;
       begin
          if Path = "-" then
-            declare
-               Input : constant String := Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, "-", Read_Ok);
-            begin
-               if not Read_Ok then
-                  All_Ok := False;
-                  return "";
-               end if;
-
-               return Content_Description (Input);
-            end;
+            return Streamed;
          end if;
 
-         case FS.Kind (Path) is
-            when FS.Missing_File =>
-               All_Ok := False;
-               Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                 (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
-               return "";
-            when FS.Directory =>
-               return (if Mime_Mode then "inode/directory" else "directory");
-            when FS.Special_File =>
-               return (if Mime_Mode then "application/octet-stream" else "special file");
-            when FS.Ordinary_File =>
-               Read_File_Data (Path, Read_Ok);
-               if not Read_Ok then
+         declare
+            Kind : constant FS.File_Kind := FS.Kind (Path);
+         begin
+            case Kind is
+               when FS.Missing_File =>
                   All_Ok := False;
                   Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                    (Context, Path, "posix_tools.diagnostic.file.read_failed", "cannot read file");
+                    (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
                   return "";
-               else
-                  return Content_Description (To_String (Data));
-               end if;
-         end case;
+               when FS.Uninspectable_File =>
+                  All_Ok := False;
+                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                    (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
+                  return "";
+               when FS.Directory =>
+                  return (if Mime_Mode then "inode/directory" else "directory");
+               when FS.Special_File =>
+                  return (if Mime_Mode then "application/octet-stream" else "special file");
+               when FS.Ordinary_File =>
+                  return Streamed;
+            end case;
+         end;
+      exception
+         when Ada.IO_Exceptions.Use_Error =>
+            All_Ok := False;
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, Path,
+               "posix_tools.diagnostic.file.open_failed", "cannot open file");
+            return "";
       end Description;
 
       procedure Handle
@@ -140,17 +177,34 @@ package body Posix_Tools.Commands.File is
          return;
       end if;
 
+      if Has_Magic then
+         declare
+            Magic_Ok : Boolean;
+         begin
+            Posix_Tools.Commands.File_Helpers.Streaming.Read_All
+              (Context, To_String (Magic_Path), Magic_Text, Magic_Ok);
+            if not Magic_Ok then
+               Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
+               return;
+            end if;
+            Magic_Need := Posix_Tools.Text.File_Descriptions.Magic_Prefix_Length
+              (To_String (Magic_Text));
+         end;
+      end if;
+
       for Index in First .. Context.Argument_Count loop
          declare
             Path : constant String := Context.Argument (Index);
             Text : constant String := Description (Path);
          begin
             if Text /= "" then
-               Context.Put_Line (Path & ": " & Text);
+               Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                 (Output, Context, Path & ": " & Text);
             end if;
          end;
       end loop;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.File;

@@ -28,6 +28,17 @@ package body Awk_CLI.Output is
       Destination_Is_Terminal : Boolean;
       No_Color_Active        : Boolean) return String
    is
+      procedure Restore_Mode_Safely;
+
+      procedure Restore_Mode_Safely is
+      begin
+         P.Set_Style_Mode (Current_Mode);
+      exception
+         when others =>
+            --  Intentional terminal exception barrier
+            --  Preserve the exception raised while producing the output.
+            null;
+      end Restore_Mode_Safely;
    begin
       case Current_Mode is
          when P.Never =>
@@ -50,7 +61,7 @@ package body Awk_CLI.Output is
                return Result;
             exception
                when others =>
-                  P.Set_Style_Mode (Current_Mode);
+                  Restore_Mode_Safely;
                   raise;
             end;
       end case;

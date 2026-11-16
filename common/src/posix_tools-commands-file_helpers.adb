@@ -1,82 +1,15 @@
 with Ada.Streams;
-with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.File_Helpers is
-   use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Offset;
    use type Posix_Tools.Numbers.Count;
 
-   Buffer_Size : constant := 16 * 1024;
-   subtype Byte_Buffer is Ada.Streams.Stream_Element_Array (1 .. Buffer_Size);
-
-   procedure Append_Buffer_To_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Buffer  : Ada.Streams.Stream_Element_Array;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Current : in out Unbounded_String;
-      Ok      : in out Boolean);
-
-   function Character_At
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Index  : Ada.Streams.Stream_Element_Offset) return Character;
-
-   procedure Copy_Standard_Input_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Lines   : Posix_Tools.Numbers.Count;
-      Ok      : out Boolean);
-
-   procedure Emit_Prefix_Line
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Current : in out Unbounded_String;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Ok      : in out Boolean);
-
-   procedure Finish_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Current : in out Unbounded_String;
-      Ok      : in out Boolean);
-
-   procedure Append_Buffer_To_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Buffer  : Ada.Streams.Stream_Element_Array;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Current : in out Unbounded_String;
-      Ok      : in out Boolean)
-   is
-      Ch : Character;
-   begin
-      if Last < Buffer'First or else Emitted >= Lines then
-         return;
-      end if;
-
-      for I in Buffer'First .. Last loop
-         Ch := Character_At (Buffer, I);
-         Append (Current, Ch);
-         if Ch = Character'Val (10) then
-            Emit_Prefix_Line (Context, Current, Lines, Emitted, Ok);
-            exit when not Ok or else Emitted >= Lines;
-         end if;
-      end loop;
-   end Append_Buffer_To_Line_Prefix;
-
-   function Character_At
-     (Buffer : Ada.Streams.Stream_Element_Array;
-      Index  : Ada.Streams.Stream_Element_Offset) return Character
-   is
-   begin
-      return Character'Val (Integer (Buffer (Index)));
-   end Character_At;
+   Buffer_Size : constant Positive := 16 * 1024;
+   Bulk_Buffer_Size : constant Positive :=
+     Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length;
 
    procedure Copy_Byte_Prefix
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -91,6 +24,8 @@ package body Posix_Tools.Commands.File_Helpers is
          Last   : Ada.Streams.Stream_Element_Offset;
          Stop   : in out Boolean);
 
+      generic
+         Input_Buffer_Size : Positive;
       procedure Copy_Standard_Input_Prefix;
 
       procedure Copy_Chunk
@@ -110,7 +45,7 @@ package body Posix_Tools.Commands.File_Helpers is
          end if;
 
          Copy_Last := Buffer'First + Ada.Streams.Stream_Element_Offset (To_Copy) - 1;
-         Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer (Buffer'First .. Copy_Last), Copy_Last));
+         Context.Put_Bytes (Buffer, Copy_Last);
          if Context.Output_Failed then
             Ok := False;
             Stop := True;
@@ -121,7 +56,8 @@ package body Posix_Tools.Commands.File_Helpers is
       end Copy_Chunk;
 
       procedure Copy_Standard_Input_Prefix is
-         Buffer : Byte_Buffer;
+         Buffer : Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset (Input_Buffer_Size));
          Last   : Ada.Streams.Stream_Element_Offset;
          Stop   : Boolean := False;
       begin
@@ -135,20 +71,37 @@ package body Posix_Tools.Commands.File_Helpers is
             exit when Stop;
          end loop;
       end Copy_Standard_Input_Prefix;
+
+      procedure Copy_Bounded_Standard_Input is new Copy_Standard_Input_Prefix
+        (Input_Buffer_Size => Buffer_Size);
+      procedure Copy_Bulk_Standard_Input is new Copy_Standard_Input_Prefix
+        (Input_Buffer_Size => Bulk_Buffer_Size);
+      procedure Iterate_Bounded is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+          (Action        => Copy_Chunk,
+           Buffer_Length => Buffer_Size);
+      procedure Iterate_Bulk is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+          (Action        => Copy_Chunk,
+           Buffer_Length => Bulk_Buffer_Size);
+
+      Use_Bulk : constant Boolean :=
+        Bytes >= Posix_Tools.Numbers.Count (Bulk_Buffer_Size);
    begin
       Ok := True;
 
       if Bytes = 0 then
          return;
       elsif File_Name = "-" then
-         Copy_Standard_Input_Prefix;
+         if Use_Bulk then
+            Copy_Bulk_Standard_Input;
+         else
+            Copy_Bounded_Standard_Input;
+         end if;
+      elsif Use_Bulk then
+         Iterate_Bulk (File_Name, Ok);
       else
-         declare
-            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
-              (Action => Copy_Chunk);
-         begin
-            Iterate (File_Name, Ok);
-         end;
+         Iterate_Bounded (File_Name, Ok);
       end if;
 
       if not Ok and then not Context.Output_Failed then
@@ -175,7 +128,7 @@ package body Posix_Tools.Commands.File_Helpers is
       is
       begin
          if Last >= Buffer'First then
-            Context.Put (Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
+            Context.Put_Bytes (Buffer, Last);
             Stop := Context.Output_Failed;
          end if;
       end Copy_Chunk;
@@ -187,7 +140,9 @@ package body Posix_Tools.Commands.File_Helpers is
       else
          declare
             procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
-              (Action => Copy_Chunk);
+              (Action        => Copy_Chunk,
+               Buffer_Length =>
+                 Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
          begin
             Iterate (File_Name, Ok);
          end;
@@ -207,7 +162,6 @@ package body Posix_Tools.Commands.File_Helpers is
       Lines     : Posix_Tools.Numbers.Count;
       Ok        : out Boolean)
    is
-      Current : Unbounded_String;
       Emitted : Posix_Tools.Numbers.Count := 0;
 
       procedure Scan_Chunk
@@ -215,28 +169,92 @@ package body Posix_Tools.Commands.File_Helpers is
          Last   : Ada.Streams.Stream_Element_Offset;
          Stop   : in out Boolean);
 
+      generic
+         Input_Buffer_Size : Positive;
+      procedure Scan_Standard_Input;
+
       procedure Scan_Chunk
         (Buffer : Ada.Streams.Stream_Element_Array;
          Last   : Ada.Streams.Stream_Element_Offset;
          Stop   : in out Boolean)
       is
+         Copy_Last : Ada.Streams.Stream_Element_Offset := Last;
       begin
-         Append_Buffer_To_Line_Prefix (Context, Buffer, Last, Lines, Emitted, Current, Ok);
-         Stop := not Ok or else Emitted >= Lines;
+         if Last < Buffer'First or else Emitted >= Lines then
+            Stop := Emitted >= Lines;
+            return;
+         end if;
+
+         for I in Buffer'First .. Last loop
+            if Character'Val (Integer (Buffer (I))) = Character'Val (10) then
+               Emitted := Emitted + Posix_Tools.Numbers.Count (1);
+               if Emitted >= Lines then
+                  Copy_Last := I;
+                  Stop := True;
+                  exit;
+               end if;
+            end if;
+         end loop;
+
+         Context.Put_Bytes (Buffer, Copy_Last);
+         if Context.Output_Failed then
+            Ok := False;
+            Stop := True;
+         end if;
       end Scan_Chunk;
+
+      procedure Scan_Standard_Input is
+         Buffer : Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset (Input_Buffer_Size));
+         Last   : Ada.Streams.Stream_Element_Offset;
+         Stop   : Boolean := False;
+      begin
+         while Emitted < Lines loop
+            if not Context.Try_Read_Standard_Input (Buffer, Last) then
+               Ok := False;
+               exit;
+            end if;
+            exit when Last < Buffer'First;
+            Scan_Chunk (Buffer, Last, Stop);
+            exit when Stop;
+         end loop;
+      end Scan_Standard_Input;
+
+      procedure Scan_Bounded_Standard_Input is new Scan_Standard_Input
+        (Input_Buffer_Size => Buffer_Size);
+      procedure Scan_Bulk_Standard_Input is new Scan_Standard_Input
+        (Input_Buffer_Size => Bulk_Buffer_Size);
+      procedure Iterate_Bounded is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+          (Action        => Scan_Chunk,
+           Buffer_Length => Buffer_Size);
+      procedure Iterate_Bulk is new
+        Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
+          (Action        => Scan_Chunk,
+           Buffer_Length => Bulk_Buffer_Size);
+
+      Use_Bulk : constant Boolean :=
+        Lines >= Posix_Tools.Numbers.Count (Bulk_Buffer_Size);
    begin
       Ok := True;
 
       if File_Name = "-" then
-         Copy_Standard_Input_Line_Prefix (Context, Lines, Ok);
+         if Use_Bulk then
+            Scan_Bulk_Standard_Input;
+         else
+            Scan_Bounded_Standard_Input;
+         end if;
       else
          declare
-            procedure Iterate is new Posix_Tools.Host_Adapters.File_System.For_Each_File_Chunk
-              (Action => Scan_Chunk);
+            Read_Ok : Boolean;
          begin
-            Iterate (File_Name, Ok);
+            if Use_Bulk then
+               Iterate_Bulk (File_Name, Read_Ok);
+            else
+               Iterate_Bounded (File_Name, Read_Ok);
+            end if;
+            Ok := Ok and Read_Ok;
          end;
-         Finish_Line_Prefix (Context, Lines, Emitted, Current, Ok);
       end if;
 
       if not Ok and then not Context.Output_Failed then
@@ -245,63 +263,5 @@ package body Posix_Tools.Commands.File_Helpers is
            "posix_tools.diagnostic.file.read_failed", "cannot read file");
       end if;
    end Copy_Line_Prefix;
-
-   procedure Copy_Standard_Input_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Lines   : Posix_Tools.Numbers.Count;
-      Ok      : out Boolean)
-   is
-      Buffer  : Byte_Buffer;
-      Last    : Ada.Streams.Stream_Element_Offset;
-      Current : Unbounded_String;
-      Emitted : Posix_Tools.Numbers.Count := 0;
-   begin
-      Ok := True;
-      while Emitted < Lines loop
-         if not Context.Try_Read_Standard_Input (Buffer, Last) then
-            Ok := False;
-            return;
-         end if;
-         exit when Last < Buffer'First;
-         Append_Buffer_To_Line_Prefix (Context, Buffer, Last, Lines, Emitted, Current, Ok);
-         exit when not Ok;
-      end loop;
-
-      Finish_Line_Prefix (Context, Lines, Emitted, Current, Ok);
-   end Copy_Standard_Input_Line_Prefix;
-
-   procedure Emit_Prefix_Line
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Current : in out Unbounded_String;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Ok      : in out Boolean)
-   is
-   begin
-      if Emitted < Lines then
-         Context.Put (To_String (Current));
-         if Context.Output_Failed then
-            Ok := False;
-            return;
-         end if;
-
-         Emitted := Emitted + Posix_Tools.Numbers.Count (1);
-      end if;
-
-      Current := Null_Unbounded_String;
-   end Emit_Prefix_Line;
-
-   procedure Finish_Line_Prefix
-     (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
-      Lines   : Posix_Tools.Numbers.Count;
-      Emitted : in out Posix_Tools.Numbers.Count;
-      Current : in out Unbounded_String;
-      Ok      : in out Boolean)
-   is
-   begin
-      if Ok and then Length (Current) > 0 and then Emitted < Lines then
-         Emit_Prefix_Line (Context, Current, Lines, Emitted, Ok);
-      end if;
-   end Finish_Line_Prefix;
 
 end Posix_Tools.Commands.File_Helpers;

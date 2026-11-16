@@ -1,4 +1,6 @@
 with AUnit.Test_Caller;
+with Basic_Tests.Silent_Handler_Parser;
+with Basic_Tests.Tooling_Regressions;
 with Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob;
 with Basic_Tests.Text_Algorithms.Fields_And_File_Modes;
 with Basic_Tests.Text_Algorithms.Images_And_Formats;
@@ -25,7 +27,61 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:numbers", Test_Numbers'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("basic:option parsing", Test_Option_Parsing'Access));
+        (Result, Caller.Create ("basic:account IDs", Test_Account_Ids'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:silent handler parser",
+            Basic_Tests.Silent_Handler_Parser.Test_Parser'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:catalog defaults parser",
+            Basic_Tests.Tooling_Regressions.Test_Catalog_Default_Parser'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:warning policy parser",
+            Basic_Tests.Tooling_Regressions.Test_Warning_Policy_Parser'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:source rules parser",
+            Basic_Tests.Tooling_Regressions.Test_Source_Rules_Parser'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:continuous integration paths",
+            Basic_Tests.Tooling_Regressions.Test_Continuous_Integration_Paths'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:Ada lexical view",
+            Basic_Tests.Tooling_Regressions.Test_Ada_Lexing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:test work directory lifecycle",
+            Basic_Tests.Tooling_Regressions.Test_Work_Directory_Lifecycle'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:regression registry parser",
+            Basic_Tests.Tooling_Regressions.Test_Regression_Registry_Parser'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:sed catalog defaults",
+            Basic_Tests.Tooling_Regressions.Test_Sed_Catalog_Defaults'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:awk catalog defaults",
+            Basic_Tests.Tooling_Regressions.Test_Awk_Catalog_Defaults'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("basic:option parsing", Basic_Tests.Test_Option_Parsing'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:option parsing", Test_Option_Parsing_Properties'Access));
       AUnit.Test_Suites.Add_Test
@@ -33,7 +89,7 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("basic:exit status", Test_Exit_Status'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("basic:paths", Test_Paths'Access));
+        (Result, Caller.Create ("basic:paths", Basic_Tests.Test_Paths'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("property:paths", Test_Path_Properties'Access));
       AUnit.Test_Suites.Add_Test
@@ -55,6 +111,16 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
+           ("text:field parsing",
+            Basic_Tests.Text_Algorithms.Parsing_And_Conversion.Run_Field_Parsing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:validation and sorting",
+            Basic_Tests.Text_Algorithms.Parsing_And_Conversion.Run_Validation_And_Sorting'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
            ("text:fields and file modes",
             Basic_Tests.Text_Algorithms.Fields_And_File_Modes.Run'Access));
       AUnit.Test_Suites.Add_Test
@@ -62,6 +128,16 @@ package body Basic_Tests.Suite is
          Caller.Create
            ("text:images and formats",
             Basic_Tests.Text_Algorithms.Images_And_Formats.Run'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:od and numeric formats",
+            Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob.Run_OD_And_Numeric_Formats'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("text:time and touch fields",
+            Basic_Tests.Text_Algorithms.Escaping_Time_And_Glob.Run_Time_And_Touch'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create
@@ -74,7 +150,12 @@ package body Basic_Tests.Suite is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("streams:file fixture", Test_Stream_File_Fixture'Access));
       AUnit.Test_Suites.Add_Test
-        (Result, Caller.Create ("basic:version", Test_Version'Access));
+        (Result,
+         Caller.Create
+           ("streams:file callback cleanup",
+            Test_File_Chunk_Callback_Cleanup'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Caller.Create ("basic:version", Basic_Tests.Test_Version'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          File_Operations_Caller.Create
@@ -97,11 +178,21 @@ package body Basic_Tests.Suite is
            ("basic:temporary storage long path",
             File_Operations_Tests.Test_Temporary_Storage_Long_Path'Access));
       AUnit.Test_Suites.Add_Test
+        (Result,
+         File_Operations_Caller.Create
+           ("basic:temporary storage outcomes",
+            File_Operations_Tests.Test_Temporary_Storage_Outcomes'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:copy tree", Operation_Tests.Test_Copy_Tree'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:copy conflicts", Operation_Tests.Test_Copy_Conflicts'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:copy cancel", Operation_Tests.Test_Copy_Cancel'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Operation_Caller.Create
+           ("basic:copy progress exception",
+            Operation_Tests.Test_Copy_Progress_Exception'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Operation_Caller.Create ("basic:remove tree", Operation_Tests.Test_Remove_Tree'Access));
       AUnit.Test_Suites.Add_Test

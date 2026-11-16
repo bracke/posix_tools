@@ -66,6 +66,17 @@ package body Words_Tests is
    procedure Test_Catalog (T : in out Fixture) is
       pragma Unreferenced (T);
       Here : constant String := Ada.Directories.Current_Directory;
+
+      procedure Restore_Directory_Safely;
+
+      procedure Restore_Directory_Safely is
+      begin
+         Ada.Directories.Set_Directory (Here);
+      exception
+         when others =>
+            --  intentional terminal exception barrier
+            null;
+      end Restore_Directory_Safely;
    begin
       --  The catalog is found from the repository's root.
       Ada.Directories.Set_Directory ("../../..");
@@ -93,7 +104,7 @@ package body Words_Tests is
       end;
    exception
       when others =>
-         Ada.Directories.Set_Directory (Here);
+         Restore_Directory_Safely;
          raise;
    end Test_Catalog;
 

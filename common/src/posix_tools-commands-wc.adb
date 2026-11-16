@@ -5,11 +5,15 @@ with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Text_Helpers.Collation;
 with Posix_Tools.Streams.Bytes;
 with Posix_Tools.Streams.Counting;
+with Posix_Tools.Text.Classification;
+with Posix_Tools.Text.UTF_8;
 with Posix_Tools.Wc_Fields;
 
 package body Posix_Tools.Commands.Wc is
    use Ada.Strings.Unbounded;
+   use type Ada.Streams.Stream_Element;
    use type Ada.Streams.Stream_Element_Offset;
+   use type Posix_Tools.Text.UTF_8.Decode_Status;
 
    subtype Counts is Posix_Tools.Streams.Counting.Counts;
 
@@ -28,10 +32,199 @@ package body Posix_Tools.Commands.Wc is
      (Context   : in out Posix_Tools.Commands.Contexts.Context'Class;
       File_Name : String;
       Single_Byte : Boolean;
+      Fields    : Posix_Tools.Wc_Fields.Count_Selection;
       Result    : out Counts;
       Ok        : out Boolean)
    is
-      State   : Posix_Tools.Streams.Counting.Counter;
+      State : Posix_Tools.Streams.Counting.Counter;
+      Simple_Counts : constant Boolean :=
+        not Fields.Words
+        and then not Fields.Max_Line_Length
+        and then (not Fields.Characters or else Single_Byte);
+      Character_Counts : constant Boolean :=
+        not Fields.Words
+        and then not Fields.Max_Line_Length
+        and then Fields.Characters
+        and then not Single_Byte;
+      Word_Counts : constant Boolean :=
+        Fields.Words and then not Fields.Max_Line_Length;
+      Decoder : Posix_Tools.Text.UTF_8.Decoder;
+      In_Word : Boolean := False;
+
+      procedure Count_Characters
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset);
+
+      procedure Count_Words
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset);
+
+      procedure Increment (Value : in out Posix_Tools.Streams.Counting.Count_Value) is
+      begin
+         Value := Posix_Tools.Streams.Counting.Saturating_Add (Value, 1);
+      end Increment;
+
+      procedure Count_Characters
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset)
+      is
+         All_ASCII : Boolean := Posix_Tools.Text.UTF_8.Is_Initial (Decoder);
+         Line_Count : Natural := 0;
+      begin
+         if Last < Buffer'First then
+            return;
+         end if;
+
+         if All_ASCII then
+            for I in Buffer'First .. Last loop
+               if Buffer (I) > 16#7F# then
+                  All_ASCII := False;
+                  exit;
+               elsif Fields.Lines and then Buffer (I) = 10 then
+                  Line_Count := Line_Count + 1;
+               end if;
+            end loop;
+            if All_ASCII then
+               Result.Characters := Posix_Tools.Streams.Counting.Saturating_Add
+                 (Result.Characters,
+                  Posix_Tools.Streams.Counting.Count_Value
+                    (Last - Buffer'First + 1));
+               Result.Lines := Posix_Tools.Streams.Counting.Saturating_Add
+                 (Result.Lines,
+                  Posix_Tools.Streams.Counting.Count_Value (Line_Count));
+               return;
+            end if;
+         end if;
+
+         for I in Buffer'First .. Last loop
+            declare
+               Byte       : constant Natural := Natural (Buffer (I));
+               Status     : Posix_Tools.Text.UTF_8.Decode_Status;
+               Code_Point : Long_Long_Integer;
+               Consumed   : Boolean;
+            begin
+               if Fields.Lines and then Byte = 10 then
+                  Increment (Result.Lines);
+               end if;
+
+               if Byte <= 16#7F# and then Posix_Tools.Text.UTF_8.Is_Initial (Decoder) then
+                  Increment (Result.Characters);
+               else
+                  Posix_Tools.Text.UTF_8.Decode
+                    (Decoder, Byte, Status, Code_Point, Consumed);
+                  if Status in Posix_Tools.Text.UTF_8.Complete | Posix_Tools.Text.UTF_8.Invalid then
+                     Increment (Result.Characters);
+                  end if;
+                  if not Consumed then
+                     Posix_Tools.Text.UTF_8.Decode
+                       (Decoder, Byte, Status, Code_Point);
+                     if Status in Posix_Tools.Text.UTF_8.Complete | Posix_Tools.Text.UTF_8.Invalid then
+                        Increment (Result.Characters);
+                     end if;
+                  end if;
+               end if;
+            end;
+         end loop;
+      end Count_Characters;
+
+      procedure Count_Words
+        (Buffer : Ada.Streams.Stream_Element_Array;
+         Last   : Ada.Streams.Stream_Element_Offset)
+      is
+         Character_Count : Natural := 0;
+         Line_Count      : Natural := 0;
+         Word_Count      : Natural := 0;
+         procedure Note (Code_Point : Long_Long_Integer; Valid : Boolean := True);
+
+         procedure Note (Code_Point : Long_Long_Integer; Valid : Boolean := True) is
+            Is_Whitespace : constant Boolean :=
+              Valid
+              and then
+                (if Code_Point <= 16#7F#
+                 then Code_Point in 9 .. 13 | 32
+                 else Posix_Tools.Text.Classification.Is_Whitespace (Code_Point));
+         begin
+            if Fields.Characters and then not Single_Byte then
+               Character_Count := Character_Count + 1;
+            end if;
+            if Is_Whitespace then
+               In_Word := False;
+            elsif not In_Word then
+               Word_Count := Word_Count + 1;
+               In_Word := True;
+            end if;
+         end Note;
+      begin
+         if Last < Buffer'First then
+            return;
+         end if;
+
+         for I in Buffer'First .. Last loop
+            declare
+               Byte       : constant Natural := Natural (Buffer (I));
+               Status     : Posix_Tools.Text.UTF_8.Decode_Status;
+               Code_Point : Long_Long_Integer;
+               Consumed   : Boolean;
+            begin
+               if Fields.Lines and then Byte = 10 then
+                  Line_Count := Line_Count + 1;
+               end if;
+
+               if Single_Byte then
+                  if Byte <= 16#7F# and then Byte in 9 .. 13 | 32 then
+                     In_Word := False;
+                  elsif not In_Word then
+                     Word_Count := Word_Count + 1;
+                     In_Word := True;
+                  end if;
+               elsif Byte <= 16#7F#
+                 and then Posix_Tools.Text.UTF_8.Is_Initial (Decoder)
+               then
+                  if Fields.Characters then
+                     Character_Count := Character_Count + 1;
+                  end if;
+                  if Byte in 9 .. 13 | 32 then
+                     In_Word := False;
+                  elsif not In_Word then
+                     Word_Count := Word_Count + 1;
+                     In_Word := True;
+                  end if;
+               else
+                  Posix_Tools.Text.UTF_8.Decode
+                    (Decoder, Byte, Status, Code_Point, Consumed);
+                  if Status = Posix_Tools.Text.UTF_8.Complete then
+                     Note (Code_Point);
+                  elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+                     Note (0, Valid => False);
+                  end if;
+                  if not Consumed then
+                     Posix_Tools.Text.UTF_8.Decode
+                       (Decoder, Byte, Status, Code_Point);
+                     if Status = Posix_Tools.Text.UTF_8.Complete then
+                        Note (Code_Point);
+                     elsif Status = Posix_Tools.Text.UTF_8.Invalid then
+                        Note (0, Valid => False);
+                     end if;
+                  end if;
+               end if;
+            end;
+         end loop;
+
+         Result.Lines := Posix_Tools.Streams.Counting.Saturating_Add
+           (Result.Lines,
+            Posix_Tools.Streams.Counting.Count_Value (Line_Count));
+         Result.Words := Posix_Tools.Streams.Counting.Saturating_Add
+           (Result.Words,
+            Posix_Tools.Streams.Counting.Count_Value (Word_Count));
+         if Fields.Characters then
+            Result.Characters := Posix_Tools.Streams.Counting.Saturating_Add
+              (Result.Characters,
+               Posix_Tools.Streams.Counting.Count_Value
+                 (if Single_Byte
+                  then Last - Buffer'First + 1
+                  else Ada.Streams.Stream_Element_Offset (Character_Count)));
+         end if;
+      end Count_Words;
 
       procedure Count_Chunk
         (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -40,11 +233,35 @@ package body Posix_Tools.Commands.Wc is
       is
          pragma Unreferenced (Context);
       begin
-         Count_Buffer (Buffer, Last, State);
+         if Simple_Counts or else Character_Counts or else Word_Counts then
+            if Last >= Buffer'First then
+               Result.Bytes := Posix_Tools.Streams.Counting.Saturating_Add
+                 (Result.Bytes,
+                  Posix_Tools.Streams.Counting.Count_Value
+                    (Last - Buffer'First + 1));
+               if Word_Counts then
+                  Count_Words (Buffer, Last);
+               elsif Character_Counts then
+                  Count_Characters (Buffer, Last);
+               elsif Fields.Lines then
+                  for I in Buffer'First .. Last loop
+                     if Buffer (I) = 10 then
+                        Result.Lines :=
+                          Posix_Tools.Streams.Counting.Saturating_Add
+                            (Result.Lines, 1);
+                     end if;
+                  end loop;
+               end if;
+            end if;
+         else
+            Count_Buffer (Buffer, Last, State);
+         end if;
       end Count_Chunk;
 
       procedure Count_Chunks is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
-        (Action => Count_Chunk);
+        (Action        => Count_Chunk,
+         Buffer_Length =>
+           Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
    begin
       Result := (others => 0);
       if Single_Byte then
@@ -55,12 +272,41 @@ package body Posix_Tools.Commands.Wc is
          return;
       end if;
 
-      Posix_Tools.Streams.Counting.Finish_Text (State);
-      Result := Posix_Tools.Streams.Counting.Snapshot (State);
+      if Simple_Counts then
+         if Fields.Characters then
+            Result.Characters := Result.Bytes;
+         end if;
+      elsif Character_Counts or else Word_Counts then
+         declare
+            Status : Posix_Tools.Text.UTF_8.Decode_Status;
+         begin
+            if Single_Byte then
+               Status := Posix_Tools.Text.UTF_8.Complete;
+            else
+               Posix_Tools.Text.UTF_8.Finish (Decoder, Status);
+            end if;
+            if Status = Posix_Tools.Text.UTF_8.Invalid then
+               if Word_Counts then
+                  if Fields.Characters then
+                     Increment (Result.Characters);
+                  end if;
+                  if not In_Word then
+                     Increment (Result.Words);
+                  end if;
+               else
+                  Increment (Result.Characters);
+               end if;
+            end if;
+         end;
+      else
+         Posix_Tools.Streams.Counting.Finish_Text (State);
+         Result := Posix_Tools.Streams.Counting.Snapshot (State);
+      end if;
    end Count_File;
 
    procedure Print_Counts
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Output  : in out Posix_Tools.Commands.Helpers.Output_Buffer;
       C       : Counts;
       Name    : String;
       Show_C  : Boolean;
@@ -94,9 +340,12 @@ package body Posix_Tools.Commands.Wc is
          Rendered : constant String := To_String (Text);
       begin
          if Rendered /= "" and then Rendered (Rendered'First) = ' ' then
-            Context.Put (Rendered (Rendered'First + 1 .. Rendered'Last) & Character'Val (10));
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context,
+               Rendered (Rendered'First + 1 .. Rendered'Last));
          else
-            Context.Put (Rendered & Character'Val (10));
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context, Rendered);
          end if;
       end;
    end Print_Counts;
@@ -121,6 +370,7 @@ package body Posix_Tools.Commands.Wc is
       Ok         : Boolean;
       All_Ok     : Boolean := True;
       Successful : Natural := 0;
+      Output     : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       function Selection return Posix_Tools.Wc_Fields.Count_Selection is
       begin
@@ -176,9 +426,11 @@ package body Posix_Tools.Commands.Wc is
       pragma Assert (Posix_Tools.Wc_Fields.Selected_Field_Count (Selection) > 0);
 
       if First_File > Context.Argument_Count then
-         Count_File (Context, "-", Single_Byte, C, Ok);
+         Count_File (Context, "-", Single_Byte, Selection, C, Ok);
          if Ok then
-            Print_Counts (Context, C, "", Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
+            Print_Counts
+              (Context, Output, C, "", Show_C, Show_L, Show_M, Show_W,
+               Show_Max_Line_Length);
             Ok := not Context.Output_Failed;
          end if;
          All_Ok := Ok;
@@ -188,11 +440,13 @@ package body Posix_Tools.Commands.Wc is
               (Context,
                Context.Argument (I),
                Single_Byte,
+               Selection,
                C,
                Ok);
             if Ok then
                Print_Counts
-                 (Context, C, Context.Argument (I), Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
+                 (Context, Output, C, Context.Argument (I), Show_C, Show_L,
+                  Show_M, Show_W, Show_Max_Line_Length);
                if Context.Output_Failed then
                   Ok := False;
                else
@@ -214,13 +468,16 @@ package body Posix_Tools.Commands.Wc is
            and then Context.Argument_Count - First_File + 1 > 1
            and then Successful > 0
          then
-            Print_Counts (Context, Total, "total", Show_C, Show_L, Show_M, Show_W, Show_Max_Line_Length);
+            Print_Counts
+              (Context, Output, Total, "total", Show_C, Show_L, Show_M,
+               Show_W, Show_Max_Line_Length);
             if Context.Output_Failed then
                All_Ok := False;
             end if;
          end if;
       end if;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, All_Ok);
    end Run;
 end Posix_Tools.Commands.Wc;

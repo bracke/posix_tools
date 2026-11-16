@@ -1,5 +1,4 @@
 with Ada.Calendar;
-with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Touch_Time_Parsing;
@@ -9,8 +8,6 @@ with Posix_Tools.Host_Adapters.File_System;
 
 package body Posix_Tools.Commands.Touch is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
-   use type Posix_Tools.Host_Adapters.File_System.File_Kind;
-
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
    --  What touch's options ask for.
@@ -85,19 +82,6 @@ package body Posix_Tools.Commands.Touch is
             Apply_Selected_Time (Options.Target_Time);
          elsif not Options.Touch_Access or else not Options.Touch_Modify then
             Apply_Selected_Time (FS.Current_File_Time);
-         elsif FS.Kind (Path) = FS.Ordinary_File then
-            declare
-               File_Ok : Boolean;
-               Data    : constant String :=
-                 Posix_Tools.Commands.File_Helpers.Streaming.Read_File (Context, Path, File_Ok);
-            begin
-               if File_Ok then
-                  FS.Write_File (Path, Data, False, Written);
-                  Ok := Ok and Written;
-               else
-                  Ok := False;
-               end if;
-            end;
          else
             Apply_Selected_Time (FS.Current_File_Time);
          end if;

@@ -32,12 +32,13 @@ package body Sed.Environment is
                Last : constant Natural :=
                  (if Names (Index) = ' ' then Index - 1 else Index);
                Name : constant String := Names (First .. Last);
+               Value : constant String :=
+                 (if Name'Length > 0
+                  then Ada.Environment_Variables.Value (Name, "")
+                  else "");
             begin
-               if Name'Length > 0
-                 and then Ada.Environment_Variables.Exists (Name)
-                 and then Ada.Environment_Variables.Value (Name) /= ""
-               then
-                  return Ada.Environment_Variables.Value (Name);
+               if Value /= "" then
+                  return Value;
                end if;
 
                First := Index + 1;
@@ -106,7 +107,6 @@ package body Sed.Environment is
          use type Ada.Directories.File_Kind;
       begin
          return Path'Length > 0
-           and then Ada.Directories.Exists (Path)
            and then Ada.Directories.Kind (Path) = Ada.Directories.Ordinary_File;
       exception
          when others =>
@@ -166,14 +166,12 @@ package body Sed.Environment is
    begin
       Result.Locale := U.To_Unbounded_String (Requested_Locale);
       Result.No_Color :=
-        Ada.Environment_Variables.Exists ("NO_COLOR")
-        and then Ada.Environment_Variables.Value ("NO_COLOR") /= "";
+        Ada.Environment_Variables.Value ("NO_COLOR", "") /= "";
       Result.Catalog_Path :=
         U.To_Unbounded_String
           (Resolve_Catalog_Path (Ada.Command_Line.Command_Name));
       Result.Development_Diagnostics :=
-        Ada.Environment_Variables.Exists ("SED_DEBUG")
-        and then Ada.Environment_Variables.Value ("SED_DEBUG") /= "";
+        Ada.Environment_Variables.Value ("SED_DEBUG", "") /= "";
       Result.Standard_Output_Is_Terminal :=
         Sed.IO.Process_Streams.Descriptor_Is_Terminal (1);
       Result.Standard_Error_Is_Terminal :=

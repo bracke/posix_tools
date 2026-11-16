@@ -13,6 +13,7 @@ with Posix_Tools.Commands.Xargs;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.Host_Adapters.Signals;
 with Test_Contexts;
+with Test_Support;
 
 package body Command_Tests.Surface_Smoke.Filters is
    use type Posix_Tools.Host_Adapters.Signals.Disposition;
@@ -533,7 +534,7 @@ package body Command_Tests.Surface_Smoke.Filters is
          Ada.Directories.Set_Directory (Original_Directory);
       exception
          when others =>
-            Ada.Directories.Set_Directory (Original_Directory);
+            Test_Support.Restore_Directory_Safely (Original_Directory);
             raise;
       end;
       AUnit.Assertions.Assert
@@ -725,6 +726,13 @@ package body Command_Tests.Surface_Smoke.Filters is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "root/suffix" & EOL,
          "xargs compact -I replacement output");
+
+      Context.Initialize ("xargs", Four_Args ("-I{}", "echo", "{}-{}-tail", "plain"));
+      Test_Contexts.Set_Standard_Input (Context, "item" & EOL);
+      Posix_Tools.Commands.Xargs.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "item-item-tail plain" & EOL,
+         "xargs replaces repeated markers and preserves plain arguments");
 
       Context.Initialize ("xargs", One_Arg ("-I"));
       Posix_Tools.Commands.Xargs.Run (Context, Result);

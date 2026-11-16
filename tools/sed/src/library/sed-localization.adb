@@ -66,6 +66,7 @@ package body Sed.Localization is
 
    exception
       when others =>
+         --  intentional terminal exception barrier
          --  A catalogue the host cannot inspect leaves the adapter on its
          --  English defaults rather than failing program start-up.
          Item.Valid := False;

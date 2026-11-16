@@ -142,7 +142,17 @@ package body Posix_Tools.Commands.Tr is
          Pending       : Unbounded_String;
          Previous      : Unbounded_String;
          Have_Previous : Boolean := False;
+         Previous_Is_Byte : Boolean := False;
+         Previous_Byte    : Character := Character'First;
          Ok            : Boolean;
+
+         type Byte_Character_Map is array (Character) of Character;
+         type Byte_Flag_Map is array (Character) of Boolean;
+
+         Byte_Translation : Byte_Character_Map := [others => Character'First];
+         Byte_Deleted     : Byte_Flag_Map := [others => False];
+         Byte_Fast        : Byte_Flag_Map := [others => False];
+         Byte_Squeezed    : Byte_Flag_Map := [others => False];
 
          --  -c: a character's position in the complement of SET1. Bytes, and
          --  ASCII characters, come in the locale's collation order; other
@@ -159,12 +169,23 @@ package body Posix_Tools.Commands.Tr is
 
          procedure Process (Data : String; At_End : Boolean);
 
+         procedure Process_Bytes
+           (Buffer : Ada.Streams.Stream_Element_Array;
+            Last   : Ada.Streams.Stream_Element_Offset);
+
          procedure Process_Chunk
            (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
             Buffer  : Ada.Streams.Stream_Element_Array;
             Last    : Ada.Streams.Stream_Element_Offset);
 
          function Translate (Element : String; Code_Point : Long_Long_Integer) return String;
+
+         function Is_Previous (Text : String) return Boolean is
+           (Have_Previous
+            and then
+              (if Previous_Is_Byte
+               then Text'Length = 1 and then Text (Text'First) = Previous_Byte
+               else Previous = Text));
 
          function Complement_Position (Element : String; Code_Point : Long_Long_Integer) return Natural is
             Below : Natural := 0;
@@ -196,6 +217,56 @@ package body Posix_Tools.Commands.Tr is
             return 256 + Natural (Code_Point) - Below;
          end Complement_Position;
 
+         procedure Process_Bytes
+           (Buffer : Ada.Streams.Stream_Element_Array;
+            Last   : Ada.Streams.Stream_Element_Offset)
+         is
+            Output : String (1 .. Natural (Last - Buffer'First + 1));
+            Output_Last : Natural := 0;
+         begin
+            for I in Buffer'First .. Last loop
+               declare
+                  Input : constant Character :=
+                    Character'Val (Natural (Buffer (I)));
+                  Item  : constant Character := Byte_Translation (Input);
+               begin
+                  Output (Output_Last + 1) := Item;
+                  if Multibyte and then not Byte_Fast (Input) then
+                     if Output_Last > 0 then
+                        Context.Put (Output (1 .. Output_Last));
+                     end if;
+                     declare
+                        Data : String (1 .. Natural (Last - I + 1));
+                     begin
+                        for J in I .. Last loop
+                           Data (Natural (J - I) + 1) :=
+                             Character'Val (Natural (Buffer (J)));
+                        end loop;
+                        Process (Data, At_End => False);
+                     end;
+                     return;
+                  end if;
+
+                  if not Byte_Deleted (Input)
+                    and then not
+                      (Squeeze
+                       and then Have_Previous
+                       and then Previous_Is_Byte
+                       and then Item = Previous_Byte
+                       and then Byte_Squeezed (Input))
+                  then
+                     Output_Last := Output_Last + 1;
+                     Previous_Byte := Item;
+                     Previous_Is_Byte := True;
+                     Have_Previous := True;
+                  end if;
+               end;
+            end loop;
+            if Output_Last > 0 then
+               Context.Put (Output (1 .. Output_Last));
+            end if;
+         end Process_Bytes;
+
          procedure Process (Data : String; At_End : Boolean) is
             Output : Unbounded_String;
             I      : Positive := Data'First;
@@ -219,12 +290,16 @@ package body Posix_Tools.Commands.Tr is
                   begin
                      if Out_Text /= ""
                        and then not (Squeeze
-                                     and then Have_Previous
-                                     and then Out_Text = To_String (Previous)
+                                     and then Is_Previous (Out_Text)
                                      and then In_Squeeze_Set (Out_Text))
                      then
                         Append (Output, Out_Text);
-                        Previous := To_Unbounded_String (Out_Text);
+                        Previous_Is_Byte := Out_Text'Length = 1;
+                        if Previous_Is_Byte then
+                           Previous_Byte := Out_Text (Out_Text'First);
+                        else
+                           Previous := To_Unbounded_String (Out_Text);
+                        end if;
                         Have_Previous := True;
                      end if;
                   end;
@@ -240,14 +315,24 @@ package body Posix_Tools.Commands.Tr is
             Last    : Ada.Streams.Stream_Element_Offset)
          is
             pragma Unreferenced (Context);
-            Data : String (1 .. Length (Pending) + Natural (Last - Buffer'First + 1));
          begin
-            Data (1 .. Length (Pending)) := To_String (Pending);
-            for I in Buffer'First .. Last loop
-               Data (Length (Pending) + 1 + Natural (I - Buffer'First)) := Character'Val (Natural (Buffer (I)));
-            end loop;
-            Pending := Null_Unbounded_String;
-            Process (Data, At_End => False);
+            if Length (Pending) = 0 then
+               Process_Bytes (Buffer, Last);
+            else
+               declare
+                  Pending_Length : constant Natural := Length (Pending);
+                  Data : String
+                    (1 .. Pending_Length + Natural (Last - Buffer'First + 1));
+               begin
+                  Data (1 .. Pending_Length) := To_String (Pending);
+                  for I in Buffer'First .. Last loop
+                     Data (Pending_Length + 1 + Natural (I - Buffer'First)) :=
+                       Character'Val (Natural (Buffer (I)));
+                  end loop;
+                  Pending := Null_Unbounded_String;
+                  Process (Data, At_End => False);
+               end;
+            end if;
          end Process_Chunk;
 
          function Translate (Element : String; Code_Point : Long_Long_Integer) return String is
@@ -273,7 +358,10 @@ package body Posix_Tools.Commands.Tr is
             end;
          end Translate;
 
-         procedure Each_Chunk is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk (Process_Chunk);
+         procedure Each_Chunk is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+           (Action        => Process_Chunk,
+            Buffer_Length =>
+              Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
       begin
          for I in 1 .. Natural (Set1.Length) loop
             Positions1.Include (Set1 (I), I);
@@ -295,6 +383,26 @@ package body Posix_Tools.Commands.Tr is
                    (Posix_Tools.Commands.Text_Helpers.Collation.Locale_Collation_Order (Locale, To_String (Bytes)));
             end;
          end if;
+
+         declare
+            Last_Byte : constant Natural :=
+              (if Multibyte then 16#7F# else Character'Pos (Character'Last));
+         begin
+            for Position in 0 .. Last_Byte loop
+               declare
+                  Input : constant Character := Character'Val (Position);
+                  Text  : constant String :=
+                    Translate ("" & Input, Long_Long_Integer (Position));
+               begin
+                  Byte_Deleted (Input) := Text'Length = 0;
+                  Byte_Fast (Input) := Text'Length <= 1;
+                  if Text'Length = 1 then
+                     Byte_Translation (Input) := Text (Text'First);
+                     Byte_Squeezed (Input) := In_Squeeze_Set (Text);
+                  end if;
+               end;
+            end loop;
+         end;
 
          Each_Chunk (Context, "-", Ok);
          if Ok and then Length (Pending) > 0 then

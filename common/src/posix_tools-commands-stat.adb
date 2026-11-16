@@ -1,6 +1,7 @@
 with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Strings.Unbounded;
+with Posix_Tools.Accounts;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Exit_Status;
@@ -16,6 +17,7 @@ package body Posix_Tools.Commands.Stat is
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
+   package Modes renames Posix_Tools.Text.File_Modes;
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -25,6 +27,84 @@ package body Posix_Tools.Commands.Stat is
       Ok         : Boolean := True;
       Has_Format : Boolean := False;
       Format_Text : Unbounded_String;
+      Need_Mode     : Boolean := True;
+      Need_Kind     : Boolean := True;
+      Need_Group    : Boolean := True;
+      Need_Size     : Boolean := True;
+      Need_Creation : Boolean := True;
+      Need_Access   : Boolean := True;
+      Need_Modify   : Boolean := True;
+      Need_User     : Boolean := True;
+      Output_Buffer : Posix_Tools.Commands.Helpers.Output_Buffer;
+
+      procedure Analyze_Format;
+      procedure Emit_Line (Text : String);
+      procedure Flush_Output;
+      function Kind_Of (Path : String; Status : FS.Entry_Status) return FS.File_Kind;
+
+      procedure Analyze_Format is
+         Format : constant String := To_String (Format_Text);
+         I      : Positive := Format'First;
+      begin
+         Need_Mode := False;
+         Need_Kind := False;
+         Need_Group := False;
+         Need_Size := False;
+         Need_Creation := False;
+         Need_Access := False;
+         Need_Modify := False;
+         Need_User := False;
+
+         while I <= Format'Last loop
+            if Format (I) = '%' and then I < Format'Last then
+               case Format (I + 1) is
+                  when 'a'       => Need_Mode := True;
+                  when 'F'       => Need_Kind := True;
+                  when 'g'       => Need_Group := True;
+                  when 's'       => Need_Size := True;
+                  when 'w' | 'W' => Need_Creation := True;
+                  when 'x' | 'X' => Need_Access := True;
+                  when 'y' | 'Y' => Need_Modify := True;
+                  when 'u'       => Need_User := True;
+                  when others    => null;
+               end case;
+               I := I + 2;
+            else
+               I := I + 1;
+            end if;
+         end loop;
+      end Analyze_Format;
+
+      procedure Emit_Line (Text : String) is
+      begin
+         Posix_Tools.Commands.Helpers.Buffered_Put_Line
+           (Output_Buffer, Context, Text);
+      end Emit_Line;
+
+      procedure Flush_Output is
+      begin
+         Posix_Tools.Commands.Helpers.Flush_Output
+           (Output_Buffer, Context);
+      end Flush_Output;
+
+      function Kind_Of (Path : String; Status : FS.Entry_Status) return FS.File_Kind is
+         Type_Code : constant Modes.File_Type_Code :=
+           (if Status.Available then Modes.File_Type (Status.Mode) else 0);
+      begin
+         case Type_Code is
+            when Modes.Type_Directory =>
+               return FS.Directory;
+            when Modes.Type_Regular =>
+               return FS.Ordinary_File;
+            when 0 | Modes.Type_Link =>
+               --  File_Status_Of follows a resolving link. A link code can
+               --  therefore be an unresolved link, whose missing-target
+               --  behavior remains the host adapter's decision.
+               return FS.Kind (Path);
+            when others =>
+               return FS.Special_File;
+         end case;
+      end Kind_Of;
 
       function Time_Image (Value : Ada.Calendar.Time) return String is
          Year       : Ada.Calendar.Year_Number;
@@ -53,10 +133,10 @@ package body Posix_Tools.Commands.Stat is
             return "unknown";
       end Epoch_Image;
 
-      function Kind_Name (Path : String) return String is
+      function Kind_Name (Path : String; Kind : FS.File_Kind) return String is
       begin
-         case FS.Kind (Path) is
-            when FS.Missing_File =>
+         case Kind is
+            when FS.Missing_File | FS.Uninspectable_File =>
                return "missing";
             when FS.Directory =>
                return "directory";
@@ -83,84 +163,123 @@ package body Posix_Tools.Commands.Stat is
       end Kind_Name;
 
       procedure Write_One (Path : String) is
-         Mode_Available  : Boolean := False;
-         Owner_Available : Boolean := False;
-         User_Id         : Natural := 0;
-         Group_Id        : Natural := 0;
-         Mode            : constant Natural := FS.File_Permission_Bits (Path, Mode_Available);
+         Status            : constant FS.Entry_Status := FS.File_Status_Of (Path);
+         Kind              : constant FS.File_Kind := Kind_Of (Path, Status);
+         Mode_Available    : Boolean := Status.Available;
+         Owner_Available   : Boolean := Status.Available;
+         User_Id           : Posix_Tools.Accounts.Id := Status.User;
+         Group_Id          : Posix_Tools.Accounts.Id := Status.Group;
+         Mode              : Natural := Status.Mode mod 8#10000#;
+         Size              : Long_Long_Integer := Status.Size;
          Access_Available   : Boolean := False;
          Creation_Available : Boolean := False;
-         Modify_Available   : Boolean := False;
+         Modify_Available   : Boolean := Status.Available;
          Access_Time        : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
          Creation_Time      : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
          Modify_Time        : Ada.Calendar.Time := Ada.Calendar.Time_Of (1901, 1, 1);
       begin
-         if not FS.Exists (Path) then
+         if Kind in FS.Missing_File | FS.Uninspectable_File then
             Ok := False;
+            Flush_Output;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
             return;
          end if;
 
-         FS.File_Ownership (Path, User_Id, Group_Id, Owner_Available);
-         Access_Available := FS.Access_Time (Path, Access_Time);
-         Creation_Available := FS.Creation_Time (Path, Creation_Time);
-         Modify_Available := FS.Modification_Time (Path, Modify_Time);
+         if Status.Available and then Need_Modify then
+            begin
+               Modify_Time := Posix_Tools.Unix_Time.Time_Of (Status.Modified_Seconds);
+            exception
+               when Constraint_Error | Ada.Calendar.Time_Error =>
+                  Modify_Available := FS.Modification_Time (Path, Modify_Time);
+            end;
+         elsif not Status.Available then
+            if Need_Mode then
+               Mode := FS.File_Permission_Bits (Path, Mode_Available);
+            end if;
+            if Need_User or else Need_Group then
+               FS.File_Ownership (Path, User_Id, Group_Id, Owner_Available);
+            end if;
+            if Need_Size then
+               Size := FS.Size (Path);
+            end if;
+            if Need_Modify then
+               Modify_Available := FS.Modification_Time (Path, Modify_Time);
+            end if;
+         end if;
+         if Need_Access then
+            Access_Available := FS.Access_Time (Path, Access_Time);
+         end if;
+         if Need_Creation then
+            Creation_Available := FS.Creation_Time (Path, Creation_Time);
+         end if;
 
          if Has_Format then
-            Context.Put_Line
+            Emit_Line
               (Posix_Tools.Text.Stat_Formats.Render_Format
                  (Format               => To_String (Format_Text),
                   Path                 => Path,
                   Mode_Image           =>
-                    (if Mode_Available
+                    (if Need_Mode and then Mode_Available
                      then Posix_Tools.Text.File_Modes.Four_Digit_Octal_Image (Mode)
                      else "unknown"),
-                  Kind_Name            => Kind_Name (Path),
+                  Kind_Name            =>
+                    (if Need_Kind then Kind_Name (Path, Kind) else ""),
                   Group_Id_Image       =>
-                    (if Owner_Available
-                     then Posix_Tools.Text.Numeric_Images.Natural_Image (Group_Id)
+                    (if Need_Group and then Owner_Available
+                     then Posix_Tools.Accounts.Image (Group_Id)
                      else "unknown"),
-                  Size_Image           => Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (FS.Size (Path)),
+                  Size_Image           =>
+                    (if Need_Size
+                     then Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Size)
+                     else ""),
                   Creation_Time_Image  =>
-                    (if Creation_Available then Time_Image (Creation_Time) else "unknown"),
+                    (if Need_Creation and then Creation_Available
+                     then Time_Image (Creation_Time) else "unknown"),
                   Creation_Epoch_Image =>
-                    (if Creation_Available then Epoch_Image (Creation_Time) else "0"),
+                    (if Need_Creation and then Creation_Available
+                     then Epoch_Image (Creation_Time) else "0"),
                   Access_Time_Image    =>
-                    (if Access_Available then Time_Image (Access_Time) else "unknown"),
+                    (if Need_Access and then Access_Available
+                     then Time_Image (Access_Time) else "unknown"),
                   Access_Epoch_Image   =>
-                    (if Access_Available then Epoch_Image (Access_Time) else "0"),
+                    (if Need_Access and then Access_Available
+                     then Epoch_Image (Access_Time) else "0"),
                   Modify_Time_Image    =>
-                    (if Modify_Available then Time_Image (Modify_Time) else "unknown"),
+                    (if Need_Modify and then Modify_Available
+                     then Time_Image (Modify_Time) else "unknown"),
                   Modify_Epoch_Image   =>
-                    (if Modify_Available then Epoch_Image (Modify_Time) else "0"),
+                    (if Need_Modify and then Modify_Available
+                     then Epoch_Image (Modify_Time) else "0"),
                   User_Id_Image        =>
-                    (if Owner_Available
-                     then Posix_Tools.Text.Numeric_Images.Natural_Image (User_Id)
+                    (if Need_User and then Owner_Available
+                     then Posix_Tools.Accounts.Image (User_Id)
                      else "unknown")));
          else
-            Context.Put_Line ("File: " & Path);
-            Context.Put_Line
-              ("Size: " & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (FS.Size (Path)));
-            Context.Put_Line ("Type: " & Kind_Name (Path));
-            Context.Put_Line
+            Emit_Line ("File: " & Path);
+            Emit_Line
+              ("Size: " & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Size));
+            Emit_Line ("Type: " & Kind_Name (Path, Kind));
+            Emit_Line
               ("Mode: "
                & (if Mode_Available
                   then Posix_Tools.Text.File_Modes.Four_Digit_Octal_Image (Mode)
                   else "unknown"));
             if Owner_Available then
-               Context.Put_Line
-                 ("Uid: " & Posix_Tools.Text.Numeric_Images.Natural_Image (User_Id));
-               Context.Put_Line
-                 ("Gid: " & Posix_Tools.Text.Numeric_Images.Natural_Image (Group_Id));
+               Emit_Line
+                 ("Uid: " & Posix_Tools.Accounts.Image (User_Id));
+               Emit_Line
+                 ("Gid: " & Posix_Tools.Accounts.Image (Group_Id));
             else
-               Context.Put_Line ("Uid: unknown");
-               Context.Put_Line ("Gid: unknown");
+               Emit_Line ("Uid: unknown");
+               Emit_Line ("Gid: unknown");
             end if;
          end if;
       exception
          when others =>
+            --  intentional terminal exception barrier
             Ok := False;
+            Flush_Output;
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Path, "posix_tools.diagnostic.file.open_failed", "cannot open file");
       end Write_One;
@@ -200,13 +319,18 @@ package body Posix_Tools.Commands.Stat is
          return;
       end if;
 
+      if Has_Format then
+         Analyze_Format;
+      end if;
+
       for I in First .. Context.Argument_Count loop
          if I > First and then not Has_Format then
-            Context.Put_Line ("");
+            Emit_Line ("");
          end if;
          Write_One (Context.Argument (I));
       end loop;
 
+      Flush_Output;
       if Context.Output_Failed then
          Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
       elsif Ok then

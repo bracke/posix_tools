@@ -1,9 +1,31 @@
 with Ada.Exceptions;
+with Ada.Strings.Unbounded;
+with Posix_Tools.Accounts;
 with Posix_Tools.Commands.Contexts;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Usage_Messages;
 
 package Posix_Tools.Commands.Helpers is
+   --  Bounded batching for command output. A buffer never retains more than
+   --  64 KiB; larger values are written directly after queued output.
+   type Output_Buffer is private;
+
+   procedure Buffered_Put
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
+      Text    : String);
+
+   procedure Buffered_Put_Line
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
+      Text    : String);
+
+   procedure Flush_Output
+     (State   : in out Output_Buffer;
+      Context : in out Posix_Tools.Commands.Contexts.Stream_Context'Class);
+
+   procedure Clear_Output (State : in out Output_Buffer);
+
    --  Report a stable, localized failure message without propagating a
    --  secondary diagnostic exception. Exception details are included only
    --  when POSIX_TOOLS_DEBUG is set to a nonempty value.
@@ -55,27 +77,33 @@ package Posix_Tools.Commands.Helpers is
      (Context           : in out Posix_Tools.Commands.Contexts.Stream_Context'Class;
       Wait_For_Line_End : Boolean := False) return Boolean;
 
-   function Resolve_Group_Id (Text : String; Value : out Natural) return Boolean;
+   function Resolve_Group_Id
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
+      Text    : String;
+      Value   : out Posix_Tools.Accounts.Id) return Boolean;
 
-   function Resolve_User_Id (Text : String; Value : out Natural) return Boolean;
+   function Resolve_User_Id
+     (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
+      Text    : String;
+      Value   : out Posix_Tools.Accounts.Id) return Boolean;
 
    function Group_Id_Text
      (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id          : Natural;
+      Id          : Posix_Tools.Accounts.Id;
       Prefer_Name : Boolean := True) return String;
 
    function User_Id_Text
      (Context     : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id          : Natural;
+      Id          : Posix_Tools.Accounts.Id;
       Prefer_Name : Boolean := True) return String;
 
    function Decorated_Group_Id_Text
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id      : Natural) return String;
+      Id      : Posix_Tools.Accounts.Id) return String;
 
    function Decorated_User_Id_Text
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class;
-      Id      : Natural) return String;
+      Id      : Posix_Tools.Accounts.Id) return String;
 
    function Current_User_Name
      (Context : Posix_Tools.Commands.Contexts.Host_Context'Class) return String;
@@ -85,6 +113,11 @@ package Posix_Tools.Commands.Helpers is
    procedure For_Each_Directory_Child
      (Path   : String;
       Listed : out Boolean);
+
+   --  Path relative to Root when Path is Root or a lexical child of it.
+   --  ".." is the fail-closed answer for an unrelated path; Hostkit's
+   --  beneath update refuses it.
+   function Relative_Beneath (Root, Path : String) return String;
 
    procedure Operational_Error
      (Context     : in out Posix_Tools.Commands.Contexts.Diagnostic_Context'Class;
@@ -150,4 +183,9 @@ package Posix_Tools.Commands.Helpers is
       Requires_Argument : String;
       First             : out Positive;
       Valid             : out Boolean);
+
+private
+   type Output_Buffer is record
+      Pending : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
 end Posix_Tools.Commands.Helpers;

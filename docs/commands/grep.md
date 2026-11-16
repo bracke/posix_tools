@@ -180,3 +180,6 @@ classes, collating symbols, and escaped ordinary extended metacharacters.
 Locale-specific range membership and ordering use the common collation data
 available to `posix_tools`; range endpoints that are themselves multi-character
 collating symbols are not expanded as full POSIX collating-element ranges.
+Logical input records larger than 4 MiB are reported and skipped. This bound
+prevents the integrated matching engine's record materialization from
+exhausting an ordinary process stack.

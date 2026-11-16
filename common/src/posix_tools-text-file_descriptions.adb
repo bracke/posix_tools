@@ -1,5 +1,4 @@
 with Ada.Streams;
-with Ada.Strings.Unbounded;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.File_Magic_Fields;
@@ -12,18 +11,13 @@ package body Posix_Tools.Text.File_Descriptions is
    HT  : constant Character := Character'Val (9);
    LF  : constant Character := Character'Val (10);
    CR  : constant Character := Character'Val (13);
+   Prefix_Limit : constant := 512;
 
    function Contains_At (Text : String; Offset : Natural; Needle : String) return Boolean;
 
    function Decoded_Literal (Text : String; Ok : out Boolean) return String;
 
    function Is_Text_Byte (Byte : Ada.Streams.Stream_Element) return Boolean;
-
-   function Magic_Description
-     (Data       : String;
-      Mime_Mode  : Boolean;
-      Magic_Text : String;
-      Found      : out Boolean) return String;
 
    function Contains_At (Text : String; Offset : Natural; Needle : String) return Boolean is
    begin
@@ -37,6 +31,46 @@ package body Posix_Tools.Text.File_Descriptions is
          return Posix_Tools.Text.Matching.Starts_With_At (Text, Needle, Start);
       end;
    end Contains_At;
+
+   procedure Update (State : in out Classifier; Data : String) is
+      Remaining : constant Natural :=
+        (if Length (State.Prefix) >= Prefix_Limit then 0
+         else Prefix_Limit - Length (State.Prefix));
+   begin
+      if Remaining > 0 and then Data'Length > 0 then
+         Append
+           (State.Prefix,
+            Data (Data'First .. Data'First + Natural'Min (Remaining, Data'Length) - 1));
+      end if;
+      for Ch of Data loop
+         State.Saw_Byte := True;
+         if Ch = NUL then
+            State.Saw_NUL := True;
+         elsif not Is_Text_Byte (Ada.Streams.Stream_Element (Character'Pos (Ch))) then
+            State.Saw_Text := False;
+         end if;
+      end loop;
+   end Update;
+
+   function Classification_Complete (State : Classifier) return Boolean is
+     (Length (State.Prefix) >= Prefix_Limit
+      and then (State.Saw_NUL or else not State.Saw_Text));
+
+   function Description (State : Classifier; Mime_Mode : Boolean) return String is
+      Prefix_Description : constant String :=
+        Content_Description (To_String (State.Prefix), Mime_Mode, "", False);
+      Generic_Text : constant String := (if Mime_Mode then "text/plain" else "text");
+   begin
+      if not State.Saw_Byte then
+         return (if Mime_Mode then "inode/x-empty" else "empty");
+      elsif Prefix_Description /= Generic_Text then
+         return Prefix_Description;
+      elsif State.Saw_NUL or else not State.Saw_Text then
+         return (if Mime_Mode then "application/octet-stream" else "data");
+      else
+         return Generic_Text;
+      end if;
+   end Description;
 
    function Content_Description
      (Data       : String;
@@ -167,6 +201,51 @@ package body Posix_Tools.Text.File_Descriptions is
    begin
       return Posix_Tools.Text.Byte_Classes.Is_File_Text_Byte (Ch);
    end Is_Text_Byte;
+
+   function Magic_Prefix_Length (Magic_Text : String) return Natural is
+      Start  : Positive := Magic_Text'First;
+      Needed : Natural := 0;
+   begin
+      if Magic_Text = "" then
+         return 0;
+      end if;
+      while Start <= Magic_Text'Last loop
+         declare
+            Stop  : Natural := Start;
+            First : Posix_Tools.Text.File_Magic_Fields.Magic_Field;
+            Second : Posix_Tools.Text.File_Magic_Fields.Magic_Field;
+         begin
+            while Stop <= Magic_Text'Last and then Magic_Text (Stop) /= LF loop
+               Stop := Stop + 1;
+            end loop;
+            if Stop > Start and then Magic_Text (Start) /= '#' then
+               First := Posix_Tools.Text.File_Magic_Fields.Next_Field
+                 (Magic_Text (Start .. Stop - 1), Start);
+               if not First.At_End then
+                  Second := Posix_Tools.Text.File_Magic_Fields.Next_Field
+                    (Magic_Text (Start .. Stop - 1), First.Next);
+                  if not Second.At_End then
+                     declare
+                        Offset : constant Posix_Tools.Text.Decimal_Parsing.Parsed_Natural :=
+                          Posix_Tools.Text.Decimal_Parsing.Natural_Value
+                            (Magic_Text (Start .. First.Last));
+                        Literal_Length : constant Natural := Second.Last - First.Next + 1;
+                     begin
+                        if Offset.Valid
+                          and then Offset.Value <= Natural'Last - Literal_Length
+                        then
+                           Needed := Natural'Max
+                             (Needed, Offset.Value + Literal_Length);
+                        end if;
+                     end;
+                  end if;
+               end if;
+            end if;
+            Start := Stop + 1;
+         end;
+      end loop;
+      return Needed;
+   end Magic_Prefix_Length;
 
    function Magic_Description
      (Data       : String;

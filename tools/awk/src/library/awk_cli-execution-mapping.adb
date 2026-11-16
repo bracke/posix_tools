@@ -42,9 +42,13 @@ package body Mapping is
       Result : I.Assignment_Vectors.Vector;
    begin
       for Item of Source loop
-         if U.To_String (Item.Name) /= "-" and then U.To_String (Item.Name) /= "" then
-            Result.Append (Pair (U.To_String (Item.Name), U.To_String (Item.Content)));
-         end if;
+         declare
+            Name : constant String := U.To_String (Item.Name);
+         begin
+            if Name /= "-" and then Name /= "" then
+               Result.Append (Pair (Name, U.To_String (Item.Content)));
+            end if;
+         end;
       end loop;
       return Result;
    end Build_Auxiliary_Files;

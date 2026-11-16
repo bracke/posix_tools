@@ -61,6 +61,9 @@ private package Awk_CLI.Execution.Callbacks is
    --  @param Text Exact AWK standard output.
    procedure Write_Output (User_Data : System.Address; Text : String);
 
+   --  Deliver any live standard output retained for batching.
+   procedure Flush_Output (State : in out Stream_State);
+
    --  @param User_Data Address of Stream_State.
    --  @param Name AWK redirection target.
    --  @param Text Exact redirected output.
@@ -106,6 +109,7 @@ private
       Live_Redirection : Live_Redirection_Writer := null;
       Live_Command     : Live_Command_Reader := null;
       Live_User_Data   : System.Address := System.Null_Address;
+      Live_Output_Buffer : U.Unbounded_String;
       Has_Failure      : Boolean := False;
       Failure_Value    : Awk_CLI.Diagnostics.Diagnostic;
       Input_Index      : Natural := 0;

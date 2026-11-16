@@ -1,5 +1,3 @@
-with Ada.Containers;
-with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Operation_Reports;
@@ -10,27 +8,22 @@ with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Mv is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
-   use type Ada.Containers.Count_Type;
    use type Posix_Tools.File_Operations.Operation_Outcome;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
-   package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
-
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
-      Operands : String_Vectors.Vector;
       Ok       : Boolean := True;
       Verbose  : Boolean := False;
       Force    : Boolean := False;
       Interactive : Boolean := False;
       First    : Positive;
       Valid    : Boolean;
+      Output   : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       function Confirm_Overwrite (Path : String) return Boolean;
 
@@ -82,18 +75,17 @@ package body Posix_Tools.Commands.Mv is
       if not Valid then
          return;
       end if;
-      for I in First .. Context.Argument_Count loop
-         Operands.Append (Context.Argument (I));
-      end loop;
 
-      if Operands.Length < 2 then
+      if First > Context.Argument_Count
+        or else Context.Argument_Count - First + 1 < 2
+      then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
       declare
-         Count  : constant Natural := Natural (Operands.Length);
-         Target : constant String := Operands.Element (Count);
+         Count  : constant Natural := Context.Argument_Count - First + 1;
+         Target : constant String := Context.Argument (Context.Argument_Count);
          --  A directory as the last operand is where the others go, two
          --  operands or more, as POSIX has it.
          Into_Directory : constant Boolean := FS.Kind (Target) = FS.Directory;
@@ -107,33 +99,36 @@ package body Posix_Tools.Commands.Mv is
             return;
          end if;
 
-         for I in 1 .. Count - 1 loop
+         for I in First .. Context.Argument_Count - 1 loop
             declare
                Destination : constant String :=
                  (if not Into_Directory
                   then Target
                   else FS.Child_Path
                     (Target,
-                     Posix_Tools.Paths.Basename (Operands.Element (I))));
+                     Posix_Tools.Paths.Basename (Context.Argument (I))));
                --  Each entry that could not be moved is reported for itself,
                --  with why.
                Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
                Moved   : Posix_Tools.File_Operations.Operation_Outcome;
             begin
                if Confirm_Overwrite (Destination) then
-                  Posix_Tools.File_Operations.Moving.Move_Path (Operands.Element (I), Destination, Reports, Moved);
+                  Posix_Tools.File_Operations.Moving.Move_Path
+                    (Context.Argument (I), Destination, Reports, Moved);
 
                   if not Posix_Tools.File_Operations.Succeeded (Moved) then
                      Ok := False;
                   elsif Verbose and then Moved = Posix_Tools.File_Operations.Done then
-                     Context.Put_Line
-                       ("'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Operands.Element (I)) & "' -> '"
-                        & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
+                     Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                       (Output, Context,
+                        "'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Context.Argument (I)) & "' -> '"
+                          & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
                   end if;
                end if;
             end;
          end loop;
       end;
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 

@@ -13,9 +13,29 @@ package body Command_Tests.Stream_Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail byte mode edges", Tail.Test_Tail_Byte_Mode_Edges'Access));
       AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("command:tail storage diagnostics",
+            Tail.Test_Tail_Storage_Diagnostics'Access));
+      AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail compact counts", Tail.Test_Tail_Compact_Counts'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:tail follow live", Tail.Test_Tail_Follow_Live'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("command:tail follow recovery",
+            Tail.Test_Tail_Follow_Recovery'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("command:tail follow sequential inputs",
+            Tail.Test_Tail_Follow_Sequential_Inputs'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("command:tail follow zero lines",
+            Tail.Test_Tail_Follow_Zero_Lines'Access));
       AUnit.Test_Suites.Add_Test
         (Result,
          Caller.Create

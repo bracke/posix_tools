@@ -21,10 +21,9 @@ procedure Package_Entries is
    Trees : constant Project_Tools.Files.Name_List :=
      [+".github", +"common", +"docs", +"generated", +"src", +"tests", +"tools"];
 
-   --  Directories .gitignore keeps out, wherever they occur, and the test
-   --  scratch directory under generated.
+   --  Directories .gitignore keeps out, wherever they occur.
    Skipped_Directories : constant Project_Tools.Files.Name_List :=
-     [+"alire", +"bin", +"obj", +"lib", +"config", +"dist", +"test-work"];
+     [+"alire", +"bin", +"obj", +"lib", +"config", +"dist"];
 
    Written_By_Packaging : constant Project_Tools.Files.Path_List :=
      [+"generated/package-files.txt", +"generated/package-manifest.txt", +"generated/release-checksums.txt"];

@@ -11,6 +11,8 @@ separate (Command_Tests.Stream_Command_Tests)
       BS      : constant Character := Character'Val (8);
       Wide    : constant String := Character'Val (16#E4#) & Character'Val (16#B8#) & Character'Val (16#AD#);
       Acute   : constant String := Character'Val (16#CC#) & Character'Val (16#81#);
+      Boundary_Prefix : constant String (1 .. 16 * 1024 - 1) :=
+        [others => 'a'];
 
    begin
       Context.Initialize ("expand", No_Args);
@@ -37,6 +39,20 @@ separate (Command_Tests.Stream_Command_Tests)
          and then Test_Contexts.Output (Context) = "a  b  c",
          "expand supports comma-separated tab stop lists");
 
+      Context.Initialize ("expand", Two_Args ("-t", "2049"));
+      Test_Contexts.Set_Standard_Input (Context, HT & "x");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      declare
+         Output_Text : constant String := Test_Contexts.Output (Context);
+      begin
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Output_Text'Length = 2_050
+            and then (for all Ch of Output_Text (Output_Text'First .. Output_Text'Last - 1) => Ch = ' ')
+            and then Output_Text (Output_Text'Last) = 'x',
+            "expand writes large tab stops in bounded blocks");
+      end;
+
       Context.Initialize ("expand", No_Args);
       Test_Contexts.Set_Standard_Input (Context, Wide & HT & "x" & LF & "e" & Acute & HT & "x");
       Posix_Tools.Commands.Expand.Run (Context, Result);
@@ -44,6 +60,16 @@ separate (Command_Tests.Stream_Command_Tests)
         (Result.Status = Posix_Tools.Exit_Status.Success
          and then Test_Contexts.Output (Context) = Wide & "      x" & LF & "e" & Acute & "       x",
          "expand uses display columns for wide and combining UTF-8");
+
+      Context.Initialize ("expand", No_Args);
+      Test_Contexts.Set_Standard_Input
+        (Context, Boundary_Prefix & Wide & HT & "x");
+      Posix_Tools.Commands.Expand.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context)
+           = Boundary_Prefix & Wide & "       x",
+         "expand carries UTF-8 sequences across input chunks");
 
       Context.Initialize ("expand", No_Args);
       Test_Contexts.Set_Standard_Input (Context, "abc" & BS & HT & "x");

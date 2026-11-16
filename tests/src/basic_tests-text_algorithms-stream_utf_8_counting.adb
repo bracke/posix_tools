@@ -1,4 +1,5 @@
 with AUnit.Assertions;
+with Ada.Streams;
 with Interfaces;
 with Posix_Tools.Streams.Counting;
 with Posix_Tools.Text.Byte_Classes;
@@ -214,6 +215,35 @@ package body Basic_Tests.Text_Algorithms.Stream_UTF_8_Counting is
         (Posix_Tools.Text.Checksums.POSIX_Cksum_CRC_32 ("") = 16#FFFF_FFFF#
          and then Posix_Tools.Text.Checksums.POSIX_Cksum_CRC_32 ("abc") = 1_219_131_554,
          "POSIX cksum CRC32");
+      declare
+         Data : Ada.Streams.Stream_Element_Array (1 .. 257);
+         Text : String (1 .. 257);
+         Whole : Posix_Tools.Text.Checksums.POSIX_Cksum_State :=
+           Posix_Tools.Text.Checksums.Initial_POSIX_Cksum_State;
+         Split : Posix_Tools.Text.Checksums.POSIX_Cksum_State :=
+           Posix_Tools.Text.Checksums.Initial_POSIX_Cksum_State;
+      begin
+         for I in Text'Range loop
+            declare
+               Value : constant Natural := (I * 73 + 19) mod 256;
+            begin
+               Text (I) := Character'Val (Value);
+               Data (Ada.Streams.Stream_Element_Offset (I)) :=
+                 Ada.Streams.Stream_Element (Value);
+            end;
+         end loop;
+         Posix_Tools.Text.Checksums.Update (Whole, Data, Data'Last);
+         Posix_Tools.Text.Checksums.Update (Split, Data (1 .. 7), 7);
+         Posix_Tools.Text.Checksums.Update (Split, Data (8 .. 15), 15);
+         Posix_Tools.Text.Checksums.Update
+           (Split, Data (16 .. Data'Last), Data'Last);
+         AUnit.Assertions.Assert
+           (Posix_Tools.Text.Checksums.Digest (Whole)
+              = Posix_Tools.Text.Checksums.POSIX_Cksum_CRC_32 (Text)
+            and then Posix_Tools.Text.Checksums.Digest (Split)
+              = Posix_Tools.Text.Checksums.Digest (Whole),
+            "POSIX cksum slicing and split updates");
+      end;
       declare
          Digest : constant String :=
            "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789";

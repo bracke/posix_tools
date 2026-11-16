@@ -16,6 +16,7 @@ is not covered unless it appears in the target inventory below.
 - `Posix_Tools.Command_Inventory`
 - `Posix_Tools.Command_Inventory.Tables`
 - `Posix_Tools.Extension_Options`
+- `Posix_Tools.Accounts`
 - `Posix_Tools.Numbers`
 - `Posix_Tools.Paths`
 - `Posix_Tools.Text.UTF_8`

@@ -35,6 +35,13 @@ separate (Command_Tests.Stream_Command_Tests)
              "sort -u -r keeps the first of lines with equal keys");
       Check (One_Arg ("-nu"), "1" & LF & "01" & LF, "1" & LF,
              "sort -nu treats numerically equal keys as duplicates");
+      Check (One_Arg ("-nu"), "-0" & LF & "0" & LF, "-0" & LF,
+             "sort -nu treats signed zeroes as duplicates");
+      Check
+        (One_Arg ("-nu"),
+         "1e1000001" & LF & "1e1000000" & LF,
+         "1e1000000" & LF & "1e1000001" & LF,
+         "sort -nu keeps distinct large exponents");
       Check (One_Arg ("-n"), "1" & LF & "01" & LF, "01" & LF & "1" & LF,
              "sort -n orders numerically equal lines by bytes");
       Check (Two_Args ("-r", "-k2n"), "x 2" & LF & "x 10" & LF & "y 1" & LF,

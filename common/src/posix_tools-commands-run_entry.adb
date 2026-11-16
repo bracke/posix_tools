@@ -9,6 +9,7 @@ begin
    Run (Context, Result);
 exception
    when Occurrence : others =>
+      --  intentional terminal exception barrier
       Result.Status := Posix_Tools.Exit_Status.Internal_Failure;
       Posix_Tools.Commands.Helpers.Report_Internal_Error
         (Context, Command_Name, Occurrence);

@@ -1,4 +1,5 @@
 with Ada.Containers.Indefinite_Ordered_Sets;
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Text.Line_Breaks;
@@ -11,14 +12,14 @@ package body Metadata_Checks.Continuous_Integration is
    use Tooling_Support;
 
    package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
+   package Path_Parts is new Ada.Containers.Indefinite_Vectors (Positive, String);
 
    Workflow : constant String := ".github/workflows/ci.yml";
 
    --  Path joined onto Dir with "." and ".." resolved; both are relative to
    --  the project root, and a result outside it starts with "../".
    function Resolve (Dir : String; Path : String) return String is
-      Parts  : array (1 .. 64) of Unbounded_String;
-      Count  : Natural := 0;
+      Parts  : Path_Parts.Vector;
       Text   : constant String := (if Dir = "" then Path else Dir & "/" & Path);
       Start  : Positive := Text'First;
       Result : Unbounded_String;
@@ -27,11 +28,13 @@ package body Metadata_Checks.Continuous_Integration is
       begin
          if Part = "" or else Part = "." then
             null;
-         elsif Part = ".." and then Count > 0 and then Parts (Count) /= ".." then
-            Count := Count - 1;
+         elsif Part = ".."
+           and then not Parts.Is_Empty
+           and then Parts.Last_Element /= ".."
+         then
+            Parts.Delete_Last;
          else
-            Count := Count + 1;
-            Parts (Count) := To_Unbounded_String (Part);
+            Parts.Append (Part);
          end if;
       end Take;
    begin
@@ -43,12 +46,16 @@ package body Metadata_Checks.Continuous_Integration is
       end loop;
       Take (Text (Start .. Text'Last));
 
-      for I in 1 .. Count loop
-         Append (Result, (if I = 1 then "" else "/") & Parts (I));
+      for Part of Parts loop
+         Append
+           (Result,
+            (if Length (Result) = 0 then "" else "/") & Part);
       end loop;
 
       return To_String (Result);
    end Resolve;
+
+   procedure Self_Test is separate;
 
    function Directory_Of (Path : String) return String is
       Last : constant Natural := Ada.Strings.Fixed.Index (Path, "/", Ada.Strings.Backward);
@@ -87,23 +94,33 @@ package body Metadata_Checks.Continuous_Integration is
                         declare
                            From  : constant Positive := At_Marker + Marker'Length;
                            Close : constant Natural := Ada.Strings.Fixed.Index (Line (From .. Line'Last), """");
-                           Pin   : constant String :=
-                             Resolve (Directory_Of (Manifest), Line (From .. Close - 1));
                         begin
                            if Close = 0 then
                               Tooling_Checks.Fail (Manifest & " has an unterminated path pin");
-                           end if;
-
-                           if Pin'Length > 3 and then Pin (Pin'First .. Pin'First + 2) = "../" then
+                           else
                               declare
-                                 Rest  : constant String := Pin (Pin'First + 3 .. Pin'Last);
-                                 Slash : constant Natural := Ada.Strings.Fixed.Index (Rest, "/");
+                                 Pin : constant String :=
+                                   Resolve
+                                     (Directory_Of (Manifest),
+                                      Line (From .. Close - 1));
                               begin
-                                 Siblings.Include (if Slash = 0 then Rest else Rest (Rest'First .. Slash - 1));
+                                 if Pin'Length > 3
+                                   and then Pin (Pin'First .. Pin'First + 2) = "../"
+                                 then
+                                    declare
+                                       Rest  : constant String := Pin (Pin'First + 3 .. Pin'Last);
+                                       Slash : constant Natural := Ada.Strings.Fixed.Index (Rest, "/");
+                                    begin
+                                       Siblings.Include
+                                         (if Slash = 0
+                                          then Rest
+                                          else Rest (Rest'First .. Slash - 1));
+                                    end;
+                                 end if;
+
+                                 Visit (Pin & "/alire.toml");
                               end;
                            end if;
-
-                           Visit (Pin & "/alire.toml");
                         end;
                      end if;
                   end;
@@ -141,6 +158,45 @@ package body Metadata_Checks.Continuous_Integration is
 
    procedure Run is
       Siblings : constant Name_Sets.Set := Sibling_Checkouts;
+
+      procedure Require_Immutable_Checkout (Name : String) is
+         Content    : constant String :=
+           Project_Tools.Files.Read_Raw_File
+             (Project_Tools.Files.Join (Root, Workflow));
+         LF         : constant Character := Character'Val (10);
+         Repository : constant String :=
+           "          repository: bracke/" & Name;
+         Ref_Prefix : constant String := Repository & LF & "          ref: ";
+         Path_Line  : constant String := LF & "          path: " & Name;
+         At_Ref     : constant Natural :=
+           Ada.Strings.Fixed.Index (Content, Ref_Prefix);
+      begin
+         if At_Ref = 0 then
+            Tooling_Checks.Fail
+              ("checkout of " & Name & " has no adjacent immutable ref");
+         end if;
+
+         declare
+            First : constant Positive := At_Ref + Ref_Prefix'Length;
+            Last  : constant Natural :=
+              Ada.Strings.Fixed.Index (Content (First .. Content'Last), [1 => LF]);
+         begin
+            if Last = 0
+              or else Last - First /= 40
+              or else
+                (for some Ch of Content (First .. Last - 1) =>
+                   Ch not in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F')
+            then
+               Tooling_Checks.Fail
+                 ("checkout of " & Name & " must use a 40-digit commit ref");
+            elsif Last + Path_Line'Length - 1 > Content'Last
+              or else Content (Last .. Last + Path_Line'Length - 1) /= Path_Line
+            then
+               Tooling_Checks.Fail
+                 ("checkout ref of " & Name & " must precede its path");
+            end if;
+         end;
+      end Require_Immutable_Checkout;
    begin
       if Siblings.Is_Empty then
          Tooling_Checks.Fail ("no sibling checkouts found in the crates' path pins");
@@ -150,6 +206,7 @@ package body Metadata_Checks.Continuous_Integration is
       for Name of Siblings loop
          Require_Exact_Line (Workflow, "          repository: bracke/" & Name, "checkout of " & Name);
          Require_Exact_Line (Workflow, "          path: " & Name, "checkout path of " & Name);
+         Require_Immutable_Checkout (Name);
       end loop;
       Require_Exact_Line (Workflow, "          path: posix_tools", "checkout path of posix_tools");
 
@@ -159,8 +216,11 @@ package body Metadata_Checks.Continuous_Integration is
       --  check after the gate has regenerated what it checks.
       declare
          Keep_Endings    : constant String := "        run: git config --global core.autocrlf false";
-         Checkout        : constant String := "        uses: actions/checkout@v7";
+         Checkout        : constant String :=
+           "        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7";
          Restore_Endings : constant String := "        run: git config --global --unset core.autocrlf || true";
+         Toolchain       : constant String :=
+           "        run: alr toolchain --select --local gnat_native=15.2.1 gprbuild=26.0.1";
          Build           : constant String := "        run: alr -n build";
          Install_Prover  : constant String := "            if alr -n install gnatprove=15.1.0; then";
          Gate            : constant String := "        run: ${{ matrix.test_runner }} release-check";
@@ -169,13 +229,15 @@ package body Metadata_Checks.Continuous_Integration is
       begin
          Require_Exact_Line (Workflow, Keep_Endings, "line ending setting before checkout");
          Require_Exact_Line (Workflow, Restore_Endings, "line ending setting after checkout");
+         Require_Exact_Line (Workflow, Toolchain, "pinned Ada toolchain selection");
          Require_Exact_Line (Workflow, Build, "tooling build step");
          Require_Exact_Line (Workflow, Install_Prover, "pinned GNATprove install");
          Require_Exact_Line (Workflow, Gate, "release gate step");
          Require_Exact_Line (Workflow, Drift_Check, "generated file drift check");
          Require_Line_Order (Workflow, Keep_Endings, Checkout);
          Require_Line_Order (Workflow, Checkout, Restore_Endings);
-         Require_Line_Order (Workflow, Restore_Endings, Build);
+         Require_Line_Order (Workflow, Restore_Endings, Toolchain);
+         Require_Line_Order (Workflow, Toolchain, Build);
          Require_Line_Order (Workflow, Build, Gate);
          Require_Line_Order (Workflow, Install_Prover, Gate);
          Require_Line_Order (Workflow, Gate, Drift_Check);
@@ -189,15 +251,17 @@ package body Metadata_Checks.Continuous_Integration is
       Tooling_Checks.Require_Text (Check, Workflow, "contents: read");
       Tooling_Checks.Require_Text (Check, Workflow, "timeout-minutes: 60");
       Tooling_Checks.Require_Text (Check, Workflow, "fail-fast: false");
-      Forbid_Text (Workflow, "actions/checkout@v4", "CI workflow must use Node 24 compatible checkout");
+      Forbid_Text (Workflow, "actions/checkout@v", "CI checkout action must use an immutable commit");
       Forbid_Text (Workflow, "actions/setup-node@v4", "CI workflow must not pin Node 20 setup actions");
       Forbid_Text (Workflow, "actions/cache/restore@v4", "CI workflow must not pin Node 20 cache actions");
-      Tooling_Checks.Require_Text (Check, Workflow, "alire-project/setup-alire@v6");
+      Tooling_Checks.Require_Text
+        (Check,
+         Workflow,
+         "alire-project/setup-alire@1ff7d9224297858cc9ecce29b08bc6109f93e49a # v6");
       Forbid_Text
         (Workflow,
-         "alire-project/setup-alire@v6.0.0",
-         "CI workflow must use setup-alire v6 branch with Node 24 internals");
-      Forbid_Text (Workflow, "alire-project/setup-alire@v5", "CI workflow must use current setup-alire");
+         "alire-project/setup-alire@v",
+         "CI setup-alire action must use an immutable commit");
       Tooling_Checks.Require_Text (Check, Workflow, "working-directory: posix_tools/tests");
       Tooling_Checks.Require_Text (Check, Workflow, "posix_tools_tests.exe");
       Tooling_Checks.Require_Text (Check, Workflow, "GITHUB_PATH");
@@ -209,7 +273,7 @@ package body Metadata_Checks.Continuous_Integration is
       Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "sibling dependency checkouts");
       Tooling_Checks.Require_Text
-        (Check, "generated/requirements.csv", "Node 24 compatible setup-alire branch");
+        (Check, "generated/requirements.csv", "commit-pinned Node 24 compatible setup-alire action");
       Tooling_Checks.Require_Text
         (Check, "generated/requirements.csv", "PACKAGE-INVENTORY-COMPLETE-001");
       Tooling_Checks.Require_Text

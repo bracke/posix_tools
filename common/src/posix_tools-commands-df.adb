@@ -12,6 +12,7 @@ package body Posix_Tools.Commands.Df is
    is
       First : Positive := 1;
       Ok    : Boolean := True;
+      Output : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       procedure Print_Capacity (Path : String);
 
@@ -31,11 +32,12 @@ package body Posix_Tools.Commands.Df is
          Total := Posix_Tools.Counts.Rounded_Units (Capacity.Capacity_Bytes, 512);
          Free := Posix_Tools.Counts.Rounded_Units (Capacity.Free_Bytes, 512);
          Used := Long_Long_Integer'Max (0, Total - Free);
-         Context.Put_Line
-           (Path & " "
-            & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Total) & " "
-            & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Used) & " "
-            & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Free));
+         Posix_Tools.Commands.Helpers.Buffered_Put_Line
+           (Output, Context,
+            Path & " "
+              & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Total) & " "
+              & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Used) & " "
+              & Posix_Tools.Text.Numeric_Images.Long_Long_Integer_Image (Free));
       end Print_Capacity;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -46,7 +48,8 @@ package body Posix_Tools.Commands.Df is
          First := 2;
       end if;
 
-      Context.Put_Line ("Filesystem 512-blocks Used Available");
+      Posix_Tools.Commands.Helpers.Buffered_Put_Line
+        (Output, Context, "Filesystem 512-blocks Used Available");
       if First > Context.Argument_Count then
          Print_Capacity (".");
       else
@@ -56,6 +59,7 @@ package body Posix_Tools.Commands.Df is
          end loop;
       end if;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Df;

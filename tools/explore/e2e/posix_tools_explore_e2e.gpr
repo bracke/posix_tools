@@ -1,4 +1,5 @@
 with "aunit.gpr";
+with "../../../../hostkit/hostkit.gpr";
 with "../../../../terminal/terminal_common/terminal_common.gpr";
 with "../../../../terminal/terminal_core/terminal_core.gpr";
 with "../../../../terminal/terminal_pty/terminal_pty.gpr";

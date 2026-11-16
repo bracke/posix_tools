@@ -59,6 +59,14 @@ private package Explore.Application.Terminals is
    --  its settings, and the session's signals.
    procedure Hand_Back (State : Session; Entered : Boolean; Saved : Session_Dispositions);
 
+   --  Attempt every Hand_Back operation without propagating a cleanup
+   --  exception. This is only for an exception path that must preserve the
+   --  original failure.
+   procedure Hand_Back_Safely
+     (State   : Session;
+      Entered : Boolean;
+      Saved   : Session_Dispositions);
+
    --  Lend the terminal to another program: give the screen and the settings
    --  back, and let the keyboard's signals reach the program. Ok is False,
    --  and the session ends, when the terminal took no output.

@@ -96,6 +96,11 @@ package Explore.Screen is
    --  The number of cells the UTF-8 Text takes, as Put would write it.
    function Width_Of (Text : String) return Natural;
 
+   --  Text as it fits in Width cells: whole when it does, and otherwise its
+   --  end after a one-cell ellipsis. The result starts at a UTF-8 character
+   --  boundary and is found in linear time.
+   function Tail_Of (Text : String; Width : Natural) return String;
+
    --  The output that brings a terminal showing Shown to show Wanted: only
    --  the cells that differ are written, unless Full is set or the two differ
    --  in size, when every cell is. Shown is made a copy of Wanted.

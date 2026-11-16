@@ -219,6 +219,7 @@ package body Explore.Archives is
       end case;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Ok := False;
    end List;
 

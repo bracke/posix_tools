@@ -23,6 +23,14 @@ package body Posix_Tools.Commands.Text_Helpers.Tab_Stops is
          return Config.Stops.Element (Index);
       end Stop_Value;
    begin
+      --  The default configuration is overwhelmingly the common case for
+      --  expand and unexpand. Avoid generic callbacks and vector queries for
+      --  every tab byte when there are no explicit stops to inspect.
+      if Config.Stops.Is_Empty then
+         return Column
+           + (Config.Default_Stop - (Column mod Config.Default_Stop));
+      end if;
+
       return Configured_Next_Column (Column, Config.Default_Stop);
    end Next_Column;
 

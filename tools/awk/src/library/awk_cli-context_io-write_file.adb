@@ -39,28 +39,16 @@ is
       Record_Write;
    end Update_Virtual_File;
 
-   function Write_Existing_Process_File
-     (Position : Positive) return Awk_CLI.Redirections.Write_Status
-   is
-   begin
-      if Awk_CLI.Platform.Write_File (Path, Content, Append) then
-         Update_Virtual_File (Position);
-         return Awk_CLI.Redirections.Write_Success;
-      else
-         return Awk_CLI.Redirections.Write_Failed;
-      end if;
-   end Write_Existing_Process_File;
-
-   function Write_New_Process_File return Awk_CLI.Redirections.Write_Status is
-   begin
-      if Awk_CLI.Platform.Write_File (Path, Content, Append) then
-         Add_New_Virtual_File;
-         return Awk_CLI.Redirections.Write_Success;
-      else
-         return Awk_CLI.Redirections.Write_Failed;
-      end if;
-   end Write_New_Process_File;
 begin
+   --  Virtual files and write logs are test-harness state. Production output
+   --  is already written to the host and must not also be retained in memory.
+   if Context.Config.Use_Process then
+      return
+        (if Awk_CLI.Platform.Write_File (Path, Content, Append)
+         then Awk_CLI.Redirections.Write_Success
+         else Awk_CLI.Redirections.Write_Failed);
+   end if;
+
    if not Context.IO.Files.Is_Empty then
       for Position in Context.IO.Files.First_Index .. Context.IO.Files.Last_Index loop
          declare
@@ -75,19 +63,11 @@ begin
                   return Awk_CLI.Redirections.Write_Failed;
                end if;
 
-               if Context.Config.Use_Process then
-                  return Write_Existing_Process_File (Position);
-               end if;
-
                Update_Virtual_File (Position);
                return Awk_CLI.Redirections.Write_Success;
             end if;
          end;
       end loop;
-   end if;
-
-   if Context.Config.Use_Process then
-      return Write_New_Process_File;
    end if;
 
    Add_New_Virtual_File;

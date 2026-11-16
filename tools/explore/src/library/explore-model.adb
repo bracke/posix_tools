@@ -1,4 +1,3 @@
-with Ada.Strings.Fixed;
 with Explore.Paths;
 
 package body Explore.Model is
@@ -219,7 +218,7 @@ package body Explore.Model is
       end if;
 
       for I in 1 .. Shown_Count (Item) loop
-         if Unbounded.To_String (Shown_Entry (Item, I).Name) = Name then
+         if Item.Entries (Item.Shown (I)).Name = Name then
             return I;
          end if;
       end loop;
@@ -437,7 +436,7 @@ package body Explore.Model is
       end if;
 
       for Item of Current.Entries loop
-         if Unbounded.To_String (Item.Name) = Old_Name then
+         if Item.Name = Old_Name then
             Item.Name := Unbounded.To_Unbounded_String (New_Name);
          end if;
       end loop;
@@ -505,7 +504,8 @@ package body Explore.Model is
 
       for I in 1 .. Natural (Item.Entries.Length) loop
          if Needle'Length = 0
-           or else Ada.Strings.Fixed.Index (Paths.Folded (Unbounded.To_String (Item.Entries (I).Name)), Needle) > 0
+           or else Paths.Contains_Folded
+             (Item.Entries (I).Name, Needle)
          then
             Item.Shown.Append (I);
          end if;
@@ -538,11 +538,16 @@ package body Explore.Model is
    function Targets (Self : Browser) return Explore.String_Vectors.Vector is
       Current : Pane renames Self.Panes (Current_Pane);
       Result  : Explore.String_Vectors.Vector;
+      Directory : constant String := Unbounded.To_String (Current.Path);
    begin
       for Item of Current.Entries loop
-         if Current.Marked.Contains (Unbounded.To_String (Item.Name)) then
-            Result.Append (Paths.Child_Of (Unbounded.To_String (Current.Path), Unbounded.To_String (Item.Name)));
-         end if;
+         declare
+            Name : constant String := Unbounded.To_String (Item.Name);
+         begin
+            if Current.Marked.Contains (Name) then
+               Result.Append (Paths.Child_Of (Directory, Name));
+            end if;
+         end;
       end loop;
 
       if Result.Is_Empty and then Has_Selection (Current) then

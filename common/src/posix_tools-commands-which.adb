@@ -12,6 +12,7 @@ package body Posix_Tools.Commands.Which is
    is
       First       : Positive := 1;
       Missing_Any : Boolean := False;
+      Output      : Posix_Tools.Commands.Helpers.Output_Buffer;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -33,11 +34,13 @@ package body Posix_Tools.Commands.Which is
             if Located = "" then
                Missing_Any := True;
             else
-               Context.Put_Line (Located);
+               Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                 (Output, Context, Located);
             end if;
          end;
       end loop;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, not Missing_Any);
    end Run;
 end Posix_Tools.Commands.Which;

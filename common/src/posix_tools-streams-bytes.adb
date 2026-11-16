@@ -4,12 +4,17 @@ package body Posix_Tools.Streams.Bytes is
      (Buffer : Ada.Streams.Stream_Element_Array;
       Last   : Ada.Streams.Stream_Element_Offset) return String
    is
-      Result : String (1 .. (if Last < Buffer'First then 0 else Natural (Last - Buffer'First + 1)));
    begin
-      for I in Result'Range loop
-         Result (I) := Character'Val (Buffer (Buffer'First + Ada.Streams.Stream_Element_Offset (I - 1)));
-      end loop;
+      if Last < Buffer'First then
+         return "";
+      end if;
 
-      return Result;
+      declare
+         Result : constant String
+           (1 .. Natural (Last - Buffer'First + 1))
+           with Import, Address => Buffer (Buffer'First)'Address;
+      begin
+         return Result;
+      end;
    end To_String;
 end Posix_Tools.Streams.Bytes;

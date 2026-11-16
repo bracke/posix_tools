@@ -2,6 +2,10 @@ package Command_Tests.Surface_Smoke.Host is
    procedure Test_Internal_Error_Diagnostics (T : in out Surface_Fixture);
    procedure Test_Arch (T : in out Surface_Fixture);
    procedure Test_Date (T : in out Surface_Fixture);
+   procedure Test_Date_Formats (T : in out Surface_Fixture);
+   procedure Test_Date_Localized_Formats (T : in out Surface_Fixture);
+   procedure Test_Date_Timezones (T : in out Surface_Fixture);
+   procedure Test_Date_Setting (T : in out Surface_Fixture);
    procedure Test_Df (T : in out Surface_Fixture);
    procedure Test_Env (T : in out Surface_Fixture);
    procedure Test_Env_Utility_Status (T : in out Surface_Fixture);

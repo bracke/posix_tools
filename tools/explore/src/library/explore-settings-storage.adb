@@ -82,6 +82,7 @@ package body Explore.Settings.Storage is
       FS.Write_File (Path, Bookmarks_Image (Marks), Append_Mode => False, Ok => Ok);
    exception
       when others =>
+         --  intentional terminal exception barrier
          Ok := False;
    end Write_Bookmarks;
 end Explore.Settings.Storage;

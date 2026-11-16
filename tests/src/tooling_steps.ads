@@ -52,16 +52,20 @@ package Tooling_Steps is
    function Lookup (Text : String) return Subcommand
    with Pre => Is_Subcommand (Text);
 
-   --  The release-check gate before its proofs and tests, which release
-   --  runs too.
-   Release_Gate : constant Step_List :=
+   --  Generation is separate so release can prove that generated tracked
+   --  files were already committed before it validates or packages them.
+   Generation_Steps : constant Step_List :=
      [Generate_Docs,
-      Generate_Package_Manifest,
-      Run_Build,
+      Generate_Package_Manifest];
+
+   Validation_Gate : constant Step_List :=
+     [Run_Build,
       Run_Test_Selector_Smoke,
       Run_Staged_Verification,
-      Run_Executable_Integration_Smoke,
-      Generate_Release_Archive];
+      Run_Executable_Integration_Smoke];
+
+   Release_Gate : constant Step_List :=
+     Generation_Steps & Validation_Gate;
 
    --  The checks every full gate ends with.
    Final_Checks : constant Step_List :=
@@ -76,16 +80,24 @@ package Tooling_Steps is
          when Test_Command          => [Run_Tests],
          when Check_Command         =>
            [Run_Build, Run_Metadata_Checks, Run_Format_Checks, Run_Conformance_Checks, Run_Tests],
-         when Release_Check_Command => Release_Gate & Final_Checks,
+         when Release_Check_Command =>
+           Release_Gate & Final_Checks & Generate_Release_Archive,
          when Release_Command       =>
-           Require_Clean_Source_Tree & Release_Gate & Generate_Release_Checksums & Final_Checks,
+           Require_Clean_Source_Tree
+           & Generation_Steps
+           & Require_Clean_Source_Tree
+           & Validation_Gate
+           & Final_Checks
+           & Require_Clean_Source_Tree
+           & Generate_Release_Archive
+           & Generate_Release_Checksums,
          when Build_Command         => [Run_Build, Run_Metadata_Checks],
          when Conformance_Command   => [Run_Metadata_Checks, Run_Conformance_Checks],
          when Format_Check_Command  => [Run_Metadata_Checks, Run_Format_Checks],
          when Docs_Command          => [Generate_Docs, Run_Metadata_Checks],
          when Prove_Command         => [Run_Metadata_Checks, Run_Proof_Checks],
          when Package_Command       =>
-           [Generate_Package_Manifest, Generate_Release_Archive, Run_Metadata_Checks]);
+           [Generate_Package_Manifest, Run_Metadata_Checks, Generate_Release_Archive]);
 
    function Contains (List : Step_List; Item : Step) return Boolean is
      (for some Each of List => Each = Item);

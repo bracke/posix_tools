@@ -20,6 +20,10 @@ package Posix_Tools.Host_Adapters.Streams is
        or else Last in Buffer'Range;
 
    function Write_Standard_Output (Text : String) return Boolean;
+   function Write_Standard_Output
+     (Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset) return Boolean
+     with Pre => Last < Buffer'First or else Last in Buffer'Range;
    function Write_Standard_Error (Text : String) return Boolean;
 
    procedure Write_Standard_Output_Line (Text : String; Ok : out Boolean);

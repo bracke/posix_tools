@@ -19,6 +19,7 @@ with Release_Artifacts;
 with Selector_Smoke;
 with Staged_Verification;
 with Test_Selection;
+with Test_Support;
 with Tooling_Checks;
 with Tooling_Steps;
 with Tooling_Support;
@@ -79,9 +80,12 @@ begin
       Ada.Text_IO.Put_Line
         (Ada.Text_IO.Standard_Error,
          "posix_tools_tests: unknown command '" & Command & "'");
+      Test_Support.Remove_Work_Directory;
       Ada.Command_Line.Set_Exit_Status (2);
       return;
    end if;
+
+   Test_Support.Prepare_Work_Directory;
 
    declare
       use Tooling_Steps;
@@ -95,13 +99,17 @@ begin
          Ada.Text_IO.Put_Line (Command & ": completed by Ada project_tools driver");
       end if;
    end;
+   Test_Support.Remove_Work_Directory;
 exception
    when Test_Selection.Invalid_Usage =>
+      Test_Support.Remove_Work_Directory_Safely;
       Ada.Command_Line.Set_Exit_Status (2);
    when Tooling_Checks.Check_Failed =>
       --  The check has said what failed.
+      Test_Support.Remove_Work_Directory_Safely;
       Ada.Command_Line.Set_Exit_Status (1);
    when Occurrence : others =>
+      Test_Support.Remove_Work_Directory_Safely;
       Ada.Text_IO.Put_Line
         (Ada.Text_IO.Standard_Error,
          "posix_tools_tests: internal tooling failure");

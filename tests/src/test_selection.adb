@@ -1,5 +1,4 @@
 with Ada.Command_Line;
-with Ada.Directories;
 with Ada.Text_IO;
 with All_Suites;
 with AUnit;
@@ -8,55 +7,78 @@ with AUnit.Reporter.Text;
 with AUnit.Run;
 with AUnit.Test_Results;
 with Posix_Tools.Command_Inventory;
+with Registered_Tests;
 with Suite_Filters;
-with Test_Support;
+with Test_Taxonomy;
 
 package body Test_Selection is
-   type Prefix_List is array (Positive range <>) of access constant String;
-
-   Basic        : aliased constant String := "basic:";
-   Streams      : aliased constant String := "streams:";
-   Regression   : aliased constant String := "regression:";
-   Locale       : aliased constant String := "locale:";
-   Presentation : aliased constant String := "presentation:";
-   Property     : aliased constant String := "property:";
-   Command      : aliased constant String := "command:";
-   No_Prefixes  : constant Prefix_List (1 .. 0) := [others => null];
-
-   --  The group --suite Name selects by prefix; none for a name that is
-   --  not a group.
-   function Group (Name : String) return Prefix_List is
-     (if Name = "basic" or else Name = "common" then [Basic'Access]
-      elsif Name = "streams" then [Streams'Access]
-      elsif Name = "regression" then [Regression'Access]
-      elsif Name = "locale" then [Locale'Access]
-      elsif Name = "presentation" then [Presentation'Access]
-      elsif Name = "property" then [Property'Access]
-      elsif Name = "command" or else Name = "commands" then [Command'Access]
-      else No_Prefixes);
-
-   --  The groups --category Name selects. Every registered test is in
-   --  exactly one category: the library's own units, the commands run
-   --  through their entry points, and the regression, locale and styling
-   --  tests.
-   function Category (Name : String) return Prefix_List is
-     (if Name = "unit" then [Basic'Access, Streams'Access, Property'Access]
-      elsif Name = "integration" then [Command'Access]
-      elsif Name = "regression" then [Regression'Access]
-      elsif Name = "locale" then [Locale'Access]
-      elsif Name = "presentation" then [Presentation'Access]
-      else No_Prefixes);
-
    function Is_Root (Name : String) return Boolean is
      (Name = "root" or else Name = "posix-tools");
 
+   function Has_Registered_Group (Name : String) return Boolean is
+      Found : Boolean := False;
+
+      procedure Check_Name (Test_Name : String) is
+         procedure Check_Prefix (Prefix : String) is
+         begin
+            Found := Found
+              or else Suite_Filters.Selects
+                (Prefix, Whole_Name => False, Test_Name => Test_Name)
+              or else Suite_Filters.Selects_Alias
+                (Prefix, Whole_Name => False, Test_Name => Test_Name);
+         end Check_Prefix;
+      begin
+         if not Found then
+            Test_Taxonomy.For_Each_Group_Prefix
+              (Name, Check_Prefix'Access);
+         end if;
+      end Check_Name;
+   begin
+      if not Test_Taxonomy.Is_Group (Name) then
+         return False;
+      end if;
+      Registered_Tests.For_Each_Name (Check_Name'Access);
+      return Found;
+   end Has_Registered_Group;
+
+   function Has_Registered_Category (Name : String) return Boolean is
+      Found : Boolean := False;
+
+      procedure Check_Name (Test_Name : String) is
+         procedure Check_Prefix (Prefix : String) is
+         begin
+            Found := Found
+              or else Suite_Filters.Selects
+                (Prefix, Whole_Name => False, Test_Name => Test_Name)
+              or else Suite_Filters.Selects_Alias
+                (Prefix, Whole_Name => False, Test_Name => Test_Name);
+         end Check_Prefix;
+      begin
+         if not Found then
+            Test_Taxonomy.For_Each_Category_Prefix
+              (Name, Check_Prefix'Access);
+         end if;
+      end Check_Name;
+   begin
+      if not Test_Taxonomy.Is_Category (Name) then
+         return False;
+      end if;
+      Registered_Tests.For_Each_Name (Check_Name'Access);
+      return Found;
+   end Has_Registered_Category;
+
    function Is_Suite (Name : String) return Boolean is
-     (Group (Name)'Length > 0
-      or else Is_Root (Name)
-      or else Posix_Tools.Command_Inventory.Contains_Executable (Name));
+     (Has_Registered_Group (Name)
+      or else (Is_Root (Name) and then Registered_Tests.Has_Suite ("command:root"))
+      or else
+        (Posix_Tools.Command_Inventory.Contains_Executable (Name)
+         and then Registered_Tests.Has_Suite ("command:" & Name)));
 
    function Is_Category (Name : String) return Boolean is
-     (Category (Name)'Length > 0);
+     (Has_Registered_Category (Name));
+
+   function Canonical_Category_Match_Count (Test_Name : String) return Natural is
+     (Test_Taxonomy.Canonical_Category_Match_Count (Test_Name));
 
    procedure Usage_Error (Message : String) is
    begin
@@ -64,23 +86,57 @@ package body Test_Selection is
       raise Invalid_Usage;
    end Usage_Error;
 
-   procedure Select_Prefixes (Filter : in out Suite_Filters.Filter; Prefixes : Prefix_List) is
+   procedure Select_Group
+     (Filter : in out Suite_Filters.Filter;
+      Name   : String)
+   is
+      First : Boolean := True;
+
+      procedure Select_Prefix (Prefix : String) is
+      begin
+         if First then
+            Suite_Filters.Set (Filter, Prefix, Whole_Name => False);
+            First := False;
+         else
+            Suite_Filters.Add (Filter, Prefix);
+         end if;
+      end Select_Prefix;
    begin
-      Suite_Filters.Set (Filter, Prefixes (Prefixes'First).all, Whole_Name => False);
-      for Index in Prefixes'First + 1 .. Prefixes'Last loop
-         Suite_Filters.Add (Filter, Prefixes (Index).all);
-      end loop;
-   end Select_Prefixes;
+      Test_Taxonomy.For_Each_Group_Prefix
+        (Name, Select_Prefix'Access);
+   end Select_Group;
+
+   procedure Select_Category
+     (Filter : in out Suite_Filters.Filter;
+      Name   : String)
+   is
+      First : Boolean := True;
+
+      procedure Select_Prefix (Prefix : String) is
+      begin
+         if First then
+            Suite_Filters.Set (Filter, Prefix, Whole_Name => False);
+            First := False;
+         else
+            Suite_Filters.Add (Filter, Prefix);
+         end if;
+      end Select_Prefix;
+   begin
+      Test_Taxonomy.For_Each_Category_Prefix
+        (Name, Select_Prefix'Access);
+   end Select_Category;
 
    --  A command's suite is its whole name, so that tr does not also
    --  select true.
    procedure Select_Suite (Filter : in out Suite_Filters.Filter; Name : String) is
    begin
-      if Group (Name)'Length > 0 then
-         Select_Prefixes (Filter, Group (Name));
-      elsif Is_Root (Name) then
+      if Has_Registered_Group (Name) then
+         Select_Group (Filter, Name);
+      elsif Is_Root (Name) and then Registered_Tests.Has_Suite ("command:root") then
          Suite_Filters.Set (Filter, "command:root", Whole_Name => True);
-      elsif Posix_Tools.Command_Inventory.Contains_Executable (Name) then
+      elsif Posix_Tools.Command_Inventory.Contains_Executable (Name)
+        and then Registered_Tests.Has_Suite ("command:" & Name)
+      then
          Suite_Filters.Set (Filter, "command:" & Name, Whole_Name => True);
       else
          Usage_Error ("suite '" & Name & "' has no registered AUnit tests yet");
@@ -126,7 +182,8 @@ package body Test_Selection is
                   Usage_Error
                     ("category '" & Ada.Command_Line.Argument (Index + 1) & "' has no registered AUnit tests yet");
                end if;
-               Select_Prefixes (Filter, Category (Ada.Command_Line.Argument (Index + 1)));
+               Select_Category
+                 (Filter, Ada.Command_Line.Argument (Index + 1));
                Index := Index + 2;
             else
                Usage_Error ("invalid test option '" & Option & "'");
@@ -135,9 +192,6 @@ package body Test_Selection is
       end loop;
 
       Suite_Filters.Set_Listing (Filter, Listing);
-      --  The tests make their scratch files here, never under fixtures.
-      Ada.Directories.Create_Path (Test_Support.Work_Path (""));
-
       declare
          Options : constant AUnit.Options.AUnit_Options :=
            (Global_Timer     => False,

@@ -67,6 +67,8 @@ package body Sed.Input.Logical_Stream is
       Self.Cursor := Cursors.Starting (0);
       Self.Handle := Sed.IO.Invalid_Handle;
       Self.Buffer := U.Null_Unbounded_String;
+      Self.Buffer_First := 1;
+      Self.Scan_At := 1;
       Self.Source_Drained := False;
       Self.Counters := Delivery.Start;
       Self.Local := 0;
@@ -99,6 +101,8 @@ package body Sed.Input.Logical_Stream is
 
       Self.Handle := Sed.IO.Invalid_Handle;
       Self.Buffer := U.Null_Unbounded_String;
+      Self.Buffer_First := 1;
+      Self.Scan_At := 1;
       Self.Source_Drained := False;
       Self.Local := 0;
       Cursors.Advance (Self.Cursor);
@@ -116,6 +120,25 @@ package body Sed.Input.Logical_Stream is
       Name : constant String := U.To_String (Item.Name);
    begin
       Progressed := False;
+
+      --  Drop consumed storage at chunk boundaries. This is at most one
+      --  bounded copy per refill, rather than one suffix copy per line.
+      if Self.Buffer_First > 1 then
+         declare
+            Last_Buffered : constant Natural := U.Length (Self.Buffer);
+         begin
+            if Self.Buffer_First > Last_Buffered then
+               Self.Buffer := U.Null_Unbounded_String;
+               Self.Buffer_First := 1;
+               Self.Scan_At := 1;
+            else
+               Self.Buffer := U.To_Unbounded_String
+                 (U.Slice (Self.Buffer, Self.Buffer_First, Last_Buffered));
+               Self.Scan_At := Self.Scan_At - Self.Buffer_First + 1;
+               Self.Buffer_First := 1;
+            end if;
+         end;
+      end if;
 
       case Item.Kind is
          when Standard_Input =>
@@ -209,11 +232,11 @@ package body Sed.Input.Logical_Stream is
             --  until a newline appears or the operand is drained.
             loop
                declare
-                  Buffered : constant String := U.To_String (Self.Buffer);
+                  Last_Buffered : constant Natural := U.Length (Self.Buffer);
                   Newline : Natural := 0;
                begin
-                  for Index in Buffered'Range loop
-                     if Buffered (Index) = ASCII.LF then
+                  for Index in Self.Scan_At .. Last_Buffered loop
+                     if U.Element (Self.Buffer, Index) = ASCII.LF then
                         Newline := Index;
                         exit;
                      end if;
@@ -223,32 +246,65 @@ package body Sed.Input.Logical_Stream is
                      Delivery.Assign (Self.Counters);
                      Self.Local := Self.Local + 1;
 
-                     Item :=
-                       (Data =>
-                          U.To_Unbounded_String
-                            (Buffered (Buffered'First .. Newline - 1)),
-                        Has_Terminator => True,
-                        Global_Line => Self.Counters.Assigned,
-                        Local_Line => Self.Local,
-                        Source_Name => Current.Name,
-                        Source_Kind => Current.Kind,
-                        Is_Final => False);
-
-                     Self.Buffer :=
-                       U.To_Unbounded_String
-                         (Buffered (Newline + 1 .. Buffered'Last));
+                     if Self.Buffer_First = 1
+                       and then Newline = Last_Buffered
+                     then
+                        --  The record occupies the whole buffer. Remove its
+                        --  separator in place and share the allocation with
+                        --  the delivered value instead of slicing a second
+                        --  record-sized string.
+                        U.Delete (Self.Buffer, Newline, Newline);
+                        Item :=
+                          (Data => Self.Buffer,
+                           Has_Terminator => True,
+                           Global_Line => Self.Counters.Assigned,
+                           Local_Line => Self.Local,
+                           Source_Name => Current.Name,
+                           Source_Kind => Current.Kind,
+                           Is_Final => False);
+                        Self.Buffer := U.Null_Unbounded_String;
+                        Self.Buffer_First := 1;
+                        Self.Scan_At := 1;
+                     else
+                        Item :=
+                          (Data =>
+                             (if Newline = Self.Buffer_First
+                              then U.Null_Unbounded_String
+                              else U.To_Unbounded_String
+                                (U.Slice
+                                   (Self.Buffer,
+                                    Self.Buffer_First,
+                                    Newline - 1))),
+                           Has_Terminator => True,
+                           Global_Line => Self.Counters.Assigned,
+                           Local_Line => Self.Local,
+                           Source_Name => Current.Name,
+                           Source_Kind => Current.Kind,
+                           Is_Final => False);
+                        Self.Buffer_First := Newline + 1;
+                        Self.Scan_At := Self.Buffer_First;
+                     end if;
                      Produced := True;
                      return;
                   end if;
 
+                  Self.Scan_At := Last_Buffered + 1;
+
                   if Self.Source_Drained then
-                     if Buffered'Length > 0 then
+                     if Self.Buffer_First <= Last_Buffered then
                         --  A final line without a terminator.
                         Delivery.Assign (Self.Counters);
                         Self.Local := Self.Local + 1;
 
                         Item :=
-                          (Data => U.To_Unbounded_String (Buffered),
+                          (Data =>
+                             (if Self.Buffer_First = 1
+                              then Self.Buffer
+                              else U.To_Unbounded_String
+                                (U.Slice
+                                   (Self.Buffer,
+                                    Self.Buffer_First,
+                                    Last_Buffered))),
                            Has_Terminator => False,
                            Global_Line => Self.Counters.Assigned,
                            Local_Line => Self.Local,
@@ -257,6 +313,8 @@ package body Sed.Input.Logical_Stream is
                            Is_Final => False);
 
                         Self.Buffer := U.Null_Unbounded_String;
+                        Self.Buffer_First := 1;
+                        Self.Scan_At := 1;
                         Produced := True;
                         return;
                      end if;
@@ -379,6 +437,8 @@ package body Sed.Input.Logical_Stream is
 
       Self.Handle := Sed.IO.Invalid_Handle;
       Self.Buffer := U.Null_Unbounded_String;
+      Self.Buffer_First := 1;
+      Self.Scan_At := 1;
       Self.Have_Pending := False;
    end Close;
 

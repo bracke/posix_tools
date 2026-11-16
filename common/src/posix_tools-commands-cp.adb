@@ -1,5 +1,3 @@
-with Ada.Containers;
-with Ada.Containers.Indefinite_Vectors;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
 with Posix_Tools.Commands.Operation_Reports;
@@ -9,15 +7,10 @@ with Posix_Tools.Paths;
 
 package body Posix_Tools.Commands.Cp is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
-   use type Ada.Containers.Count_Type;
    use type Posix_Tools.File_Operations.Operation_Outcome;
    use type Posix_Tools.Host_Adapters.File_System.File_Kind;
 
    package FS renames Posix_Tools.Host_Adapters.File_System;
-
-   package String_Vectors is new Ada.Containers.Indefinite_Vectors
-     (Index_Type   => Positive,
-      Element_Type => String);
 
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
@@ -25,7 +18,6 @@ package body Posix_Tools.Commands.Cp is
    is
       type Link_Choice is (Unchosen, Follow_None, Follow_Operands, Follow_All);
 
-      Operands : String_Vectors.Vector;
       Recursive : Boolean := False;
       Preserve_Mode : Boolean := False;
       --  -P, -H, or -L, the last of them given.
@@ -36,6 +28,7 @@ package body Posix_Tools.Commands.Cp is
       Ok       : Boolean := True;
       First    : Positive;
       Valid    : Boolean;
+      Output   : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       --  Copy Source to Destination, writing a diagnostic for each entry
       --  that could not be copied, and asking about each existing target
@@ -70,9 +63,10 @@ package body Posix_Tools.Commands.Cp is
          if not Posix_Tools.File_Operations.Succeeded (Outcome) then
             Ok := False;
          elsif Verbose and then Outcome = Posix_Tools.File_Operations.Done then
-            Context.Put_Line
-              ("'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Source) & "' -> '"
-               & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context,
+               "'" & Posix_Tools.Commands.Helpers.Escape_Untrusted (Source) & "' -> '"
+                 & Posix_Tools.Commands.Helpers.Escape_Untrusted (Destination) & "'");
          end if;
       end Copy;
 
@@ -120,34 +114,34 @@ package body Posix_Tools.Commands.Cp is
       if not Valid then
          return;
       end if;
-      for I in First .. Context.Argument_Count loop
-         Operands.Append (Context.Argument (I));
-      end loop;
 
-      if Operands.Length < 2 then
+      if First > Context.Argument_Count
+        or else Context.Argument_Count - First + 1 < 2
+      then
          Posix_Tools.Commands.Helpers.Usage_Error (Context, Result, Missing_Operand);
          return;
       end if;
 
       declare
-         Count  : constant Natural := Natural (Operands.Length);
-         Target : constant String := Operands.Element (Count);
+         Count  : constant Natural := Context.Argument_Count - First + 1;
+         Target : constant String := Context.Argument (Context.Argument_Count);
       begin
          if FS.Kind (Target) = FS.Directory then
-            for I in 1 .. Count - 1 loop
+            for I in First .. Context.Argument_Count - 1 loop
                Copy
-                 (Operands.Element (I),
+                 (Context.Argument (I),
                   FS.Child_Path
-                    (Target, Posix_Tools.Paths.Basename (Operands.Element (I))));
+                    (Target, Posix_Tools.Paths.Basename (Context.Argument (I))));
             end loop;
          elsif Count = 2 then
-            Copy (Operands.Element (1), Target);
+            Copy (Context.Argument (First), Target);
          else
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Target, "posix_tools.diagnostic.file.not_directory", "not a directory");
             Ok := False;
          end if;
       end;
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 

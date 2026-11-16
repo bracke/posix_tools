@@ -1,7 +1,31 @@
-with Ada.Streams.Stream_IO;
+with Ada.Directories;
+with Ada.IO_Exceptions;
+with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Streams.Bytes;
 
 package body Test_Contexts is
    use type Ada.Streams.Stream_Element_Offset;
+
+   procedure Schedule_Tail_Follow_Event
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String;
+      Action     : Tail_Follow_Action;
+      Replace    : Boolean)
+   is
+   begin
+      if Replace then
+         Self.Tail_Follow_Events.Clear;
+      end if;
+      Self.Tail_Follow_Events.Append
+        (Tail_Follow_Event'
+           (Path       => Ada.Strings.Unbounded.To_Unbounded_String (Path),
+            Text       => Ada.Strings.Unbounded.To_Unbounded_String (Text),
+            After_Wait => After_Wait,
+            Action     => Action,
+            Done       => False));
+   end Schedule_Tail_Follow_Event;
 
    procedure Initialize
      (Self         : in out Capturing_Context;
@@ -19,8 +43,10 @@ package body Test_Contexts is
       Self.Physical_Text := Ada.Strings.Unbounded.To_Unbounded_String ("/physical");
       Self.Input_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
       Self.Input_Position := 1;
+      Self.Input_Read_Limit := Natural'Last;
       Self.Input_Failure_Enabled := False;
       Self.Input_Failure_Limit := 0;
+      Self.Input_Failures_Remaining := 0;
       Self.Input_Is_Terminal := False;
       Self.Input_Terminal_Name := Ada.Strings.Unbounded.To_Unbounded_String ("/dev/test-tty");
       Self.Output_Is_Terminal := False;
@@ -36,15 +62,13 @@ package body Test_Contexts is
       Self.Logical_Pwd_Matches := True;
       Self.Output_Failure_Enabled := False;
       Self.Output_Failure_Limit := 0;
+      Self.Output_Exception_Enabled := False;
       Self.Tail_Follow_Limit := 0;
       Self.Tail_Follow_Waits := 0;
-      Self.Tail_Append_Path := Ada.Strings.Unbounded.Null_Unbounded_String;
-      Self.Tail_Append_Text := Ada.Strings.Unbounded.Null_Unbounded_String;
-      Self.Tail_Append_After := 0;
-      Self.Tail_Append_Done := True;
-      Self.Tail_Append_Replaces := False;
+      Self.Tail_Follow_Events.Clear;
       Self.Tail_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Self.Tail_Spill_Bytes := Posix_Tools.Numbers.Count (1024 * 1024 * 1024);
+      Self.Sort_Memory_Bytes := Posix_Tools.Numbers.Count (16 * 1024 * 1024);
       Self.Date_Set_Allowed := False;
       Self.Date_Set_Done := False;
    end Initialize;
@@ -53,6 +77,9 @@ package body Test_Contexts is
       Current_Length : constant Natural := Ada.Strings.Unbounded.Length (Self.Out_Text);
       Remaining      : Natural;
    begin
+      if Self.Output_Exception_Enabled then
+         raise Constraint_Error with "injected output exception";
+      end if;
       if Self.Output_Failure_Enabled then
          if Current_Length >= Self.Output_Failure_Limit then
             Posix_Tools.Commands.Contexts.Mark_Output_Failure
@@ -73,6 +100,15 @@ package body Test_Contexts is
 
       Ada.Strings.Unbounded.Append (Self.Out_Text, Text);
    end Put;
+
+   overriding procedure Put_Bytes
+     (Self   : in out Capturing_Context;
+      Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset)
+   is
+   begin
+      Put (Self, Posix_Tools.Streams.Bytes.To_String (Buffer, Last));
+   end Put_Bytes;
 
    overriding procedure Put_Error (Self : in out Capturing_Context; Text : String) is
       Current_Length : constant Natural := Ada.Strings.Unbounded.Length (Self.Err_Text);
@@ -137,16 +173,21 @@ package body Test_Contexts is
    is
       Input  : constant String := Ada.Strings.Unbounded.To_String (Self.Input_Text);
       Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
+      Read_Count : Natural := 0;
    begin
       if Self.Input_Position > Input'Length then
          Last := Buffer'First - Ada.Streams.Stream_Element_Offset (1);
          return;
       end if;
 
-      while Target <= Buffer'Last and then Self.Input_Position <= Input'Length loop
+      while Target <= Buffer'Last
+        and then Self.Input_Position <= Input'Length
+        and then Read_Count < Self.Input_Read_Limit
+      loop
          Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Input (Self.Input_Position)));
          Target := Target + Ada.Streams.Stream_Element_Offset (1);
          Self.Input_Position := Self.Input_Position + 1;
+         Read_Count := Read_Count + 1;
       end loop;
 
       Last := Target - Ada.Streams.Stream_Element_Offset (1);
@@ -159,9 +200,16 @@ package body Test_Contexts is
    is
       Input  : constant String := Ada.Strings.Unbounded.To_String (Self.Input_Text);
       Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
+      Read_Count : Natural := 0;
    begin
       if Self.Input_Failure_Enabled and then Self.Input_Position > Self.Input_Failure_Limit then
          Last := Buffer'First - Ada.Streams.Stream_Element_Offset (1);
+         if Self.Input_Failures_Remaining > 0 then
+            Self.Input_Failures_Remaining := Self.Input_Failures_Remaining - 1;
+            if Self.Input_Failures_Remaining = 0 then
+               Self.Input_Failure_Enabled := False;
+            end if;
+         end if;
          return False;
       end if;
 
@@ -178,10 +226,12 @@ package body Test_Contexts is
       while Target <= Buffer'Last
         and then Self.Input_Position <= Input'Length
         and then Self.Input_Position <= Self.Input_Failure_Limit
+        and then Read_Count < Self.Input_Read_Limit
       loop
          Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Input (Self.Input_Position)));
          Target := Target + Ada.Streams.Stream_Element_Offset (1);
          Self.Input_Position := Self.Input_Position + 1;
+         Read_Count := Read_Count + 1;
       end loop;
 
       Last := Target - Ada.Streams.Stream_Element_Offset (1);
@@ -335,13 +385,19 @@ package body Test_Contexts is
       return False;
    end Set_Node_Name;
 
-   overriding function Current_User_Id (Self : Capturing_Context; User_Id : out Natural) return Boolean is
+   overriding function Current_User_Id
+     (Self : Capturing_Context;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
    begin
       User_Id := 50000;
       return Self.User_Id_Available;
    end Current_User_Id;
 
-   overriding function Current_Group_Id (Self : Capturing_Context; Group_Id : out Natural) return Boolean is
+   overriding function Current_Group_Id
+     (Self : Capturing_Context;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
    begin
       Group_Id := 60000;
       return Self.Group_Id_Available;
@@ -423,7 +479,10 @@ package body Test_Contexts is
       return False;
    end User_Group_Ids;
 
-   overriding function User_Name_For_Id (Self : Capturing_Context; User_Id : Natural) return String is
+   overriding function User_Name_For_Id
+     (Self : Capturing_Context;
+      User_Id : Posix_Tools.Accounts.Id) return String
+   is
       pragma Unreferenced (Self);
    begin
       case User_Id is
@@ -436,7 +495,10 @@ package body Test_Contexts is
       end case;
    end User_Name_For_Id;
 
-   overriding function Group_Name_For_Id (Self : Capturing_Context; Group_Id : Natural) return String is
+   overriding function Group_Name_For_Id
+     (Self : Capturing_Context;
+      Group_Id : Posix_Tools.Accounts.Id) return String
+   is
       pragma Unreferenced (Self);
    begin
       case Group_Id is
@@ -451,38 +513,109 @@ package body Test_Contexts is
       end case;
    end Group_Name_For_Id;
 
+   overriding function User_Id_For_Name
+     (Self : Capturing_Context;
+      Name : String;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Name = "50000" or else Name = "named-user" then
+         User_Id := 50001;
+         return True;
+      end if;
+      declare
+         Found : Boolean;
+      begin
+         User_Id := Posix_Tools.Host_Adapters.File_System.User_Id_For_Name
+           (Name, Found);
+         return Found;
+      end;
+   end User_Id_For_Name;
+
+   overriding function Group_Id_For_Name
+     (Self : Capturing_Context;
+      Name : String;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Name = "60000" then
+         Group_Id := 60001;
+         return True;
+      elsif Name = "named-extra" then
+         Group_Id := 60002;
+         return True;
+      end if;
+      declare
+         Found : Boolean;
+      begin
+         Group_Id := Posix_Tools.Host_Adapters.File_System.Group_Id_For_Name
+           (Name, Found);
+         return Found;
+      end;
+   end Group_Id_For_Name;
+
    overriding function Tail_Follow_Poll_Limit (Self : Capturing_Context) return Natural is
    begin
       return Self.Tail_Follow_Limit;
    end Tail_Follow_Poll_Limit;
 
    overriding procedure Tail_Follow_Wait (Self : in out Capturing_Context) is
-      package Stream_IO renames Ada.Streams.Stream_IO;
-      File : Stream_IO.File_Type;
-      Text : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Append_Text);
-      Path : constant String := Ada.Strings.Unbounded.To_String (Self.Tail_Append_Path);
-      Data : Ada.Streams.Stream_Element_Array (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
    begin
       Self.Tail_Follow_Waits := Self.Tail_Follow_Waits + 1;
-      if not Self.Tail_Append_Done
-        and then Self.Tail_Follow_Waits >= Self.Tail_Append_After
-        and then Path /= ""
-      then
-         for I in Text'Range loop
-            Data (Ada.Streams.Stream_Element_Offset (I - Text'First + 1)) :=
-              Ada.Streams.Stream_Element (Character'Pos (Text (I)));
-         end loop;
-         if Self.Tail_Append_Replaces then
-            Stream_IO.Create (File, Stream_IO.Out_File, Path);
-         else
-            Stream_IO.Open (File, Stream_IO.Append_File, Path);
-         end if;
-         if Text /= "" then
-            Stream_IO.Write (File, Data);
-         end if;
-         Stream_IO.Close (File);
-         Self.Tail_Append_Done := True;
-      end if;
+      for I in 1 .. Natural (Self.Tail_Follow_Events.Length) loop
+         declare
+            Event : Tail_Follow_Event :=
+              Self.Tail_Follow_Events.Element (I);
+            Path : constant String :=
+              Ada.Strings.Unbounded.To_String (Event.Path);
+            Text : constant String :=
+              Ada.Strings.Unbounded.To_String (Event.Text);
+            Moved_Path : constant String := Path & ".tail-follow-old";
+            Written : Boolean := True;
+         begin
+            if not Event.Done
+              and then Self.Tail_Follow_Waits >= Event.After_Wait
+              and then Path /= ""
+            then
+               case Event.Action is
+                  when Delete_Tail_File =>
+                     Ada.Directories.Delete_File (Path);
+
+                  when Replace_Tail_File =>
+                     if Ada.Directories.Exists (Moved_Path) then
+                        Ada.Directories.Delete_File (Moved_Path);
+                     end if;
+                     Ada.Directories.Rename (Path, Moved_Path);
+                     Posix_Tools.Host_Adapters.File_System.Write_File
+                       (Path, Text, Append_Mode => False, Ok => Written);
+
+                  when Rewrite_Tail_File =>
+                     Posix_Tools.Host_Adapters.File_System.Write_File
+                       (Path, Text, Append_Mode => False, Ok => Written);
+
+                  when Rename_And_Append_Tail_File =>
+                     if Ada.Directories.Exists (Moved_Path) then
+                        Ada.Directories.Delete_File (Moved_Path);
+                     end if;
+                     Ada.Directories.Rename (Path, Moved_Path);
+                     Posix_Tools.Host_Adapters.File_System.Write_File
+                       (Moved_Path, Text, Append_Mode => True, Ok => Written);
+
+                  when Append_To_Tail_File =>
+                     Posix_Tools.Host_Adapters.File_System.Write_File
+                       (Path, Text, Append_Mode => True, Ok => Written);
+               end case;
+               if not Written then
+                  raise Ada.IO_Exceptions.Use_Error with
+                    "could not update tail follow fixture";
+               end if;
+               Event.Done := True;
+               Self.Tail_Follow_Events.Replace_Element (I, Event);
+            end if;
+         end;
+      end loop;
    end Tail_Follow_Wait;
 
    overriding function Tail_Max_Spill_Bytes (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
@@ -494,6 +627,11 @@ package body Test_Contexts is
    begin
       return Self.Tail_Memory_Bytes;
    end Tail_Memory_Threshold;
+
+   overriding function Sort_Memory_Threshold (Self : Capturing_Context) return Posix_Tools.Numbers.Count is
+   begin
+      return Self.Sort_Memory_Bytes;
+   end Sort_Memory_Threshold;
 
    overriding function Set_System_Date_Time
      (Self : in out Capturing_Context;
@@ -691,11 +829,28 @@ package body Test_Contexts is
       Self.Input_Position := 1;
    end Set_Standard_Input;
 
+   procedure Set_Standard_Input_Read_Limit
+     (Self : in out Capturing_Context;
+      Byte_Count : Natural) is
+   begin
+      Self.Input_Read_Limit := Byte_Count;
+   end Set_Standard_Input_Read_Limit;
+
    procedure Set_Standard_Input_Failure_After (Self : in out Capturing_Context; Byte_Count : Natural) is
    begin
       Self.Input_Failure_Enabled := True;
       Self.Input_Failure_Limit := Byte_Count;
+      Self.Input_Failures_Remaining := 0;
    end Set_Standard_Input_Failure_After;
+
+   procedure Set_Standard_Input_Failure_Once_After
+     (Self : in out Capturing_Context;
+      Byte_Count : Natural) is
+   begin
+      Self.Input_Failure_Enabled := True;
+      Self.Input_Failure_Limit := Byte_Count;
+      Self.Input_Failures_Remaining := 1;
+   end Set_Standard_Input_Failure_Once_After;
 
    procedure Set_Standard_Input_Is_Terminal (Self : in out Capturing_Context; Value : Boolean) is
    begin
@@ -763,6 +918,11 @@ package body Test_Contexts is
       Self.Output_Failure_Limit := Byte_Count;
    end Set_Output_Failure_After;
 
+   procedure Set_Output_Exception (Self : in out Capturing_Context) is
+   begin
+      Self.Output_Exception_Enabled := True;
+   end Set_Output_Exception;
+
    procedure Set_Tail_Follow_Append
      (Self       : in out Capturing_Context;
       Path       : String;
@@ -770,12 +930,20 @@ package body Test_Contexts is
       Text       : String)
    is
    begin
-      Self.Tail_Append_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
-      Self.Tail_Append_Text := Ada.Strings.Unbounded.To_Unbounded_String (Text);
-      Self.Tail_Append_After := After_Wait;
-      Self.Tail_Append_Done := False;
-      Self.Tail_Append_Replaces := False;
+      Schedule_Tail_Follow_Event
+        (Self, Path, After_Wait, Text, Append_To_Tail_File, Replace => True);
    end Set_Tail_Follow_Append;
+
+   procedure Add_Tail_Follow_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String)
+   is
+   begin
+      Schedule_Tail_Follow_Event
+        (Self, Path, After_Wait, Text, Append_To_Tail_File, Replace => False);
+   end Add_Tail_Follow_Append;
 
    procedure Set_Tail_Follow_Replace
      (Self       : in out Capturing_Context;
@@ -784,12 +952,44 @@ package body Test_Contexts is
       Text       : String)
    is
    begin
-      Self.Tail_Append_Path := Ada.Strings.Unbounded.To_Unbounded_String (Path);
-      Self.Tail_Append_Text := Ada.Strings.Unbounded.To_Unbounded_String (Text);
-      Self.Tail_Append_After := After_Wait;
-      Self.Tail_Append_Done := False;
-      Self.Tail_Append_Replaces := True;
+      Schedule_Tail_Follow_Event
+        (Self, Path, After_Wait, Text, Replace_Tail_File, Replace => True);
    end Set_Tail_Follow_Replace;
+
+   procedure Set_Tail_Follow_Rewrite
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String) is
+   begin
+      Schedule_Tail_Follow_Event
+        (Self, Path, After_Wait, Text, Rewrite_Tail_File, Replace => True);
+   end Set_Tail_Follow_Rewrite;
+
+   procedure Set_Tail_Follow_Rename_And_Append
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural;
+      Text       : String)
+   is
+   begin
+      Schedule_Tail_Follow_Event
+        (Self,
+         Path,
+         After_Wait,
+         Text,
+         Rename_And_Append_Tail_File,
+         Replace => True);
+   end Set_Tail_Follow_Rename_And_Append;
+
+   procedure Set_Tail_Follow_Delete
+     (Self       : in out Capturing_Context;
+      Path       : String;
+      After_Wait : Natural) is
+   begin
+      Schedule_Tail_Follow_Event
+        (Self, Path, After_Wait, "", Delete_Tail_File, Replace => True);
+   end Set_Tail_Follow_Delete;
 
    procedure Set_Tail_Follow_Poll_Limit (Self : in out Capturing_Context; Value : Natural) is
    begin
@@ -805,6 +1005,13 @@ package body Test_Contexts is
       Self.Tail_Memory_Bytes := Memory_Threshold;
       Self.Tail_Spill_Bytes := Max_Spill_Bytes;
    end Set_Tail_Resource_Limits;
+
+   procedure Set_Sort_Memory_Threshold
+     (Self  : in out Capturing_Context;
+      Value : Posix_Tools.Numbers.Count) is
+   begin
+      Self.Sort_Memory_Bytes := Value;
+   end Set_Sort_Memory_Threshold;
 
    procedure Set_Date_Set_Allowed (Self : in out Capturing_Context; Value : Boolean) is
    begin

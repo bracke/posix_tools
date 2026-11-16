@@ -38,6 +38,7 @@ separate (Command_Tests.Stream_Command_Tests)
              "tr -c -s squeezes the complement of SET1");
       Check (Three_Args ("-cs", "a", "x"), "C", "aabbcc", "aax", "tr -c -s squeezes SET2");
       Check (Two_Args ("y", "n"), "C", Long, [1 .. Long'Length => 'n'], "tr translates input of several chunks");
+      Check (Two_Args ("-s", "y"), "C", Long, "y", "tr squeezes across input chunks");
 
       Context.Initialize ("tr", Two_Args ("y", "n"));
       Test_Contexts.Set_Standard_Input (Context, Long);

@@ -10,6 +10,7 @@ package body Posix_Tools.Commands.Rm is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
+   use type FS.Entry_Kind;
    use type Posix_Tools.File_Operations.Operation_Outcome;
 
    procedure Run
@@ -24,17 +25,18 @@ package body Posix_Tools.Commands.Rm is
       First       : Positive;
       Valid       : Boolean;
       Ok          : Boolean := True;
+      Output      : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       --  Whether Path is to be left alone before anything is done to it, and
       --  said so: POSIX rm refuses an operand whose last component is . or
       --  .., and one that is the root directory.
-      function Refused (Path : String) return Boolean;
+      function Refused (Path : String; Kind : FS.Entry_Kind) return Boolean;
 
       --  Remove the operand Path, writing a diagnostic for each entry that
       --  could not go.
       procedure Remove (Path : String);
 
-      function Refused (Path : String) return Boolean is
+      function Refused (Path : String; Kind : FS.Entry_Kind) return Boolean is
          Last_Component : constant String := Posix_Tools.Paths.Basename (Path);
       begin
          if Last_Component in "." | ".." then
@@ -42,7 +44,9 @@ package body Posix_Tools.Commands.Rm is
               (Context, Path, "posix_tools.rm.dot_operand", "refusing to remove '.' or '..'");
             return True;
          elsif Posix_Tools.Paths.Is_All_Slashes (Path)
-           or else (not FS.Is_Link (Path) and then FS.Exists (Path) and then FS.Real_Path (Path) = "/")
+           or else
+             (Kind not in FS.Entry_Missing | FS.Entry_Link
+              and then FS.Real_Path (Path) = "/")
          then
             Posix_Tools.Commands.Helpers.Subject_Operational_Error
               (Context, Path, "posix_tools.rm.root_operand", "refusing to remove the root directory");
@@ -53,13 +57,14 @@ package body Posix_Tools.Commands.Rm is
       end Refused;
 
       procedure Remove (Path : String) is
+         Kind    : constant FS.Entry_Kind := FS.Entry_Kind_Of (Path);
          Reports : Posix_Tools.Commands.Operation_Reports.Context_Observer (Context'Access);
          Removed : Posix_Tools.File_Operations.Operation_Outcome;
       begin
          --  -f is quiet only about what is not there to remove.
-         if Force and then not FS.Exists (Path) and then not FS.Is_Link (Path) then
+         if Force and then Kind = FS.Entry_Missing then
             return;
-         elsif Refused (Path) then
+         elsif Refused (Path, Kind) then
             Ok := False;
             return;
          end if;
@@ -74,8 +79,9 @@ package body Posix_Tools.Commands.Rm is
          if not Posix_Tools.File_Operations.Succeeded (Removed) then
             Ok := False;
          elsif Verbose and then Removed = Posix_Tools.File_Operations.Done then
-            Context.Put_Line
-              (Posix_Tools.Localization.Text_1
+            Posix_Tools.Commands.Helpers.Buffered_Put_Line
+              (Output, Context,
+               Posix_Tools.Localization.Text_1
                  (Context.Effective_Locale,
                   "posix_tools.rm.removed",
                   "path",
@@ -136,6 +142,7 @@ package body Posix_Tools.Commands.Rm is
          Remove (Context.Argument (I));
       end loop;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 end Posix_Tools.Commands.Rm;

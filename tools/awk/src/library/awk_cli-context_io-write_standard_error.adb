@@ -8,10 +8,10 @@ begin
       return False;
    end if;
 
-   U.Append (Context.IO.Standard_Err, Content);
    if Context.Config.Use_Process then
       return Awk_CLI.Platform.Write_Standard_Error (Content);
    end if;
 
+   U.Append (Context.IO.Standard_Err, Content);
    return True;
 end Write_Standard_Error;

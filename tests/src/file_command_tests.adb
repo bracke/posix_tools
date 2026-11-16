@@ -4,14 +4,19 @@ with AUnit.Assertions;
 with Hostkit.Fs;
 with Hostkit.Metadata;
 with Posix_Tools.Arguments;
+with Posix_Tools.Accounts;
 with Posix_Tools.Commands.Chmod;
 with Posix_Tools.Commands.Cp;
+with Posix_Tools.Commands.Du;
+with Posix_Tools.Commands.File;
 with Posix_Tools.Commands.Ln;
 with Posix_Tools.Commands.Ls;
 with Posix_Tools.Commands.Mkdir;
 with Posix_Tools.Commands.Mv;
 with Posix_Tools.Commands.Results;
 with Posix_Tools.Commands.Rm;
+with Posix_Tools.Commands.Stat;
+with Posix_Tools.Commands.Tail;
 with Posix_Tools.Commands.Wc;
 with Posix_Tools.Exit_Status;
 with Posix_Tools.File_Operations.Moving;
@@ -26,10 +31,12 @@ with Test_Contexts;
 with Test_Support;
 
 package body File_Command_Tests is
+   use type Posix_Tools.Accounts.Id;
    package FS renames Posix_Tools.Host_Adapters.File_System;
    package Ops renames Posix_Tools.File_Operations;
 
    use type FS.File_Kind;
+   use type FS.Entry_Kind;
    use type Hostkit.Metadata.Identity_Field;
    use type Ops.Operation_Error;
    use type Ops.Operation_Outcome;
@@ -63,7 +70,7 @@ package body File_Command_Tests is
    procedure Remove (Root : String);
 
    function Root_For (Name : String) return String is
-     (Project_Tools.Files.Join (Project_Tools.Files.Temp_Dir, "posix-tools-files-" & Name));
+     (Test_Support.Work_Path ("files-" & Name));
 
    --  Where a host runs only programs with a suffix (Windows), execute bits
    --  follow the name, not chmod.
@@ -423,7 +430,7 @@ package body File_Command_Tests is
       Root    : constant String := Root_For ("cp-mode");
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
-      Own_User, Own_Group : Natural;
+      Own_User, Own_Group : Posix_Tools.Accounts.Id;
       Own_Known           : Boolean;
 
       --  A file someone else owns, if the host has one where it is usual.
@@ -433,7 +440,7 @@ package body File_Command_Tests is
       begin
          for Name of Candidates loop
             declare
-               User, Group : Natural;
+               User, Group : Posix_Tools.Accounts.Id;
                Known       : Boolean;
             begin
                if FS.Exists (Name) and then FS.Kind (Name) = FS.Ordinary_File then
@@ -640,6 +647,15 @@ package body File_Command_Tests is
            Path (Root, "dangling") & EOL & Path (Root, "zfile") & EOL & EOL & Path (Root, "adir") & ":" & EOL
            & "x" & EOL,
          "ls lists the operands that are not directories first, sorted, and then the directories");
+
+      Context.Initialize ("ls", Args (Path (Root, "missing")));
+      Posix_Tools.Commands.Ls.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Error_Output (Context) =
+           "ls: '" & Path (Root, "missing") & "': cannot read file" & EOL,
+         "ls diagnoses a missing operand instead of printing it");
       Remove (Root);
    end Test_Ls_Operands;
 
@@ -852,6 +868,91 @@ package body File_Command_Tests is
         (Result.Status = Failure
          and then Test_Contexts.Error_Output (Context) = "rm: '" & Path (Root, "dir") & "': directory not empty" & EOL,
          "rm -d says a directory is not empty");
+
+      --  A Boolean existence probe cannot tell ENOENT from an inaccessible
+      --  ancestor.  In the latter case -f must still fail and diagnose it.
+      FS.Create_Path (Path (Root, "blocked"));
+      Write (Path (Root, "blocked/file"), "f");
+      Write (Path (Root, "source"), "source");
+      if Hostkit.Metadata.Mode_Bits_Are_Native
+        and then FS.Set_Permissions (Path (Root, "blocked"), 0)
+      then
+         if FS.Entry_Kind_Of (Path (Root, "blocked/file")) = FS.Entry_Error then
+            AUnit.Assertions.Assert
+              (FS.Kind (Path (Root, "blocked/file")) = FS.Uninspectable_File,
+               "followed kind preserves an inaccessible-path result");
+
+            Context.Initialize
+              ("cp", Args (Path (Root, "source"), Path (Root, "blocked/copy")));
+            Posix_Tools.Commands.Cp.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure,
+               "cp reports an inaccessible target as an operational error");
+
+            Context.Initialize
+              ("mv", Args (Path (Root, "source"), Path (Root, "blocked/move")));
+            Posix_Tools.Commands.Mv.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure and then FS.Exists (Path (Root, "source")),
+               "mv reports an inaccessible target without moving its source");
+
+            Context.Initialize
+              ("ln", Args ("-s", Path (Root, "source"), Path (Root, "blocked/link")));
+            Posix_Tools.Commands.Ln.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure,
+               "ln reports an inaccessible target as an operational error");
+
+            Context.Initialize
+              ("du", Args (Path (Root, "blocked/file")));
+            Posix_Tools.Commands.Du.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure,
+               "du reports an inaccessible operand as an operational error");
+
+            Context.Initialize
+              ("stat", Args (Path (Root, "blocked/file")));
+            Posix_Tools.Commands.Stat.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure,
+               "stat reports an inaccessible operand as an operational error");
+
+            Context.Initialize
+              ("rm", Args ("-f", Path (Root, "blocked/file")));
+            Posix_Tools.Commands.Rm.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure
+               and then Test_Contexts.Error_Output (Context) =
+                 "rm: '" & Path (Root, "blocked/file")
+                 & "': cannot read file" & EOL,
+               "rm -f reports an inaccessible existing operand");
+
+            Context.Initialize
+              ("file", Args (Path (Root, "blocked/file")));
+            Posix_Tools.Commands.File.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure
+               and then Test_Contexts.Output (Context) = ""
+               and then Test_Contexts.Error_Output (Context) =
+                 "file: '" & Path (Root, "blocked/file")
+                 & "': cannot open file" & EOL,
+               "file reports an inaccessible operand as an operational error");
+
+            Context.Initialize
+              ("tail", Args ("-n", "1", Path (Root, "blocked/file")));
+            Posix_Tools.Commands.Tail.Run (Context, Result);
+            AUnit.Assertions.Assert
+              (Result.Status = Failure
+               and then Test_Contexts.Output (Context) = ""
+               and then Test_Contexts.Error_Output (Context) =
+                 "tail: '" & Path (Root, "blocked/file")
+                 & "': cannot read file" & EOL,
+               "tail reports an inaccessible operand as an operational error");
+         end if;
+         AUnit.Assertions.Assert
+           (FS.Set_Permissions (Path (Root, "blocked"), 8#700#),
+            "restore inaccessible rm fixture");
+      end if;
       Remove (Root);
    end Test_Rm_Force_Reports_Failures;
 

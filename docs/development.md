@@ -7,16 +7,21 @@ the root crate, every command crate, and the tests/tooling crate.
 
 Normal checks are driven by the Ada executable `posix_tools_tests`.
 
+Every build uses GNAT Native 15.2.1 with GPRbuild 26.0.1. Before building a
+crate directly, select them in that Alire workspace with
+`alr toolchain --select --local gnat_native=15.2.1 gprbuild=26.0.1`.
+The Ada build driver repeats this selection for every crate and stops if it
+cannot establish the pinned toolchain; system GNAT installations are not used.
+
 Continuous integration is defined in `.github/workflows/ci.yml`. The workflow
 runs the Ada `posix_tools_tests release-check` gate on Linux, macOS, and Windows
 through Alire. Its repository checkouts use the Node 24-compatible checkout action
 pinned by the release metadata gate, and the gate requires CI to check out
 every sibling repository the crates' Alire `path` pins reach. After the gate, CI
 fails if `git status --porcelain` finds a generated file that the gate rewrote
-or wrote anew. Alire setup uses
-the upstream `setup-alire` v6 branch because it carries the Node 24/cache v5
-internals ahead of the next tagged setup-alire release. Local development should
-run the same command before opening a release PR.
+or wrote anew. Alire setup is pinned to the reviewed commit of the upstream
+`setup-alire` v6 branch that carries the Node 24/cache v5 internals. Local
+development should run the same command before opening a release PR.
 
 Selected GNATprove targets are run by `posix_tools_tests prove` through
 `project_tools` against `common/posix_tools_proof.gpr`. `docs/proof-coverage.md`

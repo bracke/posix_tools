@@ -8,6 +8,7 @@ package body Posix_Tools.Commands.Printenv is
    is
       First   : Positive := 1;
       Missing : Boolean := False;
+      Output  : Posix_Tools.Commands.Helpers.Output_Buffer;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -22,24 +23,26 @@ package body Posix_Tools.Commands.Printenv is
             Env : constant Posix_Tools.Arguments.Vector := Context.Environment_Pairs;
          begin
             for Pair of Env loop
-               Context.Put_Line (Pair);
+               Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                 (Output, Context, Pair);
             end loop;
          end;
       else
          for I in First .. Context.Argument_Count loop
             declare
-               Name  : constant String := Context.Argument (I);
-               Value : constant String := Context.Environment_Value (Name);
+               Name : constant String := Context.Argument (I);
             begin
                if not Context.Environment_Defined (Name) then
                   Missing := True;
                else
-                  Context.Put_Line (Value);
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Output, Context, Context.Environment_Value (Name));
                end if;
             end;
          end loop;
       end if;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result, not Missing);
    end Run;
 end Posix_Tools.Commands.Printenv;

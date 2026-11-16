@@ -7,6 +7,9 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` installs GNATprove
 15.1.0 and runs the Ada release gate on Linux, macOS, and Windows. A release candidate
 should not be treated as platform-validated until all three CI jobs have passed
 for the candidate commit.
+CI explicitly selects GNAT Native 15.2.1 and GPRbuild 26.0.1 before compiling
+the tests driver. The driver makes the same local selection before building
+each crate, so a system compiler such as GNAT 13 cannot enter release artifacts.
 After the gate, the workflow fails if `git status --porcelain` reports anything:
 release-check regenerates the docs, man pages, command inventory, and package
 manifest before checking them, so only git can see that the committed copies
@@ -16,7 +19,7 @@ each file's size and checksum and a Windows CRLF checkout would change them.
 The local metadata gate checks the workflow triggers, read-only repository
 permission, non-fail-fast matrix, timeout, Node 24-compatible checkout action,
 sibling dependency checkouts, absence of direct Node 20-era setup/cache
-action pins, Node 24-compatible setup-alire branch, tests-crate build step, the
+action commit pins, Node 24-compatible setup-alire action, tests-crate build step, the
 release-check run line, and the drift check, so CI cannot silently stop
 exercising the Ada release gate. The sibling checkouts it requires are the
 repositories the crates' `path` pins reach, followed through the pinned

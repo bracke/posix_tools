@@ -1,5 +1,3 @@
-with Ada.Containers.Indefinite_Vectors;
-with Ada.Strings.Unbounded;
 with Ada.Unchecked_Conversion;
 with Interfaces;
 
@@ -8,13 +6,31 @@ package body Posix_Tools.Commands.Od_Rendering is
    use type Interfaces.Unsigned_64;
    use type Posix_Tools.Text.OD_Formats.Address_Base;
 
-   package String_Vectors is new Ada.Containers.Indefinite_Vectors (Positive, String);
-
    function Floating_Image (Value : Interfaces.Unsigned_64; Size : Positive) return String;
 
    function To_Dump_Kind (Kind : Posix_Tools.Text.OD_Formats.Dump_Format_Kind) return Dump_Kind;
 
    function Unit_Field (Spec : Dump_Spec; Text : String; First : Positive) return String;
+
+   procedure Emit_Block
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Block   : String);
+
+   procedure Emit_Line
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Text    : String);
+
+   procedure Emit_Line
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Text    : String)
+   is
+   begin
+      Posix_Tools.Commands.Helpers.Buffered_Put_Line
+        (State.Output_Buffer, Context, Text);
+   end Emit_Line;
 
    procedure Append_Dump_Format
      (Formats : in out Dump_Spec_Vectors.Vector;
@@ -75,6 +91,120 @@ package body Posix_Tools.Commands.Od_Rendering is
       end if;
    end Floating_Image;
 
+   procedure Emit_Block
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Block   : String)
+   is
+   begin
+      if not State.Verbose
+        and then State.Have_Previous
+        and then Block = To_String (State.Previous_Block)
+      then
+         if not State.Suppressed then
+            Emit_Line (State, Context, "*");
+            State.Suppressed := True;
+         end if;
+         State.Offset := State.Offset + Block'Length;
+         return;
+      end if;
+
+      for Format_Index in State.Formats.First_Index .. State.Formats.Last_Index loop
+         declare
+            Spec   : constant Dump_Spec := State.Formats.Element (Format_Index);
+            Output : Unbounded_String;
+            I      : Natural := Block'First;
+         begin
+            while I <= Block'Last loop
+               Append (Output, Unit_Field (Spec, Block, I));
+               I := I + Spec.Size;
+            end loop;
+            Emit_Line
+              (State, Context,
+               (if State.Address = Posix_Tools.Text.OD_Formats.No_Address
+                or else Format_Index /= State.Formats.First_Index
+                then ""
+                else Posix_Tools.Text.OD_Formats.Address_Image
+                  (State.Address, State.Actual_Skip + State.Offset))
+               & To_String (Output));
+         end;
+      end loop;
+      State.Previous_Block := To_Unbounded_String (Block);
+      State.Have_Previous := True;
+      State.Suppressed := False;
+      State.Offset := State.Offset + Block'Length;
+   end Emit_Block;
+
+   procedure Initialize
+     (State       : out Renderer;
+      Actual_Skip : Natural;
+      Address     : Posix_Tools.Text.OD_Formats.Address_Base;
+      Formats     : Dump_Spec_Vectors.Vector;
+      Verbose     : Boolean) is
+   begin
+      State :=
+        (Actual_Skip => Actual_Skip, Address => Address, Formats => Formats,
+         Verbose => Verbose, others => <>);
+   end Initialize;
+
+   procedure Feed
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Text    : String)
+   is
+      First : Natural := Text'First;
+   begin
+      if Length (State.Pending) > 0 then
+         declare
+            Needed : constant Natural := 16 - Length (State.Pending);
+            Taken  : constant Natural := Natural'Min (Needed, Text'Length);
+         begin
+            if Taken > 0 then
+               Append (State.Pending, Text (First .. First + Taken - 1));
+               First := First + Taken;
+            end if;
+            if Length (State.Pending) = 16 then
+               Emit_Block (State, Context, To_String (State.Pending));
+               State.Pending := Null_Unbounded_String;
+            end if;
+         end;
+      end if;
+
+      while First + 15 <= Text'Last loop
+         Emit_Block (State, Context, Text (First .. First + 15));
+         First := First + 16;
+      end loop;
+      if First <= Text'Last then
+         Append (State.Pending, Text (First .. Text'Last));
+      end if;
+   end Feed;
+
+   procedure Finish
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class) is
+   begin
+      if Length (State.Pending) > 0 then
+         Emit_Block (State, Context, To_String (State.Pending));
+         State.Pending := Null_Unbounded_String;
+      end if;
+      if State.Address /= Posix_Tools.Text.OD_Formats.No_Address then
+         Emit_Line
+           (State, Context,
+            Posix_Tools.Text.OD_Formats.Address_Image
+              (State.Address, State.Actual_Skip + State.Offset));
+      end if;
+      Flush_Output (State, Context);
+   end Finish;
+
+   procedure Flush_Output
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class)
+   is
+   begin
+      Posix_Tools.Commands.Helpers.Flush_Output
+        (State.Output_Buffer, Context);
+   end Flush_Output;
+
    procedure Render
      (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
       Text        : String;
@@ -83,58 +213,11 @@ package body Posix_Tools.Commands.Od_Rendering is
       Formats     : Dump_Spec_Vectors.Vector;
       Verbose     : Boolean)
    is
-      Offset         : Natural := 0;
-      Previous_Block : String_Vectors.Vector;
-      Have_Previous  : Boolean := False;
-      Suppressed     : Boolean := False;
+      State : Renderer;
    begin
-      while Offset < Text'Length loop
-         declare
-            Line_Last     : constant Natural := Natural'Min (Text'Length, Offset + 16);
-            Current_Block : String_Vectors.Vector;
-         begin
-            for Format_Index in Formats.First_Index .. Formats.Last_Index loop
-               declare
-                  Spec   : constant Dump_Spec := Formats.Element (Format_Index);
-                  Output : Unbounded_String;
-               begin
-                  declare
-                     I : Natural := Text'First + Offset;
-                  begin
-                     while I <= Text'First + Line_Last - 1 loop
-                        Append (Output, Unit_Field (Spec, Text, I));
-                        I := I + Spec.Size;
-                     end loop;
-                  end;
-                  Current_Block.Append (To_String (Output));
-               end;
-            end loop;
-
-            if not Verbose and then Have_Previous and then String_Vectors."=" (Current_Block, Previous_Block) then
-               if not Suppressed then
-                  Context.Put_Line ("*");
-                  Suppressed := True;
-               end if;
-            else
-               for Format_Index in Current_Block.First_Index .. Current_Block.Last_Index loop
-                  Context.Put_Line
-                    ((if Address = Posix_Tools.Text.OD_Formats.No_Address
-                      or else Format_Index /= Current_Block.First_Index
-                      then ""
-                      else Posix_Tools.Text.OD_Formats.Address_Image (Address, Actual_Skip + Offset))
-                     & Current_Block.Element (Format_Index));
-               end loop;
-               Previous_Block := Current_Block;
-               Have_Previous := True;
-               Suppressed := False;
-            end if;
-            Offset := Line_Last;
-         end;
-      end loop;
-      if Address /= Posix_Tools.Text.OD_Formats.No_Address then
-         Context.Put_Line
-           (Posix_Tools.Text.OD_Formats.Address_Image (Address, Actual_Skip + Text'Length));
-      end if;
+      Initialize (State, Actual_Skip, Address, Formats, Verbose);
+      Feed (State, Context, Text);
+      Finish (State, Context);
    end Render;
 
    function To_Dump_Kind (Kind : Posix_Tools.Text.OD_Formats.Dump_Format_Kind) return Dump_Kind is

@@ -8,9 +8,6 @@ package body File_IO is
       Opened : Boolean := False;
    begin
       Content := U.Null_Unbounded_String;
-      if not Ada.Directories.Exists (Path) then
-         return Open_Failed;
-      end if;
       SIO.Open (File, SIO.In_File, Path);
       Opened := True;
 
@@ -34,8 +31,6 @@ package body File_IO is
          | Ada.IO_Exceptions.Data_Error
          | Ada.IO_Exceptions.Status_Error
          | Ada.IO_Exceptions.Mode_Error
-         | Ada.Directories.Name_Error
-         | Ada.Directories.Use_Error
          | Constraint_Error
          | Storage_Error =>
          if SIO.Is_Open (File) then
@@ -55,8 +50,13 @@ package body File_IO is
         (if Append then SIO.Append_File else SIO.Out_File);
       Position : Natural := Content'First;
    begin
-      if Append and then Ada.Directories.Exists (Path) then
-         SIO.Open (File, Mode, Path);
+      if Append then
+         begin
+            SIO.Open (File, Mode, Path);
+         exception
+            when Ada.IO_Exceptions.Name_Error =>
+               SIO.Create (File, SIO.Out_File, Path);
+         end;
       else
          SIO.Create (File, SIO.Out_File, Path);
       end if;
@@ -87,8 +87,6 @@ package body File_IO is
          | Ada.IO_Exceptions.Device_Error
          | Ada.IO_Exceptions.Status_Error
          | Ada.IO_Exceptions.Mode_Error
-         | Ada.Directories.Name_Error
-         | Ada.Directories.Use_Error
          | Constraint_Error
          | Storage_Error =>
          if SIO.Is_Open (File) then

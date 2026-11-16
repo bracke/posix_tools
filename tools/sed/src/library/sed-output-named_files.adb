@@ -19,14 +19,13 @@ package body Sed.Output.Named_Files is
    --------------
 
    function Index_Of (Self : Registry; Path : String) return Natural is
+      Position : constant Destination_Indexes.Cursor :=
+        Self.Indexes.Find (Path);
    begin
-      for Position in 1 .. Natural (Self.Items.Length) loop
-         if U.To_String (Self.Items (Position).Path) = Path then
-            return Position;
-         end if;
-      end loop;
-
-      return 0;
+      return
+        (if Destination_Indexes.Has_Element (Position)
+         then Destination_Indexes.Element (Position)
+         else 0);
    end Index_Of;
 
    ------------
@@ -74,6 +73,7 @@ package body Sed.Output.Named_Files is
    begin
       Self.Files := Files;
       Self.Items := Destination_Vectors.Empty_Vector;
+      Self.Indexes := Destination_Indexes.Empty_Map;
       Self.Diagnostics := D.Empty_List;
       Self.Closed := False;
    end Initialize;
@@ -105,6 +105,7 @@ package body Sed.Output.Named_Files is
               (Path => U.To_Unbounded_String (Path),
                Handle => Sed.IO.Invalid_Handle,
                Broken => False));
+         Self.Indexes.Insert (Path, Self.Items.Last_Index);
 
          Report
            (Self,
@@ -122,6 +123,7 @@ package body Sed.Output.Named_Files is
            (Path => U.To_Unbounded_String (Path),
             Handle => Handle,
             Broken => False));
+      Self.Indexes.Insert (Path, Self.Items.Last_Index);
 
       Success := True;
    end Create_Destination;
@@ -163,8 +165,9 @@ package body Sed.Output.Named_Files is
          return;
       end if;
 
-      if Data'Length > 0 then
-         Self.Files.Write (Self.Items (Position).Handle, Data, Result);
+      if Terminator = With_Terminator then
+         Self.Files.Write
+           (Self.Items (Position).Handle, Data & ASCII.LF, Result);
 
          if Sed.IO.Is_Failure (Result) then
             Report
@@ -175,11 +178,8 @@ package body Sed.Output.Named_Files is
                U.To_String (Result.Detail));
             return;
          end if;
-      end if;
-
-      if Terminator = With_Terminator then
-         Self.Files.Write
-           (Self.Items (Position).Handle, [1 => ASCII.LF], Result);
+      elsif Data'Length > 0 then
+         Self.Files.Write (Self.Items (Position).Handle, Data, Result);
 
          if Sed.IO.Is_Failure (Result) then
             Report

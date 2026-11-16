@@ -11,6 +11,7 @@ with Posix_Tools.Commands.Sort;
 with Posix_Tools.Commands.Text_Helpers.Folding;
 with Posix_Tools.Exit_Status;
 with Test_Contexts;
+with Test_Support;
 
 package body Command_Tests.Surface_Smoke.Text is
    use type Ada.Directories.File_Size;
@@ -18,7 +19,7 @@ package body Command_Tests.Surface_Smoke.Text is
    use Command_Tests.Surface_Smoke.Fixtures;
    use Command_Tests.Surface_Smoke.Helpers;
 
-   procedure Test_Dd (T : in out Surface_Fixture) is
+   procedure Test_Dd_Basic (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
@@ -118,7 +119,13 @@ package body Command_Tests.Surface_Smoke.Text is
       Test_Contexts.Set_Standard_Input (Context, "abcdefghi");
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abcdef", "dd ibs count output");
+   end Test_Dd_Basic;
 
+   procedure Test_Dd_Positioning (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("dd", Three_Args ("bs=2", "skip=1", "count=2"));
       Test_Contexts.Set_Standard_Input (Context, "abcdef");
       Posix_Tools.Commands.Dd.Run (Context, Result);
@@ -154,7 +161,13 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = Character'Val (0) & Character'Val (0) & Character'Val (0) & "a",
          "dd oseek alias output");
+   end Test_Dd_Positioning;
 
+   procedure Test_Dd_Conversions (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("dd", One_Arg ("conv=ucase"));
       Test_Contexts.Set_Standard_Input (Context, "aBz 12");
       Posix_Tools.Commands.Dd.Run (Context, Result);
@@ -214,19 +227,30 @@ package body Command_Tests.Surface_Smoke.Text is
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Test_Contexts.Output (Context) = ""
+         and then Test_Contexts.Output (Context) = "ab"
          and then Test_Contexts.Error_Output (Context) = "dd: 'standard input': cannot read file" & EOL,
-         "dd reports a standard input failure without noerror");
+         "dd reports a standard input failure after preserving its copied prefix");
 
       Context.Initialize ("dd", One_Arg ("conv=noerror"));
       Test_Contexts.Set_Standard_Input (Context, "abc");
       Test_Contexts.Set_Standard_Input_Failure_After (Context, 2);
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
          and then Test_Contexts.Output (Context) = "ab"
          and then Occurrences (Test_Contexts.Error_Output (Context), "cannot read file") = 1,
-         "dd conv=noerror retains readable prefix and reports the failure once");
+         "dd conv=noerror fails after a repeated nonseekable input error");
+
+      Context.Initialize ("dd", Two_Args ("ibs=2", "conv=noerror"));
+      Test_Contexts.Set_Standard_Input (Context, "abcdef");
+      Test_Contexts.Set_Standard_Input_Failure_Once_After (Context, 2);
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success
+         and then Test_Contexts.Output (Context) = "abcdef"
+         and then Occurrences
+           (Test_Contexts.Error_Output (Context), "cannot read file") = 1,
+         "dd conv=noerror retries after a transient nonseekable input error");
 
       Context.Initialize ("dd", Two_Args ("if=" & Work_Path ("dd-missing-input"), "conv=noerror"));
       Posix_Tools.Commands.Dd.Run (Context, Result);
@@ -239,23 +263,23 @@ package body Command_Tests.Surface_Smoke.Text is
       Test_Contexts.Set_Standard_Input_Failure_After (Context, 2);
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
          and then Test_Contexts.Output (Context) = "ab"
          and then Contains (Test_Contexts.Error_Output (Context), "cannot read file")
          and then Contains (Test_Contexts.Error_Output (Context), "0+1 records in"),
-         "dd conv=noerror omits failed unsynchronized block tail");
+         "dd conv=noerror reports an unrecoverable unsynchronized input error");
 
       Context.Initialize ("dd", Two_Args ("ibs=4", "conv=noerror,sync"));
       Test_Contexts.Set_Standard_Input (Context, "abc");
       Test_Contexts.Set_Standard_Input_Failure_After (Context, 2);
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
          and then Test_Contexts.Output (Context) = "ab" & Character'Val (0) & Character'Val (0)
          and then Contains (Test_Contexts.Error_Output (Context), "cannot read file")
          and then Contains (Test_Contexts.Error_Output (Context), "0+1 records in")
          and then Contains (Test_Contexts.Error_Output (Context), "0+1 records out"),
-         "dd conv=noerror sync pads failed input block");
+         "dd conv=noerror sync does not invent a nonseekable failed record");
 
       Context.Initialize ("dd", Two_Args ("ibs=4", "conv=sync"));
       Test_Contexts.Set_Standard_Input (Context, "ab");
@@ -263,6 +287,18 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "ab" & Character'Val (0) & Character'Val (0),
          "dd conv=sync pads short block");
+
+      Context.Initialize
+        ("dd", Three_Args ("ibs=4", "count=2", "conv=noerror,sync"));
+      Test_Contexts.Set_Standard_Input (Context, "ab");
+      Test_Contexts.Set_Standard_Input_Read_Limit (Context, 1);
+      Posix_Tools.Commands.Dd.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) =
+           "a" & String'(1 .. 3 => Character'Val (0))
+             & "b" & String'(1 .. 3 => Character'Val (0))
+         and then Contains (Test_Contexts.Error_Output (Context), "0+2 records in"),
+         "dd preserves and pads short input records independently");
 
       Context.Initialize ("dd", Three_Args ("ibs=4", "count=1", "conv=sync,swab"));
       Test_Contexts.Set_Standard_Input (Context, "abc");
@@ -317,7 +353,15 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "dd conv=block requires cbs");
+   end Test_Dd_Conversions;
 
+   procedure Test_Dd_Files_And_Validation
+     (T : in out Surface_Fixture)
+   is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Write_File (Target, "abcdef");
       Context.Initialize ("dd", Four_Args ("of=" & Target, "bs=1", "count=2", "conv=notrunc"));
       Test_Contexts.Set_Standard_Input (Context, "XY");
@@ -333,6 +377,25 @@ package body Command_Tests.Surface_Smoke.Text is
       Context.Initialize ("cat", One_Arg (Target));
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "abXYef", "dd conv=notrunc honors seek offset");
+
+      declare
+         Source : constant String := Work_Path ("dd-stream-input");
+         Data   : constant String (1 .. 20_000) := [others => 'x'];
+      begin
+         Write_File (Source, Data);
+         Write_File (Target, "A");
+         Context.Initialize
+           ("dd",
+            Five_Args
+              ("if=" & Source, "of=" & Target, "bs=1", "seek=1",
+               "conv=notrunc"));
+         Posix_Tools.Commands.Dd.Run (Context, Result);
+         Context.Initialize ("cat", One_Arg (Target));
+         Posix_Tools.Commands.Cat.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Test_Contexts.Output (Context) = "A" & Data,
+            "dd retained positioned output spans input chunks");
+      end;
 
       Context.Initialize ("dd", Four_Args ("of=" & Target, "obs=1M", "seek=1", "count=1"));
       Test_Contexts.Set_Standard_Input (Context, "Z");
@@ -354,14 +417,32 @@ package body Command_Tests.Surface_Smoke.Text is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "dd rejects overflow numeric suffix");
 
+      declare
+         Source : constant String := Work_Path ("dd-max-seek-input");
+      begin
+         Write_File (Source, "");
+         Context.Initialize
+           ("dd",
+            Five_Args
+              ("if=" & Source,
+               "of=" & Target,
+               "obs=1",
+               "seek=9223372036854775807",
+               "count=0"));
+         Posix_Tools.Commands.Dd.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
+            "dd rejects a seek offset without a one-based stream position");
+      end;
+
       Context.Initialize ("dd", One_Arg ("bs=2x"));
       Posix_Tools.Commands.Dd.Run (Context, Result);
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage,
          "dd rejects empty multiplier factor");
-   end Test_Dd;
+   end Test_Dd_Files_And_Validation;
 
-   procedure Test_Printf (T : in out Surface_Fixture) is
+   procedure Test_Printf_Basic (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
       Context : Test_Contexts.Capturing_Context;
       Result  : Posix_Tools.Commands.Results.Result;
@@ -451,7 +532,13 @@ package body Command_Tests.Surface_Smoke.Text is
       Context.Initialize ("printf", Four_Args ("%*.*d", "6", "4", "7"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "  0007", "printf star width precision output");
+   end Test_Printf_Basic;
 
+   procedure Test_Printf_Integers (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("printf", Three_Args ("%.4d:%.4d", "7", "-7"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -499,7 +586,13 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "+7: 7:+7",
          "printf signed flag output");
+   end Test_Printf_Integers;
 
+   procedure Test_Printf_Floating (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("printf", Three_Args ("%f:%.2f", "1.5", "-2.345"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -568,7 +661,15 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = "1.500000:-1.23e+01",
          "printf LC_ALL overrides LC_NUMERIC");
+   end Test_Printf_Floating;
 
+   procedure Test_Printf_Defaults_And_Output
+     (T : in out Surface_Fixture)
+   is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("printf", Four_Args ("%05d:%05d:%05u", "7", "-7", "7"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert
@@ -611,7 +712,15 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "printf reports standard-output failure");
+   end Test_Printf_Defaults_And_Output;
 
+   procedure Test_Printf_Invalid_Numbers
+     (T : in out Surface_Fixture)
+   is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       --  XCU printf: a numeric argument is a C constant, and an unsigned
       --  conversion of a negative one wraps as strtoumax gives it.
       Context.Initialize ("printf", Two_Args ("%u", "-1"));
@@ -700,7 +809,15 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "printf invalid signed integer status");
+   end Test_Printf_Invalid_Numbers;
 
+   procedure Test_Printf_Characters_And_Escapes
+     (T : in out Surface_Fixture)
+   is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
       Context.Initialize ("printf", Three_Args ("%c", "alpha", "beta"));
       Posix_Tools.Commands.Printf.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "ab", "printf character reuse output");
@@ -733,153 +850,7 @@ package body Command_Tests.Surface_Smoke.Text is
       AUnit.Assertions.Assert
         (Test_Contexts.Output (Context) = Character'Val (8) & "1" & Character'Val (8) & "2",
          "printf format octal escapes take at most three digits");
-   end Test_Printf;
-
-   procedure Test_Sort (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Write_File (Source, "copy-data");
-      Ada.Directories.Create_Directory (Made);
-      Context.Initialize ("sort", No_Args);
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL, "sort output");
-
-      Context.Initialize ("sort", Two_Args ("-ru", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL & "b" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "b" & EOL & "a" & EOL, "sort -ru output");
-   end Test_Sort;
-
-   procedure Test_Sort_Folding (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Context.Initialize ("sort", Two_Args ("-f", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "A" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "A" & EOL & "b" & EOL, "sort -f output");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#C3#) & Character'Val (16#85#) & EOL
-         & Character'Val (16#C3#) & Character'Val (16#A5#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = Character'Val (16#C3#) & Character'Val (16#85#) & EOL,
-         "sort -f folds UTF-8 Latin-1 case pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#CE#) & Character'Val (16#91#) & EOL
-         & Character'Val (16#CE#) & Character'Val (16#B1#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = Character'Val (16#CE#) & Character'Val (16#91#) & EOL,
-         "sort -f folds UTF-8 Greek case pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#D0#) & Character'Val (16#AF#) & EOL
-         & Character'Val (16#D1#) & Character'Val (16#8F#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = Character'Val (16#D0#) & Character'Val (16#AF#) & EOL,
-         "sort -f folds UTF-8 Cyrillic case pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#C4#) & Character'Val (16#80#) & EOL
-         & Character'Val (16#C4#) & Character'Val (16#81#) & EOL
-         & Character'Val (16#D4#) & Character'Val (16#B1#) & EOL
-         & Character'Val (16#D5#) & Character'Val (16#A1#) & EOL
-         & Character'Val (16#E1#) & Character'Val (16#B2#) & Character'Val (16#90#) & EOL
-         & Character'Val (16#E1#) & Character'Val (16#83#) & Character'Val (16#90#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#C4#) & Character'Val (16#80#) & EOL
-           & Character'Val (16#D4#) & Character'Val (16#B1#) & EOL
-           & Character'Val (16#E1#) & Character'Val (16#B2#) & Character'Val (16#90#) & EOL,
-         "sort -f folds UTF-8 Latin Extended Armenian and Georgian pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#C6#) & Character'Val (16#81#) & EOL
-         & Character'Val (16#C9#) & Character'Val (16#93#) & EOL
-         & Character'Val (16#C6#) & Character'Val (16#86#) & EOL
-         & Character'Val (16#C9#) & Character'Val (16#94#) & EOL
-         & Character'Val (16#C6#) & Character'Val (16#90#) & EOL
-         & Character'Val (16#C9#) & Character'Val (16#9B#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#C6#) & Character'Val (16#81#) & EOL
-           & Character'Val (16#C6#) & Character'Val (16#86#) & EOL
-           & Character'Val (16#C6#) & Character'Val (16#90#) & EOL,
-         "sort -f folds UTF-8 Latin Extended-B pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#F0#) & Character'Val (16#90#) & Character'Val (16#90#) & Character'Val (16#80#) & EOL
-         & Character'Val (16#F0#) & Character'Val (16#90#) & Character'Val (16#90#) & Character'Val (16#A8#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#F0#) & Character'Val (16#90#) & Character'Val (16#90#) & Character'Val (16#80#) & EOL,
-         "sort -f folds UTF-8 Deseret pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#E1#) & Character'Val (16#8E#) & Character'Val (16#A0#) & EOL
-         & Character'Val (16#EA#) & Character'Val (16#AD#) & Character'Val (16#B0#) & EOL
-         & Character'Val (16#EF#) & Character'Val (16#BC#) & Character'Val (16#A1#) & EOL
-         & Character'Val (16#EF#) & Character'Val (16#BD#) & Character'Val (16#81#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#E1#) & Character'Val (16#8E#) & Character'Val (16#A0#) & EOL
-           & Character'Val (16#EF#) & Character'Val (16#BC#) & Character'Val (16#A1#) & EOL,
-         "sort -f folds UTF-8 Cherokee and Fullwidth Latin pairs");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#C3#) & Character'Val (16#9F#) & EOL
-         & "ss" & EOL
-         & Character'Val (16#EF#) & Character'Val (16#AC#) & Character'Val (16#83#) & EOL
-         & "ffi" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#EF#) & Character'Val (16#AC#) & Character'Val (16#83#) & EOL
-           & Character'Val (16#C3#) & Character'Val (16#9F#) & EOL,
-         "sort -f folds Unicode multi-code-point case mappings");
-
-      Context.Initialize ("sort", Two_Args ("-fu", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AA#) & EOL
-         & "k" & EOL
-         & Character'Val (16#CF#) & Character'Val (16#82#) & EOL
-         & Character'Val (16#CF#) & Character'Val (16#83#) & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-           Character'Val (16#E2#) & Character'Val (16#84#) & Character'Val (16#AA#) & EOL
-           & Character'Val (16#CF#) & Character'Val (16#82#) & EOL,
-         "sort -f folds Unicode compatibility and final-sigma mappings");
-   end Test_Sort_Folding;
+   end Test_Printf_Characters_And_Escapes;
 
    procedure Test_Sort_Keys_And_Modifiers
      (T : in out Surface_Fixture)
@@ -1125,200 +1096,6 @@ package body Command_Tests.Surface_Smoke.Text is
          "sort rejects decreasing key character range");
    end Test_Sort_Keys_And_Modifiers;
 
-   procedure Test_Sort_Numeric_And_IO (T : in out Surface_Fixture) is
-      pragma Unreferenced (T);
-      Context : Test_Contexts.Capturing_Context;
-      Result  : Posix_Tools.Commands.Results.Result;
-   begin
-      Write_File (Source, "copy-data");
-      Ada.Directories.Create_Directory (Made);
-      Context.Initialize ("sort", Two_Args ("-n", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "10 ten" & EOL & " 2 two" & EOL & "-1 minus" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "-1 minus" & EOL & " 2 two" & EOL & "10 ten" & EOL,
-         "sort -n output");
-
-      Context.Initialize ("sort", Two_Args ("-n", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "2.50 two" & EOL & "-1.25 minus" & EOL & "2.05 low" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "-1.25 minus" & EOL & "2.05 low" & EOL & "2.50 two" & EOL,
-         "sort -n decimal output");
-
-      Context.Initialize ("sort", Two_Args ("-n", "-"));
-      Test_Contexts.Set_Locale (Context, "da");
-      Test_Contexts.Set_Standard_Input
-        (Context, "2,50 two" & EOL & "-1,25 minus" & EOL & "2,05 low" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "-1,25 minus" & EOL & "2,05 low" & EOL & "2,50 two" & EOL,
-         "sort -n uses locale decimal separator");
-
-      Context.Initialize ("sort", Two_Args ("-n", "-"));
-      Test_Contexts.Set_Standard_Input
-        (Context,
-         "1e3 high" & EOL
-         & "2.5e-1 low" & EOL
-         & "-1e2 minus" & EOL
-         & "3 middle" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) =
-         "-1e2 minus" & EOL
-         & "2.5e-1 low" & EOL
-         & "3 middle" & EOL
-         & "1e3 high" & EOL,
-         "sort -n exponent output");
-
-      Context.Initialize ("sort", Two_Args ("-ns", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "2 z" & EOL & "2 a" & EOL & "1 one" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "1 one" & EOL & "2 z" & EOL & "2 a" & EOL,
-         "sort -ns preserves equal numeric input order");
-
-      Context.Initialize ("sort", Two_Args ("-ub", "-"));
-      Test_Contexts.Set_Standard_Input (Context, " apple" & EOL & "  apple" & EOL & "banana" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = " apple" & EOL & "banana" & EOL,
-         "sort -ub output");
-
-      Context.Initialize ("sort", Two_Args ("-c", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "a" & EOL & "b" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
-         "sort -c accepts ordered input");
-
-      Context.Initialize ("sort", Two_Args ("-cn", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "1.5" & EOL & "1.25" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
-         "sort -cn rejects decimal unordered input");
-
-      Context.Initialize ("sort", Two_Args ("-cn", "-"));
-      Test_Contexts.Set_Locale (Context, "da");
-      Test_Contexts.Set_Standard_Input (Context, "1,5" & EOL & "1,25" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
-         "sort -cn uses locale decimal separator");
-
-      Context.Initialize ("sort", Two_Args ("-cns", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "2 z" & EOL & "2 a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
-         "sort -cns accepts stable equal numeric input order");
-
-      Context.Initialize ("sort", Two_Args ("-c", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
-         "sort -c rejects unordered input");
-      AUnit.Assertions.Assert
-        (Contains (Test_Contexts.Error_Output (Context), "disorder: 'a'"),
-         "sort -c says which line is out of order");
-
-      Context.Initialize ("sort", Two_Args ("-C", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
-         and then Test_Contexts.Error_Output (Context) = "",
-         "sort -C rejects unordered input silently");
-
-      Context.Initialize ("sort", Three_Args ("-c", Paste_First, Paste_Second));
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
-         and then Contains (Test_Contexts.Error_Output (Context), "extra operand"),
-         "sort -c checks one input only");
-
-      Write_File (Paste_First, "b");
-      Write_File (Paste_Second, "a" & EOL);
-      Context.Initialize ("sort", Two_Args (Paste_First, Paste_Second));
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL,
-         "sort keeps a file without a final newline apart from the next");
-
-      Context.Initialize ("sort", One_Arg ("-nk2"));
-      Test_Contexts.Set_Standard_Input (Context, "x 10" & EOL & "y 9" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "y 9" & EOL & "x 10" & EOL,
-         "sort takes a key attached behind grouped flags");
-
-      Context.Initialize ("sort", Two_Args ("-rt:", "-k2"));
-      Test_Contexts.Set_Standard_Input (Context, "a:1" & EOL & "b:2" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "b:2" & EOL & "a:1" & EOL,
-         "sort takes a separator attached behind grouped flags");
-
-      AUnit.Assertions.Assert
-        (Posix_Tools.Commands.Text_Helpers.Folding.Folded_Sort_Text
-           ("A" & Character'Val (16#C4#) & Character'Val (16#B0#) & Character'Val (16#C4#) & Character'Val (16#80#))
-         = "ai" & Character'Val (16#CC#) & Character'Val (16#87#) & Character'Val (16#C4#) & Character'Val (16#81#),
-         "case folding takes U+0130 to i and a dot above, and U+0100 to U+0101");
-
-      Context.Initialize ("sort", Two_Args ("-Cr", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "b" & EOL & "a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success and then Test_Contexts.Output (Context) = "",
-         "sort -Cr accepts reverse ordered input");
-
-      Context.Initialize ("sort", Two_Args ("-cu", "-"));
-      Test_Contexts.Set_Standard_Input (Context, "a" & EOL & "a" & EOL);
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure and then Test_Contexts.Output (Context) = "",
-         "sort -cu rejects duplicates");
-
-      Context.Initialize ("sort", Three_Args ("-o", Sort_Out, Source));
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert (Ada.Directories.Exists (Sort_Out), "sort -o output file");
-      Context.Initialize ("cat", One_Arg (Sort_Out));
-      Posix_Tools.Commands.Cat.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Test_Contexts.Output (Context) = "copy-data" & EOL,
-         "sort -o writes sorted file data");
-
-      Context.Initialize ("sort", Three_Args ("-o", Made, Source));
-      Posix_Tools.Commands.Sort.Run (Context, Result);
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
-         "sort -o reports output-file failure");
-
-      Remove_Any (Option_Dir);
-      Ada.Directories.Create_Directory (Option_Dir);
-      Write_File (Hostkit.Fs.Join (Option_Dir, "plain"), "b" & EOL);
-      Write_File (Hostkit.Fs.Join (Option_Dir, "-r"), "a" & EOL);
-      declare
-         Original_Directory : constant String := Ada.Directories.Current_Directory;
-      begin
-         Ada.Directories.Set_Directory (Option_Dir);
-         Context.Initialize ("sort", Two_Args ("plain", "-r"));
-         Posix_Tools.Commands.Sort.Run (Context, Result);
-         Ada.Directories.Set_Directory (Original_Directory);
-      exception
-         when others =>
-            Ada.Directories.Set_Directory (Original_Directory);
-            raise;
-      end;
-      AUnit.Assertions.Assert
-        (Result.Status = Posix_Tools.Exit_Status.Success
-         and then Test_Contexts.Output (Context) = "a" & EOL & "b" & EOL,
-         "sort treats option-like words after first file operand as file operands");
-   end Test_Sort_Numeric_And_IO;
+   procedure Test_Sort_Numeric_And_IO (T : in out Surface_Fixture) is separate;
 
 end Command_Tests.Surface_Smoke.Text;

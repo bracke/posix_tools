@@ -11,6 +11,9 @@ package body Posix_Tools.Commands.Grep.Rendering is
    --  Value in decimal, without the sign position.
    function Image (Value : Greplib.Wide_Count) return String;
 
+   --  Queue Text without allowing Pending to grow past Flush_Threshold.
+   procedure Queue (Sink : in out Output_Sink; Text : String);
+
    --  The name of the file Event belongs to.
    function Source_Name (Sink : Output_Sink; Event : Greplib.Events.Search_Event) return String;
 
@@ -52,6 +55,26 @@ package body Posix_Tools.Commands.Grep.Rendering is
       return Text (Text'First + 1 .. Text'Last);
    end Image;
 
+   procedure Queue (Sink : in out Output_Sink; Text : String) is
+   begin
+      if Text = "" or else Sink.Failed then
+         return;
+      elsif Text'Length >= Flush_Threshold then
+         Flush (Sink);
+         if not Sink.Failed then
+            Sink.Context.Put (Text);
+            Sink.Failed := Sink.Context.Output_Failed;
+         end if;
+      else
+         if Length (Sink.Pending) > Flush_Threshold - Text'Length then
+            Flush (Sink);
+         end if;
+         if not Sink.Failed then
+            Append (Sink.Pending, Text);
+         end if;
+      end if;
+   end Queue;
+
    overriding procedure On_Event
      (Sink   : in out Output_Sink;
       Event  : Greplib.Events.Search_Event;
@@ -71,13 +94,15 @@ package body Posix_Tools.Commands.Grep.Rendering is
             Separate_Group (Sink, Event);
             Render_Record (Sink, Event, '-');
          when Greplib.Events.Count_Result =>
-            Append
-              (Sink.Pending,
-               (if Sink.Settings.Prefix_File then Source_Name (Sink, Event) & ":" else "")
-               & Image (Greplib.Events.Count (Event)) & ASCII.LF);
+            if Sink.Settings.Prefix_File then
+               Queue (Sink, Source_Name (Sink, Event) & ":");
+            end if;
+            Queue (Sink, Image (Greplib.Events.Count (Event)));
+            Queue (Sink, "" & ASCII.LF);
          when Greplib.Events.Source_Name_Result =>
             if Greplib.Events.Had_Match (Event) /= Sink.Settings.List_Without_Matches then
-               Append (Sink.Pending, Source_Name (Sink, Event) & ASCII.LF);
+               Queue (Sink, Source_Name (Sink, Event));
+               Queue (Sink, "" & ASCII.LF);
             end if;
          when others =>
             null;
@@ -100,7 +125,8 @@ package body Posix_Tools.Commands.Grep.Rendering is
       Event     : Greplib.Events.Search_Event;
       Separator : Character)
    is
-      Content : constant String := Greplib.Byte_Strings.To_String (Greplib.Events.Content (Event));
+      Content : constant String :=
+        Greplib.Byte_Strings.To_String (Greplib.Events.Content (Event));
 
       --  The file, line-number, and byte-offset prefix of a line starting
       --  at Offset.
@@ -125,16 +151,21 @@ package body Posix_Tools.Commands.Grep.Rendering is
       if Sink.Settings.Only_Matching and then Separator = ':' then
          for Span of Greplib.Events.Spans (Event) loop
             if Span.Last_Byte_Exclusive > Span.First_Byte then
-               Append
-                 (Sink.Pending,
-                  Prefix (Greplib.Events.Record_Byte_Offset (Event) + Span.First_Byte)
-                  & Content (Content'First + Natural (Span.First_Byte)
-                             .. Content'First + Natural (Span.Last_Byte_Exclusive) - 1)
-                  & ASCII.LF);
+               Queue
+                 (Sink,
+                  Prefix (Greplib.Events.Record_Byte_Offset (Event) + Span.First_Byte));
+               Queue
+                 (Sink,
+                  Content
+                    (Content'First + Natural (Span.First_Byte)
+                     .. Content'First + Natural (Span.Last_Byte_Exclusive) - 1));
+               Queue (Sink, "" & ASCII.LF);
             end if;
          end loop;
       else
-         Append (Sink.Pending, Prefix (Greplib.Events.Record_Byte_Offset (Event)) & Content & ASCII.LF);
+         Queue (Sink, Prefix (Greplib.Events.Record_Byte_Offset (Event)));
+         Queue (Sink, Content);
+         Queue (Sink, "" & ASCII.LF);
       end if;
    end Render_Record;
 
@@ -151,7 +182,7 @@ package body Posix_Tools.Commands.Grep.Rendering is
                   or else Sink.Last_Source /= Source
                   or else Sink.Last_Group /= Group)
       then
-         Append (Sink.Pending, "--" & ASCII.LF);
+         Queue (Sink, "--" & ASCII.LF);
       end if;
 
       Sink.Group_Written := True;

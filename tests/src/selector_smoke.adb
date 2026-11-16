@@ -27,7 +27,8 @@ package body Selector_Smoke is
         (Option  : String;
          Value   : String;
          Present : Text_List;
-         Absent  : Text_List := No_Text)
+         Absent  : Text_List := No_Text;
+         Allowed : Text_List := No_Text)
       is
          Label    : constant String := "test selector " & Option & " " & Value;
          Captured : constant Project_Tools.Processes.Captured_Process :=
@@ -40,6 +41,67 @@ package body Selector_Smoke is
                   Project_Tools.Processes.Argument (Option),
                   Project_Tools.Processes.Argument (Value)]));
          Output   : constant String := To_String (Captured.Output);
+
+         function Has_Line_With_Prefix (Prefix : String) return Boolean is
+            First : Positive := Output'First;
+
+            function Matches (Last : Natural) return Boolean is
+               Line_Last : Natural := Last;
+            begin
+               if Line_Last >= First
+                 and then Output (Line_Last) = Character'Val (13)
+               then
+                  Line_Last := Line_Last - 1;
+               end if;
+               return Line_Last >= First
+                 and then Project_Tools.Text.Starts_With
+                   (Output (First .. Line_Last), Prefix);
+            end Matches;
+         begin
+            for Index in Output'Range loop
+               if Output (Index) = Character'Val (10) then
+                  if Matches (Index - 1) then
+                     return True;
+                  end if;
+                  First := Index + 1;
+               end if;
+            end loop;
+            return First <= Output'Last and then Matches (Output'Last);
+         end Has_Line_With_Prefix;
+
+         function Has_Only_Allowed_Lines return Boolean is
+            First : Positive := Output'First;
+
+            function Allowed_Line (Last : Natural) return Boolean is
+               Line_Last : Natural := Last;
+            begin
+               if Line_Last >= First
+                 and then Output (Line_Last) = Character'Val (13)
+               then
+                  Line_Last := Line_Last - 1;
+               end if;
+               if Line_Last < First then
+                  return True;
+               end if;
+               return
+                 (for some Prefix of Allowed =>
+                    Project_Tools.Text.Starts_With
+                      (Output (First .. Line_Last), To_String (Prefix)));
+            end Allowed_Line;
+         begin
+            if Allowed'Length = 0 then
+               return True;
+            end if;
+            for Index in Output'Range loop
+               if Output (Index) = Character'Val (10) then
+                  if not Allowed_Line (Index - 1) then
+                     return False;
+                  end if;
+                  First := Index + 1;
+               end if;
+            end loop;
+            return First > Output'Last or else Allowed_Line (Output'Last);
+         end Has_Only_Allowed_Lines;
       begin
          if Captured.Status /= 0 then
             Ada.Text_IO.Put_Line (Output);
@@ -47,16 +109,21 @@ package body Selector_Smoke is
          end if;
 
          for Needle of Present loop
-            if not Project_Tools.Text.Contains (Output, To_String (Needle)) then
+            if not Has_Line_With_Prefix (To_String (Needle)) then
                Tooling_Checks.Fail (Label & " did not select " & To_String (Needle));
             end if;
          end loop;
 
          for Needle of Absent loop
-            if Project_Tools.Text.Contains (Output, To_String (Needle)) then
+            if Has_Line_With_Prefix (To_String (Needle)) then
                Tooling_Checks.Fail (Label & " also selected " & To_String (Needle));
             end if;
          end loop;
+
+         if not Has_Only_Allowed_Lines then
+            Tooling_Checks.Fail
+              (Label & " selected a test outside its allowed categories");
+         end if;
       end Expect_Selection;
 
       procedure Expect_Usage_Error
@@ -83,21 +150,32 @@ package body Selector_Smoke is
       Expect_Selection ("--suite", "cp", [+"command:cp "], [+"command:cat "]);
       Expect_Selection ("--suite", "tr", [+"command:tr "], [+"command:true "]);
       Expect_Selection ("--suite", "id", [+"command:id "], [+"command:identity "]);
+      Expect_Selection ("--suite", "chgrp", [+"command:chgrp "], [+"command:chown "]);
       Expect_Selection ("--suite", "xargs", [+"command:xargs "], [+"command:cat "]);
       Expect_Selection ("--suite", "root", [+"command:root "], [+"command:cat "]);
       Expect_Selection
         ("--suite", "command", [+"command:basename ", +"command:root "], [+"basic:", +"regression:"]);
       Expect_Selection ("--suite", "property", [+"property:"], [+"command:", +"basic:"]);
       Expect_Selection
+        ("--suite",
+         "text",
+         [+"text:parsing and conversion", +"text:escaping time and glob"],
+         [+"command:", +"basic:"]);
+      Expect_Selection
         ("--category",
          "unit",
-         [+"basic:numbers", +"streams:byte counting", +"property:paths"],
-         [+"command:", +"regression:", +"locale:", +"presentation:"]);
+         [+"basic:numbers",
+          +"streams:byte counting",
+          +"text:parsing and conversion",
+          +"property:paths"],
+         [+"command:", +"regression:", +"locale:", +"presentation:"],
+         [+"basic:", +"streams:", +"text:", +"property:"]);
       Expect_Selection
         ("--category",
          "integration",
          [+"command:root ", +"command:cat "],
-         [+"basic:", +"regression:", +"locale:"]);
+         [+"basic:", +"regression:", +"locale:"],
+         [+"command:"]);
       Expect_Selection
         ("--category",
          "regression",
@@ -106,9 +184,22 @@ package body Selector_Smoke is
           +"regression:REG-ENV-0001",
           +"regression:REG-VERBOSE-0001",
           +"regression:REG-XARGS-0001"],
-         [+"command:", +"basic:"]);
-      Expect_Selection ("--category", "locale", [+"locale:help"], [+"command:", +"basic:"]);
-      Expect_Selection ("--category", "presentation", [+"presentation:styling"], [+"command:", +"basic:"]);
+         [+"basic:",
+          +"streams:",
+          +"text:",
+          +"property:",
+          +"command:",
+          +"locale:",
+          +"presentation:"],
+         [+"regression:"]);
+      Expect_Selection
+        ("--category", "locale", [+"locale:help"], No_Text, [+"locale:"]);
+      Expect_Selection
+        ("--category",
+         "presentation",
+         [+"presentation:styling"],
+         No_Text,
+         [+"presentation:"]);
 
       Expect_Usage_Error
         ("test selector missing suite value",
@@ -122,6 +213,24 @@ package body Selector_Smoke is
              Project_Tools.Processes.Argument ("--suite"),
              Project_Tools.Processes.Argument ("unknown")]));
       Expect_Usage_Error
+        ("test selector external awk suite",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("awk")]));
+      Expect_Usage_Error
+        ("test selector external sed suite",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("sed")]));
+      Expect_Usage_Error
+        ("test selector external explore suite",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("test"),
+             Project_Tools.Processes.Argument ("--suite"),
+             Project_Tools.Processes.Argument ("explore")]));
+      Expect_Usage_Error
         ("test selector retired conformance category",
          Project_Tools.Processes.Arguments
            ([Project_Tools.Processes.Argument ("test"),
@@ -133,6 +242,10 @@ package body Selector_Smoke is
            ([Project_Tools.Processes.Argument ("test"),
              Project_Tools.Processes.Argument ("--category"),
              Project_Tools.Processes.Argument ("unknown")]));
+      Expect_Usage_Error
+        ("unknown tooling command",
+         Project_Tools.Processes.Arguments
+           ([Project_Tools.Processes.Argument ("unknown-command")]));
 
       Ada.Text_IO.Put_Line ("test selector smoke checks passed");
    end Run;

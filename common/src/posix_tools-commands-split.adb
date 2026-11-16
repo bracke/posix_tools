@@ -1,17 +1,17 @@
+with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
-with Posix_Tools.Exit_Status;
-with Posix_Tools.Host_Adapters.File_System;
+with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Text.Decimal_Parsing;
 with Posix_Tools.Text.Suffixes;
 
 package body Posix_Tools.Commands.Split is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
    use Ada.Strings.Unbounded;
-
-   LF : constant Character := Character'Val (10);
+   use type Ada.Streams.Stream_Element;
+   use type Ada.Streams.Stream_Element_Offset;
 
    --  -b's size: a positive number of bytes, n, followed by k for n
    --  kibibytes or m for n mebibytes.
@@ -43,8 +43,17 @@ package body Posix_Tools.Commands.Split is
       Valid          : Boolean;
       Input          : Unbounded_String := To_Unbounded_String ("-");
       Prefix         : Unbounded_String := To_Unbounded_String ("x");
-      Data           : Unbounded_String;
       Ok             : Boolean;
+      Operation_Ok   : Boolean := True;
+      Output         : Posix_Tools.Host_Adapters.Output_Files.Output_File;
+      Output_Open    : Boolean := False;
+      Part           : Natural := 0;
+      In_Part        : Natural := 0;
+      Output_Name    : Unbounded_String;
+
+      procedure Close_Output;
+      procedure Open_Output;
+      procedure Write_Output (Data : Ada.Streams.Stream_Element_Array);
 
       procedure Handle
         (Name   : Character;
@@ -77,6 +86,56 @@ package body Posix_Tools.Commands.Split is
       end Handle;
 
       procedure Parse is new Posix_Tools.Commands.Helpers.Parse_Options (Handle);
+
+      procedure Close_Output is
+         Closed : Boolean;
+      begin
+         if Output_Open then
+            Posix_Tools.Host_Adapters.Output_Files.Close (Output, Closed);
+            Operation_Ok := Operation_Ok and Closed;
+            Output_Open := False;
+         end if;
+      end Close_Output;
+
+      procedure Open_Output is
+      begin
+         if Part >= Posix_Tools.Text.Suffixes.Lowercase_Capacity (Suffix_Length) then
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, To_String (Prefix),
+               "posix_tools.diagnostic.resource.limit", "resource limit exceeded");
+            Operation_Ok := False;
+            return;
+         end if;
+         Output_Name := To_Unbounded_String
+           (To_String (Prefix)
+            & Posix_Tools.Text.Suffixes.Lowercase_Image (Part, Suffix_Length));
+         Posix_Tools.Host_Adapters.Output_Files.Open
+           (Output, To_String (Output_Name), False, Operation_Ok);
+         Output_Open := Operation_Ok;
+         if not Operation_Ok then
+            Posix_Tools.Commands.Helpers.Subject_Operational_Error
+              (Context, To_String (Output_Name),
+               "posix_tools.diagnostic.file.open_failed", "cannot open file");
+         else
+            Part := Part + 1;
+            In_Part := 0;
+         end if;
+      end Open_Output;
+
+      procedure Write_Output (Data : Ada.Streams.Stream_Element_Array) is
+      begin
+         if not Output_Open then
+            Open_Output;
+         end if;
+         if Output_Open and then Data'Length > 0 then
+            Posix_Tools.Host_Adapters.Output_Files.Write (Output, Data, Operation_Ok);
+            if not Operation_Ok then
+               Posix_Tools.Commands.Helpers.Subject_Operational_Error
+                 (Context, To_String (Output_Name),
+                  "posix_tools.diagnostic.file.write_failed", "cannot write file");
+            end if;
+         end if;
+      end Write_Output;
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
@@ -101,63 +160,87 @@ package body Posix_Tools.Commands.Split is
          end if;
       end;
 
-      Posix_Tools.Commands.File_Helpers.Streaming.Read_All (Context, To_String (Input), Data, Ok);
-      if not Ok then
-         Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-         return;
-      end if;
-
       declare
-         Text  : constant String := To_String (Data);
-         Start : Positive := 1;
-         Part  : Natural := 0;
+         procedure Copy_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset);
+         procedure Copy_Line_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset);
+
+         procedure Copy_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset)
+         is
+            pragma Unreferenced (Ignored);
+            First_Byte : Ada.Streams.Stream_Element_Offset := Buffer'First;
+            Amount     : Natural;
+            Final      : Ada.Streams.Stream_Element_Offset;
+         begin
+            while Operation_Ok and then First_Byte <= Last loop
+               Amount := Natural'Min
+                 (Bytes_Per_File - In_Part, Natural (Last - First_Byte + 1));
+               Final := First_Byte + Ada.Streams.Stream_Element_Offset (Amount) - 1;
+               Write_Output (Buffer (First_Byte .. Final));
+               In_Part := In_Part + Amount;
+               First_Byte := Final + 1;
+               if In_Part = Bytes_Per_File then
+                  Close_Output;
+               end if;
+            end loop;
+         end Copy_Chunk;
+
+         procedure Copy_Line_Chunk
+           (Ignored : in out Posix_Tools.Commands.Contexts.Context'Class;
+            Buffer  : Ada.Streams.Stream_Element_Array;
+            Last    : Ada.Streams.Stream_Element_Offset)
+         is
+            pragma Unreferenced (Ignored);
+            First_Byte : Ada.Streams.Stream_Element_Offset := Buffer'First;
+         begin
+            if Last < Buffer'First then
+               return;
+            end if;
+            for I in Buffer'First .. Last loop
+               if Buffer (I) = Ada.Streams.Stream_Element (10) then
+                  In_Part := In_Part + 1;
+                  if In_Part = Lines_Per_File then
+                     Write_Output (Buffer (First_Byte .. I));
+                     Close_Output;
+                     First_Byte := I + 1;
+                  end if;
+               end if;
+               exit when not Operation_Ok;
+            end loop;
+            if Operation_Ok and then First_Byte <= Last then
+               Write_Output (Buffer (First_Byte .. Last));
+            end if;
+         end Copy_Line_Chunk;
+
+         procedure Copy_Chunks is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+             (Action        => Copy_Chunk,
+              Buffer_Length =>
+                Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
+         procedure Copy_Line_Chunks is new
+           Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
+             (Action        => Copy_Line_Chunk,
+              Buffer_Length =>
+                Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length);
       begin
-         while Start <= Text'Length loop
-            declare
-               Last : Natural := Start - 1;
-            begin
-               if Bytes_Per_File > 0 then
-                  Last := Natural'Min (Text'Length, Start + Bytes_Per_File - 1);
-               else
-                  for Count in 1 .. Lines_Per_File loop
-                     exit when Last >= Text'Length;
-                     Last := Last + 1;
-                     while Last < Text'Length and then Text (Last) /= LF loop
-                        Last := Last + 1;
-                     end loop;
-                  end loop;
-               end if;
-               if Part >= Posix_Tools.Text.Suffixes.Lowercase_Capacity (Suffix_Length) then
-                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                    (Context,
-                     To_String (Prefix),
-                     "posix_tools.diagnostic.resource.limit",
-                     "resource limit exceeded");
-                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-                  return;
-               end if;
-               Posix_Tools.Host_Adapters.File_System.Write_File
-                 (To_String (Prefix)
-                  & Posix_Tools.Text.Suffixes.Lowercase_Image (Part, Suffix_Length),
-                  Text (Start .. Last),
-                  False,
-                  Ok);
-               if not Ok then
-                  Posix_Tools.Commands.Helpers.Subject_Operational_Error
-                    (Context,
-                     To_String (Prefix)
-                     & Posix_Tools.Text.Suffixes.Lowercase_Image (Part, Suffix_Length),
-                     "posix_tools.diagnostic.file.open_failed",
-                     "cannot open file");
-                  Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
-                  return;
-               end if;
-               Part := Part + 1;
-               Start := Last + 1;
-            end;
-         end loop;
+         Ok := True;
+         if Bytes_Per_File > 0 then
+            Copy_Chunks (Context, To_String (Input), Ok);
+         else
+            Copy_Line_Chunks (Context, To_String (Input), Ok);
+         end if;
+         Close_Output;
+         Ok := Ok and Operation_Ok;
       end;
-      Posix_Tools.Commands.Helpers.Finish (Context, Result);
+      Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
    end Run;
 
 end Posix_Tools.Commands.Split;

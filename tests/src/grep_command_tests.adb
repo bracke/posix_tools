@@ -294,7 +294,8 @@ package body Grep_Command_Tests is
 
    procedure Test_Output_Is_Not_Truncated (T : in out Fixture) is
       pragma Unreferenced (T);
-      Input : constant String := Numbers (20_000);
+      Long_Line : constant String := [1 .. 200_000 => 'x'];
+      Input     : constant String := Long_Line & LF & Numbers (20_000);
    begin
       Expect ("every selected line is written", ["."], Input, Input, Posix_Tools.Exit_Status.Success);
    end Test_Output_Is_Not_Truncated;

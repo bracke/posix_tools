@@ -63,6 +63,25 @@ package body Command_Tests.Surface_Smoke.Data is
          and then Test_Contexts.Output (Context) = "",
          "cmp accepts equal files quietly");
 
+      declare
+         Data : constant String := Large_Copy_Data;
+      begin
+         Write_File (Cmp_First, Data);
+         Write_File (Cmp_Second, Data);
+         Context.Initialize ("cmp", Three_Args ("-s", Cmp_First, Cmp_Second));
+         Posix_Tools.Commands.Cmp.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success,
+            "cmp -s compares equal multi-buffer files");
+
+         Context.Initialize ("cmp", Three_Args ("-l", Cmp_First, Cmp_Second));
+         Posix_Tools.Commands.Cmp.Run (Context, Result);
+         AUnit.Assertions.Assert
+           (Result.Status = Posix_Tools.Exit_Status.Success
+            and then Test_Contexts.Output (Context) = "",
+            "cmp -l skips equal multi-buffer regions");
+      end;
+
       Write_File (Cmp_Second, "sage" & EOL);
       Context.Initialize ("cmp", Two_Args (Cmp_First, Cmp_Second));
       Posix_Tools.Commands.Cmp.Run (Context, Result);
@@ -220,6 +239,16 @@ package body Command_Tests.Surface_Smoke.Data is
         (Result.Status = Posix_Tools.Exit_Status.Invalid_Usage
          and then Contains (Test_Contexts.Error_Output (Context), "extra operand"),
          "comm reports an extra operand as one");
+
+      Context.Initialize ("comm", Two_Args ("-", "-"));
+      Test_Contexts.Set_Standard_Input (Context, "a" & EOL & "a" & EOL);
+      Posix_Tools.Commands.Comm.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Operational_Failure
+         and then Test_Contexts.Output (Context) = ""
+         and then Contains
+           (Test_Contexts.Error_Output (Context), "cannot read file"),
+         "comm rejects two readers for the one standard-input cursor");
    end Test_Comm;
 
    procedure Test_Cut (T : in out Surface_Fixture) is
@@ -700,6 +729,23 @@ package body Command_Tests.Surface_Smoke.Data is
       Context.Initialize ("cat", One_Arg (Split_Prefix & "ac"));
       Posix_Tools.Commands.Cat.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "c" & EOL, "split takes an attached line count");
+
+      Write_File (Split_Input, [1 .. 16 * 1024 - 1 => 'x'] & EOL & "y" & EOL);
+      Context.Initialize ("split", Four_Args ("-l", "1", Split_Input, Split_Prefix));
+      Posix_Tools.Commands.Split.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Result.Status = Posix_Tools.Exit_Status.Success,
+         "split streams a line ending at an input chunk boundary");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "aa"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context)'Length = 16 * 1024,
+         "split keeps a chunk-sized first line intact");
+      Context.Initialize ("cat", One_Arg (Split_Prefix & "ab"));
+      Posix_Tools.Commands.Cat.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "y" & EOL,
+         "split starts the next file after the boundary newline");
 
       Write_File (Split_Input, [1 .. 1500 => 'x']);
       Context.Initialize ("split", Four_Args ("-b", "1k", Split_Input, Split_Long_Prefix));

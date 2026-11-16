@@ -9,6 +9,7 @@ with AUnit.Test_Filters;
 with AUnit.Test_Results;
 with AUnit.Tests;
 with Suite_Filters;
+with Tooling_Checks;
 
 package body Registered_Tests is
    package Name_Sets is new Ada.Containers.Indefinite_Ordered_Sets (String);
@@ -28,7 +29,15 @@ package body Registered_Tests is
       use type AUnit.Message_String;
    begin
       if T in Test_Case'Class and then Name (Test_Case'Class (T)) /= null then
-         Names.Include (Name (Test_Case'Class (T)).all);
+         declare
+            Test_Name : constant String := Name (Test_Case'Class (T)).all;
+         begin
+            if Names.Contains (Test_Name) then
+               Tooling_Checks.Fail
+                 ("duplicate registered AUnit test name " & Test_Name);
+            end if;
+            Names.Insert (Test_Name);
+         end;
       end if;
 
       return False;
@@ -73,6 +82,15 @@ package body Registered_Tests is
 
       return False;
    end Has_Suite;
+
+   procedure For_Each_Name
+     (Visit : not null access procedure (Name : String)) is
+   begin
+      Load;
+      for Test_Name of Names loop
+         Visit (Test_Name);
+      end loop;
+   end For_Each_Name;
 
    procedure Load is
    begin

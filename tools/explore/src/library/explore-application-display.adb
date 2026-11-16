@@ -7,8 +7,8 @@ with Explore.Protocol;
 with Explore.Screen;
 with Explore.Tabs;
 with Explore.Words;
+with Posix_Tools.Accounts;
 with Posix_Tools.Host_Adapters.File_System;
-with Posix_Tools.Text.Numeric_Images;
 
 package body Explore.Application.Display is
    package FS renames Posix_Tools.Host_Adapters.File_System;
@@ -17,10 +17,11 @@ package body Explore.Application.Display is
    use type Explore.Model.Pane_State;
    use type Explore.Previews.Preview_Kind;
 
-   function Image (Value : Natural) return String renames Posix_Tools.Text.Numeric_Images.Natural_Image;
-
    --  The name of user or group Id, looked up once and kept in Names.
-   function Name_For (Names : in out Name_Maps.Map; Id : Natural; Group : Boolean) return String;
+   function Name_For
+     (Names : in out Name_Maps.Map;
+      Id    : Posix_Tools.Accounts.Id;
+      Group : Boolean) return String;
 
    procedure Draw (State : in out Session; Ok : out Boolean) is
       Current : Model.Pane renames State.Browser.Panes (Model.Current_Pane);
@@ -80,7 +81,11 @@ package body Explore.Application.Display is
       end if;
    end Hide_Image;
 
-   function Name_For (Names : in out Name_Maps.Map; Id : Natural; Group : Boolean) return String is
+   function Name_For
+     (Names : in out Name_Maps.Map;
+      Id    : Posix_Tools.Accounts.Id;
+      Group : Boolean) return String
+   is
       Position : constant Name_Maps.Cursor := Names.Find (Id);
    begin
       if Name_Maps.Has_Element (Position) then
@@ -89,7 +94,10 @@ package body Explore.Application.Display is
 
       declare
          Found : constant String := (if Group then FS.Group_Name_For_Id (Id) else FS.User_Name_For_Id (Id));
-         Name  : constant String := (if Found'Length > 0 then Found else Image (Id));
+         Name  : constant String :=
+           (if Found'Length > 0
+            then Found
+            else Posix_Tools.Accounts.Image (Id));
       begin
          Names.Insert (Id, Unbounded.To_Unbounded_String (Name));
          return Name;

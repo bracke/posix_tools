@@ -3,7 +3,6 @@ with Posix_Tools.Commands.File_Helpers.Streaming;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Host_Adapters.Output_Files;
 with Posix_Tools.Host_Adapters.Signals;
-with Posix_Tools.Streams.Bytes;
 
 package body Posix_Tools.Commands.Tee is
 
@@ -26,6 +25,7 @@ package body Posix_Tools.Commands.Tee is
       procedure Mark_File_Failed (Path : String; Opening : Boolean);
 
       procedure Restore_Interrupt_Disposition;
+      procedure Restore_Interrupt_Disposition_Safely;
 
       procedure Mark_File_Failed (Path : String; Opening : Boolean) is
       begin
@@ -49,6 +49,16 @@ package body Posix_Tools.Commands.Tee is
             Restore_Interrupt := False;
          end if;
       end Restore_Interrupt_Disposition;
+
+      procedure Restore_Interrupt_Disposition_Safely is
+      begin
+         Restore_Interrupt_Disposition;
+      exception
+         when others =>
+            --  Intentional terminal exception barrier
+            --  Preserve the exception raised while copying input.
+            null;
+      end Restore_Interrupt_Disposition_Safely;
 
       procedure Handle
         (Name   : Character;
@@ -115,12 +125,12 @@ package body Posix_Tools.Commands.Tee is
             Buffer  : Ada.Streams.Stream_Element_Array;
             Last    : Ada.Streams.Stream_Element_Offset)
          is
-            Data : constant String := Posix_Tools.Streams.Bytes.To_String (Buffer, Last);
          begin
-            Context.Put (Data);
+            Context.Put_Bytes (Buffer, Last);
             for I in Files'Range loop
                if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
-                  Posix_Tools.Host_Adapters.Output_Files.Write (Files (I), Data, Written);
+                  Posix_Tools.Host_Adapters.Output_Files.Write
+                    (Files (I), Buffer (Buffer'First .. Last), Written);
                   if not Written then
                      Posix_Tools.Host_Adapters.Output_Files.Close (Files (I), Closed);
                      Mark_File_Failed (Context.Argument (I), Opening => False);
@@ -129,8 +139,28 @@ package body Posix_Tools.Commands.Tee is
             end loop;
          end Copy_Chunk;
 
+         procedure Close_All_Safely is
+            Ignored : Boolean;
+         begin
+            for I in Files'Range loop
+               begin
+                  if Posix_Tools.Host_Adapters.Output_Files.Is_Open (Files (I)) then
+                     Posix_Tools.Host_Adapters.Output_Files.Close
+                       (Files (I), Ignored);
+                  end if;
+               exception
+                  when others =>
+                     --  intentional terminal exception barrier
+                     null;
+               end;
+            end loop;
+         end Close_All_Safely;
+
          procedure Copy_Input is new Posix_Tools.Commands.File_Helpers.Streaming.For_Each_Chunk
-           (Copy_Chunk, Stop_On_Output_Failure => False);
+           (Action                 => Copy_Chunk,
+            Buffer_Length          =>
+              Posix_Tools.Commands.File_Helpers.Streaming.Bulk_Buffer_Length,
+            Stop_On_Output_Failure => False);
       begin
          --  Each file is opened once and written as input arrives.
          for I in Files'Range loop
@@ -154,10 +184,14 @@ package body Posix_Tools.Commands.Tee is
 
          Restore_Interrupt_Disposition;
          Posix_Tools.Commands.Helpers.Finish (Context, Result, Ok);
+      exception
+         when others =>
+            Close_All_Safely;
+            raise;
       end;
    exception
       when others =>
-         Restore_Interrupt_Disposition;
+         Restore_Interrupt_Disposition_Safely;
          raise;
    end Run;
 end Posix_Tools.Commands.Tee;

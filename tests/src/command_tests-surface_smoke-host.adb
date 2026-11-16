@@ -111,6 +111,13 @@ package body Command_Tests.Surface_Smoke.Host is
       AUnit.Assertions.Assert
         (Result.Status = Posix_Tools.Exit_Status.Operational_Failure,
          "date reports standard-output failure");
+   end Test_Date;
+
+   procedure Test_Date_Formats (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
 
       Context.Initialize ("date", One_Arg ("+literal"));
       Posix_Tools.Commands.Date.Run (Context, Result);
@@ -222,6 +229,13 @@ package body Command_Tests.Surface_Smoke.Host is
               or else Has_Word ("October") or else Has_Word ("November") or else Has_Word ("December")),
             "date weekday and month names output");
       end;
+   end Test_Date_Formats;
+
+   procedure Test_Date_Localized_Formats (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
 
       Context.Initialize ("date", One_Arg ("+%a %A %b %B"));
       Test_Contexts.Set_Locale (Context, "da");
@@ -323,6 +337,13 @@ package body Command_Tests.Surface_Smoke.Host is
             and then not Contains (Output, "%W"),
             "date POSIX week number output");
       end;
+   end Test_Date_Localized_Formats;
+
+   procedure Test_Date_Timezones (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
 
       Context.Initialize ("date", One_Arg ("+%z"));
       Posix_Tools.Commands.Date.Run (Context, Result);
@@ -479,6 +500,13 @@ package body Command_Tests.Surface_Smoke.Host is
             and then (for all I in Output'First .. Output'Last - 1 => Output (I) in '0' .. '9'),
             "date epoch seconds output");
       end;
+   end Test_Date_Timezones;
+
+   procedure Test_Date_Setting (T : in out Surface_Fixture) is
+      pragma Unreferenced (T);
+      Context : Test_Contexts.Capturing_Context;
+      Result  : Posix_Tools.Commands.Results.Result;
+   begin
 
       Context.Initialize ("date", Two_Args ("-u", "010203042026.05"));
       Test_Contexts.Set_Date_Set_Allowed (Context, True);
@@ -535,7 +563,7 @@ package body Command_Tests.Surface_Smoke.Host is
       AUnit.Assertions.Assert
         (Test_Contexts.Error_Output (Context) = "date: cannot set system date" & EOL,
          "date set failure diagnostic");
-   end Test_Date;
+   end Test_Date_Setting;
 
    procedure Test_Df (T : in out Surface_Fixture) is
       pragma Unreferenced (T);
@@ -559,6 +587,12 @@ package body Command_Tests.Surface_Smoke.Host is
       Posix_Tools.Commands.Env.Run (Context, Result);
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "env status");
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "NAME=value" & EOL, "env -i assignment output");
+
+      Context.Initialize ("env", Four_Args ("-i", "A=1", "B=2", "A=3"));
+      Posix_Tools.Commands.Env.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "A=3" & EOL & "B=2" & EOL,
+         "env indexed replacement preserves insertion order");
 
       Context.Initialize ("env", Two_Args ("-i", "NAME=value"));
       Test_Contexts.Set_Output_Failure_After (Context, 0);

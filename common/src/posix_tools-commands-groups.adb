@@ -16,6 +16,7 @@ package body Posix_Tools.Commands.Groups is
    is
       Groups     : Host.Group_Id_List (1 .. 256);
       Group_Last : Natural := 0;
+      Buffer     : Posix_Tools.Commands.Helpers.Output_Buffer;
 
    begin
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
@@ -48,6 +49,7 @@ package body Posix_Tools.Commands.Groups is
                   Output      : Unbounded_String;
                begin
                   if not Context.User_Group_Ids (Context.Argument (Operand), User_Groups, User_Last) then
+                     Posix_Tools.Commands.Helpers.Flush_Output (Buffer, Context);
                      Posix_Tools.Commands.Helpers.Subject_Operational_Error
                        (Context, Context.Argument (Operand), "posix_tools.diagnostic.unsupported",
                         "unsupported platform capability");
@@ -61,10 +63,12 @@ package body Posix_Tools.Commands.Groups is
                        (Output,
                         " " & Posix_Tools.Commands.Helpers.Group_Id_Text (Context, User_Groups (Index)));
                   end loop;
-                  Context.Put_Line (To_String (Output));
+                  Posix_Tools.Commands.Helpers.Buffered_Put_Line
+                    (Buffer, Context, To_String (Output));
                end;
             end loop;
          end;
+         Posix_Tools.Commands.Helpers.Flush_Output (Buffer, Context);
          Posix_Tools.Commands.Helpers.Finish (Context, Result);
          return;
       end if;
@@ -78,9 +82,11 @@ package body Posix_Tools.Commands.Groups is
             end if;
             Append (Output, Posix_Tools.Commands.Helpers.Group_Id_Text (Context, Groups (Index)));
          end loop;
-         Context.Put_Line (To_String (Output));
+         Posix_Tools.Commands.Helpers.Buffered_Put_Line
+           (Buffer, Context, To_String (Output));
       end;
 
+      Posix_Tools.Commands.Helpers.Flush_Output (Buffer, Context);
       Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;
 end Posix_Tools.Commands.Groups;

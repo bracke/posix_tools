@@ -43,18 +43,17 @@ operand would be.
 The follow spellings emit the ordinary initial suffix, then wait for additional
 data. -f follows the open operand position. -F and --follow are V1
 follow-by-name extensions that reopen from the beginning after the named input
-shrinks, which covers truncation and replacement. Production execution uses
-hostkit native file-change notifications for single file operands when the
-platform provides them, and falls back to a timer-driven recheck when native
-notifications are unavailable. Tests inject finite wait limits through the
-command context; production execution follows until interruption or failure.
+shrinks, which covers truncation and replacement. Production execution uses a
+timer-driven recheck. Tests inject finite wait limits through the command
+context; production execution follows until interruption or failure.
 .SH LOCALE BEHAVIOR
 Copied data and headers are not localized in V1.
 .SH IMPLEMENTATION-DEFINED CHOICES
 Suffix retention uses a 16 MiB in-memory threshold. Larger byte and line suffix
 processing spills to host-backed temporary storage using hostkit descriptors up
-to the configured 1 GiB spill limit; requests or inputs that exceed that limit
-fail with a resource diagnostic and no partial suffix output.
+to the configured 1 GiB spill limit. The limit applies to data actually written
+to spill storage, not to the numeric count requested; inputs requiring more
+spill storage fail with a resource diagnostic and no partial suffix output.
 .SH EXTENSIONS
 --help, --version, --posix-tools-identify.
 .SH EXAMPLES
@@ -64,6 +63,11 @@ tail -c 32 file
 .SH CONFORMANCE STATUS
 Conforming with extensions.
 .SH KNOWN LIMITATIONS
-No known V1 limitation for the documented follow surface.
+For a seekable file, follow mode retains and compares the 64 bytes immediately
+before its logical read position. This detects ordinary truncation and in-place
+rewrites that change that boundary. A rewrite completed entirely between two
+polls that preserves those same 64 bytes is indistinguishable from an append;
+following resumes at the prior position. Sequential inputs such as FIFOs are
+never repositioned and do not use this boundary check.
 .SH SEE ALSO
 docs/commands/tail.md

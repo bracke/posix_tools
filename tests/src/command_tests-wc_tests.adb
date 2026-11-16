@@ -40,6 +40,22 @@ package body Command_Tests.Wc_Tests is
       Posix_Tools.Commands.Wc.Run (Context, Result);
       AUnit.Assertions.Assert (Test_Contexts.Output (Context) = "4 " & Path & Character'Val (10), "wc -m output");
       AUnit.Assertions.Assert (Result.Status = Posix_Tools.Exit_Status.Success, "wc -m status");
+
+      Context.Initialize ("wc", Two_Args ("-lm", Path));
+      Posix_Tools.Commands.Wc.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "1 4 " & Path & Character'Val (10),
+         "wc -lm output");
+
+      Write_File
+        (Path,
+         "A" & Character'Val (16#C2#) & Character'Val (16#A0#)
+         & "B" & Character'Val (10));
+      Context.Initialize ("wc", Two_Args ("-mw", Path));
+      Posix_Tools.Commands.Wc.Run (Context, Result);
+      AUnit.Assertions.Assert
+        (Test_Contexts.Output (Context) = "2 4 " & Path & Character'Val (10),
+         "wc recognizes Unicode whitespace");
    end Test_Wc_Text_Counts;
 
    procedure Test_Wc_Default_And_Mixed_Text (T : in out Fixture) is

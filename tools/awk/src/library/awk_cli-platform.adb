@@ -15,7 +15,7 @@ package body Awk_CLI.Platform is
    use type Ada.Streams.Stream_Element_Offset;
 
    package Byte_IO is
-      Chunk_Size : constant Ada.Streams.Stream_Element_Offset := 8192;
+      Chunk_Size : constant Ada.Streams.Stream_Element_Offset := 64 * 1024;
 
       function To_String
         (Buffer : Ada.Streams.Stream_Element_Array;
@@ -177,11 +177,7 @@ package body Awk_CLI.Platform is
 
    function Environment_Value_Or_Empty (Name : String) return String is
    begin
-      if Ada.Environment_Variables.Exists (Name) then
-         return Ada.Environment_Variables.Value (Name);
-      else
-         return "";
-      end if;
+      return Ada.Environment_Variables.Value (Name, "");
    exception
       when Constraint_Error | Program_Error =>
          return "";

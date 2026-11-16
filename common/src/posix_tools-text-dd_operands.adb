@@ -236,6 +236,14 @@ package body Posix_Tools.Text.DD_Operands is
    begin
       Error := (others => <>);
 
+      if Options.Input_Block_Size > Posix_Tools.Numbers.Count (Natural'Last) then
+         --  The command uses one Ada array for each input record.  Reject a
+         --  size the runtime cannot index instead of silently selecting a
+         --  second, whole-file implementation with different semantics.
+         Set_Invalid (Error, Invalid_Block_Size, "ibs");
+         return False;
+      end if;
+
       if Options.Conversion_Settings.Block_Conversion /=
            Posix_Tools.Text.DD_Conversions.No_Block_Conversion
         and then (Options.Conversion_Settings.Conversion_Block_Size = 0

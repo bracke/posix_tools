@@ -23,9 +23,25 @@ package body Posix_Tools.Commands.Yes is
          Append (Line, Context.Argument (I));
       end loop;
 
-      while not Context.Output_Failed loop
-         Context.Put_Line (To_String (Line));
-      end loop;
+      declare
+         One_Line : constant String := To_String (Line) & Character'Val (10);
+         Target_Block_Size : constant := 64 * 1024;
+         Repetitions : constant Positive :=
+           (if One_Line'Length >= Target_Block_Size
+            then 1
+            else Target_Block_Size / One_Line'Length);
+         Block : String (1 .. One_Line'Length * Repetitions);
+      begin
+         for I in 0 .. Repetitions - 1 loop
+            Block
+              (Block'First + I * One_Line'Length
+               .. Block'First + (I + 1) * One_Line'Length - 1) := One_Line;
+         end loop;
+
+         while not Context.Output_Failed loop
+            Context.Put (Block);
+         end loop;
+      end;
 
       Result.Status := Posix_Tools.Exit_Status.Operational_Failure;
    end Run;

@@ -5,7 +5,7 @@ with Posix_Tools.Host_Adapters.File_System;
 package body Posix_Tools.File_Operations.Moving is
    package FS renames Posix_Tools.Host_Adapters.File_System;
 
-   use type FS.File_Kind;
+   use type FS.Entry_Kind;
 
    --  Passes everything on to Inner, except that the conflict over the
    --  move's own target, already settled, is not asked about again when the
@@ -23,12 +23,6 @@ package body Posix_Tools.File_Operations.Moving is
    overriding procedure Finished (Self : in out Settled_Observer; Path : String);
    overriding function Resolve_Conflict
      (Self : in out Settled_Observer; Source, Target : String) return Conflict_Choice;
-
-   --  Whether Path names a directory itself, not a link to one.
-   function Is_Directory (Path : String) return Boolean is
-     (not FS.Is_Link (Path) and then FS.Kind (Path) = FS.Directory);
-
-   function Is_Present (Path : String) return Boolean is (FS.Exists (Path) or else FS.Is_Link (Path));
 
    --  Why the host would not move Source to Target, as near as can be told.
    function Refusal (Source, Target : String) return Operation_Error;
@@ -49,6 +43,9 @@ package body Posix_Tools.File_Operations.Moving is
       Watcher : in out Observer'Class;
       Outcome : out Operation_Outcome)
    is
+      Source_Class : constant FS.Entry_Kind := FS.Entry_Kind_Of (Source);
+      Target_Class : constant FS.Entry_Kind := FS.Entry_Kind_Of (Target);
+
       procedure Fail (Path : String; Error : Operation_Error);
 
       procedure Fail (Path : String; Error : Operation_Error) is
@@ -59,14 +56,20 @@ package body Posix_Tools.File_Operations.Moving is
    begin
       Outcome := Done;
 
-      if not Is_Present (Source) then
+      if Source_Class = FS.Entry_Error then
+         Fail (Source, Cannot_Read);
+         return;
+      elsif Target_Class = FS.Entry_Error then
+         Fail (Target, Cannot_Read);
+         return;
+      elsif Source_Class = FS.Entry_Missing then
          Fail (Source, No_Such_File);
          return;
       end if;
 
       --  Make way for the copy as rename(2) would replace Target.
-      if Is_Directory (Target) then
-         if not Is_Directory (Source) then
+      if Target_Class = FS.Entry_Directory then
+         if Source_Class /= FS.Entry_Directory then
             Fail (Target, Is_A_Directory);
             return;
          elsif not Is_Empty_Directory (Target) then
@@ -78,13 +81,17 @@ package body Posix_Tools.File_Operations.Moving is
             Fail (Target, Cannot_Remove);
             return;
          end if;
-      elsif Is_Present (Target) then
-         if Is_Directory (Source) then
+      elsif Target_Class /= FS.Entry_Missing then
+         if Source_Class = FS.Entry_Directory then
             Fail (Target, Not_A_Directory);
             return;
          end if;
 
-         if not (if FS.Is_Link (Target) then FS.Delete_Link (Target) else FS.Delete_File (Target)) then
+         if not
+           (if Target_Class = FS.Entry_Link
+            then FS.Delete_Link (Target)
+            else FS.Delete_File (Target))
+         then
             Fail (Target, Cannot_Remove);
             return;
          end if;
@@ -129,6 +136,8 @@ package body Posix_Tools.File_Operations.Moving is
       Watcher : in out Observer'Class;
       Outcome : out Operation_Outcome)
    is
+      Source_Class : FS.Entry_Kind;
+      Target_Class : FS.Entry_Kind;
    begin
       Outcome := Done;
 
@@ -137,14 +146,24 @@ package body Posix_Tools.File_Operations.Moving is
          return;
       end if;
 
-      if not Is_Present (Source) then
+      Source_Class := FS.Entry_Kind_Of (Source);
+      Target_Class := FS.Entry_Kind_Of (Target);
+
+      if Source_Class = FS.Entry_Error then
+         Outcome := Failed;
+         Watcher.Report_Error (Source, Cannot_Read);
+         return;
+      elsif Target_Class = FS.Entry_Error then
+         Outcome := Failed;
+         Watcher.Report_Error (Target, Cannot_Read);
+         return;
+      elsif Source_Class = FS.Entry_Missing then
          Outcome := Failed;
          Watcher.Report_Error (Source, No_Such_File);
          return;
       end if;
 
-      if Is_Present (Target)
-        and then not Is_Directory (Target)
+      if Target_Class not in FS.Entry_Missing | FS.Entry_Directory
         and then Watcher.Resolve_Conflict (Source, Target) = Skip
       then
          Outcome := Skipped;
@@ -176,14 +195,20 @@ package body Posix_Tools.File_Operations.Moving is
    end Progress;
 
    function Refusal (Source, Target : String) return Operation_Error is
+      Source_Class : constant FS.Entry_Kind := FS.Entry_Kind_Of (Source);
+      Target_Class : constant FS.Entry_Kind := FS.Entry_Kind_Of (Target);
    begin
-      if not Is_Present (Source) then
+      if Source_Class = FS.Entry_Error or else Target_Class = FS.Entry_Error then
+         return Cannot_Read;
+      elsif Source_Class = FS.Entry_Missing then
          return No_Such_File;
-      elsif Is_Directory (Target) and then not Is_Directory (Source) then
+      elsif Target_Class = FS.Entry_Directory and then Source_Class /= FS.Entry_Directory then
          return Is_A_Directory;
-      elsif Is_Present (Target) and then not Is_Directory (Target) and then Is_Directory (Source) then
+      elsif Target_Class not in FS.Entry_Missing | FS.Entry_Directory
+        and then Source_Class = FS.Entry_Directory
+      then
          return Not_A_Directory;
-      elsif Is_Directory (Target) and then not Is_Empty_Directory (Target) then
+      elsif Target_Class = FS.Entry_Directory and then not Is_Empty_Directory (Target) then
          return Directory_Not_Empty;
       else
          return Cannot_Move;

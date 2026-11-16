@@ -1,17 +1,25 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Ada.Directories;
-with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Real_Time;
 with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
+with E2E_Bootstrap;
+with E2E_Files;
+with E2E_Processes;
 with E2E_Rig;
+with E2E_Rig.Testing;
 with GNAT.OS_Lib;
 with Terminal.Core;
+with Terminal.PTY.Backend;
 
 package body Session_Tests is
    package Caller is new AUnit.Test_Caller (Fixture);
 
    use type Ada.Directories.File_Size;
+   use type Ada.Real_Time.Time;
+   use type Ada.Real_Time.Time_Span;
 
    CR  : constant Character := Character'Val (13);
    DEL : constant Character := Character'Val (127);
@@ -64,11 +72,31 @@ package body Session_Tests is
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:start and quit", Test_Start_And_Quit'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:browse and preview", Test_Browse_And_Preview'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:copy", Test_Copy'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("session:concurrent sessions",
+            Test_Concurrent_Sessions'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("session:exit status normalization",
+            Test_Exit_Status_Normalization'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:resize", Test_Resize'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:clipboard", Test_Clipboard'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:image", Test_Image'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:shell command", Test_Shell_Command'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:interrupt", Test_Interrupt'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("session:launch failure poisons coordinator",
+            Test_Launch_Failure_Poisons'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Caller.Create
+           ("session:subprocess timeout",
+            Test_Subprocess_Timeout'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:conflicts", Test_Conflicts'Access));
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("session:rename", Test_Rename'Access));
       AUnit.Test_Suites.Add_Test
@@ -84,7 +112,7 @@ package body Session_Tests is
       Session : E2E_Rig.Rig;
    begin
       Ada.Directories.Create_Path (Root & "/beta/inner");
-      E2E_Rig.Write_File (Root & "/alpha.txt", "the first line" & Character'Val (10) & "the second");
+      E2E_Files.Write (Root & "/alpha.txt", "the first line" & Character'Val (10) & "the second");
       Open (Session, Root);
 
       --  Directories come first: beta is selected, and its listing previewed.
@@ -112,7 +140,7 @@ package body Session_Tests is
       Root    : constant String := E2E_Rig.Fixture ("clipboard");
       Session : E2E_Rig.Rig;
    begin
-      E2E_Rig.Write_File (Root & "/item", "");
+      E2E_Files.Write (Root & "/item", "");
       Open (Session, Root);
       AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "item"), "listed");
 
@@ -129,6 +157,135 @@ package body Session_Tests is
       Quit (Session);
    end Test_Clipboard;
 
+   procedure Test_Concurrent_Sessions (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Root   : constant String :=
+        E2E_Rig.Fixture ("concurrent-sessions");
+      First_Path  : aliased constant String := Root & "/first";
+      Second_Path : aliased constant String := Root & "/second";
+      First       : aliased E2E_Rig.Rig;
+      Second      : aliased E2E_Rig.Rig;
+      First_Ok, Second_Ok : Boolean;
+      First_Error, Second_Error : Ada.Strings.Unbounded.Unbounded_String;
+
+      procedure Await_Both_Prepared;
+
+      protected Preparation_Gate is
+         procedure Arrive;
+         entry Wait;
+      private
+         Arrivals : Natural := 0;
+      end Preparation_Gate;
+
+      protected body Preparation_Gate is
+         procedure Arrive is
+         begin
+            Arrivals := Arrivals + 1;
+         end Arrive;
+
+         entry Wait when Arrivals = 2 is
+         begin
+            null;
+         end Wait;
+      end Preparation_Gate;
+
+      procedure Await_Both_Prepared is
+      begin
+         Preparation_Gate.Arrive;
+         select
+            Preparation_Gate.Wait;
+         or
+            delay 5.0;
+            raise Program_Error with
+              "concurrent session preparation did not overlap";
+         end select;
+      end Await_Both_Prepared;
+
+      protected Start_Gate is
+         entry Wait;
+         procedure Open;
+      private
+         Opened : Boolean := False;
+      end Start_Gate;
+
+      protected body Start_Gate is
+         procedure Open is
+         begin
+            Opened := True;
+         end Open;
+
+         entry Wait when Opened is
+         begin
+            null;
+         end Wait;
+      end Start_Gate;
+
+      task type Starter
+        (Session   : not null access E2E_Rig.Rig;
+         Directory : not null access constant String)
+      is
+         entry Result
+           (Ok      : out Boolean;
+            Message : out Ada.Strings.Unbounded.Unbounded_String);
+      end Starter;
+
+      task body Starter is
+         Succeeded : Boolean := False;
+         Failure_Message : Ada.Strings.Unbounded.Unbounded_String;
+      begin
+         Start_Gate.Wait;
+         begin
+            E2E_Rig.Testing.Start_Synchronized
+              (Session.all, Directory.all, Await_Both_Prepared'Access);
+            Succeeded := True;
+         exception
+            when Failure : others =>
+               --  intentional terminal exception barrier
+               Failure_Message :=
+                 Ada.Strings.Unbounded.To_Unbounded_String
+                   (Ada.Exceptions.Exception_Information (Failure));
+         end;
+
+         accept Result
+           (Ok      : out Boolean;
+            Message : out Ada.Strings.Unbounded.Unbounded_String)
+         do
+            Ok := Succeeded;
+            Message := Failure_Message;
+         end Result;
+      end Starter;
+
+      First_Starter  : Starter (First'Access, First_Path'Access);
+      Second_Starter : Starter (Second'Access, Second_Path'Access);
+   begin
+      Ada.Directories.Create_Path (First_Path);
+      Ada.Directories.Create_Path (Second_Path);
+      E2E_Files.Write (First_Path & "/alpha", "");
+      E2E_Files.Write (Second_Path & "/beta", "");
+
+      Start_Gate.Open;
+      First_Starter.Result (First_Ok, First_Error);
+      Second_Starter.Result (Second_Ok, Second_Error);
+      AUnit.Assertions.Assert
+        (First_Ok and then Second_Ok,
+         "simultaneous starts succeeded: "
+         & Ada.Strings.Unbounded.To_String (First_Error)
+         & Ada.Strings.Unbounded.To_String (Second_Error));
+
+      E2E_Rig.Expect
+        (First, E2E_Rig.Wait_For (First, "alpha"),
+         "the first concurrent session listed its fixture");
+      E2E_Rig.Expect
+        (Second, E2E_Rig.Wait_For (Second, "beta"),
+         "the second concurrent session listed its fixture");
+      E2E_Rig.Expect
+        (First, E2E_Rig.Wait_For (First, "alpha"),
+         "the first concurrent session remained independent");
+
+      Quit (Second);
+      Quit (First);
+   end Test_Concurrent_Sessions;
+
    procedure Test_Conflicts (T : in out Fixture) is
       pragma Unreferenced (T);
       Root    : constant String := E2E_Rig.Fixture ("conflicts");
@@ -136,10 +293,10 @@ package body Session_Tests is
    begin
       Ada.Directories.Create_Path (Root & "/dst");
       Ada.Directories.Create_Path (Root & "/src");
-      E2E_Rig.Write_File (Root & "/src/a", "new a");
-      E2E_Rig.Write_File (Root & "/src/b", "new b");
-      E2E_Rig.Write_File (Root & "/dst/a", "old");
-      E2E_Rig.Write_File (Root & "/dst/b", "old");
+      E2E_Files.Write (Root & "/src/a", "new a");
+      E2E_Files.Write (Root & "/src/b", "new b");
+      E2E_Files.Write (Root & "/dst/a", "old");
+      E2E_Files.Write (Root & "/dst/b", "old");
       Open (Session, Root);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "src/"), "listed");
 
@@ -186,7 +343,7 @@ package body Session_Tests is
       Session : E2E_Rig.Rig;
    begin
       Ada.Directories.Create_Path (Root & "/target");
-      E2E_Rig.Write_File (Root & "/source.txt", "copied text");
+      E2E_Files.Write (Root & "/source.txt", "copied text");
       Open (Session, Root);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "source.txt"), "listed");
 
@@ -214,12 +371,42 @@ package body Session_Tests is
       Quit (Session);
    end Test_Copy;
 
+   procedure Test_Exit_Status_Normalization (T : in out Fixture) is
+      pragma Unreferenced (T);
+      package PTY renames Terminal.PTY.Backend;
+   begin
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Exited, 1, E2E_Rig.Decoded_Status) = 1,
+         "decoded exit status");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Exited, 300, E2E_Rig.Decoded_Status) = 300,
+         "wide decoded exit status");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Exited, 256, E2E_Rig.Raw_POSIX_Wait_Status) = 1,
+         "raw POSIX exit status");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Signaled, -2, E2E_Rig.Decoded_Status) = 130,
+         "decoded signal status");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Signaled, 2, E2E_Rig.Raw_POSIX_Wait_Status) = 130,
+         "raw POSIX signal status");
+      AUnit.Assertions.Assert
+        (E2E_Rig.Exit_Code
+           (PTY.Signaled, 130, E2E_Rig.Raw_POSIX_Wait_Status) = 130,
+         "raw POSIX core-dump status");
+   end Test_Exit_Status_Normalization;
+
    procedure Test_Image (T : in out Fixture) is
       pragma Unreferenced (T);
       Root    : constant String := E2E_Rig.Fixture ("image");
       Session : E2E_Rig.Rig;
    begin
-      E2E_Rig.Write_File (Root & "/dot.png", Tiny_PNG);
+      E2E_Files.Write (Root & "/dot.png", Tiny_PNG);
       Open (Session, Root);
       AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "dot.png"), "listed");
 
@@ -241,7 +428,7 @@ package body Session_Tests is
       Ended   : Boolean;
       Code    : Integer;
    begin
-      E2E_Rig.Write_File (Root & "/one", "");
+      E2E_Files.Write (Root & "/one", "");
       Open (Session, Root);
       AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "one"), "listed");
 
@@ -252,8 +439,10 @@ package body Session_Tests is
       E2E_Rig.Pump (Session, 50);
       E2E_Rig.Send
         (Session,
-         "kill -INT $PPID; echo survived; "
-         & "(while [ ! -e go ]; do sleep 0.05; done; kill -INT $PPID) </dev/null >/dev/null 2>&1 &" & CR);
+         "target=$PPID; kill -INT ""$target""; echo survived; "
+         & "nohup sh -c 'n=200; while [ ""$n"" -gt 0 ] && [ ! -e go ]; do "
+         & "n=$((n - 1)); sleep 0.05; done; [ -e go ] && kill -INT ""$1""' "
+         & "_ ""$target"" </dev/null >/dev/null 2>&1 &" & CR);
       E2E_Rig.Expect
         (Session,
          E2E_Rig.Wait_For (Session, "press Enter") and then E2E_Rig.Wait_For (Session, "survived"),
@@ -264,7 +453,7 @@ package body Session_Tests is
          E2E_Rig.Wait_For (Session, "q quit") and then E2E_Rig.Modes (Session).Alternate_Screen,
          "explore took the terminal back, the interrupt meant for the command forgotten");
 
-      E2E_Rig.Write_File (Root & "/go", "");
+      E2E_Files.Write (Root & "/go", "");
       E2E_Rig.Wait_Exit (Session, Ended, Code);
 
       declare
@@ -281,6 +470,19 @@ package body Session_Tests is
       E2E_Rig.Stop (Session);
    end Test_Interrupt;
 
+   procedure Test_Launch_Failure_Poisons (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Status : constant Integer :=
+        E2E_Processes.Run
+          (E2E_Bootstrap.Program_Path,
+           E2E_Rig.Testing.Launch_Failure_Argument,
+           Timeout_Ms => 20_000);
+   begin
+      AUnit.Assertions.Assert
+        (Status = 0,
+         "the isolated launcher-failure recovery check succeeded");
+   end Test_Launch_Failure_Poisons;
+
    procedure Test_Quit_While_Copying (T : in out Fixture) is
       pragma Unreferenced (T);
       Root    : constant String := E2E_Rig.Fixture ("quit-copying");
@@ -292,8 +494,8 @@ package body Session_Tests is
       --  it runs, however fast the machine, until it gets one or explore
       --  quits.
       Ada.Directories.Create_Path (Root & "/target");
-      E2E_Rig.Write_File (Root & "/item", "new");
-      E2E_Rig.Write_File (Root & "/target/item", "old");
+      E2E_Files.Write (Root & "/item", "new");
+      E2E_Files.Write (Root & "/target/item", "old");
       Open (Session, Root);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "item"), "listed");
 
@@ -331,7 +533,6 @@ package body Session_Tests is
 
    procedure Test_Quit_While_Previewing (T : in out Fixture) is
       pragma Unreferenced (T);
-      use type Ada.Real_Time.Time_Span;
 
       LF       : constant Character := Character'Val (10);
       Root     : constant String := E2E_Rig.Fixture ("quit-previewing");
@@ -345,15 +546,17 @@ package body Session_Tests is
    begin
       Ada.Directories.Create_Path (Root & "/files");
       Ada.Directories.Create_Path (Taken);
-      E2E_Rig.Write_File (Root & "/files/x.slow", "");
-      E2E_Rig.Write_File
+      E2E_Files.Write (Root & "/files/x.slow", "");
+      E2E_Files.Write
         (Root & "/explore.toml", "[[preview]]" & LF & "match = ""*.slow""" & LF & "run = 'sleep 30'" & LF);
 
       --  Thumbnails, and what previewers print, go to a directory made below
       --  TMPDIR, whose first name is taken.
-      Ada.Environment_Variables.Set ("TMPDIR", Scratch);
-      E2E_Rig.Start (Session, Root & "/files", Options => "--config " & E2E_Rig.Quoted (Root & "/explore.toml"));
-      Ada.Environment_Variables.Clear ("TMPDIR");
+      E2E_Rig.Start
+        (Session,
+         Root & "/files",
+         Options             => "--config " & E2E_Rig.Quoted (Root & "/explore.toml"),
+         Temporary_Directory => Scratch);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "x.slow"), "listed, and its previewer running");
 
       for Step in 1 .. 300 loop
@@ -362,7 +565,7 @@ package body Session_Tests is
       end loop;
 
       --  ls, not stat: macOS's stat has no -c, and both print the same mode.
-      E2E_Rig.Write_File (Root & "/mode.sh", "test ""$(ls -ld ""$1"" | cut -c1-10)"" = drwx------" & LF);
+      E2E_Files.Write (Root & "/mode.sh", "test ""$(ls -ld ""$1"" | cut -c1-10)"" = drwx------" & LF);
 
       declare
          Script    : aliased String := Root & "/mode.sh";
@@ -395,8 +598,8 @@ package body Session_Tests is
       Session : E2E_Rig.Rig;
    begin
       Ada.Directories.Create_Path (Root & "/sub");
-      E2E_Rig.Write_File (Root & "/plain.txt", "");
-      E2E_Rig.Write_File (Root & "/sub/found.txt", "");
+      E2E_Files.Write (Root & "/plain.txt", "");
+      E2E_Files.Write (Root & "/sub/found.txt", "");
       Open (Session, Root);
       E2E_Rig.Expect (Session, E2E_Rig.Wait_For (Session, "plain.txt"), "listed");
 
@@ -456,7 +659,7 @@ package body Session_Tests is
       Root    : constant String := E2E_Rig.Fixture ("shell");
       Session : E2E_Rig.Rig;
    begin
-      E2E_Rig.Write_File (Root & "/one", "");
+      E2E_Files.Write (Root & "/one", "");
       Open (Session, Root);
       AUnit.Assertions.Assert (E2E_Rig.Wait_For (Session, "one"), "listed");
 
@@ -485,7 +688,7 @@ package body Session_Tests is
       Ended   : Boolean;
       Code    : Integer;
    begin
-      E2E_Rig.Write_File (Root & "/file", "");
+      E2E_Files.Write (Root & "/file", "");
       Open (Session, Root);
 
       declare
@@ -517,6 +720,38 @@ package body Session_Tests is
 
       E2E_Rig.Stop (Session);
    end Test_Start_And_Quit;
+
+   procedure Test_Subprocess_Timeout (T : in out Fixture) is
+      pragma Unreferenced (T);
+      Started   : constant Ada.Real_Time.Time := Ada.Real_Time.Clock;
+      Timed_Out : Boolean := False;
+   begin
+      begin
+         declare
+            Status : constant Integer :=
+              E2E_Processes.Run
+                (E2E_Bootstrap.Program_Path,
+                 E2E_Rig.Testing.Timeout_Child_Argument,
+                 Timeout_Ms => 50);
+            pragma Unreferenced (Status);
+         begin
+            null;
+         end;
+      exception
+         when Failure : Program_Error =>
+            Timed_Out :=
+              Ada.Strings.Fixed.Index
+                (Ada.Exceptions.Exception_Message (Failure), "timeout") > 0;
+      end;
+
+      AUnit.Assertions.Assert
+        (Timed_Out,
+         "the supervised subprocess reported its timeout");
+      AUnit.Assertions.Assert
+        (Ada.Real_Time.Clock - Started < Ada.Real_Time.Seconds (3),
+         "the timed-out subprocess was killed and reaped promptly");
+   end Test_Subprocess_Timeout;
+
    function Wait_For_File (Session : in out E2E_Rig.Rig; Path : String) return Boolean is
    begin
       for Step in 1 .. 500 loop

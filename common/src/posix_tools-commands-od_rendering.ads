@@ -1,5 +1,7 @@
 with Ada.Containers.Vectors;
+with Ada.Strings.Unbounded;
 with Posix_Tools.Commands.Contexts;
+with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Text.OD_Formats;
 
 package Posix_Tools.Commands.Od_Rendering is
@@ -25,6 +27,29 @@ package Posix_Tools.Commands.Od_Rendering is
      (Formats : in out Dump_Spec_Vectors.Vector;
       Option  : String) return Boolean;
 
+   type Renderer is private;
+
+   procedure Initialize
+     (State       : out Renderer;
+      Actual_Skip : Natural;
+      Address     : Posix_Tools.Text.OD_Formats.Address_Base;
+      Formats     : Dump_Spec_Vectors.Vector;
+      Verbose     : Boolean);
+
+   procedure Feed
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class;
+      Text    : String);
+
+   procedure Finish
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class);
+
+   --  Emit completed rendered lines without completing a partial input block.
+   procedure Flush_Output
+     (State   : in out Renderer;
+      Context : in out Posix_Tools.Commands.Contexts.Context'Class);
+
    procedure Render
      (Context     : in out Posix_Tools.Commands.Contexts.Context'Class;
       Text        : String;
@@ -32,4 +57,19 @@ package Posix_Tools.Commands.Od_Rendering is
       Address     : Posix_Tools.Text.OD_Formats.Address_Base;
       Formats     : Dump_Spec_Vectors.Vector;
       Verbose     : Boolean);
+
+private
+   type Renderer is record
+      Actual_Skip  : Natural := 0;
+      Offset       : Natural := 0;
+      Address      : Posix_Tools.Text.OD_Formats.Address_Base :=
+        Posix_Tools.Text.OD_Formats.Octal_Address;
+      Formats      : Dump_Spec_Vectors.Vector;
+      Verbose      : Boolean := False;
+      Previous_Block : Ada.Strings.Unbounded.Unbounded_String;
+      Pending      : Ada.Strings.Unbounded.Unbounded_String;
+      Output_Buffer : Posix_Tools.Commands.Helpers.Output_Buffer;
+      Have_Previous : Boolean := False;
+      Suppressed    : Boolean := False;
+   end record;
 end Posix_Tools.Commands.Od_Rendering;

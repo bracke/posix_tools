@@ -104,7 +104,7 @@ package body Posix_Tools.File_Operations.Listing is
    function Kind_Through_Link (Path : String) return Entry_Kind is
    begin
       case FS.Kind (Path) is
-         when FS.Missing_File =>
+         when FS.Missing_File | FS.Uninspectable_File =>
             return Missing_Entry;
          when FS.Directory =>
             return Directory_Entry;
@@ -202,8 +202,9 @@ package body Posix_Tools.File_Operations.Listing is
       --  Free the keys' strings, and Keys and Order_Of themselves.
       procedure Free_Keys;
 
-      --  Put Entries in the order Order_Of gives.
-      procedure Reorder;
+      --  Put Entries in the order Order_Of gives, using its cycles instead
+      --  of allocating and copying a second full entry vector.
+      procedure Reorder_In_Place;
 
       --  Whether Left comes before Right under Order's key alone.
       function Key_Less (Left, Right : Sort_Key_Record) return Boolean;
@@ -311,17 +312,35 @@ package body Posix_Tools.File_Operations.Listing is
 
       procedure Sort_Indices is new Ada.Containers.Generic_Array_Sort (Positive, Positive, Index_Array, Before);
 
-      procedure Reorder is
-         Sorted : Entry_Vectors.Vector;
+      procedure Reorder_In_Place is
       begin
-         Sorted.Reserve_Capacity (Ada.Containers.Count_Type (Count));
+         for Start in Order_Of'Range loop
+            if Order_Of (Start) /= Start then
+               declare
+                  First_Entry : constant Listed_Entry := Entries (Start);
+                  Current     : Positive := Start;
+               begin
+                  loop
+                     declare
+                        Next : constant Positive := Order_Of (Current);
+                     begin
+                        --  Mark this position complete in the permutation.
+                        Order_Of (Current) := Current;
+                        exit when Next = Start;
 
-         for Index of Order_Of.all loop
-            Sorted.Append (Entries (Index));
+                        declare
+                           Moved : constant Listed_Entry := Entries (Next);
+                        begin
+                           Entries.Replace_Element (Current, Moved);
+                        end;
+                        Current := Next;
+                     end;
+                  end loop;
+                  Entries.Replace_Element (Current, First_Entry);
+               end;
+            end if;
          end loop;
-
-         Entries.Move (Sorted);
-      end Reorder;
+      end Reorder_In_Place;
    begin
       if Count < 2 then
          return;
@@ -331,7 +350,7 @@ package body Posix_Tools.File_Operations.Listing is
       Order_Of := new Index_Array (1 .. Count);
       Build_Keys;
       Sort_Indices (Order_Of.all);
-      Reorder;
+      Reorder_In_Place;
       Free_Keys;
    exception
       when others =>

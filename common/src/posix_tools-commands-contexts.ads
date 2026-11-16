@@ -1,7 +1,7 @@
 with Ada.Calendar;
 with Ada.Streams;
+with Posix_Tools.Accounts;
 with Posix_Tools.Arguments;
-with Posix_Tools.Host_Adapters.File_Watches;
 with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Numbers;
 
@@ -49,6 +49,11 @@ package Posix_Tools.Commands.Contexts is
      with Post'Class => Last < Buffer'First or else Last in Buffer'Range;
    procedure Put
      (Self : in out Stream_Context; Text : String) is abstract;
+   procedure Put_Bytes
+     (Self   : in out Stream_Context;
+      Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset) is abstract
+     with Pre'Class => Last < Buffer'First or else Last in Buffer'Range;
    procedure Put_Error
      (Self : in out Stream_Context; Text : String) is abstract;
    procedure Put_Line
@@ -68,9 +73,11 @@ package Posix_Tools.Commands.Contexts is
    function Set_Node_Name
      (Self : in out Host_Context; Name : String) return Boolean is abstract;
    function Current_User_Id
-     (Self : Host_Context; User_Id : out Natural) return Boolean is abstract;
+     (Self : Host_Context;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean is abstract;
    function Current_Group_Id
-     (Self : Host_Context; Group_Id : out Natural) return Boolean is abstract;
+     (Self : Host_Context;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean is abstract;
    function Current_Supplementary_Group_Ids
      (Self   : Host_Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
@@ -88,9 +95,19 @@ package Posix_Tools.Commands.Contexts is
       Last      : out Natural) return Boolean is abstract
      with Post'Class => Last <= Groups'Length;
    function User_Name_For_Id
-     (Self : Host_Context; User_Id : Natural) return String is abstract;
+     (Self : Host_Context;
+      User_Id : Posix_Tools.Accounts.Id) return String is abstract;
    function Group_Name_For_Id
-     (Self : Host_Context; Group_Id : Natural) return String is abstract;
+     (Self : Host_Context;
+      Group_Id : Posix_Tools.Accounts.Id) return String is abstract;
+   function User_Id_For_Name
+     (Self : Host_Context;
+      Name : String;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean is abstract;
+   function Group_Id_For_Name
+     (Self : Host_Context;
+      Name : String;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean is abstract;
    function Physical_Current_Directory
      (Self : Host_Context) return String is abstract;
    function Try_Physical_Current_Directory
@@ -111,14 +128,6 @@ package Posix_Tools.Commands.Contexts is
    function Tail_Follow_Poll_Limit
      (Self : Tail_Context) return Natural is abstract;
    procedure Tail_Follow_Wait (Self : in out Tail_Context) is abstract;
-   procedure Tail_Follow_Watch_Path
-     (Self : in out Tail_Context; Path : String) is abstract;
-   function Tail_Follow_Watch_Active
-     (Self : Tail_Context) return Boolean is abstract;
-   function Tail_Follow_Watch_Changed
-     (Self : in out Tail_Context) return Boolean is abstract;
-   procedure Tail_Follow_Release_Watch
-     (Self : in out Tail_Context) is abstract;
    function Tail_Max_Spill_Bytes
      (Self : Tail_Context) return Posix_Tools.Numbers.Count is abstract;
    function Tail_Memory_Threshold
@@ -212,8 +221,12 @@ package Posix_Tools.Commands.Contexts is
    function Current_Machine_Name (Self : Context) return String;
    function Current_Login_Name (Self : Context) return String;
    function Set_Node_Name (Self : in out Context; Name : String) return Boolean;
-   function Current_User_Id (Self : Context; User_Id : out Natural) return Boolean;
-   function Current_Group_Id (Self : Context; Group_Id : out Natural) return Boolean;
+   function Current_User_Id
+     (Self : Context;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean;
+   function Current_Group_Id
+     (Self : Context;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean;
    function Current_Supplementary_Group_Ids
      (Self   : Context;
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
@@ -230,8 +243,18 @@ package Posix_Tools.Commands.Contexts is
       Groups    : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last      : out Natural) return Boolean
      with Post => Last <= Groups'Length;
-   function User_Name_For_Id (Self : Context; User_Id : Natural) return String;
-   function Group_Name_For_Id (Self : Context; Group_Id : Natural) return String;
+   function User_Name_For_Id
+     (Self : Context; User_Id : Posix_Tools.Accounts.Id) return String;
+   function Group_Name_For_Id
+     (Self : Context; Group_Id : Posix_Tools.Accounts.Id) return String;
+   function User_Id_For_Name
+     (Self : Context;
+      Name : String;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean;
+   function Group_Id_For_Name
+     (Self : Context;
+      Name : String;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean;
    function Physical_Current_Directory (Self : Context) return String;
    overriding function Try_Physical_Current_Directory
      (Self : Context;
@@ -245,12 +268,9 @@ package Posix_Tools.Commands.Contexts is
    function Path_Names_Current_Directory (Self : Context; Path : String) return Boolean;
    function Tail_Follow_Poll_Limit (Self : Context) return Natural;
    procedure Tail_Follow_Wait (Self : in out Context);
-   procedure Tail_Follow_Watch_Path (Self : in out Context; Path : String);
-   function Tail_Follow_Watch_Active (Self : Context) return Boolean;
-   function Tail_Follow_Watch_Changed (Self : in out Context) return Boolean;
-   procedure Tail_Follow_Release_Watch (Self : in out Context);
    function Tail_Max_Spill_Bytes (Self : Context) return Posix_Tools.Numbers.Count;
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
+   function Sort_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count;
    function Set_System_Date_Time (Self : in out Context; Time : Ada.Calendar.Time) return Boolean;
    function Execute_Utility
      (Self        : in out Context;
@@ -317,6 +337,11 @@ package Posix_Tools.Commands.Contexts is
      with Post => Last < Buffer'First or else Last in Buffer'Range;
 
    procedure Put (Self : in out Context; Text : String);
+   procedure Put_Bytes
+     (Self   : in out Context;
+      Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset)
+     with Pre => Last < Buffer'First or else Last in Buffer'Range;
    procedure Put_Error (Self : in out Context; Text : String);
    procedure Put_Line (Self : in out Context; Text : String);
    procedure Put_Error_Line (Self : in out Context; Text : String);
@@ -331,6 +356,5 @@ private
       Name : Posix_Tools.Arguments.Vectors.Vector;
       Args : Posix_Tools.Arguments.Vector;
       Out_Failed : Boolean := False;
-      Tail_Watch : Posix_Tools.Host_Adapters.File_Watches.Watch;
    end record;
 end Posix_Tools.Commands.Contexts;

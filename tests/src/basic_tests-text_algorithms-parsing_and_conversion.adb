@@ -1,6 +1,7 @@
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Posix_Tools.Numbers;
+with Posix_Tools.Commands.Sort_Key_Text;
 with Posix_Tools.Text.Base_Parsing;
 with Posix_Tools.Text.Byte_Classes;
 with Posix_Tools.Text.Cut_Fields;
@@ -99,6 +100,7 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
       end;
       declare
          use type Posix_Tools.Numbers.Count;
+         use type Ada.Strings.Unbounded.Unbounded_String;
 
          Uppercase_Settings : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Settings :=
            (Case_Conversion => Posix_Tools.Text.DD_Conversions.Uppercase_Conversion,
@@ -110,14 +112,71 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
            (Conversion_Block_Size => 4,
             Block_Conversion => Posix_Tools.Text.DD_Conversions.Block_Conversion,
             others => <>);
+         Unblock_Settings : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Settings :=
+           (Conversion_Block_Size => 4,
+            Block_Conversion => Posix_Tools.Text.DD_Conversions.Unblock_Conversion,
+            others => <>);
+         Sync_Settings : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Settings :=
+           (Input_Block_Size => 4, Sync_Conversion => True, others => <>);
+         Ebcdic_Settings : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Settings :=
+           (Conversion_Block_Size => 4,
+            Character_Set_Conversion =>
+              Posix_Tools.Text.DD_Conversions.To_Ebcdic_Conversion,
+            others => <>);
+
+         function Streamed
+           (Input    : String;
+            Settings : Posix_Tools.Text.DD_Conversion_Engine.Conversion_Settings;
+            Split    : Natural)
+            return Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result
+         is
+            State : Posix_Tools.Text.DD_Conversion_Engine.Stream_Converter;
+            Part  : Ada.Strings.Unbounded.Unbounded_String;
+            Result : Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result;
+         begin
+            Posix_Tools.Text.DD_Conversion_Engine.Initialize (State, Settings);
+            if Split > 0 then
+               Posix_Tools.Text.DD_Conversion_Engine.Update
+                 (State, Input (Input'First .. Input'First + Split - 1), Part);
+               Ada.Strings.Unbounded.Append (Result.Output, Part);
+            end if;
+            if Split < Input'Length then
+               Posix_Tools.Text.DD_Conversion_Engine.Update
+                 (State, Input (Input'First + Split .. Input'Last), Part);
+               Ada.Strings.Unbounded.Append (Result.Output, Part);
+            end if;
+            Posix_Tools.Text.DD_Conversion_Engine.Finish
+              (State, Part, Result.Truncated_Records);
+            Ada.Strings.Unbounded.Append (Result.Output, Part);
+            return Result;
+         end Streamed;
+
+         Block_Input : constant String :=
+           "a" & Character'Val (10) & "bcdef" & Character'Val (10) & "xy";
          Uppercase : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
            Posix_Tools.Text.DD_Conversion_Engine.Apply ("abZ 12", Uppercase_Settings);
          Swapped : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
            Posix_Tools.Text.DD_Conversion_Engine.Apply ("abcde", Swap_Settings);
          Blocked : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
            Posix_Tools.Text.DD_Conversion_Engine.Apply
-             ("a" & Character'Val (10) & "bcdef" & Character'Val (10) & "xy",
-              Block_Settings);
+             (Block_Input, Block_Settings);
+         Streamed_Swap : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Streamed ("abcde", Swap_Settings, 3);
+         Streamed_Block : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Streamed (Block_Input, Block_Settings, 5);
+         Unblock_Input : constant String := "ab  cd  x ";
+         Whole_Unblock : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Posix_Tools.Text.DD_Conversion_Engine.Apply (Unblock_Input, Unblock_Settings);
+         Streamed_Unblock : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Streamed (Unblock_Input, Unblock_Settings, 3);
+         Whole_Sync : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Posix_Tools.Text.DD_Conversion_Engine.Apply ("abcde", Sync_Settings);
+         Streamed_Sync : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Streamed ("abcde", Sync_Settings, 2);
+         Whole_Ebcdic : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Posix_Tools.Text.DD_Conversion_Engine.Apply (Block_Input, Ebcdic_Settings);
+         Streamed_Ebcdic : constant Posix_Tools.Text.DD_Conversion_Engine.Conversion_Result :=
+           Streamed (Block_Input, Ebcdic_Settings, 7);
       begin
          AUnit.Assertions.Assert
            (Ada.Strings.Unbounded.To_String (Uppercase.Output) = "ABZ 12"
@@ -127,6 +186,17 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
             and then Ada.Strings.Unbounded.To_String (Blocked.Output) = "a   bcdexy  "
             and then Blocked.Truncated_Records = 1,
             "dd conversion engine applies byte conversions");
+         AUnit.Assertions.Assert
+           (Streamed_Swap.Output = Swapped.Output
+            and then Streamed_Swap.Truncated_Records = Swapped.Truncated_Records
+            and then Streamed_Block.Output = Blocked.Output
+            and then Streamed_Block.Truncated_Records = Blocked.Truncated_Records
+            and then Streamed_Unblock.Output = Whole_Unblock.Output
+            and then Streamed_Unblock.Truncated_Records = Whole_Unblock.Truncated_Records
+            and then Streamed_Sync.Output = Whole_Sync.Output
+            and then Streamed_Ebcdic.Output = Whole_Ebcdic.Output
+            and then Streamed_Ebcdic.Truncated_Records = Whole_Ebcdic.Truncated_Records,
+            "dd streaming conversion preserves chunk-boundary semantics");
       end;
       declare
          use type Posix_Tools.Numbers.Count;
@@ -169,6 +239,7 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
       declare
          Bad_Count : Posix_Tools.Text.DD_Operands.Settings;
          Missing_Cbs : Posix_Tools.Text.DD_Operands.Settings;
+         Oversized_Ibs : Posix_Tools.Text.DD_Operands.Settings;
          use type Posix_Tools.Text.DD_Operands.Operand_Error_Kind;
 
          Error : Posix_Tools.Text.DD_Operands.Operand_Error;
@@ -179,6 +250,16 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
            Posix_Tools.Text.DD_Operands.Parse_Argument ("conv=block", Missing_Cbs, Error);
          Missing_Cbs_Rejected : constant Boolean :=
            not Posix_Tools.Text.DD_Operands.Validate (Missing_Cbs, Error);
+         Missing_Cbs_Error : constant Posix_Tools.Text.DD_Operands.Operand_Error := Error;
+         Oversized_Parsed : constant Boolean :=
+           Posix_Tools.Text.DD_Operands.Parse_Argument
+             ("ibs=" & Posix_Tools.Numbers.Count_Image
+                (Posix_Tools.Numbers.Count'Succ
+                   (Posix_Tools.Numbers.Count (Natural'Last))),
+              Oversized_Ibs,
+              Error);
+         Oversized_Rejected : constant Boolean :=
+           not Posix_Tools.Text.DD_Operands.Validate (Oversized_Ibs, Error);
       begin
          AUnit.Assertions.Assert
            (Empty_Count_Rejected
@@ -186,8 +267,14 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
             and then Ada.Strings.Unbounded.To_String (Empty_Count_Error.Subject) = "count="
             and then Block_Parsed
             and then Missing_Cbs_Rejected
+            and then Missing_Cbs_Error.Kind =
+              Posix_Tools.Text.DD_Operands.Invalid_Block_Size
+            and then Ada.Strings.Unbounded.To_String
+              (Missing_Cbs_Error.Subject) = "cbs"
+            and then Oversized_Parsed
+            and then Oversized_Rejected
             and then Error.Kind = Posix_Tools.Text.DD_Operands.Invalid_Block_Size
-            and then Ada.Strings.Unbounded.To_String (Error.Subject) = "cbs",
+            and then Ada.Strings.Unbounded.To_String (Error.Subject) = "ibs",
             "dd operand parser rejects invalid operands");
       end;
       declare
@@ -256,6 +343,11 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
             and then Prefix_Overflow.Status = Posix_Tools.Text.DD_Blocks.Offset_Overflow,
             "dd block selection and transfer planning");
       end;
+   end Run;
+
+   procedure Run_Field_Parsing (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
       declare
          use type Posix_Tools.Text.Duration_Fields.Duration_Unit;
 
@@ -434,6 +526,11 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
            not Posix_Tools.Text.Base_Parsing.Scaled_Natural_Value
              ("999999999999999999999999999999999999999", 10, 1_024).Valid,
          "base parsing range checks");
+   end Run_Field_Parsing;
+
+   procedure Run_Validation_And_Sorting (T : in out Fixture) is
+      pragma Unreferenced (T);
+   begin
       AUnit.Assertions.Assert
         (Posix_Tools.Text.Suffixes.Lowercase_Capacity (1) = 26
          and then Posix_Tools.Text.Suffixes.Lowercase_Capacity (2) = 676
@@ -509,9 +606,50 @@ package body Basic_Tests.Text_Algorithms.Parsing_And_Conversion is
       AUnit.Assertions.Assert
         (Posix_Tools.Text.Sort_Numeric.Numeric_Field ("C", "  -001.230x") = "-001.230"
          and then Posix_Tools.Text.Sort_Numeric.Numeric_Field ("C", "no-number") = "0"
+         and then Posix_Tools.Text.Sort_Numeric.Numeric_Field
+           ("C", "xx -12.3 yy", 4, 8) = "-12.3"
+         and then Posix_Tools.Text.Sort_Numeric.Numeric_Field
+           ("C", "12.34", 1, 2) = "12"
+         and then Posix_Tools.Text.Sort_Numeric.Canonical_Decimal ("") = "0"
+         and then Posix_Tools.Text.Sort_Numeric.Canonical_Decimal ("1.2e3") = "1200"
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("-10")
+           < Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("-2")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("001.20")
+           = Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("+1.2")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1e3")
+           = Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1000")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("-0")
+           = Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("0")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1e1000000")
+           < Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1e1000001")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1e-1000001")
+           < Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key ("1e-1000000")
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Sort_Key
+           ("1e1000000")'Length < 64
+         and then Posix_Tools.Text.Sort_Numeric.Canonical_Decimal
+           ("1e1000000") = "1e1000000"
          and then Posix_Tools.Text.Sort_Numeric.Decimal_Compare ("1e3", "999") > 0
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Compare ("-0", "0") = 0
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Compare
+           ("1e1000000", "1e1000001") < 0
+         and then Posix_Tools.Text.Sort_Numeric.Decimal_Compare
+           ("1200", "999", Canonical => True) > 0
          and then Posix_Tools.Text.Sort_Numeric.Decimal_Compare ("1.20", "1.2") = 0
          and then Posix_Tools.Text.Sort_Numeric.Numeric_Compare ("C", " -2", " 10") < 0,
          "sort numeric field and comparison checks");
-   end Run;
+      declare
+         Kept_Blanks : constant Posix_Tools.Commands.Sort_Key_Text.Key_Range :=
+           Posix_Tools.Commands.Sort_Key_Text.Range_Of
+             ("a bb c", False, Field_Start => 2, Field_End => 2);
+         Skipped_Blanks : constant Posix_Tools.Commands.Sort_Key_Text.Key_Range :=
+           Posix_Tools.Commands.Sort_Key_Text.Range_Of
+             ("a bb c", True, Field_Start => 2, Field_End => 2);
+      begin
+         AUnit.Assertions.Assert
+           (Kept_Blanks.First = 2 and then Kept_Blanks.Last = 4
+            and then Skipped_Blanks.First = 3
+            and then Skipped_Blanks.Last = 4,
+            "sort key ranges preserve field and blank boundaries");
+      end;
+   end Run_Validation_And_Sorting;
 end Basic_Tests.Text_Algorithms.Parsing_And_Conversion;

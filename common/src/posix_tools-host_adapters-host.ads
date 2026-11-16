@@ -1,10 +1,15 @@
+with Posix_Tools.Accounts;
+
 package Posix_Tools.Host_Adapters.Host is
    type Host_Kind is (Linux, MacOS, Windows, Unsupported);
 
    function Current return Host_Kind;
-   function Current_User_Id (User_Id : out Natural) return Boolean;
-   type Group_Id_List is array (Positive range <>) of Natural;
-   function Current_Group_Id (Group_Id : out Natural) return Boolean;
+   function Current_User_Id
+     (User_Id : out Posix_Tools.Accounts.Id) return Boolean;
+   type Group_Id_List is
+     array (Positive range <>) of Posix_Tools.Accounts.Id;
+   function Current_Group_Id
+     (Group_Id : out Posix_Tools.Accounts.Id) return Boolean;
    function Current_Supplementary_Group_Ids
      (Groups : out Group_Id_List;
       Last   : out Natural)

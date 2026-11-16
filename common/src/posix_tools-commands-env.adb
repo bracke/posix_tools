@@ -1,3 +1,5 @@
+with Ada.Containers.Indefinite_Hashed_Maps;
+with Ada.Strings.Hash;
 with Posix_Tools.Arguments;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Commands.Usage_Messages;
@@ -5,17 +7,28 @@ with Posix_Tools.Exit_Status;
 
 package body Posix_Tools.Commands.Env is
    use all type Posix_Tools.Commands.Usage_Messages.Usage_Message;
+
+   package Name_Indexes is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
+      Element_Type    => Positive,
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
+
    procedure Run
      (Context : in out Posix_Tools.Commands.Contexts.Context'Class;
       Result  : out Posix_Tools.Commands.Results.Result)
    is
       Pairs       : Posix_Tools.Arguments.Vector;
+      Indexes     : Name_Indexes.Map;
       First       : Positive;
       Valid       : Boolean;
+      Output      : Posix_Tools.Commands.Helpers.Output_Buffer;
 
       function Equal_Position (Text : String) return Natural;
 
       procedure Remove_Name (Name : String);
+
+      procedure Rebuild_Indexes;
 
       procedure Replace_Or_Append (Pair : String);
 
@@ -48,6 +61,31 @@ package body Posix_Tools.Commands.Env is
          end loop;
       end Remove_Name;
 
+      procedure Rebuild_Indexes is
+      begin
+         Indexes.Clear;
+         for I in 1 .. Natural (Pairs.Length) loop
+            declare
+               Existing : constant String := Pairs.Element (I);
+               Equal    : constant Natural := Equal_Position (Existing);
+            begin
+               if Equal > 0 then
+                  declare
+                     Name : constant String :=
+                       Existing (Existing'First .. Equal - 1);
+                  begin
+                     --  Preserve the first occurrence, matching the former
+                     --  linear replacement search if a host supplies a
+                     --  duplicate environment name.
+                     if not Indexes.Contains (Name) then
+                        Indexes.Insert (Name, I);
+                     end if;
+                  end;
+               end if;
+            end;
+         end loop;
+      end Rebuild_Indexes;
+
       procedure Replace_Or_Append (Pair : String) is
          Equal : constant Natural := Equal_Position (Pair);
       begin
@@ -55,21 +93,16 @@ package body Posix_Tools.Commands.Env is
             return;
          end if;
 
-         for I in 1 .. Natural (Pairs.Length) loop
-            declare
-               Existing       : constant String := Pairs.Element (I);
-               Existing_Equal : constant Natural := Equal_Position (Existing);
-            begin
-               if Existing_Equal > 0
-                 and then Existing (Existing'First .. Existing_Equal - 1) = Pair (Pair'First .. Equal - 1)
-               then
-                  Pairs.Replace_Element (I, Pair);
-                  return;
-               end if;
-            end;
-         end loop;
-
-         Pairs.Append (Pair);
+         declare
+            Name : constant String := Pair (Pair'First .. Equal - 1);
+         begin
+            if Indexes.Contains (Name) then
+               Pairs.Replace_Element (Indexes.Element (Name), Pair);
+            else
+               Pairs.Append (Pair);
+               Indexes.Insert (Name, Pairs.Last_Index);
+            end if;
+         end;
       end Replace_Or_Append;
 
       procedure Handle
@@ -107,6 +140,7 @@ package body Posix_Tools.Commands.Env is
       if not Valid then
          return;
       end if;
+      Rebuild_Indexes;
       while First <= Context.Argument_Count
         and then (for some Ch of Context.Argument (First) => Ch = '=')
       loop
@@ -152,8 +186,10 @@ package body Posix_Tools.Commands.Env is
       end if;
 
       for I in 1 .. Natural (Pairs.Length) loop
-         Context.Put_Line (Pairs.Element (I));
+         Posix_Tools.Commands.Helpers.Buffered_Put_Line
+           (Output, Context, Pairs.Element (I));
       end loop;
+      Posix_Tools.Commands.Helpers.Flush_Output (Output, Context);
 
       Posix_Tools.Commands.Helpers.Finish (Context, Result);
    end Run;

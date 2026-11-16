@@ -1,11 +1,11 @@
 id,command,summary,test
-REG-CAT-0001,cat,preserve binary file bytes without adding a newline,regression:REG-CAT-0001 binary fixture
+REG-CAT-0001,cat,preserve binary file bytes without adding a newline,streams:file fixture
 REG-CAT-0002,cat,continue after a missing file while preserving later operand output and aggregate failure,command:cat continues after missing file
 REG-CAT-0003,cat,stop copying and return operational failure when stdout fails without emitting a read diagnostic,command:cat output failure
-REG-CP-0001,cp,copy regular files through bounded binary-preserving hostkit descriptor transfers,regression:REG-CP-0001 bounded binary copy
-REG-CP-0002,cp,render interactive overwrite prompts through messages-backed localization,regression:REG-CP-0002 localized overwrite prompt
-REG-CP-0003,cp,recreate FIFO special files through hostkit where the platform supports filesystem FIFOs,regression:REG-CP-0003 fifo recreation
-REG-CP-0004,cp,recreate Unix-domain socket files through hostkit where the platform supports filesystem sockets,regression:REG-CP-0004 socket recreation
+REG-CP-0001,cp,copy regular files through bounded binary-preserving hostkit descriptor transfers,command:cp bounded binary
+REG-CP-0002,cp,render interactive overwrite prompts through messages-backed localization,command:cp localized prompt
+REG-CP-0003,cp,recreate FIFO special files through hostkit where the platform supports filesystem FIFOs,command:cp FIFO recreation
+REG-CP-0004,cp,recreate Unix-domain socket files through hostkit where the platform supports filesystem sockets,command:cp socket recreation
 REG-DIAG-0001,all,escape control characters in untrusted diagnostic operands and subjects before terminal presentation,command:usage errors
 REG-DIAG-0002,all,render every usage diagnostic from a catalog message with its operand quoted and escaped instead of composing English text such as an unquoted unknown option,command:usage errors
 REG-LOCALE-0001,all,take each locale category from LC_ALL then its own variable then LANG so LC_MESSAGES no longer decides collation character classification numbers or dates,locale:categories
@@ -23,7 +23,7 @@ REG-TAIL-0002,tail,recognize compact and plus-prefixed tail counts as options ra
 REG-TAIL-0003,tail,reject invalid compact and negative counts without exceptions,command:tail invalid count
 REG-TAIL-0004,tail,stop suffix emission and return operational failure when stdout fails without a read diagnostic,command:tail output failure
 REG-TAIL-0005,tail,reject -n and -c without required counts as invalid usage before file processing,command:tail missing count
-REG-TAIL-0006,tail,emit bytes appended after the initial suffix for follow mode and reopen a truncated file for follow-by-name mode,command:tail follow live
+REG-TAIL-0006,tail,emit appended bytes reopen replaced names report missing names once retain valid operands preserve follow header state and keep sequential inputs free of seek operations,command:tail follow live; command:tail follow recovery; command:tail follow sequential inputs
 REG-WC-0002,wc,count split UTF-8 characters for -m and count an incomplete sequence as one character in text modes,streams:utf-8 counting; command:wc invalid UTF-8
 REG-WC-0003,wc,recover from overlong and bad-continuation UTF-8 sequences in text modes without failing,command:wc malformed UTF-8
 REG-WC-0004,wc,treat surrogate and out-of-range UTF-8 code point encodings as invalid in text-counting support,streams:utf-8 counting; command:wc code point validity
@@ -34,13 +34,13 @@ REG-ROOT-0001,posix-tools,verify accepts rebuilt project command executables by 
 REG-ROOT-0002,posix-tools,return operational failure when root help output cannot be written,command:root output failure
 REG-ENV-0001,env,preserve env utility exit-status propagation and 126 or 127 execution-failure classification without invoking a shell,command:env utility status
 REG-VERBOSE-0001,cp ln mv rm,return operational failure when verbose command-data output cannot be written after a successful file operation,command:verbose output failures
-REG-OPTIONS-0002,cp ln mkdir mv rm rmdir sort tee touch uniq xargs,stop option parsing at the command-specific operand or utility boundary so later option-like words remain operands,regression:REG-OPTIONS-0002 command option ordering; command:option operands surface; command:cp surface; command:mv multiple sources surface; command:sort surface; command:uniq output operand surface; command:xargs surface
+REG-OPTIONS-0002,cp ln mkdir mv rm rmdir sort tee touch uniq xargs,stop option parsing at the command-specific operand or utility boundary so later option-like words remain operands,command:option operands surface; command:cp surface; command:mv multiple sources surface; command:sort surface; command:uniq output operand surface; command:xargs surface
 REG-SORT-0001,sort,write sorted data to the -o output file and return operational failure when that output file cannot be written,command:sort surface
 REG-SORT-0002,sort,apply supported release-locale collation keys and Unicode special case-fold mappings consistently in sort output check and key comparison modes,command:sort surface
 REG-UNIQ-0001,uniq,write filtered data to the output operand including option-like output names and return operational failure when that output file cannot be written,command:uniq output operand surface; command:uniq surface
-REG-STDOUT-0002,find printf,return operational failure when command-data standard output cannot be written,command:find surface; command:printf surface
+REG-STDOUT-0002,find printf,return operational failure when command-data standard output cannot be written,command:find surface; command:printf defaults and output
 REG-STDOUT-0003,date env,return operational failure when date or environment-listing command-data standard output cannot be written,command:date surface; command:env surface
-REG-STDOUT-0004,dd,return operational failure without record-count diagnostics when standard-output data cannot be written,command:dd surface
+REG-STDOUT-0004,dd,return operational failure without record-count diagnostics when standard-output data cannot be written,command:dd basic
 REG-STDOUT-0005,tr,return operational failure when translated byte output cannot be written,command:tr surface
 REG-TR-0001,tr,expand locale equivalence classes use locale collation order for complement translation and accept supported multibyte collating symbols,command:tr surface
 REG-STDERR-0001,xargs,return operational failure when -t trace output cannot be written before utility execution,command:xargs surface
@@ -53,8 +53,8 @@ REG-PASTE-0001,paste,interpret escaped delimiter-list entries for newline tab ba
 REG-SLEEP-0001,sleep,reject missing negative malformed and excessive duration operands while accepting fractional zero-duration operands,command:sleep surface
 REG-IDENTITY-0001,arch whoami id logname groups hostname uname,route host identity reads name resolution and node-name operations through command context services so command tests can use deterministic fake identity data,command:host identity commands
 REG-LS-0001,ls,list . and .. under -a and list symbolic links whose targets are missing,command:ls surface
-REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,regression:REG-RM-0001 rm keeps link targets
-REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,regression:REG-CP-0005 cp keeps broken links
+REG-RM-0001,rm,remove a symbolic link to a directory as a link under -r instead of deleting what the directory holds and remove trees that contain links,basic:rm keeps link targets
+REG-CP-0005,cp,copy symbolic links whose targets are missing under -RP instead of skipping them,basic:cp keeps broken links
 REG-SORT-0003,sort,sort large inputs with a stable O(n log n) merge sort that builds each line's keys once,command:sort large input
 REG-SORT-0004,sort,order lines whose keys compare equal by all bytes of the whole line unless -s or -u is given,command:sort ordering rules
 REG-SORT-0005,sort,let ordering options attached to a key override all global ordering options for that key including -r,command:sort ordering rules
@@ -112,8 +112,8 @@ REG-GREP-0004,grep,write -- between non-adjacent context groups also when a grou
 REG-GREP-0005,grep,split -e and operand pattern lists at newlines and read -f files as bytes split at LF with -f - for standard input and an empty file as a list that matches nothing,command:grep pattern lists
 REG-GREP-0006,grep,name standard input (standard input) in -H -l -L and -c output,command:grep standard input label
 REG-GREP-0007,grep,answer --help and --version through the parse outcome with their output status,command:grep help and version
-REG-SED-0001,sed,show English messages and never message keys when the catalogue is not found beside the executable and find it beside the executable the host reports when invoked through PATH,posix_tools_tests check
-REG-AWK-0001,awk,show English messages and never message keys when the message catalogue cannot be found,posix_tools_tests check
+REG-SED-0001,sed,show English messages and never message keys when the catalogue is not found beside the executable and find it beside the executable the host reports when invoked through PATH,posix_tools_tests release-check
+REG-AWK-0001,awk,show English messages and never message keys when the message catalogue cannot be found,posix_tools_tests release-check
 REG-PASTE-0002,paste,read every - operand from the one standard input taking its lines in turn,command:paste surface
 REG-WC-0009,wc,count bytes as characters in single-byte locales and never fail on invalid UTF-8,command:wc default and mixed text
 REG-CHMOD-0002,chmod,leave out the umask's bits from a symbolic mode clause without who and take -R repeated,command:chmod symbolic grammar
@@ -121,11 +121,12 @@ REG-SORT-0011,sort,end a file without a final newline before the next input and 
 REG-CUT-0003,cut,keep the delimiter after an empty first selected field and take a multibyte delimiter in UTF-8 locales,command:cut characters
 REG-OPTIONS-0003,sort uniq xargs tail env,take option arguments attached behind grouped flags and reject unknown env options,command:sort surface; command:uniq surface; command:xargs surface; command:tail invalid count; command:env surface
 REG-XARGS-0003,xargs,fill each batch up to the size limit by adding argument sizes in turn,command:xargs surface
-REG-DATE-0001,date,read a time to set in the TZ zone at that time and write POSIX's default format,command:date surface
+REG-DATE-0001,date,read a time to set in the TZ zone at that time and write POSIX's default format,command:date setting surface
 REG-COMM-0002,comm,compare lines in the locale's collation and report extra operands as such,command:comm surface
 REG-SPLIT-0001,split,take k and m size suffixes for -b and an attached -l count,command:split surface
 REG-STAT-0001,stat,count epoch seconds from the UTC epoch,command:stat surface
 REG-SORT-0012,sort,fold U+0130 to i with a dot above before the U+0100 range,command:sort surface
 REG-CP-0014,cp mv,escape operands in -v output,command:rm and mv prompts localized
 REG-LN-0002,ln,take -L and -P for hard links to symbolic links,command:ln same file
-REG-TAIL-0007,tail,create and finalize spill storage when TMPDIR produces paths longer than the legacy fixed buffers,regression:REG-TAIL-0007 temporary storage long path
+REG-TAIL-0007,tail,create and finalize spill storage when TMPDIR produces paths longer than the legacy fixed buffers,basic:temporary storage long path
+REG-TAIL-0008,tail,accept a suffix count larger than the spill limit when actual data fits stop reading after spill failure and preserve distinct capacity write close and reopen outcomes,command:tail byte mode edges; command:tail storage diagnostics; basic:temporary storage outcomes

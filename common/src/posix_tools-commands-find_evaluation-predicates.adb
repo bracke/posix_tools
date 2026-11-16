@@ -1,5 +1,4 @@
 with Ada.Calendar;
-with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Text.File_Modes;
 with Posix_Tools.Text.Glob;
 with Posix_Tools.Unix_Time;
@@ -18,66 +17,26 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    Less_Than_Count : constant Find_Count_Relation :=
      Posix_Tools.Text.Find_Expressions.Less_Than_Count;
 
-   --  Path's last modification, of the link itself when Own.
+   --  Status's last modification.
    function Modified_At
-     (Path : String;
-      Own  : Boolean;
+     (Status : FS.Entry_Status;
       Time : out Ada.Calendar.Time) return Boolean;
 
-   --  Path's owner and group, of the link itself when Own.
-   procedure Owners_Of
-     (Path      : String;
-      Own       : Boolean;
-      User      : out Natural;
-      Group     : out Natural;
-      Available : out Boolean);
-
    function Modified_At
-     (Path : String;
-      Own  : Boolean;
+     (Status : FS.Entry_Status;
       Time : out Ada.Calendar.Time) return Boolean
    is
    begin
-      if not Own then
-         return FS.Modification_Time (Path, Time);
+      Time := Posix_Tools.Unix_Time.Epoch;
+      if not Status.Available then
+         return False;
       end if;
-
-      declare
-         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
-      begin
-         Time := Posix_Tools.Unix_Time.Epoch;
-         if not Status.Available then
-            return False;
-         end if;
-         Time := Posix_Tools.Unix_Time.Time_Of (Status.Modified_Seconds);
-         return True;
-      end;
+      Time := Posix_Tools.Unix_Time.Time_Of (Status.Modified_Seconds);
+      return True;
    exception
       when Constraint_Error | Ada.Calendar.Time_Error =>
          return False;
    end Modified_At;
-
-   procedure Owners_Of
-     (Path      : String;
-      Own       : Boolean;
-      User      : out Natural;
-      Group     : out Natural;
-      Available : out Boolean)
-   is
-   begin
-      if not Own then
-         FS.File_Ownership (Path, User, Group, Available);
-         return;
-      end if;
-
-      declare
-         Status : constant FS.Entry_Status := FS.Entry_Status_Of (Path);
-      begin
-         User := Status.User;
-         Group := Status.Group;
-         Available := Status.Available;
-      end;
-   end Owners_Of;
 
    function Glob_Matches (Pattern, Text : String) return Boolean is (Posix_Tools.Text.Glob.Matches (Pattern, Text));
 
@@ -144,23 +103,14 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    end Type_Matches;
 
    function Permission_Matches
-     (Path  : String;
-      Own   : Boolean;
-      Text  : String;
-      Valid : in out Boolean) return Boolean
-   is
-      Status    : constant FS.Entry_Status :=
-        (if Own then FS.Entry_Status_Of (Path) else (others => <>));
-      Available : Boolean := Status.Available;
-      Actual    : constant Natural :=
-        (if Own then Status.Mode else FS.File_Permission_Bits (Path, Available)) mod 8#10000#;
+     (Status    : FS.Entry_Status;
       Expected  : Natural;
-      Match_All : Boolean;
+      Match_All : Boolean) return Boolean
+   is
+      Available : constant Boolean := Status.Available;
+      Actual    : constant Natural := Status.Mode mod 8#10000#;
    begin
-      if not Parse_Permission_Mode (Text, Expected, Match_All) then
-         Valid := False;
-         return False;
-      elsif not FS.Permissions_Supported or else not Available then
+      if not FS.Permissions_Supported or else not Available then
          return False;
       else
          return
@@ -170,31 +120,25 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    end Permission_Matches;
 
    function Size_Matches
-     (Path  : String;
-      Own   : Boolean;
-      Text  : String;
-      Valid : in out Boolean) return Boolean
-   is
-      Exists   : constant Boolean := Own or else FS.Exists (Path);
-      Kind     : constant FS.File_Kind := (if Own then FS.Missing_File else FS.Kind (Path));
+     (Status   : FS.Entry_Status;
+      Own      : Boolean;
+      Exists   : Boolean;
+      Kind     : FS.File_Kind;
       Count    : Long_Long_Integer;
       Relation : Find_Count_Relation;
-      Bytes    : Boolean;
+      Bytes    : Boolean) return Boolean
+   is
       Units    : Long_Long_Integer;
    begin
-      if not Exists or else Kind = FS.Directory then
-         return False;
-      elsif not Parse_Find_Count (Text, Count, Relation, Bytes) then
-         Valid := False;
+      if not Exists or else (not Own and then Kind = FS.Directory) then
          return False;
       end if;
 
-      declare
-         Raw_Size : constant Long_Long_Integer :=
-           (if Own then FS.Entry_Status_Of (Path).Size else FS.Size (Path));
-      begin
-         Units := (if Bytes then Raw_Size else (Raw_Size + 511) / 512);
-      end;
+      if not Status.Available then
+         return False;
+      end if;
+
+      Units := (if Bytes then Status.Size else (Status.Size + 511) / 512);
 
       return
         Posix_Tools.Text.Find_Expressions.Count_Matches
@@ -202,17 +146,14 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    end Size_Matches;
 
    function Mtime_Matches
-     (Path  : String;
-      Own   : Boolean;
-      Text  : String;
-      Now   : Ada.Calendar.Time;
-      Valid : in out Boolean) return Boolean
+     (Status   : FS.Entry_Status;
+      Exists   : Boolean;
+      Count    : Long_Long_Integer;
+      Relation : Find_Count_Relation;
+      Now      : Ada.Calendar.Time;
+      Valid    : in out Boolean) return Boolean
    is
       Seconds_Per_Day : constant Duration := 86_400.0;
-      Count           : Long_Long_Integer;
-      Relation        : Find_Count_Relation;
-      Bytes           : Boolean;
-
       function Threshold (Value : Long_Long_Integer; Ok : in out Boolean) return Duration is
       begin
          if Value < 0 or else Value > Long_Long_Integer (Duration'Last / Seconds_Per_Day) then
@@ -222,10 +163,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          return Duration (Value) * Seconds_Per_Day;
       end Threshold;
    begin
-      if not (Own or else FS.Exists (Path))
-        or else not Parse_Find_Count (Text, Count, Relation, Bytes)
-        or else Bytes
-      then
+      if not Exists then
          Valid := False;
          return False;
       end if;
@@ -234,7 +172,7 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
          Path_Time : Ada.Calendar.Time;
          Ok  : Boolean := True;
       begin
-         if not Modified_At (Path, Own, Path_Time) then
+         if not Modified_At (Status, Path_Time) then
             Valid := False;
             return False;
          end if;
@@ -283,23 +221,21 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
    end Mtime_Matches;
 
    function Newer_Matches
-     (Path      : String;
-      Own       : Boolean;
-      Reference : String;
-      Valid     : in out Boolean) return Boolean
+     (Status          : FS.Entry_Status;
+      Exists          : Boolean;
+      Reference_Time  : Ada.Calendar.Time;
+      Reference_Valid : Boolean;
+      Valid           : in out Boolean) return Boolean
    is
    begin
-      if not (Own or else FS.Exists (Path)) or else not FS.Exists (Reference) then
+      if not Reference_Valid or else not Exists then
          Valid := False;
          return False;
       end if;
       declare
-         Path_Time      : Ada.Calendar.Time;
-         Reference_Time : Ada.Calendar.Time;
+         Path_Time : Ada.Calendar.Time;
       begin
-         if not Modified_At (Path, Own, Path_Time)
-           or else not FS.Modification_Time (Reference, Reference_Time)
-         then
+         if not Modified_At (Status, Path_Time) then
             Valid := False;
             return False;
          end if;
@@ -307,66 +243,52 @@ package body Posix_Tools.Commands.Find_Evaluation.Predicates is
       end;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Valid := False;
          return False;
    end Newer_Matches;
 
    function Ownership_Matches
-     (Path  : String;
-      Own   : Boolean;
-      Text  : String;
-      User  : Boolean;
-      Valid : in out Boolean) return Boolean
+     (Status         : FS.Entry_Status;
+      Expected       : Posix_Tools.Accounts.Id;
+      Expected_Found : Boolean;
+      User           : Boolean;
+      Valid          : in out Boolean) return Boolean
    is
-      Actual_User  : Natural;
-      Actual_Group : Natural;
-      Available    : Boolean;
-      Expected     : Natural := 0;
-      Found        : Boolean := False;
    begin
-      if User then
-         Found := Posix_Tools.Commands.Helpers.Resolve_User_Id (Text, Expected);
-      else
-         Found := Posix_Tools.Commands.Helpers.Resolve_Group_Id (Text, Expected);
-      end if;
-
-      if not Found or else not FS.Ownership_Supported then
+      if not Expected_Found or else not FS.Ownership_Supported then
          return False;
       end if;
 
-      Owners_Of (Path, Own, Actual_User, Actual_Group, Available);
       return
         Posix_Tools.Text.Find_Expressions.Ownership_Matches
-          (Available, User, Actual_User, Actual_Group, Expected);
+          (Status.Available, User, Status.User, Status.Group, Expected);
    exception
       when others =>
+         --  intentional terminal exception barrier
          Valid := False;
          return False;
    end Ownership_Matches;
 
    function No_Owner_Matches
-     (Path  : String;
-      Own   : Boolean;
+     (Status : FS.Entry_Status;
       User  : Boolean;
       Valid : in out Boolean) return Boolean
    is
-      Actual_User  : Natural;
-      Actual_Group : Natural;
-      Available    : Boolean;
    begin
       if not FS.Ownership_Supported then
          return False;
       end if;
 
-      Owners_Of (Path, Own, Actual_User, Actual_Group, Available);
       return
         Posix_Tools.Text.Find_Expressions.Missing_Owner_Name_Matches
-          (Available,
+          (Status.Available,
            (if User
-            then FS.User_Name_For_Id (Actual_User)
-            else FS.Group_Name_For_Id (Actual_Group)));
+            then FS.User_Name_For_Id (Status.User)
+            else FS.Group_Name_For_Id (Status.Group)));
    exception
       when others =>
+         --  intentional terminal exception barrier
          Valid := False;
          return False;
    end No_Owner_Matches;

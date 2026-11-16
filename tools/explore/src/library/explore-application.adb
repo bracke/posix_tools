@@ -291,6 +291,7 @@ package body Explore.Application is
          pragma Unreferenced (Workers, Operators, Builder, Finder);
 
          procedure Stop_Workers;
+         procedure Stop_Workers_Safely;
 
          --  The workers must end before this block can be left. A file
          --  operation still running is stopped where it is.
@@ -305,6 +306,60 @@ package body Explore.Application is
             State.Workers.Previewer := null;
             State.Workers.Searcher := null;
          end Stop_Workers;
+
+         --  On an exception path, attempt every independent shutdown while
+         --  retaining the exception that initiated cleanup.
+         procedure Stop_Workers_Safely is
+            procedure Release_Watches;
+            procedure Stop_Operations;
+            procedure Stop_Previewer;
+            procedure Stop_Readers;
+            procedure Stop_Searcher;
+            procedure Try (Action : not null access procedure);
+
+            procedure Release_Watches is
+            begin
+               Explore.Application.Workers.Release_Watches (State);
+            end Release_Watches;
+
+            procedure Stop_Operations is
+            begin
+               Operations.Shut_Down;
+            end Stop_Operations;
+
+            procedure Stop_Previewer is
+            begin
+               Previewer.Shut_Down;
+            end Stop_Previewer;
+
+            procedure Stop_Readers is
+            begin
+               Readers.Shut_Down;
+            end Stop_Readers;
+
+            procedure Stop_Searcher is
+            begin
+               Searcher.Shut_Down;
+            end Stop_Searcher;
+
+            procedure Try (Action : not null access procedure) is
+            begin
+               Action.all;
+            exception
+               when others =>
+                  --  intentional terminal exception barrier
+                  null;
+            end Try;
+         begin
+            Try (Stop_Operations'Access);
+            Try (Stop_Previewer'Access);
+            Try (Stop_Searcher'Access);
+            Try (Stop_Readers'Access);
+            Try (Release_Watches'Access);
+            State.Workers.Operations := null;
+            State.Workers.Previewer := null;
+            State.Workers.Searcher := null;
+         end Stop_Workers_Safely;
       begin
          --  The session outlives neither board: Stop_Workers forgets it.
          State.Workers.Operations := Operations'Unchecked_Access;
@@ -318,7 +373,7 @@ package body Explore.Application is
             Main_Loop (State, Readers);
          exception
             when others =>
-               Stop_Workers;
+               Stop_Workers_Safely;
                raise;
          end;
 
@@ -332,7 +387,7 @@ package body Explore.Application is
          else Session_Ended);
    exception
       when others =>
-         Terminals.Hand_Back (State, Entered, Saved_Signals);
+         Terminals.Hand_Back_Safely (State, Entered, Saved_Signals);
          raise;
    end Run_Session;
 end Explore.Application;

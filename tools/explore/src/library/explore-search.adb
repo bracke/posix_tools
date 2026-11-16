@@ -1,10 +1,10 @@
-with Ada.Strings.Fixed;
 with Explore.Paths;
 with Greplib.Collected;
 with Greplib.Options;
 with Greplib.Paths;
 with Greplib.Patterns;
 with Greplib.Results;
+with Posix_Tools.Text.Glob;
 
 package body Explore.Search is
    package Unbounded renames Ada.Strings.Unbounded;
@@ -19,6 +19,17 @@ package body Explore.Search is
 
    --  The compiled form of a content search's pattern.
    function Compile (Pattern : String) return Greplib.Patterns.Compiled_Pattern_Set;
+
+   function Has_Glob_Syntax (Pattern : String) return Boolean is
+     (for some C of Pattern => C in '*' | '?' | '[');
+
+   --  Match a name against a pattern already folded once for the complete
+   --  search.  A large tree must not allocate another folded pattern for
+   --  every entry it visits.
+   function Name_Matches_Folded
+     (Pattern : String;
+      Name    : String;
+      Is_Glob : Boolean) return Boolean;
 
    --  Whether the file at Path holds what Set matches. Binary files are left
    --  out.
@@ -72,9 +83,17 @@ package body Explore.Search is
    end Merge;
 
    function Name_Matches (Pattern, Name : String) return Boolean is
-     (if (for some C of Pattern => C in '*' | '?' | '[')
-      then Explore.Paths.Glob_Matches (Pattern, Name)
-      else Ada.Strings.Fixed.Index (Explore.Paths.Folded (Name), Explore.Paths.Folded (Pattern)) > 0);
+     (Name_Matches_Folded
+        (Explore.Paths.Folded (Pattern), Name, Has_Glob_Syntax (Pattern)));
+
+   function Name_Matches_Folded
+     (Pattern : String;
+      Name    : String;
+      Is_Glob : Boolean) return Boolean
+   is (if Is_Glob
+       then Posix_Tools.Text.Glob.Matches
+         (Pattern, Explore.Paths.Folded (Name))
+       else Explore.Paths.Contains_Folded (Name, Pattern));
 
    procedure Stop_Source (Source : Source_Access) is
    begin
@@ -97,9 +116,24 @@ package body Explore.Search is
          Source  : aliased Greplib.Cancellation.Cancellation_Source;
          Token   : constant Greplib.Cancellation.Cancellation_Token := Greplib.Cancellation.Token (Source);
          Pattern : constant String := Unbounded.To_String (Item.Pattern);
+         Folded_Pattern : constant String :=
+           (if Item.Kind = By_Name then Explore.Paths.Folded (Pattern) else "");
+         Pattern_Is_Glob : constant Boolean := Has_Glob_Syntax (Pattern);
          Set     : constant Greplib.Patterns.Compiled_Pattern_Set := Compile (Pattern);
          Batch   : Listing.Entry_Vectors.Vector;
          Count   : Natural := 0;
+
+         procedure Forget_Safely;
+
+         procedure Forget_Safely is
+         begin
+            Jobs.Forget (Taken, Item.Generation);
+         exception
+            when others =>
+               --  Intentional terminal exception barrier
+               --  Preserve the exception raised while walking the tree.
+               null;
+         end Forget_Safely;
 
          function Stopped return Boolean is (not Jobs.Is_Wanted (Taken, Item.Generation) or else Truncated);
 
@@ -134,7 +168,9 @@ package body Explore.Search is
                   Path : constant String := Explore.Paths.Child_Of (Directory, Name);
                   Hit  : constant Boolean :=
                     (case Item.Kind is
-                       when By_Name => Name_Matches (Pattern, Name),
+                       when By_Name =>
+                         Name_Matches_Folded
+                           (Folded_Pattern, Name, Pattern_Is_Glob),
                        when By_Content =>
                          Found.Kind = Listing.Regular_Entry and then not Found.Is_Link
                          and then Contains (Set, Path, Token));
@@ -171,7 +207,7 @@ package body Explore.Search is
          exception
             when others =>
                --  The source goes with this call; the board must not reach it.
-               Jobs.Forget (Taken, Item.Generation);
+               Forget_Safely;
                raise;
          end;
 
@@ -193,6 +229,7 @@ package body Explore.Search is
                Search (Truncated);
             exception
                when others =>
+                  --  intentional terminal exception barrier
                   Failed := True;
             end;
 

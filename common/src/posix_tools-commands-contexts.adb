@@ -6,6 +6,7 @@ with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Host_Adapters.Terminals;
 
 package body Posix_Tools.Commands.Contexts is
+   use type Posix_Tools.Accounts.Id;
    use type Posix_Tools.Numbers.Count;
 
    procedure Initialize
@@ -136,31 +137,17 @@ package body Posix_Tools.Commands.Contexts is
       delay 0.1;
    end Tail_Follow_Wait;
 
-   procedure Tail_Follow_Watch_Path (Self : in out Context; Path : String) is
-   begin
-      Posix_Tools.Host_Adapters.File_Watches.Watch_Path (Self.Tail_Watch, Path);
-   end Tail_Follow_Watch_Path;
-
-   function Tail_Follow_Watch_Active (Self : Context) return Boolean is
-   begin
-      return Posix_Tools.Host_Adapters.File_Watches.Is_Active (Self.Tail_Watch);
-   end Tail_Follow_Watch_Active;
-
-   function Tail_Follow_Watch_Changed (Self : in out Context) return Boolean is
-   begin
-      return Posix_Tools.Host_Adapters.File_Watches.Changed (Self.Tail_Watch);
-   end Tail_Follow_Watch_Changed;
-
-   procedure Tail_Follow_Release_Watch (Self : in out Context) is
-   begin
-      Posix_Tools.Host_Adapters.File_Watches.Release (Self.Tail_Watch);
-   end Tail_Follow_Release_Watch;
-
    function Tail_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Numbers.Count (16) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
    end Tail_Memory_Threshold;
+
+   function Sort_Memory_Threshold (Self : Context) return Posix_Tools.Numbers.Count is
+      pragma Unreferenced (Self);
+   begin
+      return Posix_Tools.Numbers.Count (16) * Posix_Tools.Numbers.Count (1024) * Posix_Tools.Numbers.Count (1024);
+   end Sort_Memory_Threshold;
 
    function Set_System_Date_Time (Self : in out Context; Time : Ada.Calendar.Time) return Boolean is
       pragma Unreferenced (Self);
@@ -300,13 +287,19 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Host.Set_Node_Name (Name);
    end Set_Node_Name;
 
-   function Current_User_Id (Self : Context; User_Id : out Natural) return Boolean is
+   function Current_User_Id
+     (Self : Context;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.Host.Current_User_Id (User_Id);
    end Current_User_Id;
 
-   function Current_Group_Id (Self : Context; Group_Id : out Natural) return Boolean is
+   function Current_Group_Id
+     (Self : Context;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.Host.Current_Group_Id (Group_Id);
@@ -327,9 +320,9 @@ package body Posix_Tools.Commands.Contexts is
       Groups : out Posix_Tools.Host_Adapters.Host.Group_Id_List;
       Last   : out Natural) return Boolean
    is
-      Primary : Natural := 0;
+      Primary : Posix_Tools.Accounts.Id := 0;
 
-      procedure Append_Group (Id : Natural) is
+      procedure Append_Group (Id : Posix_Tools.Accounts.Id) is
       begin
          for Index in 1 .. Last loop
             if Groups (Groups'First + Index - 1) = Id then
@@ -377,17 +370,47 @@ package body Posix_Tools.Commands.Contexts is
       return Posix_Tools.Host_Adapters.Host.User_Group_Ids (User_Name, Groups, Last);
    end User_Group_Ids;
 
-   function User_Name_For_Id (Self : Context; User_Id : Natural) return String is
+   function User_Name_For_Id
+     (Self : Context; User_Id : Posix_Tools.Accounts.Id) return String
+   is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.File_System.User_Name_For_Id (User_Id);
    end User_Name_For_Id;
 
-   function Group_Name_For_Id (Self : Context; Group_Id : Natural) return String is
+   function Group_Name_For_Id
+     (Self : Context; Group_Id : Posix_Tools.Accounts.Id) return String
+   is
       pragma Unreferenced (Self);
    begin
       return Posix_Tools.Host_Adapters.File_System.Group_Name_For_Id (Group_Id);
    end Group_Name_For_Id;
+
+   function User_Id_For_Name
+     (Self : Context;
+      Name : String;
+      User_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      pragma Unreferenced (Self);
+      Found : Boolean;
+   begin
+      User_Id := Posix_Tools.Host_Adapters.File_System.User_Id_For_Name
+        (Name, Found);
+      return Found;
+   end User_Id_For_Name;
+
+   function Group_Id_For_Name
+     (Self : Context;
+      Name : String;
+      Group_Id : out Posix_Tools.Accounts.Id) return Boolean
+   is
+      pragma Unreferenced (Self);
+      Found : Boolean;
+   begin
+      Group_Id := Posix_Tools.Host_Adapters.File_System.Group_Id_For_Name
+        (Name, Found);
+      return Found;
+   end Group_Id_For_Name;
 
    procedure Read_Standard_Input
      (Self   : in out Context;
@@ -415,6 +438,19 @@ package body Posix_Tools.Commands.Contexts is
          Self.Out_Failed := True;
       end if;
    end Put;
+
+   procedure Put_Bytes
+     (Self   : in out Context;
+      Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset)
+   is
+   begin
+      if not Posix_Tools.Host_Adapters.Streams.Write_Standard_Output
+        (Buffer, Last)
+      then
+         Self.Out_Failed := True;
+      end if;
+   end Put_Bytes;
 
    procedure Put_Error (Self : in out Context; Text : String) is
    begin

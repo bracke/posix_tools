@@ -6,8 +6,7 @@
 --  leftovers) and the files the package step writes itself or a release
 --  writes after it: generated/package-files.txt (Generate_Package_Manifest
 --  adds it last), generated/package-manifest.txt, and
---  generated/release-checksums.txt. generated/test-work holds test scratch
---  files and is skipped too. Metadata_Checks.Packaging compares the result
+--  generated/release-checksums.txt. Metadata_Checks.Packaging compares the result
 --  with the files git tracks, so a stray untracked file or a tracked one the
 --  rules miss is reported rather than packaged or lost.
 generic

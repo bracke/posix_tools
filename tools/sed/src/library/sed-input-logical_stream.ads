@@ -105,6 +105,11 @@ private
 
       --  Bytes read from the current operand but not yet split into lines.
       Buffer : U.Unbounded_String := U.Null_Unbounded_String;
+      --  The unconsumed suffix and the first byte not yet searched for LF.
+      --  Keeping cursors avoids copying the suffix after every short line and
+      --  rescanning a growing buffer for very long lines.
+      Buffer_First : Natural := 1;
+      Scan_At      : Natural := 1;
       --  True once the current operand has reported end of data.
       Source_Drained : Boolean := False;
 

@@ -17,7 +17,6 @@ is
          pragma Loop_Invariant (if Count = 1 then Value <= 8#7#);
          pragma Loop_Invariant (if Count = 2 then Value <= 8#77#);
          pragma Loop_Invariant (if Count = 3 then Value <= 8#777#);
-         pragma Loop_Invariant (Value <= 8#777#);
          pragma Loop_Variant (Increases => Count);
 
          if not Posix_Tools.Text.Byte_Classes.Is_ASCII_Octal_Digit

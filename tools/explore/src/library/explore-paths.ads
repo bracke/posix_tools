@@ -1,3 +1,5 @@
+with Ada.Strings.Unbounded;
+
 --  Taking paths and names apart and putting them together, as text: nothing
 --  here touches the filesystem.
 package Explore.Paths is
@@ -37,6 +39,20 @@ package Explore.Paths is
    --  is, as the filter and a name search compare names: a byte of a UTF-8
    --  sequence is never mistaken for a letter.
    function Folded (Text : String) return String;
+
+   --  Whether Text contains Folded_Pattern when ASCII letter case is
+   --  ignored. Folded_Pattern is already Folded so a directory filter can
+   --  prepare it once and compare every entry without allocating a folded
+   --  copy of each name.
+   function Contains_Folded
+     (Text            : String;
+      Folded_Pattern : String) return Boolean;
+
+   --  The same comparison directly over an unbounded filename, avoiding a
+   --  temporary String in the large-directory filtering path.
+   function Contains_Folded
+     (Text            : Ada.Strings.Unbounded.Unbounded_String;
+      Folded_Pattern : String) return Boolean;
 
    --  Whether Name matches the glob Pattern, the case of ASCII letters
    --  ignored in both as Folded ignores it: how openers, previewers and a

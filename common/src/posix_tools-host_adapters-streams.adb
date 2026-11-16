@@ -1,19 +1,6 @@
 with Hostkit.Descriptors;
 
 package body Posix_Tools.Host_Adapters.Streams is
-   function To_Bytes (Text : String) return Ada.Streams.Stream_Element_Array is
-      Buffer : Ada.Streams.Stream_Element_Array
-        (1 .. Ada.Streams.Stream_Element_Offset (Text'Length));
-      Target : Ada.Streams.Stream_Element_Offset := Buffer'First;
-   begin
-      for Ch of Text loop
-         Buffer (Target) := Ada.Streams.Stream_Element (Character'Pos (Ch));
-         Target := Target + 1;
-      end loop;
-
-      return Buffer;
-   end To_Bytes;
-
    function Write_All
      (Target : Hostkit.Descriptors.Descriptor;
       Bytes  : Ada.Streams.Stream_Element_Array) return Boolean
@@ -55,7 +42,9 @@ package body Posix_Tools.Host_Adapters.Streams is
       end if;
 
       declare
-         Bytes : constant Ada.Streams.Stream_Element_Array := To_Bytes (Text);
+         Bytes : constant Ada.Streams.Stream_Element_Array
+           (1 .. Ada.Streams.Stream_Element_Offset (Text'Length))
+           with Import, Address => Text (Text'First)'Address;
       begin
          return Write_All (Target, Bytes);
       end;
@@ -113,18 +102,34 @@ package body Posix_Tools.Host_Adapters.Streams is
       end loop;
    exception
       when others =>
+         --  intentional terminal exception barrier
          Last := Buffer'First - Ada.Streams.Stream_Element_Offset (1);
          return False;
    end Try_Read_Standard_Input;
 
    procedure Write_Standard_Error_Line (Text : String; Ok : out Boolean) is
    begin
-      Ok := Write_Text (Hostkit.Descriptors.Standard_Error, Text & Character'Val (10));
+      Ok := Write_Text (Hostkit.Descriptors.Standard_Error, Text);
+      if Ok then
+         Ok := Write_Text
+           (Hostkit.Descriptors.Standard_Error, "" & Character'Val (10));
+      end if;
    end Write_Standard_Error_Line;
 
    function Write_Standard_Output (Text : String) return Boolean is
    begin
       return Write_Text (Hostkit.Descriptors.Standard_Output, Text);
+   end Write_Standard_Output;
+
+   function Write_Standard_Output
+     (Buffer : Ada.Streams.Stream_Element_Array;
+      Last   : Ada.Streams.Stream_Element_Offset) return Boolean
+   is
+   begin
+      return Last < Buffer'First
+        or else Write_All
+          (Hostkit.Descriptors.Standard_Output,
+           Buffer (Buffer'First .. Last));
    end Write_Standard_Output;
 
    function Write_Standard_Error (Text : String) return Boolean is
@@ -134,6 +139,10 @@ package body Posix_Tools.Host_Adapters.Streams is
 
    procedure Write_Standard_Output_Line (Text : String; Ok : out Boolean) is
    begin
-      Ok := Write_Text (Hostkit.Descriptors.Standard_Output, Text & Character'Val (10));
+      Ok := Write_Text (Hostkit.Descriptors.Standard_Output, Text);
+      if Ok then
+         Ok := Write_Text
+           (Hostkit.Descriptors.Standard_Output, "" & Character'Val (10));
+      end if;
    end Write_Standard_Output_Line;
 end Posix_Tools.Host_Adapters.Streams;
