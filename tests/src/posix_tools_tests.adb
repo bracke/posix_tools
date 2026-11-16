@@ -100,6 +100,11 @@ begin
       end if;
    end;
    Test_Support.Remove_Work_Directory;
+   --  Do not leave successful tooling invocations dependent on the host
+   --  runtime's initial process status.  In particular, selector smoke tests
+   --  run this driver as a captured Windows child and must observe a stable
+   --  zero status after a successful listing.
+   Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
 exception
    when Test_Selection.Invalid_Usage =>
       Test_Support.Remove_Work_Directory_Safely;
