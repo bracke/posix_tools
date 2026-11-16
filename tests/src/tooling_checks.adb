@@ -1,14 +1,26 @@
 with Ada.Command_Line;
 with Ada.Text_IO;
+with Posix_Tools.Host_Adapters.Host;
+with Posix_Tools.Process_Entry;
 with Project_Tools.Files;
 with Project_Tools.Release_Checks;
 
 package body Tooling_Checks is
    use Ada.Strings.Unbounded;
+   use type Posix_Tools.Host_Adapters.Host.Host_Kind;
 
    procedure Fail (Message : String) is
    begin
       Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, Message);
+      Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+      if Posix_Tools.Host_Adapters.Host.Current
+        = Posix_Tools.Host_Adapters.Host.Windows
+      then
+         --  The MinGW exception unwinder can surface STATUS_GCC_THROW before
+         --  the driver handles Check_Failed.  A failed tooling check already
+         --  owns the process result, so report it and terminate directly.
+         Posix_Tools.Process_Entry.Complete (1);
+      end if;
       Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
       raise Check_Failed with Message;
    end Fail;

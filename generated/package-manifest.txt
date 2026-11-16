@@ -882,7 +882,7 @@ tests/src/test_support.adb bytes= 10411 fnv1a64=65d0f34ae93e424f
 tests/src/test_support.ads bytes= 4110 fnv1a64=332cae059fed24e0
 tests/src/test_taxonomy.adb bytes= 4812 fnv1a64=134c547aee23b0ae
 tests/src/test_taxonomy.ads bytes= 741 fnv1a64=602e5549d249bb41
-tests/src/tooling_checks.adb bytes= 2217 fnv1a64=c41126b995a1d077
+tests/src/tooling_checks.adb bytes= 2796 fnv1a64=76963a81505a7224
 tests/src/tooling_checks.ads bytes= 1396 fnv1a64=d05f42ddc3973782
 tests/src/tooling_steps.adb bytes= 563 fnv1a64=5dad6e41374430da
 tests/src/tooling_steps.ads bytes= 4040 fnv1a64=2469b9433db7b971
