@@ -269,8 +269,8 @@ common/src/posix_tools-file_operations-removing.adb bytes= 5330 fnv1a64=2e80db6b
 common/src/posix_tools-file_operations-removing.ads bytes= 832 fnv1a64=275ef0f0c1db48c3
 common/src/posix_tools-file_operations.adb bytes= 3788 fnv1a64=cedc5b204eff8bc6
 common/src/posix_tools-file_operations.ads bytes= 4338 fnv1a64=b0b66996b6a8bc3e
-common/src/posix_tools-help.adb bytes= 2908 fnv1a64=67e55a3f6fd3c192
-common/src/posix_tools-help.ads bytes= 670 fnv1a64=51c57e2f08647a59
+common/src/posix_tools-help.adb bytes= 2579 fnv1a64=fdac7d284e5bf87b
+common/src/posix_tools-help.ads bytes= 458 fnv1a64=762d9285059160f4
 common/src/posix_tools-host_adapters-arguments.adb bytes= 401 fnv1a64=12ae4252c9118872
 common/src/posix_tools-host_adapters-arguments.ads bytes= 176 fnv1a64=cb4f6a87b6831bb5
 common/src/posix_tools-host_adapters-clock.adb bytes= 1100 fnv1a64=4168fefe07678cf9
@@ -301,7 +301,7 @@ common/src/posix_tools-host_adapters-path_separators.adb bytes= 247 fnv1a64=81ed
 common/src/posix_tools-host_adapters-path_separators.ads bytes= 371 fnv1a64=e47a91f89408201f
 common/src/posix_tools-host_adapters-processes.adb bytes= 8412 fnv1a64=d7cf3500fd45f0a4
 common/src/posix_tools-host_adapters-processes.ads bytes= 1881 fnv1a64=13a6e40da00490b2
-common/src/posix_tools-host_adapters-run_command.adb bytes= 1080 fnv1a64=748240328dfd1935
+common/src/posix_tools-host_adapters-run_command.adb bytes= 1487 fnv1a64=46ee3a82395356cc
 common/src/posix_tools-host_adapters-run_command.ads bytes= 303 fnv1a64=403f56c5c5e6874d
 common/src/posix_tools-host_adapters-signals.adb bytes= 5440 fnv1a64=da33d29db4c864ed
 common/src/posix_tools-host_adapters-signals.ads bytes= 1568 fnv1a64=e1c4ff4f01a74f3f
@@ -324,8 +324,8 @@ common/src/posix_tools-paths.adb bytes= 5432 fnv1a64=6bb43be1fcbcf9cb
 common/src/posix_tools-paths.ads bytes= 1322 fnv1a64=540f3f7cb43069a2
 common/src/posix_tools-presentation.adb bytes= 1669 fnv1a64=647354f4f8b7817b
 common/src/posix_tools-presentation.ads bytes= 635 fnv1a64=59ad16da48042c86
-common/src/posix_tools-process_entry.adb bytes= 1574 fnv1a64=07e5cfd3c751a1ce
-common/src/posix_tools-process_entry.ads bytes= 616 fnv1a64=cfcba119da84d691
+common/src/posix_tools-process_entry.adb bytes= 2232 fnv1a64=85ab0070e0282859
+common/src/posix_tools-process_entry.ads bytes= 782 fnv1a64=8c2f17c6bfe88ae4
 common/src/posix_tools-streams-bytes.adb bytes= 524 fnv1a64=b0d7186eb851b073
 common/src/posix_tools-streams-bytes.ads bytes= 589 fnv1a64=a34f397e5d12c81a
 common/src/posix_tools-streams-counting.adb bytes= 10189 fnv1a64=5fcdd5350d8b9bad
@@ -1090,7 +1090,7 @@ tools/explore/src/library/explore-application-terminals.adb bytes= 11723 fnv1a64
 tools/explore/src/library/explore-application-terminals.ads bytes= 4096 fnv1a64=945a31ee3a8ba497
 tools/explore/src/library/explore-application-workers.adb bytes= 11913 fnv1a64=1d905e04cb4c357a
 tools/explore/src/library/explore-application-workers.ads bytes= 1949 fnv1a64=c8ff0b5f73be8e72
-tools/explore/src/library/explore-application.adb bytes= 16145 fnv1a64=f2f8773cd3a02495
+tools/explore/src/library/explore-application.adb bytes= 15679 fnv1a64=d94ddad84314ad04
 tools/explore/src/library/explore-application.ads bytes= 538 fnv1a64=3541a9b0e26cdb25
 tools/explore/src/library/explore-archives.adb bytes= 10142 fnv1a64=9981f03d51e097c3
 tools/explore/src/library/explore-archives.ads bytes= 1049 fnv1a64=8b3a7cd57354ac3e

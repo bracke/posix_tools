@@ -18,7 +18,6 @@ with Explore.Tabs;
 with Explore.Words;
 with Posix_Tools.Commands.Helpers;
 with Posix_Tools.Exit_Status;
-with Posix_Tools.Help;
 with Posix_Tools.Host_Adapters.File_System;
 with Posix_Tools.Host_Adapters.Signals;
 with Posix_Tools.Host_Adapters.Terminal_IO;
@@ -169,15 +168,6 @@ package body Explore.Application is
       Ok      : Boolean;
       Outcome : Session_Outcome;
    begin
-      if Context.Argument_Count = 1 and then Context.Argument (1) = "--help" then
-         --  Explore links the interactive terminal runtime, whose Windows
-         --  terminal probe must not run for redirected informational output.
-         Posix_Tools.Help.Render_Command_Help
-           (Context, "explore", Standard_Output_Is_Terminal => False);
-         Result.Status := Posix_Tools.Exit_Status.Success;
-         return;
-      end if;
-
       if Posix_Tools.Commands.Helpers.Intercept_Extension (Context, Result) then
          return;
       end if;

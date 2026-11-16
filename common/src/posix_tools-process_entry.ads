@@ -1,5 +1,11 @@
 package Posix_Tools.Process_Entry is
+   function Is_Help_Request return Boolean;
+
    function Is_Identity_Request return Boolean;
+
+   function Write_Line (Text : String) return Boolean;
+
+   function Write_Plain_Help (Command : String) return Boolean;
 
    function Write_Identity (Command : String) return Boolean;
 

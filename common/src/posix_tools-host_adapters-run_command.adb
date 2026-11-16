@@ -12,6 +12,16 @@ procedure Posix_Tools.Host_Adapters.Run_Command is
    Context : Posix_Tools.Commands.Contexts.Context;
    Result  : Posix_Tools.Commands.Results.Result;
 begin
+   if Command_Name = "explore"
+     and then Posix_Tools.Process_Entry.Is_Help_Request
+   then
+      --  Explore links an interactive terminal runtime whose Windows teardown
+      --  is unsafe after the ordinary command context handles redirected help.
+      Posix_Tools.Process_Entry.Complete
+        (if Posix_Tools.Process_Entry.Write_Plain_Help (Command_Name) then 0 else 1);
+      return;
+   end if;
+
    Context.Initialize (Command_Name, Posix_Tools.Host_Adapters.Arguments.To_Vector);
    Run_Command_Entry (Context, Result);
    Posix_Tools.Process_Entry.Complete (Integer (Result.Status));

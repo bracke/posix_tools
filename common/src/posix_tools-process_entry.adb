@@ -7,6 +7,12 @@ with Posix_Tools.Version;
 package body Posix_Tools.Process_Entry is
    use type Posix_Tools.Host_Adapters.Host.Host_Kind;
 
+   function Is_Help_Request return Boolean is
+   begin
+      return Ada.Command_Line.Argument_Count = 1
+        and then Ada.Command_Line.Argument (1) = "--help";
+   end Is_Help_Request;
+
    function Is_Identity_Request return Boolean is
    begin
       return Ada.Command_Line.Argument_Count = 1
@@ -19,6 +25,17 @@ package body Posix_Tools.Process_Entry is
       Posix_Tools.Host_Adapters.Streams.Write_Standard_Output_Line (Text, Ok);
       return Ok;
    end Write_Line;
+
+   function Write_Plain_Help (Command : String) return Boolean is
+   begin
+      return
+        Write_Line ("Usage: " & Command & " [OPTION]... [OPERAND]...")
+        and then Write_Line ("Ada implementation in the posix-tools package.")
+        and then Write_Line ("Options:")
+        and then Write_Line ("  --help     display this help and exit")
+        and then Write_Line
+          ("  --version  display version information and exit");
+   end Write_Plain_Help;
 
    function Write_Identity (Command : String) return Boolean is
       Ok : constant Boolean :=
