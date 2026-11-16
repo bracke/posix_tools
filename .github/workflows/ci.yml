@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: bracke/hostkit
-          ref: 86f7e1fd67446da05baba34a5df6721531ca26f1
+          ref: 432610a76dddfa3ed15bb74414eb6a1ab0b7b273
           path: hostkit
 
       - name: Check out messages
