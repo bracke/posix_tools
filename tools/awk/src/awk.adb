@@ -12,14 +12,16 @@ procedure Awk is
 begin
    if Posix_Tools.Process_Entry.Is_Identity_Request then
       if not Posix_Tools.Process_Entry.Write_Identity ("awk") then
-         Posix_Tools.Process_Entry.Set_Exit_Status (1);
+         Posix_Tools.Process_Entry.Complete (1);
+      else
+         Posix_Tools.Process_Entry.Complete (0);
       end if;
       return;
    end if;
 
    Awk_CLI.Initialize_From_Process (Context);
    Status := Awk_CLI.Run (Context);
-   Posix_Tools.Process_Entry.Set_Exit_Status (Integer (Status));
+   Posix_Tools.Process_Entry.Complete (Integer (Status));
 exception
    when others =>
       declare
@@ -48,5 +50,5 @@ exception
             --  fallback.
             null;
       end;
-      Posix_Tools.Process_Entry.Set_Exit_Status (70);
+      Posix_Tools.Process_Entry.Complete (70);
 end Awk;

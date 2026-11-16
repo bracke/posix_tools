@@ -15,6 +15,7 @@ with Metadata_Checks.Source_Rules;
 with Metadata_Checks.Test_Coverage;
 with Metadata_Checks.Tooling_Docs;
 with Proof_Checks;
+with Posix_Tools.Process_Entry;
 with Release_Artifacts;
 with Selector_Smoke;
 with Staged_Verification;
@@ -81,7 +82,7 @@ begin
         (Ada.Text_IO.Standard_Error,
          "posix_tools_tests: unknown command '" & Command & "'");
       Test_Support.Remove_Work_Directory;
-      Ada.Command_Line.Set_Exit_Status (2);
+      Posix_Tools.Process_Entry.Complete (2);
       return;
    end if;
 
@@ -100,19 +101,18 @@ begin
       end if;
    end;
    Test_Support.Remove_Work_Directory;
-   --  Do not leave successful tooling invocations dependent on the host
-   --  runtime's initial process status.  In particular, selector smoke tests
-   --  run this driver as a captured Windows child and must observe a stable
-   --  zero status after a successful listing.
-   Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
+   --  Selector smoke tests run this driver as a captured child.  Complete
+   --  preserves a stable zero result on Windows without entering the faulty
+   --  GNAT/MinGW finalization path.
+   Posix_Tools.Process_Entry.Complete (0);
 exception
    when Test_Selection.Invalid_Usage =>
       Test_Support.Remove_Work_Directory_Safely;
-      Ada.Command_Line.Set_Exit_Status (2);
+      Posix_Tools.Process_Entry.Complete (2);
    when Tooling_Checks.Check_Failed =>
       --  The check has said what failed.
       Test_Support.Remove_Work_Directory_Safely;
-      Ada.Command_Line.Set_Exit_Status (1);
+      Posix_Tools.Process_Entry.Complete (1);
    when Occurrence : others =>
       Test_Support.Remove_Work_Directory_Safely;
       Ada.Text_IO.Put_Line
@@ -121,5 +121,5 @@ exception
       Ada.Text_IO.Put_Line
         (Ada.Text_IO.Standard_Error,
          Ada.Exceptions.Exception_Information (Occurrence));
-      Ada.Command_Line.Set_Exit_Status (125);
+      Posix_Tools.Process_Entry.Complete (125);
 end Posix_Tools_Tests;

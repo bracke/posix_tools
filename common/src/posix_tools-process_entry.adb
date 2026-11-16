@@ -1,8 +1,12 @@
 with Ada.Command_Line;
+with GNAT.OS_Lib;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Host_Adapters.Streams;
 with Posix_Tools.Version;
 
 package body Posix_Tools.Process_Entry is
+   use type Posix_Tools.Host_Adapters.Host.Host_Kind;
+
    function Is_Identity_Request return Boolean is
    begin
       return Ada.Command_Line.Argument_Count = 1
@@ -34,4 +38,15 @@ package body Posix_Tools.Process_Entry is
    begin
       Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Exit_Status (Status));
    end Set_Exit_Status;
+
+   procedure Complete (Status : Integer) is
+   begin
+      if Posix_Tools.Host_Adapters.Host.Current
+        = Posix_Tools.Host_Adapters.Host.Windows
+      then
+         GNAT.OS_Lib.OS_Exit (Status);
+      else
+         Set_Exit_Status (Status);
+      end if;
+   end Complete;
 end Posix_Tools.Process_Entry;

@@ -15,19 +15,21 @@ procedure Sed_Main is
 begin
    if Posix_Tools.Process_Entry.Is_Identity_Request then
       if not Posix_Tools.Process_Entry.Write_Identity ("sed") then
-         Posix_Tools.Process_Entry.Set_Exit_Status (1);
+         Posix_Tools.Process_Entry.Complete (1);
+      else
+         Posix_Tools.Process_Entry.Complete (0);
       end if;
       return;
    end if;
 
    Sed.Application.Run (Status);
-   Posix_Tools.Process_Entry.Set_Exit_Status (Integer (Status));
+   Posix_Tools.Process_Entry.Complete (Integer (Status));
 exception
    when others =>
       --  The application layer contains expected and unexpected failures
       --  alike and renders a localized internal-error diagnostic for them.
       --  Reaching here means even that failed, so the only thing left to do
       --  is report the internal-failure status without an Ada traceback.
-      Posix_Tools.Process_Entry.Set_Exit_Status
+      Posix_Tools.Process_Entry.Complete
         (Integer (Sed.Status.Status_Of (Sed.Status.Internal_Failure)));
 end Sed_Main;
