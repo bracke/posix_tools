@@ -803,7 +803,7 @@ tests/src/grep_command_tests.adb bytes= 16789 fnv1a64=554e68f232e803d9
 tests/src/grep_command_tests.ads bytes= 897 fnv1a64=a0b570d54245e7e5
 tests/src/integration_smoke-catalogs.adb bytes= 7050 fnv1a64=d7820db0562ecd86
 tests/src/integration_smoke-catalogs.ads bytes= 96 fnv1a64=e2f47603d802c5c9
-tests/src/integration_smoke.adb bytes= 27866 fnv1a64=0cf1d32f4095b78f
+tests/src/integration_smoke.adb bytes= 27833 fnv1a64=3f60afc00e4022c8
 tests/src/integration_smoke.ads bytes= 178 fnv1a64=b0150042551fd289
 tests/src/metadata_checks-ada_lexing.adb bytes= 2728 fnv1a64=bab3e5fc1546e2b8
 tests/src/metadata_checks-ada_lexing.ads bytes= 606 fnv1a64=ddcffc08cad4a540

@@ -172,7 +172,6 @@ package body Integration_Smoke is
 
       Smoke_File : constant String :=
         Test_Support.Work_Path ("executable-smoke.txt");
-      Smoke_Leaf : constant String := "executable-smoke.txt";
 
       procedure Expect_File (Label, Path, Expected_Content : String) is
       begin
@@ -252,7 +251,7 @@ package body Integration_Smoke is
          Built_Command_Path ("basename"),
          Project_Tools.Processes.Arguments ([Project_Tools.Processes.Argument (Smoke_File)]),
          0,
-         Smoke_Leaf & LF);
+         Posix_Tools.Paths.Basename (Smoke_File) & LF);
 
       Expect_Output
         ("cat executable data",
