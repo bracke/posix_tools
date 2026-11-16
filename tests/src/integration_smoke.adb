@@ -3,6 +3,7 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Integration_Smoke.Catalogs;
 with Posix_Tools.Command_Inventory;
+with Posix_Tools.Host_Adapters.Host;
 with Posix_Tools.Paths;
 with Posix_Tools.Version;
 with Project_Tools.Files;
@@ -13,9 +14,21 @@ with Test_Support;
 
 package body Integration_Smoke is
    use Tooling_Support;
+   use type Posix_Tools.Host_Adapters.Host.Host_Kind;
 
    procedure Run is
       use Ada.Strings.Unbounded;
+
+      procedure Trace (Label : String) is
+      begin
+         if Posix_Tools.Host_Adapters.Host.Current
+           = Posix_Tools.Host_Adapters.Host.Windows
+         then
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error, "integration smoke: " & Label);
+            Ada.Text_IO.Flush (Ada.Text_IO.Standard_Error);
+         end if;
+      end Trace;
 
       procedure Expect_Output
         (Label           : String;
@@ -24,26 +37,31 @@ package body Integration_Smoke is
          Expected_Status : Integer;
          Expected_Output : String)
       is
-         Captured : constant Project_Tools.Processes.Captured_Process :=
-           Capture_Within (Label, Program, Args);
       begin
-         if Captured.Status /= Expected_Status then
-            --  Run it again with its errors kept: a crash says why on stderr.
-            declare
-               Again : constant Project_Tools.Processes.Captured_Process :=
-                 Capture_Within (Label & " with its errors", Program, Args, Err_To_Out => True);
-            begin
-               Ada.Text_IO.Put_Line (To_String (Again.Output));
-            end;
-            Tooling_Checks.Fail
-              (Label & " returned status" & Integer'Image (Captured.Status)
-               & " instead of" & Integer'Image (Expected_Status));
-         elsif To_String (Captured.Output) /= Expected_Output then
-            Tooling_Checks.Fail
-              (Label & " produced unexpected output: expected """
-               & Display_Output (Expected_Output) & """ actual """
-               & Display_Output (To_String (Captured.Output)) & """");
-         end if;
+         Trace (Label);
+         declare
+            Captured : constant Project_Tools.Processes.Captured_Process :=
+              Capture_Within (Label, Program, Args);
+         begin
+            if Captured.Status /= Expected_Status then
+               --  Run it again with its errors kept: a crash says why on stderr.
+               declare
+                  Again : constant Project_Tools.Processes.Captured_Process :=
+                    Capture_Within
+                      (Label & " with its errors", Program, Args, Err_To_Out => True);
+               begin
+                  Ada.Text_IO.Put_Line (To_String (Again.Output));
+               end;
+               Tooling_Checks.Fail
+                 (Label & " returned status" & Integer'Image (Captured.Status)
+                  & " instead of" & Integer'Image (Expected_Status));
+            elsif To_String (Captured.Output) /= Expected_Output then
+               Tooling_Checks.Fail
+                 (Label & " produced unexpected output: expected """
+                  & Display_Output (Expected_Output) & """ actual """
+                  & Display_Output (To_String (Captured.Output)) & """");
+            end if;
+         end;
       end Expect_Output;
 
       procedure Expect_Nonempty_Line
@@ -51,16 +69,22 @@ package body Integration_Smoke is
          Program : String;
          Args    : Project_Tools.Processes.Argument_Vectors.Vector)
       is
-         Captured : constant Project_Tools.Processes.Captured_Process :=
-           Capture_Within (Label, Program, Args);
-         Output : constant String := To_String (Captured.Output);
       begin
-         if Captured.Status /= 0 then
-            Tooling_Checks.Fail
-              (Label & " returned status" & Integer'Image (Captured.Status));
-         elsif Output'Length <= 1 or else Output (Output'Last) /= Character'Val (10) then
-            Tooling_Checks.Fail (Label & " did not produce one nonempty line");
-         end if;
+         Trace (Label);
+         declare
+            Captured : constant Project_Tools.Processes.Captured_Process :=
+              Capture_Within (Label, Program, Args);
+            Output : constant String := To_String (Captured.Output);
+         begin
+            if Captured.Status /= 0 then
+               Tooling_Checks.Fail
+                 (Label & " returned status" & Integer'Image (Captured.Status));
+            elsif Output'Length <= 1
+              or else Output (Output'Last) /= Character'Val (10)
+            then
+               Tooling_Checks.Fail (Label & " did not produce one nonempty line");
+            end if;
+         end;
       end Expect_Nonempty_Line;
 
       procedure Expect_Output_With_Input
@@ -72,19 +96,24 @@ package body Integration_Smoke is
          Expected_Output : String;
          Err_To_Out      : Boolean := False)
       is
-         Captured : constant Project_Tools.Processes.Captured_Process :=
-           Capture_Within (Label, Program, Args, Input => Input, Err_To_Out => Err_To_Out);
       begin
-         if Captured.Status /= Expected_Status then
-            Tooling_Checks.Fail
-              (Label & " returned status" & Integer'Image (Captured.Status)
-               & " instead of" & Integer'Image (Expected_Status));
-         elsif To_String (Captured.Output) /= Expected_Output then
-            Tooling_Checks.Fail
-              (Label & " produced unexpected output: expected """
-               & Display_Output (Expected_Output) & """ actual """
-               & Display_Output (To_String (Captured.Output)) & """");
-         end if;
+         Trace (Label);
+         declare
+            Captured : constant Project_Tools.Processes.Captured_Process :=
+              Capture_Within
+                (Label, Program, Args, Input => Input, Err_To_Out => Err_To_Out);
+         begin
+            if Captured.Status /= Expected_Status then
+               Tooling_Checks.Fail
+                 (Label & " returned status" & Integer'Image (Captured.Status)
+                  & " instead of" & Integer'Image (Expected_Status));
+            elsif To_String (Captured.Output) /= Expected_Output then
+               Tooling_Checks.Fail
+                 (Label & " produced unexpected output: expected """
+                  & Display_Output (Expected_Output) & """ actual """
+                  & Display_Output (To_String (Captured.Output)) & """");
+            end if;
+         end;
       end Expect_Output_With_Input;
 
       LF : constant Character := Character'Val (10);
@@ -675,6 +704,7 @@ package body Integration_Smoke is
 
       Project_Tools.Files.Delete_File_If_Present (Smoke_File);
 
+      Trace ("catalog checks");
       Integration_Smoke.Catalogs.Run;
 
       Ada.Text_IO.Put_Line ("executable integration smoke checks passed");
