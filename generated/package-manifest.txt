@@ -876,7 +876,7 @@ tests/src/suite_filters.adb bytes= 6692 fnv1a64=a54c407990a58323
 tests/src/suite_filters.ads bytes= 2257 fnv1a64=de079dea310cedce
 tests/src/test_contexts.adb bytes= 35823 fnv1a64=3f345f73a986f802
 tests/src/test_contexts.ads bytes= 12939 fnv1a64=84dbdb571d40cadc
-tests/src/test_selection.adb bytes= 7771 fnv1a64=b13cc28a03e5438d
+tests/src/test_selection.adb bytes= 7693 fnv1a64=d03b5b7928639c18
 tests/src/test_selection.ads bytes= 973 fnv1a64=6203d78ee6a875cf
 tests/src/test_support.adb bytes= 10411 fnv1a64=65d0f34ae93e424f
 tests/src/test_support.ads bytes= 4110 fnv1a64=332cae059fed24e0

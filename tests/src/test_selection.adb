@@ -12,8 +12,6 @@ with Suite_Filters;
 with Test_Taxonomy;
 
 package body Test_Selection is
-   Invalid_Usage : exception;
-
    function Is_Root (Name : String) return Boolean is
      (Name = "root" or else Name = "posix-tools");
 
@@ -82,11 +80,10 @@ package body Test_Selection is
    function Canonical_Category_Match_Count (Test_Name : String) return Natural is
      (Test_Taxonomy.Canonical_Category_Match_Count (Test_Name));
 
-   procedure Usage_Error (Message : String) is
+   procedure Report_Usage_Error (Message : String) is
    begin
       Ada.Text_IO.Put_Line (Ada.Text_IO.Standard_Error, "posix_tools_tests: " & Message);
-      raise Invalid_Usage;
-   end Usage_Error;
+   end Report_Usage_Error;
 
    procedure Select_Group
      (Filter : in out Suite_Filters.Filter;
@@ -130,7 +127,10 @@ package body Test_Selection is
 
    --  A command's suite is its whole name, so that tr does not also
    --  select true.
-   procedure Select_Suite (Filter : in out Suite_Filters.Filter; Name : String) is
+   function Select_Suite
+     (Filter : in out Suite_Filters.Filter;
+      Name   : String) return Boolean
+   is
    begin
       if Has_Registered_Group (Name) then
          Select_Group (Filter, Name);
@@ -141,8 +141,11 @@ package body Test_Selection is
       then
          Suite_Filters.Set (Filter, "command:" & Name, Whole_Name => True);
       else
-         Usage_Error ("suite '" & Name & "' has no registered AUnit tests yet");
+         Report_Usage_Error
+           ("suite '" & Name & "' has no registered AUnit tests yet");
+         return False;
       end if;
+      return True;
    end Select_Suite;
 
    --  Test_Runner exits 0 however many assertions failed; Run takes the
@@ -177,18 +180,24 @@ package body Test_Selection is
                Listing := True;
                Index := Index + 1;
             elsif Option = "--suite" and then Index < Last then
-               Select_Suite (Filter, Ada.Command_Line.Argument (Index + 1));
+               if not Select_Suite
+                 (Filter, Ada.Command_Line.Argument (Index + 1))
+               then
+                  return 2;
+               end if;
                Index := Index + 2;
             elsif Option = "--category" and then Index < Last then
                if not Is_Category (Ada.Command_Line.Argument (Index + 1)) then
-                  Usage_Error
+                  Report_Usage_Error
                     ("category '" & Ada.Command_Line.Argument (Index + 1) & "' has no registered AUnit tests yet");
+                  return 2;
                end if;
                Select_Category
                  (Filter, Ada.Command_Line.Argument (Index + 1));
                Index := Index + 2;
             else
-               Usage_Error ("invalid test option '" & Option & "'");
+               Report_Usage_Error ("invalid test option '" & Option & "'");
+               return 2;
             end if;
          end;
       end loop;
@@ -207,11 +216,5 @@ package body Test_Selection is
       begin
          return (if Outcome = AUnit.Success then 0 else 1);
       end;
-   exception
-      when Invalid_Usage =>
-         --  Convert parser control flow to an ordinary result before the
-         --  process entry point chooses its exit mechanism.  In particular,
-         --  Windows must not terminate while an Ada exception is active.
-         return 2;
    end Run;
 end Test_Selection;
