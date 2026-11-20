@@ -160,6 +160,12 @@ package body Integration_Smoke is
               "grep " & Posix_Tools.Version.Version_String & LF
               & "engine greplib" & LF
               & "license MIT" & LF;
+         elsif Command = "rg" then
+            return
+              "rg " & Posix_Tools.Version.Version_String & LF
+              & "engine regexp" & LF
+              & "compatibility reference ripgrep 15.2.0" & LF
+              & "license MIT" & LF;
          elsif Command = "sed" then
             return
               "sed " & Posix_Tools.Version.Version_String & LF

@@ -1,0 +1,28 @@
+with "../../common/posix_tools_common.gpr";
+with "../../../regexp/regexp.gpr";
+with "../../../versionlib/versionlib.gpr";
+with "../../../greplib/greplib.gpr";
+with "../../../messages/messages.gpr";
+with "../../../terminal_styles/terminal_styles.gpr";
+
+project Posix_Tools_Rg is
+   for Source_Dirs use ("src", "src/library");
+   for Object_Dir use "obj/rg";
+   for Exec_Dir use "bin";
+   for Main use ("rg.adb");
+   for Languages use ("Ada");
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-O2", "-g", "-gnat2022", "-gnata", "-gnatwa", "-gnatw.X",
+         "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe");
+   end Compiler;
+
+   package Builder is
+      for Global_Compilation_Switches ("Ada") use ("-O2");
+   end Builder;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+end Posix_Tools_Rg;

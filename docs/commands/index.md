@@ -55,6 +55,7 @@ V1 command references:
 - [pwd](pwd.md)
 - [readlink](readlink.md)
 - [realpath](realpath.md)
+- [rg](rg.md)
 - [rm](rm.md)
 - [rmdir](rmdir.md)
 - [seq](seq.md)

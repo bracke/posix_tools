@@ -54,6 +54,7 @@ with Posix_Tools.Commands.Printf;
 with Posix_Tools.Commands.Pwd;
 with Posix_Tools.Commands.Readlink;
 with Posix_Tools.Commands.Realpath;
+with Posix_Tools.Commands.Rg;
 with Posix_Tools.Commands.Rm;
 with Posix_Tools.Commands.Rmdir;
 with Posix_Tools.Commands.Run_Entry;
@@ -147,6 +148,7 @@ package body Command_Tests.Dispatch is
    procedure Run_Pwd is new Posix_Tools.Commands.Run_Entry ("pwd", Posix_Tools.Commands.Pwd.Run);
    procedure Run_Readlink is new Posix_Tools.Commands.Run_Entry ("readlink", Posix_Tools.Commands.Readlink.Run);
    procedure Run_Realpath is new Posix_Tools.Commands.Run_Entry ("realpath", Posix_Tools.Commands.Realpath.Run);
+   procedure Run_Rg is new Posix_Tools.Commands.Run_Entry ("rg", Posix_Tools.Commands.Rg.Run);
    procedure Run_Rm is new Posix_Tools.Commands.Run_Entry ("rm", Posix_Tools.Commands.Rm.Run);
    procedure Run_Rmdir is new Posix_Tools.Commands.Run_Entry ("rmdir", Posix_Tools.Commands.Rmdir.Run);
    procedure Run_Seq is new Posix_Tools.Commands.Run_Entry ("seq", Posix_Tools.Commands.Seq.Run);
@@ -228,6 +230,7 @@ package body Command_Tests.Dispatch is
       (+"pwd", +"Posix_Tools.Commands.Pwd", Run_Pwd'Access),
       (+"readlink", +"Posix_Tools.Commands.Readlink", Run_Readlink'Access),
       (+"realpath", +"Posix_Tools.Commands.Realpath", Run_Realpath'Access),
+      (+"rg", +"Posix_Tools.Commands.Rg", Run_Rg'Access),
       (+"rm", +"Posix_Tools.Commands.Rm", Run_Rm'Access),
       (+"rmdir", +"Posix_Tools.Commands.Rmdir", Run_Rmdir'Access),
       (+"seq", +"Posix_Tools.Commands.Seq", Run_Seq'Access),
@@ -276,7 +279,7 @@ package body Command_Tests.Dispatch is
       function Same_Natural (Left, Right : Natural) return Boolean is
         (Left = Right);
    begin
-      AUnit.Assertions.Assert (Same_Natural (Inventory.Command_Count, 78), "inventory count");
+      AUnit.Assertions.Assert (Same_Natural (Inventory.Command_Count, 79), "inventory count");
       AUnit.Assertions.Assert (Inventory.Executable (1) = "arch", "first command");
       AUnit.Assertions.Assert (Inventory.Executable (2) = "awk", "awk command");
       AUnit.Assertions.Assert (Inventory.Executable (21) = "explore", "explore command");
@@ -286,24 +289,26 @@ package body Command_Tests.Dispatch is
       AUnit.Assertions.Assert
         (Inventory.Wrapper_Path (3) = "tools/basename/src/basename.adb", "wrapper path");
       AUnit.Assertions.Assert
-        (Inventory.Wrapper_Path (56) = "tools/sed/src/sed_main.adb", "sed wrapper path");
+        (Inventory.Wrapper_Path (57) = "tools/sed/src/sed_main.adb", "sed wrapper path");
       AUnit.Assertions.Assert (Inventory.Executable (29) = "grep", "grep command");
-      AUnit.Assertions.Assert (Inventory.Executable (56) = "sed", "sed command");
-      AUnit.Assertions.Assert (Inventory.Executable (72) = "unlink", "unlink command");
-      AUnit.Assertions.Assert (Inventory.Executable (78) = "yes", "last command");
+      AUnit.Assertions.Assert (Inventory.Executable (53) = "rg", "rg command");
+      AUnit.Assertions.Assert (Inventory.Executable (57) = "sed", "sed command");
+      AUnit.Assertions.Assert (Inventory.Executable (73) = "unlink", "unlink command");
+      AUnit.Assertions.Assert (Inventory.Executable (79) = "yes", "last command");
       AUnit.Assertions.Assert
         (Inventory.Manifest_Path (3) = "tools/basename/alire.toml", "manifest path");
       AUnit.Assertions.Assert
-        (Inventory.Project_File_Path (74) = "tools/wc/posix_tools_wc.gpr", "project file path");
+        (Inventory.Project_File_Path (75) = "tools/wc/posix_tools_wc.gpr", "project file path");
       AUnit.Assertions.Assert
-        (Inventory.Documentation_Path (62) = "docs/commands/tail.md", "documentation path");
+        (Inventory.Documentation_Path (63) = "docs/commands/tail.md", "documentation path");
       AUnit.Assertions.Assert
         (Inventory.Has_Help (1) and then Inventory.Has_Version (1)
          and then Inventory.Has_Identity (1),
          "extension flags");
       AUnit.Assertions.Assert
-        (Inventory.Posix_Status (60) = "conforming_with_extensions"
-         and then Inventory.Posix_Status (74) = "conforming_with_extensions",
+        (Inventory.Posix_Status (53) = "non_posix_extension"
+         and then Inventory.Posix_Status (61) = "conforming_with_extensions"
+         and then Inventory.Posix_Status (75) = "conforming_with_extensions",
          "conformance status values");
    end Test_Command_Inventory;
 

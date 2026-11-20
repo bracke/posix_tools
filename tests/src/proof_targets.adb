@@ -22,6 +22,8 @@ procedure Proof_Targets (Gnatprove : String) is
       (To_Unbounded_String ("posix_tools.text.whitespace_data"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.streams.counting"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.counts"), To_Unbounded_String ("1")),
+      (To_Unbounded_String ("posix_tools.rg_arithmetic"), To_Unbounded_String ("1")),
+      (To_Unbounded_String ("posix_tools.rg_parallel"), To_Unbounded_String ("2")),
       (To_Unbounded_String ("posix_tools.tail_rings"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.tail_counts"), To_Unbounded_String ("1")),
       (To_Unbounded_String ("posix_tools.wc_fields"), To_Unbounded_String ("1")),

@@ -21,6 +21,24 @@ with Command_Tests.Surface_Smoke.Text;
 with Command_Tests.Surface_Smoke.Text.Sort_Cases;
 with File_Command_Tests;
 with Grep_Command_Tests;
+with Rg_Command_Tests;
+with Rg_Color_Tests;
+with Rg_Context_Tests;
+with Rg_Diagnostic_Tests;
+with Rg_Differential_Tests;
+with Rg_Encoding_Tests;
+with Rg_Follow_Tests;
+with Rg_Heading_Tests;
+with Rg_Input_Tests;
+with Rg_Json_Tests;
+with Rg_Multiline_Tests;
+with Rg_Null_Tests;
+with Rg_Replace_Tests;
+with Rg_Robustness_Tests;
+with Rg_Sort_Tests;
+with Rg_Stats_Tests;
+with Rg_Unicode_Tests;
+with Rg_Worker_Tests;
 
 package body Command_Tests.Suite_Entries is
    use Command_Tests.Diagnostic_Tests;
@@ -35,6 +53,24 @@ package body Command_Tests.Suite_Entries is
    package Caller is new AUnit.Test_Caller (Command_Tests.Fixture);
    package File_Caller is new AUnit.Test_Caller (File_Command_Tests.Fixture);
    package Grep_Caller is new AUnit.Test_Caller (Grep_Command_Tests.Fixture);
+   package Rg_Caller is new AUnit.Test_Caller (Rg_Command_Tests.Fixture);
+   package Rg_Color_Caller is new AUnit.Test_Caller (Rg_Color_Tests.Fixture);
+   package Rg_Context_Caller is new AUnit.Test_Caller (Rg_Context_Tests.Fixture);
+   package Rg_Diagnostic_Caller is new AUnit.Test_Caller (Rg_Diagnostic_Tests.Fixture);
+   package Rg_Differential_Caller is new AUnit.Test_Caller (Rg_Differential_Tests.Fixture);
+   package Rg_Encoding_Caller is new AUnit.Test_Caller (Rg_Encoding_Tests.Fixture);
+   package Rg_Follow_Caller is new AUnit.Test_Caller (Rg_Follow_Tests.Fixture);
+   package Rg_Heading_Caller is new AUnit.Test_Caller (Rg_Heading_Tests.Fixture);
+   package Rg_Input_Caller is new AUnit.Test_Caller (Rg_Input_Tests.Fixture);
+   package Rg_Json_Caller is new AUnit.Test_Caller (Rg_Json_Tests.Fixture);
+   package Rg_Multiline_Caller is new AUnit.Test_Caller (Rg_Multiline_Tests.Fixture);
+   package Rg_Null_Caller is new AUnit.Test_Caller (Rg_Null_Tests.Fixture);
+   package Rg_Replace_Caller is new AUnit.Test_Caller (Rg_Replace_Tests.Fixture);
+   package Rg_Robustness_Caller is new AUnit.Test_Caller (Rg_Robustness_Tests.Fixture);
+   package Rg_Sort_Caller is new AUnit.Test_Caller (Rg_Sort_Tests.Fixture);
+   package Rg_Stats_Caller is new AUnit.Test_Caller (Rg_Stats_Tests.Fixture);
+   package Rg_Unicode_Caller is new AUnit.Test_Caller (Rg_Unicode_Tests.Fixture);
+   package Rg_Worker_Caller is new AUnit.Test_Caller (Rg_Worker_Tests.Fixture);
    package Surface_Caller is new AUnit.Test_Caller (Command_Tests.Surface_Smoke.Surface_Fixture);
 
    --  The file commands' tests, each under the command it holds to POSIX.
@@ -42,6 +78,9 @@ package body Command_Tests.Suite_Entries is
 
    --  grep's tests, run through a capturing context.
    procedure Register_Grep (Result : AUnit.Test_Suites.Access_Test_Suite);
+
+   --  rg's command and pattern-adapter tests.
+   procedure Register_Rg (Result : AUnit.Test_Suites.Access_Test_Suite);
 
    --  The command surface tests, one per command or small family, in the
    --  order the single surface test they replace ran them.
@@ -151,6 +190,138 @@ package body Command_Tests.Suite_Entries is
       AUnit.Test_Suites.Add_Test
         (Result, Grep_Caller.Create ("command:grep event rendering", T.Test_Event_Rendering'Access));
    end Register_Grep;
+
+   procedure Register_Rg (Result : AUnit.Test_Suites.Access_Test_Suite) is
+      package T renames Rg_Command_Tests;
+   begin
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Caller.Create
+           ("command:rg help and version",
+            Rg_Command_Tests.Test_Help_And_Version'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg pattern adapter", T.Test_Pattern_Adapter'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg default syntax policy", T.Test_Default_Syntax_Policy'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Differential_Caller.Create
+           ("command:rg ripgrep 15.2.0 differential",
+            Rg_Differential_Tests.Test_Reference_Differential'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Caller.Create
+           ("command:rg option parsing",
+            Rg_Command_Tests.Test_Option_Parsing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Diagnostic_Caller.Create
+           ("command:rg diagnostics",
+            Rg_Diagnostic_Tests.Test_Diagnostics'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Robustness_Caller.Create
+           ("command:rg fault handling",
+            Rg_Robustness_Tests.Test_Faults'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Robustness_Caller.Create
+           ("property:rg fixed strings",
+            Rg_Robustness_Tests.Test_Fixed_String_Property'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Worker_Caller.Create
+           ("command:rg parallel workers",
+            Rg_Worker_Tests.Test_Parallel_Search'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg sequential search", T.Test_Sequential_Search'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg pattern files", T.Test_Pattern_Files'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg ignore policy", T.Test_Ignore_Policy'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg ignore controls", T.Test_Ignore_Controls'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg recursive traversal", T.Test_Recursive_Traversal'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg file listing", T.Test_File_Listing'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg glob filtering", T.Test_Glob_Filtering'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg file types", T.Test_File_Types'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg rendering", T.Test_Rendering'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Context_Caller.Create
+           ("command:rg context output", Rg_Context_Tests.Test_Context_Output'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Follow_Caller.Create
+           ("command:rg symbolic-link traversal", Rg_Follow_Tests.Test_Follow_Links'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Follow_Caller.Create
+           ("command:rg file-system boundary", Rg_Follow_Tests.Test_One_File_System'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Heading_Caller.Create
+           ("command:rg heading output", Rg_Heading_Tests.Test_Heading_Output'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg selection controls", T.Test_Selection_Controls'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg result modes", T.Test_Result_Modes'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result, Rg_Caller.Create ("command:rg match result modes", T.Test_Match_Result_Modes'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Unicode_Caller.Create
+           ("command:rg Unicode case", Rg_Unicode_Tests.Test_Unicode_Case'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Input_Caller.Create
+           ("command:rg binary controls", Rg_Input_Tests.Test_Binary_Controls'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Input_Caller.Create
+           ("command:rg input encoding", Rg_Input_Tests.Test_Encoding'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Encoding_Caller.Create
+           ("command:rg encoding surface", Rg_Encoding_Tests.Test_Encoding_Surface'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Input_Caller.Create
+           ("command:rg maximum file size", Rg_Input_Tests.Test_Max_File_Size'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Multiline_Caller.Create
+           ("command:rg multiline search", Rg_Multiline_Tests.Test_Multiline_Search'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Null_Caller.Create
+           ("command:rg NUL modes", Rg_Null_Tests.Test_Nul_Modes'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Replace_Caller.Create
+           ("command:rg replacement output", Rg_Replace_Tests.Test_Replacement_Output'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Sort_Caller.Create
+           ("command:rg path sorting", Rg_Sort_Tests.Test_Path_Sorting'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Stats_Caller.Create
+           ("command:rg statistics", Rg_Stats_Tests.Test_Statistics'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Color_Caller.Create
+           ("command:rg color output", Rg_Color_Tests.Test_Color_Output'Access));
+      AUnit.Test_Suites.Add_Test
+        (Result,
+         Rg_Json_Caller.Create
+           ("command:rg JSON output", Rg_Json_Tests.Test_Json_Output'Access));
+   end Register_Rg;
 
    procedure Register_Surface_Commands (Result : AUnit.Test_Suites.Access_Test_Suite) is
       package Data renames Command_Tests.Surface_Smoke.Data;
@@ -353,6 +524,7 @@ package body Command_Tests.Suite_Entries is
             Command_Tests.Surface_Smoke.Host.Test_Internal_Error_Diagnostics'Access));
       Register_File_Commands (Result);
       Register_Grep (Result);
+      Register_Rg (Result);
       AUnit.Test_Suites.Add_Test (Result, Caller.Create ("command:basename", Test_Basename'Access));
       AUnit.Test_Suites.Add_Test
         (Result, Caller.Create ("command:basename edge cases", Test_Basename_Edge_Cases'Access));

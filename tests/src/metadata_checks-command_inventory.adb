@@ -60,6 +60,8 @@ package body Metadata_Checks.Command_Inventory is
          elsif Executable = "grep" then
             --  grep's command package is in its own crate, beside greplib.
             return "tools/grep/src/library/posix_tools-commands-grep.adb";
+         elsif Executable = "rg" then
+            return "tools/rg/src/library/posix_tools-commands-rg.adb";
          elsif Executable = "false" then
             return "common/src/posix_tools-commands-false_command.adb";
          elsif Executable = "true" then
@@ -136,6 +138,7 @@ package body Metadata_Checks.Command_Inventory is
          end if;
          if Posix_Tools.Command_Inventory.Executable (I) /= "awk"
            and then Posix_Tools.Command_Inventory.Executable (I) /= "grep"
+           and then Posix_Tools.Command_Inventory.Executable (I) /= "rg"
            and then Posix_Tools.Command_Inventory.Executable (I) /= "sed"
          then
             Forbid_Text

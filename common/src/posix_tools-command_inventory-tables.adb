@@ -109,56 +109,58 @@ is
          when 52 =>
             return "realpath";
          when 53 =>
-            return "rm";
+            return "rg";
          when 54 =>
-            return "rmdir";
+            return "rm";
          when 55 =>
-            return "seq";
+            return "rmdir";
          when 56 =>
-            return "sed";
+            return "seq";
          when 57 =>
-            return "sha256sum";
+            return "sed";
          when 58 =>
-            return "sleep";
+            return "sha256sum";
          when 59 =>
-            return "split";
+            return "sleep";
          when 60 =>
-            return "stat";
+            return "split";
          when 61 =>
-            return "sort";
+            return "stat";
          when 62 =>
-            return "tail";
+            return "sort";
          when 63 =>
-            return "tee";
+            return "tail";
          when 64 =>
-            return "test";
+            return "tee";
          when 65 =>
-            return "timeout";
+            return "test";
          when 66 =>
-            return "touch";
+            return "timeout";
          when 67 =>
-            return "tr";
+            return "touch";
          when 68 =>
-            return "true";
+            return "tr";
          when 69 =>
-            return "tty";
+            return "true";
          when 70 =>
-            return "unexpand";
+            return "tty";
          when 71 =>
-            return "uname";
+            return "unexpand";
          when 72 =>
-            return "unlink";
+            return "uname";
          when 73 =>
-            return "uniq";
+            return "unlink";
          when 74 =>
-            return "wc";
+            return "uniq";
          when 75 =>
-            return "which";
+            return "wc";
          when 76 =>
-            return "whoami";
+            return "which";
          when 77 =>
-            return "xargs";
+            return "whoami";
          when 78 =>
+            return "xargs";
+         when 79 =>
             return "yes";
          when others =>
             raise Constraint_Error;
@@ -278,56 +280,58 @@ is
          when 52 =>
             return "Posix_Tools.Commands.Realpath";
          when 53 =>
-            return "Posix_Tools.Commands.Rm";
+            return "Posix_Tools.Commands.Rg";
          when 54 =>
-            return "Posix_Tools.Commands.Rmdir";
+            return "Posix_Tools.Commands.Rm";
          when 55 =>
-            return "Posix_Tools.Commands.Seq";
+            return "Posix_Tools.Commands.Rmdir";
          when 56 =>
-            return "Sed";
+            return "Posix_Tools.Commands.Seq";
          when 57 =>
-            return "Posix_Tools.Commands.Sha256sum";
+            return "Sed";
          when 58 =>
-            return "Posix_Tools.Commands.Sleep";
+            return "Posix_Tools.Commands.Sha256sum";
          when 59 =>
-            return "Posix_Tools.Commands.Split";
+            return "Posix_Tools.Commands.Sleep";
          when 60 =>
-            return "Posix_Tools.Commands.Stat";
+            return "Posix_Tools.Commands.Split";
          when 61 =>
-            return "Posix_Tools.Commands.Sort";
+            return "Posix_Tools.Commands.Stat";
          when 62 =>
-            return "Posix_Tools.Commands.Tail";
+            return "Posix_Tools.Commands.Sort";
          when 63 =>
-            return "Posix_Tools.Commands.Tee";
+            return "Posix_Tools.Commands.Tail";
          when 64 =>
-            return "Posix_Tools.Commands.Test_Command";
+            return "Posix_Tools.Commands.Tee";
          when 65 =>
-            return "Posix_Tools.Commands.Timeout";
+            return "Posix_Tools.Commands.Test_Command";
          when 66 =>
-            return "Posix_Tools.Commands.Touch";
+            return "Posix_Tools.Commands.Timeout";
          when 67 =>
-            return "Posix_Tools.Commands.Tr";
+            return "Posix_Tools.Commands.Touch";
          when 68 =>
-            return "Posix_Tools.Commands.True_Command";
+            return "Posix_Tools.Commands.Tr";
          when 69 =>
-            return "Posix_Tools.Commands.Tty";
+            return "Posix_Tools.Commands.True_Command";
          when 70 =>
-            return "Posix_Tools.Commands.Unexpand";
+            return "Posix_Tools.Commands.Tty";
          when 71 =>
-            return "Posix_Tools.Commands.Uname";
+            return "Posix_Tools.Commands.Unexpand";
          when 72 =>
-            return "Posix_Tools.Commands.Unlink";
+            return "Posix_Tools.Commands.Uname";
          when 73 =>
-            return "Posix_Tools.Commands.Uniq";
+            return "Posix_Tools.Commands.Unlink";
          when 74 =>
-            return "Posix_Tools.Commands.Wc";
+            return "Posix_Tools.Commands.Uniq";
          when 75 =>
-            return "Posix_Tools.Commands.Which";
+            return "Posix_Tools.Commands.Wc";
          when 76 =>
-            return "Posix_Tools.Commands.Whoami";
+            return "Posix_Tools.Commands.Which";
          when 77 =>
-            return "Posix_Tools.Commands.Xargs";
+            return "Posix_Tools.Commands.Whoami";
          when 78 =>
+            return "Posix_Tools.Commands.Xargs";
+         when 79 =>
             return "Posix_Tools.Commands.Yes";
          when others =>
             raise Constraint_Error;
@@ -335,8 +339,10 @@ is
    end Package_Name;
 
    function Posix_Status (Index : Positive) return String is
-      pragma Unreferenced (Index);
    begin
-      return "conforming_with_extensions";
+      return
+        (if Executable (Index) = "rg"
+         then "non_posix_extension"
+         else "conforming_with_extensions");
    end Posix_Status;
 end Posix_Tools.Command_Inventory.Tables;

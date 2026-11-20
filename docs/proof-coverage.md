@@ -278,6 +278,17 @@ The static command inventory data is proved in
 executable names, crate names, package names, generated manifest paths,
 generated project-file paths, documentation paths, and POSIX status strings
 while delegating the repetitive command table cases to the child package.
+Saturating counters used by `rg` for match, line, file, byte, and parallel
+worker statistics are proved in `Posix_Tools.Rg_Arithmetic`:
+
+- `posix_tools.rg_arithmetic`
+
+The bounded worker selection and protected work-queue state transitions used
+by `rg` are proved in `Posix_Tools.Rg_Parallel`. Its contracts cover the
+one-to-64 worker bound, unique in-range job delivery, exhaustion, and monotonic
+cancellation state:
+
+- `posix_tools.rg_parallel`
 
 Each command runs from its own package through its own thin wrapper; there is
 no shared command dispatcher. That keeps non-SPARK command algorithms smaller

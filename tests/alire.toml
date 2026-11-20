@@ -20,6 +20,12 @@ project_tools = "*"
 [[depends-on]]
 greplib = "*"
 
+[[depends-on]]
+regexp = "*"
+
+[[depends-on]]
+versionlib = "*"
+
 [[pins]]
 posix_tools_common = { path = "../common" }
 
@@ -28,6 +34,12 @@ project_tools = { path = "../../project_tools" }
 
 [[pins]]
 greplib = { path = "../../greplib" }
+
+[[pins]]
+regexp = { path = "../../regexp" }
+
+[[pins]]
+versionlib = { path = "../../versionlib" }
 
 [build-profiles]
 "*" = "development"

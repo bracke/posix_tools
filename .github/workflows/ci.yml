@@ -90,6 +90,20 @@ jobs:
           ref: f660333a314f3c610bb255478ac86656e2fd0c4c
           path: regexp
 
+      - name: Check out versionlib
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: bracke/versionlib
+          ref: 2d6f12d2618ef82a90350cf061b73a66b2c8eb3f
+          path: versionlib
+
+      - name: Check out sshlib
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: bracke/sshlib
+          ref: 4c9cc984f1bd1ce9d54b79f347df32fba7dba1fc
+          path: sshlib
+
       - name: Check out httpclient
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -182,6 +196,21 @@ jobs:
 
       - name: Build Ada test/tooling crate
         run: alr -n build
+        working-directory: posix_tools/tests
+        shell: bash
+
+      - name: Build race-instrumented rg tests
+        if: runner.os == 'Linux'
+        run: RG_RACE_CHECK=true alr -n build
+        working-directory: posix_tools/tests
+        shell: bash
+
+      - name: Run rg tests under ThreadSanitizer
+        if: runner.os == 'Linux'
+        run: >-
+          TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1
+          setarch "$(uname -m)" -R
+          ./bin/tsan/posix_tools_tests test --suite rg
         working-directory: posix_tools/tests
         shell: bash
 

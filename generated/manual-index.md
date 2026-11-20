@@ -54,6 +54,7 @@ Version: 0.1.0
 - `pwd`: docs/commands/pwd.md
 - `readlink`: docs/commands/readlink.md
 - `realpath`: docs/commands/realpath.md
+- `rg`: docs/commands/rg.md
 - `rm`: docs/commands/rm.md
 - `rmdir`: docs/commands/rmdir.md
 - `seq`: docs/commands/seq.md

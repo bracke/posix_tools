@@ -56,6 +56,7 @@ V1 inventory:
 - `pwd`
 - `readlink`
 - `realpath`
+- `rg` (non-POSIX extension; bounded parallel search with hierarchical ignore and binary-input policies)
 - `rm`
 - `rmdir`
 - `seq`

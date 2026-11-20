@@ -23,10 +23,10 @@ separate (Command_Tests.Root_Tests)
             AUnit.Assertions.Assert
               (Root_Result.Status = Posix_Tools.Exit_Status.Success,
                "root help status for " & Command);
-            --  grep writes its own option summary, as its executable always
-            --  has; the root names only its shared metadata.
+            --  Search commands write their own option summaries; the root
+            --  names only their shared metadata.
             AUnit.Assertions.Assert
-              (Command = "grep"
+              (Command = "grep" or else Command = "rg"
                or else Test_Contexts.Output (Root_Context) = Test_Contexts.Output (Direct_Context),
                "root help must match direct help for " & Command);
             AUnit.Assertions.Assert

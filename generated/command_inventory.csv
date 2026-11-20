@@ -51,6 +51,7 @@ printf,posix_tools_printf,Posix_Tools.Commands.Printf,tools/printf/alire.toml,to
 pwd,posix_tools_pwd,Posix_Tools.Commands.Pwd,tools/pwd/alire.toml,tools/pwd/posix_tools_pwd.gpr,docs/commands/pwd.md,true,conforming_with_extensions,true,true,true
 readlink,posix_tools_readlink,Posix_Tools.Commands.Readlink,tools/readlink/alire.toml,tools/readlink/posix_tools_readlink.gpr,docs/commands/readlink.md,true,conforming_with_extensions,true,true,true
 realpath,posix_tools_realpath,Posix_Tools.Commands.Realpath,tools/realpath/alire.toml,tools/realpath/posix_tools_realpath.gpr,docs/commands/realpath.md,true,conforming_with_extensions,true,true,true
+rg,posix_tools_rg,Posix_Tools.Commands.Rg,tools/rg/alire.toml,tools/rg/posix_tools_rg.gpr,docs/commands/rg.md,true,non_posix_extension,true,true,true
 rm,posix_tools_rm,Posix_Tools.Commands.Rm,tools/rm/alire.toml,tools/rm/posix_tools_rm.gpr,docs/commands/rm.md,true,conforming_with_extensions,true,true,true
 rmdir,posix_tools_rmdir,Posix_Tools.Commands.Rmdir,tools/rmdir/alire.toml,tools/rmdir/posix_tools_rmdir.gpr,docs/commands/rmdir.md,true,conforming_with_extensions,true,true,true
 seq,posix_tools_seq,Posix_Tools.Commands.Seq,tools/seq/alire.toml,tools/seq/posix_tools_seq.gpr,docs/commands/seq.md,true,conforming_with_extensions,true,true,true

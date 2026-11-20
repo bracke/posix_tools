@@ -7,10 +7,13 @@ separate (Command_Tests.Locale_Tests)
       LF      : constant Character := Character'Val (10);
 
       procedure Check_Command (Command, Locale, Label : String) is
-         --  grep names its engine and license, as its executable always has.
+         --  Search commands also identify their engines.
          Expected : constant String :=
            (if Command = "grep"
             then "grep " & Posix_Tools.Version.Version_String & LF & "engine greplib" & LF & "license MIT" & LF
+            elsif Command = "rg"
+            then "rg " & Posix_Tools.Version.Version_String & LF & "engine regexp" & LF
+              & "compatibility reference ripgrep 15.2.0" & LF & "license MIT" & LF
             else Command & " (posix-tools) " & Posix_Tools.Version.Version_String & LF);
       begin
          Context.Initialize (Command, One_Arg ("--version"));

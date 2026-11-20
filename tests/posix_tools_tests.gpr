@@ -2,19 +2,46 @@ with "../common/posix_tools_common.gpr";
 with "aunit.gpr";
 with "../../project_tools/project_tools.gpr";
 with "../../greplib/greplib.gpr";
+with "../../regexp/regexp.gpr";
+with "../../versionlib/versionlib.gpr";
 
---  grep's command library is compiled straight into the test program, as
---  explore's is into its own: grep is an executable crate, and a test crate
---  may not depend on it.
+--  Executable-crate command libraries are compiled straight into the test
+--  program because a test crate may not depend on those executable crates.
 
 project Posix_Tools_Tests is
-   for Source_Dirs use ("src", "../tools/grep/src/library");
-   for Object_Dir use "obj/tests";
-   for Exec_Dir use "bin";
+   Race_Check := external ("RG_RACE_CHECK", "false");
+
+   for Source_Dirs use
+     ("src", "../tools/grep/src/library", "../tools/rg/src/library");
    for Main use ("posix_tools_tests.adb");
 
+   case Race_Check is
+      when "true" =>
+         for Object_Dir use "obj/tests-tsan";
+         for Exec_Dir use "bin/tsan";
+      when others =>
+         for Object_Dir use "obj/tests";
+         for Exec_Dir use "bin";
+   end case;
+
    package Compiler is
-      for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe");
+      case Race_Check is
+         when "true" =>
+            for Default_Switches ("Ada") use
+              ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe",
+               "-fsanitize=thread", "-fno-omit-frame-pointer", "-fPIE");
+         when others =>
+            for Default_Switches ("Ada") use
+              ("-gnat2022", "-gnata", "-gnatwa", "-gnaty3abcefhiklmnprtux", "-gnatyM120", "-gnatwe");
+      end case;
    end Compiler;
+
+   package Linker is
+      case Race_Check is
+         when "true" =>
+            for Switches ("posix_tools_tests.adb") use ("-fsanitize=thread", "-pie");
+         when others =>
+            null;
+      end case;
+   end Linker;
 end Posix_Tools_Tests;
